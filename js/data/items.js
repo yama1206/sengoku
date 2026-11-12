@@ -23,5 +23,17 @@
     kyo: { sake: 3, tea: 2, cotton: 1 }, akutagawa: { rice: 2 }, iimori: { rice: 2 }, shigisan: { firewood: 3 }, ishiyama: { rice: 2 },
     sakai: { iron: 2, cotton: 1, salt: 1 }, hyogo: { salt: 3 }, nara: { sake: 3 },
   };
-  SGK.DATA.settlements.forEach((s) => (s.prod = prod[s.id] || {}));
+  // 個別に決めていない拠点は種類で決める：村は米・薪を多く作り、町は品物を作り、城は周りの田畑から米・薪を少し
+  const EXTRA = ['salt', 'cotton', 'sake', 'iron', 'tea', 'salt', 'cotton', 'sake'];
+  const hash = (id, n) => { let h = n * 7919; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
+  const pickX = (id, n) => EXTRA[hash(id, n) % EXTRA.length];
+  function defProd(s) {
+    const o = {}, add = (k, v) => (o[k] = (o[k] || 0) + v);
+    if (s.type === 'village') { add('rice', 5); add('firewood', 6); add(pickX(s.id, 1), 4); add(pickX(s.id, 2), 3); }
+    else if (s.type === 'town') { add('rice', 1); add('firewood', 2); add(pickX(s.id, 1), 6); add(pickX(s.id, 2), 5); add(pickX(s.id, 3), 4); }
+    else { add('rice', 2); add('firewood', 4); add(pickX(s.id, 1), 2); add(pickX(s.id, 2), 1); }
+    return o;
+  }
+  SGK.DATA.defProd = defProd;
+  SGK.DATA.settlements.forEach((s) => (s.prod = prod[s.id] || defProd(s)));
 })();

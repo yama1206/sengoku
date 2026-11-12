@@ -148,8 +148,8 @@
           if (near.length) cands = near;
           if (!cands.length) cands = w.settlements.filter((s) => s.id !== n.at && Math.hypot(s.x - n.x, s.y - n.y) < 150);
           if (!cands.length) { n.wait = 600; continue; }
-          const s = cands[Math.floor(SIM.rand(w) * cands.length)];
           if (n.kind === 'merchant') SIM.merchantDepart(w, n, SIM.settlement(w, n.at));
+          const s = n.kind === 'merchant' ? SIM.merchantDest(w, n, cands) : cands[Math.floor(SIM.rand(w) * cands.length)];
           n.tx = s.x; n.ty = s.y; n.dest = s.id; n.at = null; n.path = SIM.findPath(n.x, n.y, s.x, s.y);
         } else if (moveEntity(n, dt)) {
           n.at = n.dest; n.dest = null; if (n.kind === 'merchant') SIM.merchantArrive(w, n, SIM.settlement(w, n.at)); n.wait = 120 + SIM.rand(w) * 480;

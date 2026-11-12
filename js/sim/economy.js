@@ -26,6 +26,7 @@
     for (const s of w.settlements) {
       const d = SGK.DATA.settlements.find((x) => x.id === s.id) || {};
       s.prod = s.prod || d.prod || {};
+      if (!Object.keys(s.prod).length) s.prod = JSON.parse(JSON.stringify(d.prod && Object.keys(d.prod).length ? d.prod : SGK.DATA.defProd(s))); // 古いセーブで生産のない拠点に付ける
       s.size = s.size || SIZE[s.type];
       s.stock = s.stock || {};
       for (const k in I()) if (s.stock[k] == null) s.stock[k] = target(s, k) * (0.6 + SIM.rand(w) * 0.8);
@@ -81,6 +82,7 @@
   function daily(w) {
     const now = w.time.min;
     for (const s of w.settlements) for (const k in I()) s.stock[k] = Math.max(0, s.stock[k] + (s.prod[k] || 0) - I()[k].cons * s.size);
+    share(w);
     for (const j of Object.values(w.jobs)) if (j.expires < now) delete w.jobs[j.id];
     for (const s of w.settlements) {
       const n = Object.values(w.jobs).filter((j) => j.from === s.id).length;
@@ -114,8 +116,36 @@
     if (!from) return;
     let best = null, br = 1.1;
     for (const k in I()) { const r = from.stock[k] / target(from, k); if (r > br) { br = r; best = k; } }
-    if (best) { const q = Math.min(8, Math.floor(from.stock[best] / 2)); from.stock[best] -= q; n.cargo = { item: best, qty: q }; }
+    if (best) { const q = Math.min(30, Math.floor(from.stock[best] - target(from, best) * 0.8)); if (q > 0) { from.stock[best] -= q; n.cargo = { item: best, qty: q }; } }
   };
+  // 行き先：積んだ品がいちばん足りない拠点を選びやすい（町を優先）
+  SIM.merchantDest = (w, n, cands) => {
+    if (!n.cargo) return cands[Math.floor(SIM.rand(w) * cands.length)];
+    let best = null, bs = -1;
+    for (const s of cands) { const sc = (target(s, n.cargo.item) / (s.stock[n.cargo.item] + 1)) * (s.type === 'town' ? 1.5 : 1) * (0.7 + SIM.rand(w) * 0.6); if (sc > bs) { bs = sc; best = s; } }
+    return best;
+  };
+  // 近くの拠点どうしで少しずつ融通しあう（街道のない城にも物が届くように）
+  let NB = null, NBn = 0;
+  function neighbors(w) {
+    if (NB && NBn === w.settlements.length) return NB;
+    NB = []; NBn = w.settlements.length; const L = w.settlements;
+    for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) if (Math.hypot(L[i].x - L[j].x, L[i].y - L[j].y) < 50) NB.push([i, j]);
+    return NB;
+  }
+  function share(w) {
+    const L = w.settlements;
+    for (const [i, j] of neighbors(w)) {
+      const a = L[i], b = L[j]; if (!a || !b) continue;
+      for (const k in I()) {
+        const ta = target(a, k), tb = target(b, k), ra = a.stock[k] / ta, rb = b.stock[k] / tb;
+        if (Math.abs(ra - rb) < 0.15) continue;
+        const [hi, lo, th, tl] = ra > rb ? [a, b, ta, tb] : [b, a, tb, ta];
+        const q = Math.min(hi.stock[k] * 0.12, Math.abs(ra - rb) * Math.min(th, tl) * 0.15);
+        hi.stock[k] -= q; lo.stock[k] += q;
+      }
+    }
+  }
   SIM.merchantArrive = (w, n, to) => { if (n.cargo && to) { to.stock[n.cargo.item] += n.cargo.qty; n.cargo = null; } };
 
   // ---- 到着したとき：届け物の依頼を達成 ----
