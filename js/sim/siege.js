@@ -106,12 +106,11 @@
     const id = 'b' + w.nextId++, gar = Object.assign({}, s.gar);
     const b = w.battles[id] = { id, npc: null, siege: s.id, war: 1, foe: `${s.name}の守備兵`, foeN: SIM.troopCount(gar), loot: 1500 + SIM.troopCount(gar) * 40,
       pids: [], units: [], next: 1, t: 0, start: {}, routed: false, hd: {}, rd: {}, ter: M.genTerrain(w), lk: { A: null, B: { x: SIM.FIELD.ax, y: SIM.FIELD.h / 2 } }, visA: [] };
-    b.ter.push({ k: 'h', x: SIM.FIELD.bx - 2, y: SIM.FIELD.h / 2, r: 34 }); // 城のある丘
     const joiners = Object.values(w.players).filter((q) => q === p || (q.clan === p.clan && M.inField(q) && !q.busy && dist(q, p) < 1.5));
     for (const q of joiners) {
       b.pids.push(q.id); q.battle = id; q.tx = q.ty = null; q.dest = null; q.at = null; b.start[q.id] = Object.assign({}, q.troops);
       SIM.addPlayerSide(w, b, q);
-      SIM.say(q.id, `${s.name}に総攻めをかけます！ 守備兵およそ${b.foeN}人。城兵は丘の上で待ち構えています`);
+      SIM.say(q.id, `${s.name}に総攻めをかけます！ 守備兵およそ${b.foeN}人。${SIM.castleKind(s) === 'yama' ? '山城です。城兵は険しい斜面の上の曲輪で' : '平城です。城兵は堀に囲まれた曲輪で'}待ち構えています`);
     }
     M.addUnits(w, b, 'B', null, gar);
     const wall = Math.floor((s.dev && s.dev.wall) || 0), fb = SIM.factionBuff(w.factions, s.owner);
@@ -119,6 +118,7 @@
       u.order = 'hold'; u.da += 0.6 + wall * 0.15; u.mor = u.mo = 75 + wall * 2;
       if (fb && fb.types.includes(u.type)) { u.am *= fb.am || 1; u.da += fb.da || 0; u.ra += fb.ra || 0; if (fb.hm) { u.hp *= fb.hm; u.mh *= fb.hm; } }
     }
+    SIM.castleLayout(w, b, s, 'B'); // 0.37.0 平城・山城の攻城戦マップ
     s.gar = {};
   };
   const baseEnd = SIM.onBattleEnd;
@@ -253,8 +253,9 @@
     const wall = Math.floor((s.dev && s.dev.wall) || 0);
     const defs = Object.values(w.players).filter((p) => p.at === s.id && p.tx == null && !p.battle && p.clan === s.owner);
     const aPow = M.power(c.army) * (0.75 + rnd(w) * 0.5);
-    let dPow = M.power(s.gar) * (1.25 + wall * 0.12);
-    for (const p of defs) dPow += (M.power(p.troops) + TR.hero.hp * TR.hero.atk) * (1.3 + wall * 0.1);
+    const ck = SIM.castleKind(s) === 'yama' ? 1.35 : 1.1; // 0.37.0 山城ほど守りやすい
+    let dPow = M.power(s.gar) * (1.25 + wall * 0.12) * ck;
+    for (const p of defs) dPow += (M.power(p.troops) + TR.hero.hp * TR.hero.atk) * (1.3 + wall * 0.1) * ck;
     dPow *= 0.75 + rnd(w) * 0.5;
     const win = aPow > dPow, loss = Math.min(0.85, (win ? dPow / aPow : aPow / dPow) * 0.6);
     for (const p of defs) {

@@ -183,8 +183,8 @@
     return ter;
   }
   function terAt(b, u) {
-    const o = { f: false, h: false };
-    for (const t of b.ter || []) if (Math.hypot(u.x - t.x, u.y - t.y) < t.r) o[t.k] = true;
+    const o = { f: false, h: false, k: false, m: false, s: false }; // 0.37.0 k：曲輪（城の中）・m：堀・s：急な斜面（ri があれば輪の形）
+    for (const t of b.ter || []) { const d = Math.hypot(u.x - t.x, u.y - t.y); if (d < t.r && !(t.ri && d < t.ri)) o[t.k] = true; }
     return o;
   }
   function visRange(b, u) {
@@ -262,7 +262,7 @@
     const goTo = (u, x, y, spd) => { const d = Math.hypot(x - u.x, y - u.y); if (d < 0.3) return true; const s = Math.min(spd * dt, d); u.x += ((x - u.x) / d) * s; u.y += ((y - u.y) / d) * s; u.f = Math.atan2(y - u.y, x - u.x); return false; };
     for (const u of us) {
       const t = TR[u.type], tu = terAt(b, u);
-      const spd = t.spd * (t.cav && tu.f ? 0.5 : 1) * (tu.h ? 0.85 : 1);
+      const spd = t.spd * (t.cav && tu.f ? 0.5 : 1) * (tu.h ? 0.85 : 1) * (tu.m ? 0.4 : 1) * (tu.s ? (t.cav ? 0.3 : 0.5) : 1);
       if (u.order === 'retreat' || u.order === 'rout') {
         const ex = u.side === 'A' ? -4 : FIELD.w + 4; u.x += Math.sign(ex - u.x) * spd * (u.order === 'rout' ? 1.1 : 1) * dt; u.f = u.side === 'A' ? Math.PI : 0;
         if ((u.side === 'A' && u.x < FIELD.ax - 120) || (u.side === 'B' && u.x > FIELD.bx + 120) || u.x < 1 || u.x > FIELD.w - 1) u.gone = true; // 120m 退けば戦場を離れる
@@ -301,6 +301,11 @@
       if (t.ranged && te.f) mul *= 0.6; // 林の中の敵は射ちにくい
       if (t.cav && tu.f) mul *= 0.7;
       if (tu.h && !te.h) mul *= 1.15; // 高所から
+      if (b.cside) { // 0.37.0 城攻め：城の中の守り手は討たれにくい。堀や斜面にいる攻め手は狙われやすい
+        if (te.k && e.side === b.cside) mul *= b.ck === 'yama' ? 0.5 : 0.62;
+        if (u.side !== b.cside && (tu.m || tu.s)) mul *= 0.8;
+        if (e.side !== b.cside && (te.m || te.s)) mul *= 1.25;
+      }
       const unseen = !sees(b, e, u, terAt(b, u).f) && b.t - (u.shot || -99) >= VIS.reveal; // 狙われた側から見えていない
       if (unseen) mul *= VIS.ambush;
       mul *= 0.55 + (0.45 * u.mor) / 100; // 士気
@@ -347,7 +352,8 @@
 
   function autoResolve(w, b) {
     const pw = (side) => b.units.filter((u) => u.side === side && alive(u)).reduce((a, u) => a + u.hp * TR[u.type].atk, 0);
-    const rA = pw('A') * SIM.autoBonus(w, b) * (0.75 + rnd(w) * 0.5), rB = pw('B') * (0.75 + rnd(w) * 0.5);
+    const cm = b.cside ? (b.ck === 'yama' ? 1.8 : 1.45) : 1; // 0.37.0 城の守り手は自動決着でも有利
+    const rA = pw('A') * SIM.autoBonus(w, b) * (b.cside === 'A' ? cm : 1) * (0.75 + rnd(w) * 0.5), rB = pw('B') * (b.cside === 'B' ? cm : 1) * (0.75 + rnd(w) * 0.5);
     const win = rA >= rB, loss = Math.min(0.9, (win ? rB / rA : rA / rB) * 0.6);
     for (const u of b.units) {
       if (!alive(u)) continue;
@@ -512,7 +518,7 @@
     const b = p.battle && w.battles[p.battle];
     r.battle = b ? { id: b.id, foe: b.foe, t: Math.floor(b.t), routed: b.routed,
       names: Object.fromEntries(b.pids.map((x) => [x, (w.players[x] || {}).name])),
-      ter: b.ter || [], units: b.units.filter((u) => alive(u) && (u.side === 'A' || (b.visA || []).includes(u.id)))
+      ter: b.ter || [], ck: b.ck || null, units: b.units.filter((u) => alive(u) && (u.side === 'A' || (b.visA || []).includes(u.id)))
         .map((u) => [u.id, u.side, u.owner, u.type, u.n, r1(u.x), r1(u.y), u.order, Math.round(visRange(b, u)), Math.round(u.mor), Math.round(u.f * 100) / 100, u.type === 'hero' ? Math.ceil(u.hp) : undefined, r1(reachOf(b, u))]) } : null;
     return r;
   };

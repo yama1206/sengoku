@@ -179,6 +179,17 @@
     for (const t of bt.ter || []) if (t.k === 'h') {
       for (let i = 3; i >= 1; i--) { ctx.fillStyle = `rgba(150,130,80,${0.18 + (3 - i) * 0.08})`; ctx.beginPath(); ctx.arc(sx(t.x), sy(t.y), (t.r * L.sc * i) / 3, 0, 7); ctx.fill(); }
     }
+    // 0.37.0 城：斜面・堀・曲輪
+    for (const t of bt.ter || []) if (t.k === 's' || t.k === 'm') {
+      ctx.fillStyle = t.k === 'm' ? 'rgba(50,90,130,.85)' : 'rgba(110,85,50,.55)';
+      ctx.beginPath(); ctx.arc(sx(t.x), sy(t.y), t.r * L.sc, 0, 7); ctx.arc(sx(t.x), sy(t.y), (t.ri || 0) * L.sc, 0, 7, true); ctx.fill();
+      if (t.k === 's') { ctx.strokeStyle = 'rgba(70,52,30,.6)'; ctx.lineWidth = 1; for (let i = 0; i < 36; i++) { const a = i * Math.PI / 18, r1 = (t.ri || 0) + 4, r2 = t.r - 4; ctx.beginPath(); ctx.moveTo(sx(t.x + Math.cos(a) * r1), sy(t.y + Math.sin(a) * r1)); ctx.lineTo(sx(t.x + Math.cos(a) * r2), sy(t.y + Math.sin(a) * r2)); ctx.stroke(); } }
+    }
+    for (const t of bt.ter || []) if (t.k === 'k') {
+      ctx.fillStyle = '#b8a77e'; ctx.beginPath(); ctx.arc(sx(t.x), sy(t.y), t.r * L.sc, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#ece4d0'; ctx.lineWidth = Math.max(2, 3 * L.sc); ctx.stroke(); // 塀
+      ctx.fillStyle = '#4a3a2a'; ctx.fillRect(sx(t.x) - 9 * L.sc, sy(t.y) - 9 * L.sc, 18 * L.sc, 18 * L.sc); // 櫓
+    }
     for (const t of bt.ter || []) if (t.k === 'f') {
       ctx.fillStyle = 'rgba(40,70,35,.85)'; ctx.beginPath(); ctx.arc(sx(t.x), sy(t.y), t.r * L.sc, 0, 7); ctx.fill();
       ctx.fillStyle = 'rgba(25,50,22,.9)';

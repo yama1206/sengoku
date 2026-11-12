@@ -145,13 +145,13 @@
   }
   function defenseBattle(w, n, s, defs) { // 防衛戦：城の丘で迎え撃つ
     const b = newBattle(w, n, { defend: s.id, loot: 800 + n.size * 20 });
-    b.ter.push({ k: 'h', x: SIM.FIELD.ax + 2, y: SIM.FIELD.h / 2, r: 34 }); // 城のある丘（こちら側）
-    for (const q of defs) join(w, b, q, `${s.name}に${b.foe}${n.size}人が総攻めをかけてきました！ 城兵とともに丘の上で迎え撃ちます`);
+    for (const q of defs) join(w, b, q, `${s.name}に${b.foe}${n.size}人が総攻めをかけてきました！ 城兵とともに${SIM.castleKind(s) === 'yama' ? '山城の曲輪' : '平城の曲輪'}で迎え撃ちます`);
     const wall = Math.floor((s.dev && s.dev.wall) || 0), k = b.units.length;
     M.addUnits(w, b, 'A', null, s.gar || {});
     for (const u of b.units.slice(k)) { u.gar = 1; u.order = 'hold'; u.da += 0.6 + wall * 0.15; u.mor = u.mo = 75 + wall * 2; u.y = Math.max(4, u.y - 18); }
     s.gar = {};
     M.addUnits(w, b, 'B', null, n.army);
+    SIM.castleLayout(w, b, s, 'A'); // 0.37.0 平城・山城の攻城戦マップ
   }
 
   // ---- 戦いの後 ----
