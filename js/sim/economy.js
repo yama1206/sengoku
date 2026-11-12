@@ -29,7 +29,7 @@
       if (!Object.keys(s.prod).length) s.prod = JSON.parse(JSON.stringify(d.prod && Object.keys(d.prod).length ? d.prod : SGK.DATA.defProd(s))); // 古いセーブで生産のない拠点に付ける
       s.size = s.size || SIZE[s.type];
       s.stock = s.stock || {};
-      for (const k in I()) if (s.stock[k] == null) s.stock[k] = target(s, k) * (0.6 + SIM.rand(w) * 0.8);
+      for (const k in I()) if (s.stock[k] == null) s.stock[k] = Math.max(15, target(s, k) * (1 + SIM.rand(w) * 0.6)); // 開始時からどこもある程度の在庫
     }
     for (const p of Object.values(w.players)) SIM.ensurePlayer(p);
     if (!Object.keys(w.jobs).length) w.settlements.forEach((s) => { genJob(w, s); genJob(w, s); });
