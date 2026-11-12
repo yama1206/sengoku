@@ -8,7 +8,7 @@
   R.toWorld = (sx, sy) => [(sx - W / 2) / cam.scale + cam.x, (sy - H / 2) / cam.scale + cam.y];
   R.zoom = (f, sx = W / 2, sy = H / 2) => {
     const [wx, wy] = R.toWorld(sx, sy);
-    cam.scale = Math.max(2, Math.min(60, cam.scale * f));
+    cam.scale = Math.max(0.5, Math.min(60, cam.scale * f)); // 0.5まで引くと全国が見える
     const [nx, ny] = R.toWorld(sx, sy); cam.x += wx - nx; cam.y += wy - ny;
   };
   R.hitSettlement = (view, sx, sy) => {
@@ -31,7 +31,8 @@
     ctx.fillStyle = '#1a1712'; ctx.fillRect(0, 0, W, H);
     // 陸
     const [x0, y0] = R.toScreen(0, 0), [x1, y1] = R.toScreen(B.w, B.h);
-    ctx.fillStyle = '#d8cda6'; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+    if (T.lands) { ctx.fillStyle = '#7d9fae'; ctx.fillRect(x0, y0, x1 - x0, y1 - y0); ctx.fillStyle = '#d8cda6'; for (const l of T.lands) { path(ctx, l.pts, true); ctx.fill(); } }
+    else { ctx.fillStyle = '#d8cda6'; ctx.fillRect(x0, y0, x1 - x0, y1 - y0); }
     // 海
     ctx.fillStyle = '#7d9fae';
     for (const s of T.seas) { path(ctx, s, true); ctx.fill(); }
@@ -79,14 +80,16 @@
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     for (const s of view.settlements) {
       const [x, y] = R.toScreen(s.x, s.y);
-      const fr = frameOf(s.owner);
-      if (s.type === 'castle') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 20, 'sq', fr[0], fr[1]);
-      else if (s.type === 'town') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 16, 'ci', fr[0], fr[1]);
+      const fr = frameOf(s.owner), zk = Math.max(0.45, Math.min(1, cam.scale / 4)); // 引いたときは印を小さく
+      if (cam.scale < 1.5 && s.type === 'village') continue;
+      if (s.type === 'castle') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 20 * zk, 'sq', fr[0], fr[1]);
+      else if (s.type === 'town') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 16 * zk, 'ci', fr[0], fr[1]);
       else SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 11, 'ci', fr[0], Math.min(fr[1], 2));
       if (marks && marks.has(s.id)) { ctx.fillStyle = '#f2c14e'; ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y - 24); ctx.lineTo(x + 6, y - 17); ctx.lineTo(x, y - 10); ctx.lineTo(x - 6, y - 17); ctx.closePath(); ctx.fill(); ctx.stroke(); }
       if (s.id === selectedId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 17, 0, 7); ctx.stroke(); }
       if (s.site) { ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 2; ctx.setLineDash([3, 3]); ctx.strokeRect(x - 13, y - 13, 26, 26); ctx.setLineDash([]); }
-      if (cam.scale < 6 && !s.lord && !s.built && s.type !== 'town' && s.id !== selectedId) continue; // 引いたときは主な拠点の名前だけ
+      if (cam.scale < 6 && !s.lord && !s.built && s.type !== 'town' && s.id !== selectedId) continue;
+      if (cam.scale < 1.5 && !(view.factions[s.owner] && view.factions[s.owner].leader === s.lord) && s.id !== selectedId) continue; // 全国を見るときは大名の本城だけ // 引いたときは主な拠点の名前だけ
       const label = s.site ? s.name + '（普請中）' : s.name;
       ctx.font = `${s.type === 'castle' ? 'bold 13px' : '12px'} "Hiragino Mincho ProN","Yu Mincho",serif`;
       ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)'; ctx.strokeText(label, x, y + 12);

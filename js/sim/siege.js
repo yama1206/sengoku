@@ -12,7 +12,8 @@
   const news = (w, msg) => { for (const p of Object.values(w.players)) SIM.say(p.id, `【噂】${msg}`); };
   // 数値はすべて仮
   const SIEGE = { minRank: 3, nearKm: 2, persuadeCost: 3000, persuadeRank: 4, rewardCost: 2000, peaceCost: 10000, truceDays: 360, marchKmDay: 25 };
-  const START_WARS = [['oda', 'imagawa'], ['oda', 'saito'], ['azai', 'rokkaku'], ['miyoshi', 'hatakeyama']];
+  const START_WARS = [['oda', 'imagawa'], ['oda', 'saito'], ['azai', 'rokkaku'], ['miyoshi', 'hatakeyama'],
+    ['takeda', 'nagao'], ['takeda', 'minowa'], ['hojo', 'satomi'], ['mori', 'amako'], ['mori', 'otomo'], ['ito', 'shimazu'], ['chosokabe', 'motoyama'], ['jinbo', 'shiina']];
 
   // ---- 戦争の状態 ----
   SIM.atWar = (w, a, b) => !!(a && b && a !== b && w.wars[key(a, b)]);
@@ -38,6 +39,9 @@
   SIM.ensure = function (w) {
     baseEnsure(w);
     if (!w.wars) { w.wars = {}; for (const [a, b] of START_WARS) if (w.factions[a] && w.factions[b]) w.wars[key(a, b)] = { since: 0 }; }
+    // 地図が広がって新しく加わった勢力どうしの戦（すでに始めた組は二度と足さない）
+    if (!w.warsSeeded) w.warsSeeded = START_WARS.slice(0, 4).map(([a, b]) => key(a, b));
+    for (const [a, b] of START_WARS) { const k = key(a, b); if (!w.warsSeeded.includes(k) && w.factions[a] && w.factions[b]) { w.warsSeeded.push(k); w.wars[k] = { since: w.time.min }; } }
     w.truce = w.truce || {};
     w.camps = w.camps || [];
     if (w.wday == null) w.wday = Math.floor(w.time.min / 1440);

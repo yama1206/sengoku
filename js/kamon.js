@@ -57,6 +57,37 @@
       c.strokeStyle = PAPER; c.lineWidth = 0.06; for (let i = 1; i < 7; i++) { const a = -Math.PI * 0.78 + i * Math.PI * 0.56 / 7; c.beginPath(); c.moveTo(0, 0.8); c.lineTo(Math.cos(a) * 1.55, 0.8 + Math.sin(a) * 1.55); c.stroke(); }
       c.fillStyle = PAPER; circ(c, 0, 0.62, 0.1);
     },
+    takeda(c) { // 武田菱（割菱）
+      c.fillStyle = INK; const g = 0.06;
+      for (const [x, y] of [[0, -0.47], [0.47, 0], [0, 0.47], [-0.47, 0]]) poly(c, [[x, y - 0.45 + g], [x + 0.45 - g, y], [x, y + 0.45 - g], [x - 0.45 + g, y]]);
+    },
+    hojo(c) { c.fillStyle = INK; poly(c, [[0, -0.85], [0.42, -0.05], [-0.42, -0.05]]); poly(c, [[-0.44, 0.05], [-0.02, 0.85], [-0.86, 0.85]]); poly(c, [[0.44, 0.05], [0.86, 0.85], [0.02, 0.85]]); }, // 三つ鱗
+    mori(c) { c.fillStyle = INK; c.fillRect(-0.8, -0.72, 1.6, 0.26); circ(c, 0, 0.0, 0.27); circ(c, -0.4, 0.5, 0.27); circ(c, 0.4, 0.5, 0.27); }, // 一文字に三つ星
+    shimazu(c) { // 丸に十字
+      c.strokeStyle = INK; c.lineWidth = 0.16; c.beginPath(); c.arc(0, 0, 0.84, 0, Math.PI * 2); c.stroke();
+      c.fillStyle = INK; c.fillRect(-0.62, -0.1, 1.24, 0.2); c.fillRect(-0.1, -0.62, 0.2, 1.24);
+    },
+    amako(c) { // 平四つ目結
+      for (const [x, y] of [[-0.42, -0.42], [0.42, -0.42], [-0.42, 0.42], [0.42, 0.42]]) { c.fillStyle = INK; c.fillRect(x - 0.36, y - 0.36, 0.72, 0.72); c.fillStyle = PAPER; c.fillRect(x - 0.13, y - 0.13, 0.26, 0.26); }
+    },
+    nagao(c) { c.fillStyle = INK; circ(c, 0, 0, 0.3); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; circ(c, Math.cos(a) * 0.66, Math.sin(a) * 0.66, 0.2); } }, // 九曜
+    ryuzoji(c) { // 日足
+      c.fillStyle = INK; circ(c, 0, 0, 0.3);
+      for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6, b = 0.16; poly(c, [[Math.cos(a - b) * 0.38, Math.sin(a - b) * 0.38], [Math.cos(a) * 0.92, Math.sin(a) * 0.92], [Math.cos(a + b) * 0.38, Math.sin(a + b) * 0.38]]); }
+    },
+    mogami(c) { // 丸に二つ引両
+      c.strokeStyle = INK; c.lineWidth = 0.16; c.beginPath(); c.arc(0, 0, 0.84, 0, Math.PI * 2); c.stroke();
+      c.fillStyle = INK; c.fillRect(-0.7, -0.4, 1.4, 0.26); c.fillRect(-0.7, 0.14, 1.4, 0.26);
+    },
+    utsunomiya(c) { // 三つ巴
+      c.fillStyle = INK;
+      for (let i = 0; i < 3; i++) { c.save(); c.rotate(i * Math.PI * 2 / 3); c.beginPath(); c.arc(0, -0.42, 0.36, 0, Math.PI * 2); c.fill(); c.beginPath(); c.moveTo(0.36, -0.42); c.quadraticCurveTo(0.6, 0.3, -0.2, 0.75); c.quadraticCurveTo(0.3, 0.2, -0.05, -0.1); c.closePath(); c.fill(); c.restore(); }
+    },
+    ito(c) { mokko(c, 0, 0, 0.9, 4); }, // 木瓜
+    chosokabe(c) { // 片喰
+      c.fillStyle = INK;
+      for (let i = 0; i < 3; i++) { c.save(); c.rotate(i * Math.PI * 2 / 3); circ(c, -0.2, -0.5, 0.27); circ(c, 0.2, -0.5, 0.27); poly(c, [[-0.44, -0.45], [0, 0], [0.44, -0.45]]); c.restore(); }
+    },
   };
   // 図案がない勢力（独立した家など）は名前の一字を丸で囲んだ文字紋
   function charMon(c, ch) {

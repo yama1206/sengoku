@@ -53,6 +53,15 @@
     hatano: { name: '丹波の山城衆', types: G.yumi, da: 0.2, text: '弓の守り+0.2' },
     seki: { name: '亀山の鉄砲', types: G.teppo, da: 0.2, text: '鉄砲の守り+0.2' },
     hatakeyama: { name: '根来の鉄砲', types: G.teppo, am: 1.06, text: '鉄砲の攻撃+6%' },
+    nagao: { name: '越後の精兵', types: G.yari, am: 1.08, text: '槍の攻撃+8%' },
+    hojo: { name: '五色備え', types: G.yari, hm: 1.08, text: '槍の体力+8%' },
+    mori: { name: '安芸の弓', types: G.yumi, am: 1.06, hm: 1.04, text: '弓の攻撃+6%・体力+4%' },
+    amako: { name: '雲州の騎馬', types: G.kiba, hm: 1.08, text: '騎馬の体力+8%' },
+    otomo: { name: '豊後の鉄砲', types: G.teppo, am: 1.08, text: '鉄砲の攻撃+8%' },
+    shimazu: { name: '薩摩の鉄砲', types: G.teppo, hm: 1.08, text: '鉄砲の体力+8%' },
+    date: { name: '奥州の騎馬', types: G.kiba, am: 1.06, text: '騎馬の攻撃+6%' },
+    chosokabe: { name: '一領具足', types: G.nohei, am: 1.1, text: '農兵の攻撃+10%' },
+    ryuzoji: { name: '肥前の槍', types: G.yari, da: 0.3, text: '槍の守り+0.3' },
   };
   // プレイヤーの家は、独立する前の主家の得意を受け継ぐ
   SIM.factionBuff = (factions, id) => { const f = factions && factions[id]; return FB[id] || (f && f.from && FB[f.from]) || null; };

@@ -28,7 +28,7 @@
     castle: { yari: [1, 10], yumi: [0.5, 6], kiba: [0.25, 3] },
   };
   const FIELD = { w: 300, h: 200 };
-  const MAX_BANDITS = 14; // 地図の広さに合わせて
+  const MAX_BANDITS = 60; // 地図の広さに合わせて（全国）
 
   SIM.troopCount = (tr) => Object.values(tr || {}).reduce((a, b) => a + b, 0);
   SIM.troopCap = (p) => Math.min(120, 10 + p.fame * 3);

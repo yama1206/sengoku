@@ -19,7 +19,7 @@
     }
     return inside;
   };
-  SIM.isSea = (x, y) => SGK.DATA.terrain.seas.some((p) => SIM.pointInPoly(x, y, p));
+  SIM.isSea = (x, y) => { const T = SGK.DATA.terrain; return (T.lands ? !T.lands.some((l) => SIM.pointInPoly(x, y, l.pts)) : false) || T.seas.some((p) => SIM.pointInPoly(x, y, p)); };
 
   SIM.createWorld = function (seed) {
     const D = SGK.DATA;
@@ -144,7 +144,10 @@
           if (n.wait > 0) continue;
           // 行き先を選ぶ（商人：町や村へ／巡回：自勢力の拠点の周り）
           let cands = w.settlements.filter((s) => s.id !== n.at && (n.kind === 'merchant' ? s.type !== 'castle' || SIM.rand(w) < 0.3 : s.owner === n.faction));
-          if (!cands.length) cands = w.settlements.filter((s) => s.id !== n.at);
+          const near = cands.filter((s) => Math.hypot(s.x - n.x, s.y - n.y) < 90); // 全国の地図なので近くの拠点へ
+          if (near.length) cands = near;
+          if (!cands.length) cands = w.settlements.filter((s) => s.id !== n.at && Math.hypot(s.x - n.x, s.y - n.y) < 150);
+          if (!cands.length) { n.wait = 600; continue; }
           const s = cands[Math.floor(SIM.rand(w) * cands.length)];
           if (n.kind === 'merchant') SIM.merchantDepart(w, n, SIM.settlement(w, n.at));
           n.tx = s.x; n.ty = s.y; n.dest = s.id; n.at = null; n.path = SIM.findPath(n.x, n.y, s.x, s.y);

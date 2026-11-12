@@ -38,6 +38,7 @@
       const dx = (o.lon - O.lon) * 91, dy = (O.lat - o.lat) * 111;
       for (const e of [...Object.values(w.players), ...Object.values(w.npcs)]) {
         for (const [a, b] of [['x', 'y'], ['tx', 'ty'], ['lx', 'ly'], ['hx', 'hy']]) if (e[a] != null) { e[a] += dx; e[b] += dy; }
+        if (e.path) e.path = e.path.map(([x, y]) => [x + dx, y + dy]);
       }
     }
     w.mapOrigin = { lon: O.lon, lat: O.lat }; w.scenario = D.scenario;
