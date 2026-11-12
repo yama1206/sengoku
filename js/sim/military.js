@@ -6,7 +6,7 @@
 
   // 兵の種類（数値はすべて仮）。hp/atk/def は兵1人あたり、spd は戦場での m/秒、range は m
   const TR = SIM.TROOPS = {
-    hero: { name: '本人', hp: 60, atk: 6, def: 2, spd: 5, range: 2 },
+    hero: { name: '本人', hp: 50, atk: 6, def: 2, spd: 5, range: 2 },
     // tier：兵の格。up：昇格先（兵種ツリー）
     nohei: { name: '農兵', short: '農', tier: 1, hp: 8, atk: 1.4, def: 0, spd: 4, range: 2.5, cost: 150, wage: 6, up: ['yari', 'yumi'] },
     yari: { name: '足軽（槍）', short: '槍', tier: 2, hp: 10, atk: 2, def: 1, spd: 4, range: 2.5, cost: 300, wage: 10, up: ['nagayari', 'kiba'] },
@@ -17,8 +17,8 @@
     yarigashira: { name: '槍組頭', short: '組頭', tier: 4, hp: 15, atk: 3.4, def: 2.2, spd: 4.2, range: 3.5, cost: 1200, wage: 30 },
     teppogashira: { name: '鉄砲頭', short: '鉄砲頭', tier: 4, hp: 10, atk: 4, def: 0.5, spd: 3.5, range: 45, ranged: true, cost: 1800, wage: 40 },
     horo: { name: '母衣衆', short: '母衣', tier: 4, hp: 24, atk: 5, def: 3, spd: 10, range: 2.5, cav: true, cost: 3000, wage: 70, fame: 15 },
-    bandit: { name: '野盗', hp: 9, atk: 1.8, def: 0, spd: 4.5, range: 2.5 },
-    banditBow: { name: '野盗（弓）', hp: 7, atk: 1.2, def: 0, spd: 4.5, range: 30, ranged: true },
+    bandit: { name: '野盗', hp: 10, atk: 2.0, def: 0, spd: 4.5, range: 2.5 },
+    banditBow: { name: '野盗（弓）', hp: 7, atk: 1.4, def: 0, spd: 4.5, range: 30, ranged: true },
   };
   SIM.HIRE = ['nohei', 'yari', 'yumi', 'kiba'];
   // 拠点ごとに雇える兵（1日の補充数・上限）
@@ -57,6 +57,9 @@
     for (const p of Object.values(w.players)) if (p.battle && !w.battles[p.battle]) p.battle = null;
     for (const b of Object.values(w.battles)) { b.ter = b.ter || []; b.lk = b.lk || { A: null, B: null }; for (const u of b.units) { if (u.f == null) u.f = u.side === 'A' ? 0 : Math.PI; if (u.mor == null) u.mor = u.mo = 65; if (u.n0 == null) u.n0 = u.n; } }
     if (!Object.values(w.npcs).some((n) => n.kind === 'bandit')) for (let i = 0; i < 10; i++) spawnBandit(w);
+    for (const n of Object.values(w.npcs)) if (n.kind === 'patrol' && !n.army) { // 巡回兵の手勢
+      n.army = { yari: 8 + Math.floor(rnd(w) * 8), yumi: 2 + Math.floor(rnd(w) * 5) }; n.size = SIM.troopCount(n.army);
+    }
     return w;
   };
 
@@ -67,8 +70,10 @@
       const x = 3 + rnd(w) * (B.w - 6), y = 3 + rnd(w) * (B.h - 6);
       if (SIM.isSea(x, y) || w.settlements.some((s) => Math.hypot(s.x - x, s.y - y) < 4)) continue;
       const id = 'n' + w.nextId++;
-      const army = { bandit: 6 + Math.floor(rnd(w) * 13) };
-      const bows = Math.floor(rnd(w) * 7); if (bows) army.banditBow = bows;
+      // 日が経つほど大きな野盗団が出る。ときどき大勢の野盗団も
+      const extra = Math.min(14, Math.floor(w.time.min / 1440 / 15)), big = rnd(w) < 0.25 ? 1.6 : 1;
+      const army = { bandit: Math.round((7 + Math.floor(rnd(w) * 12) + extra) * big) };
+      const bows = Math.round((Math.floor(rnd(w) * 7) + extra / 3) * big); if (bows) army.banditBow = bows;
       w.npcs[id] = { id, kind: 'bandit', faction: null, x, y, tx: null, ty: null, hx: x, hy: y, wait: 0, speed: 28,
         army, size: SIM.troopCount(army), loot: Math.round((300 + rnd(w) * 1200) / 10) * 10, calm: 0, battle: null };
       return;
@@ -156,7 +161,7 @@
       const t = TR[type], m = owner ? SIM.unitMods(w, owner, type) : { am: 1, da: 0, ra: 0, hm: 1 };
       b.units.push({ id: b.next++, side, owner, type, n, n0: n, hp: n * t.hp * m.hm, mh: t.hp * m.hm, am: m.am, da: m.da, ra: m.ra,
         x: base - fx * (t.ranged ? 8 : type === 'hero' ? 4 : 0), y: FIELD.h / 2 + (i - (list.length - 1) / 2) * 14 + (side === 'A' ? (b.pids.length - 1) * 6 : 0),
-        f: side === 'A' ? 0 : Math.PI, mor: type === 'hero' ? 100 : mo, mo, order: side === 'A' ? 'hold' : 'charge' });
+        f: side === 'A' ? 0 : Math.PI, mor: type === 'hero' ? 100 : mo, mo, order: side === 'A' ? 'hold' : !t.ranged && i % 2 ? 'flank' : 'charge' }); // 敵の近接は半分が回り込む
     });
   }
   function startBattle(w, n, p) {
@@ -257,7 +262,7 @@
     }
     // 野盗は数が減ると逃げ出す
     const bn = b.units.filter((u) => u.side === 'B' && alive(u)).reduce((a, u) => a + u.n, 0);
-    if (!b.routed && bn < b.foeN * 0.3) { b.routed = true; b.units.forEach((u) => { if (u.side === 'B') u.order = 'rout'; }); b.pids.forEach((pid) => SIM.say(pid, '野盗が逃げ出しました！')); }
+    if (!b.routed && bn < b.foeN * 0.2) { b.routed = true; b.units.forEach((u) => { if (u.side === 'B') u.order = 'rout'; }); b.pids.forEach((pid) => SIM.say(pid, '野盗が逃げ出しました！')); }
     const aLive = b.units.some((u) => u.side === 'A' && alive(u)), bLive = b.units.some((u) => u.side === 'B' && alive(u));
     const bFight = b.units.some((u) => u.side === 'B' && alive(u) && u.order !== 'rout');
     if (!bLive || (!bFight && b.routed)) finish(w, b, 'win');

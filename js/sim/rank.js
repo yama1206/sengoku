@@ -8,7 +8,8 @@
     { name: '足軽', merit: 0, fame: 5, cap: 5, stipend: 300, desc: '仕官したばかり。主家の依頼や戦で功績を積む' },
     { name: '足軽組頭', merit: 60, fame: 10, cap: 15, stipend: 800, desc: '主家の城で兵を2割安く雇える' },
     { name: '侍大将', merit: 200, fame: 20, cap: 30, stipend: 1800, desc: '主家の城で騎馬を名声に関係なく雇える' },
-    { name: '部将', merit: 500, fame: 35, cap: 50, stipend: 3500, desc: '大軍を率いる重臣（城主は今後の段階で）' },
+    { name: '部将', merit: 500, fame: 35, cap: 50, stipend: 3500, desc: '大軍を率いる重臣' },
+    { name: '城主', merit: 900, fame: 50, cap: 70, stipend: 2000, desc: '主家から城を一つ任される。内政・築城で城を育て、毎月の年貢を受け取る' },
   ];
   const fName = (w, p) => (w.factions[p.clan] || {}).name || '';
   const setStatus = (w, p) => { p.status = p.clan ? `${fName(w, p)} ${RANKS[p.rank].name}` : '浪人'; };
@@ -107,12 +108,18 @@
       const nx = RANKS[p.rank + 1]; if (!nx) return SIM.say(p.id, 'これ以上の身分は今後の段階で');
       if (p.merit < nx.merit) return SIM.say(p.id, `功績が足りません（${p.merit}/${nx.merit}）`);
       if (p.fame < nx.fame) return SIM.say(p.id, `名声が足りません（${p.fame}/${nx.fame}）`);
+      if (p.rank + 1 === 5) { // 城主：主家の城を一つ任される
+        const s = SIM.grantCastle(w, p);
+        if (!s) return SIM.say(p.id, `いま${fName(w, p)}に任せられる城がありません`);
+        SIM.say(p.id, `${s.name}を任されました！ 城の「城」の画面で内政・築城ができます`);
+      }
       p.rank++; p.promoteHint = 0; setStatus(w, p);
       SIM.say(p.id, `${nx.name}に取り立てられました！ 率いる人数が増え、俸禄は月${SIM.money(nx.stipend)}になります`);
     },
     leaveClan(w, p) { // 出奔
       if (!p.clan || p.battle) return;
       const f = fName(w, p);
+      SIM.releaseCastle(w, p);
       p.leftClan = p.clan; p.clan = null; p.rank = 0; p.merit = 0; p.fame = Math.max(0, p.fame - 3); setStatus(w, p);
       SIM.say(p.id, `${f}を出奔し、浪人に戻りました（名声-3）`);
     },

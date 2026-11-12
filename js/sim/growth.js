@@ -13,6 +13,8 @@
     kosho: { name: '交渉', attr: 'mi', desc: '依頼の報酬・兵を雇う値段' },
     ijutsu: { name: '医術', attr: 'chi', desc: '戦の後に助かる兵' },
     chouren: { name: '調練', attr: 'tou', desc: '兵の経験の伸び' },
+    naisei: { name: '内政', attr: 'sei', desc: '城の開発（農業・商業）の進み・年貢' },
+    chikujo: { name: '築城', attr: 'chi', desc: '城壁の普請の進み・城の近くの戦での守り' },
   };
   // 特技：技能が25・50に達すると、2つのうち1つを選べる
   const PERKS = SIM.PERKS = [
@@ -32,6 +34,10 @@
     ['ijutsu', 50, 'meii', '名医', '助かる兵+25%', { survive: 0.25 }], ['ijutsu', 50, 'senjoui', '戦場医', '助かる兵+15%・戦の経験+15%', { survive: 0.15, battleXp: 0.15 }],
     ['chouren', 25, 'onikyokan', '鬼教官', '調練の経験+30%', { drillXp: 0.3 }], ['chouren', 25, 'jissen', '実戦主義', '戦の経験+30%', { battleXp: 0.3 }],
     ['chouren', 50, 'meihakuraku', '名伯楽', '昇格の費用-30%', { upCost: -0.3 }], ['chouren', 50, 'seihei', '精兵育成', '調練の経験+50%', { drillXp: 0.5 }],
+    ['naisei', 25, 'kanno', '勧農', '開発の進み+25%', { devFx: 0.25 }], ['naisei', 25, 'rakuichi', '楽市', '年貢+15%', { tax: 0.15 }],
+    ['naisei', 50, 'kenchi', '検地', '開発・普請の費用-30%', { devCost: -0.3 }], ['naisei', 50, 'meibugyo', '名奉行', '年貢+25%', { tax: 0.25 }],
+    ['chikujo', 25, 'fushin', '普請上手', '城壁の普請の進み+30%', { wallFx: 0.3 }], ['chikujo', 25, 'monomi', '物見櫓', '自分の城での視界+30%', { castleSight: 0.3 }],
+    ['chikujo', 50, 'meijo', '名城', '城壁の普請の進み+50%', { wallFx: 0.5 }], ['chikujo', 50, 'kenrou', '堅牢', '城の近くの戦で兵の守り+1', { wallDef: 1 }],
   ].map(([skill, lv, id, name, desc, fx]) => ({ skill, lv, id, name, desc, fx }));
   const PERK = Object.fromEntries(PERKS.map((x) => [x.id, x]));
 
@@ -58,7 +64,7 @@
     const after = SIM.charLevel(p);
     if (after > before) SIM.say(p.id, `人物の格が${after}になりました！ 能力値を1つ上げられます`);
   }
-  SIM.gain = gain;
+  SIM.gain = gain; SIM.lvOf = lvOf;
   function troopXp(p, k, amt) { if (amt > 0 && p.troops[k] && TR[k].up) p.txp[k] = (p.txp[k] || 0) + amt; }
 
   // ---- 足りない項目を補う ----

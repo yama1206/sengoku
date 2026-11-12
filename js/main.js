@@ -21,7 +21,7 @@
   // ---------- メニュー操作（キー・コントローラー：押した方向へ移動／決定してもカーソル位置は保つ） ----------
   const focusMem = {};
   function activeMenu() {
-    if (G.mode === 'title') return $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
+    if (G.mode === 'title') return !$('namePanel').classList.contains('hidden') ? $('namePanel') : $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
     if (!$('gameMenu').classList.contains('hidden')) return $('gameMenu');
     if (!$('char').classList.contains('hidden')) return $('char');
     if (!$('town').classList.contains('hidden')) return $('town');
@@ -70,7 +70,23 @@
     ci.value = b.dataset.ck === 'del' ? ci.value.slice(0, -1) : (ci.value + b.dataset.ck).slice(0, 5).toUpperCase();
     if (ci.value.length === 5 && b.dataset.ck !== 'del') setFocus($('joinPanel'), $('btnJoinGo'));
   });
-  $('btnJoinBack').onclick = () => { $('joinPanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); };
+  function titleBack() { $('joinPanel').classList.add('hidden'); $('namePanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); setFocus($('titleMenu'), currentFocus($('titleMenu'))); }
+  $('btnJoinBack').onclick = titleBack;
+  // 名前を候補から選ぶ（キーボードがなくても決められる）
+  const SEI = ['木下', '明智', '前田', '佐々', '滝川', '山内', '蜂須賀', '池田', '森', '堀', '竹中', '黒田', '島', '可児', '真田', '本多', '井伊', '藤堂'];
+  const MEI = ['藤吉郎', '十兵衛', '又左衛門', '内蔵助', '彦右衛門', '伊右衛門', '小六', '勝三郎', '三左衛門', '久太郎', '半兵衛', '官兵衛', '左近', '才蔵', '源次郎', '平八郎', '弥助', '五郎左'];
+  function fillNames() {
+    const pk = (a) => a[Math.floor(Math.random() * a.length)], set = new Set();
+    while (set.size < 12) set.add(pk(SEI) + pk(MEI));
+    $('nameKeys').innerHTML = [...set].map((n, i) => `<button id="nk-${i}" data-nm="${n}">${n}</button>`).join('');
+  }
+  $('btnName').onclick = () => { fillNames(); $('namePanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); setFocus($('namePanel'), $('nk-0')); };
+  $('btnNameMore').onclick = () => { fillNames(); setFocus($('namePanel'), $('btnNameMore')); };
+  $('btnNameBack').onclick = titleBack;
+  $('nameKeys').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    $('nameInput').value = b.dataset.nm; localStorage.setItem('sgk_name', b.dataset.nm); titleBack(); titleMsg(`名前を「${b.dataset.nm}」にしました`);
+  });
   $('btnJoinGo').onclick = () => { const c = $('codeInput').value.trim(); if (c.length < 5) return titleMsg('部屋コード（5文字）を入れてください'); startClient(c); };
 
   // ---------- ホスト ----------
@@ -176,14 +192,17 @@
 
   // ---------- 拠点の情報 ----------
   function selectSettlement(s) {
-    G.selected = s ? s.id : null; G.selKind = s ? 's' : null; $('infoGo').textContent = 'ここへ向かう';
+    G.selected = s ? s.id : null; G.selKind = s ? 's' : null; $('infoGo').textContent = 'ここへ向かう'; $('infoAct').classList.add('hidden');
     if (!s) { $('info').classList.add('hidden'); return; }
     const f = G.view.factions[s.owner], lord = s.lord ? (G.view.people[s.lord] || {}).name : null;
     const kind = { castle: '城', town: '町', village: '村' }[s.type];
     $('infoName').textContent = s.name;
-    $('infoBody').innerHTML = `${kind}　勢力：<b style="color:${f ? f.color : '#ccc'}">${f ? f.name : 'なし'}</b><br>城主・代官：${lord || '（不明）'}`;
+    const ho = holders()[s.id];
+    $('infoBody').innerHTML = `${kind}　勢力：<b style="color:${f ? f.color : '#ccc'}">${f ? f.name : 'なし'}</b><br>城主・代官：${ho ? `<b>${ho}</b>（プレイヤー）` : lord || '（不明）'}`;
     $('info').classList.remove('hidden');
   }
+  const holders = () => (G.mode === 'host' ? SIM.holders(G.world) : (G.dyn && G.dyn.h) || {});
+  $('infoAct').onclick = () => { if (G.infoCmd) command(G.infoCmd); };
   $('infoGo').onclick = () => {
     if (G.selKind === 'u') { const u = findUnit(G.selected); if (u) moveTo(u.x, u.y); return; }
     const s = G.view.settlements.find((x) => x.id === G.selected); if (s) moveTo(s.x, s.y, s.id);
@@ -204,13 +223,14 @@
     const f = u.faction && G.view.factions[u.faction], fn = f ? `<b style="color:${f.color}">${f.name}</b>` : '';
     const m = me(), km = m ? Math.hypot(u.x - m.x, u.y - m.y).toFixed(1) : '?';
     const where = `${u.at ? sName(u.at) + 'に滞在中' : u.dest ? sName(u.dest) + 'へ向かっている' : '野外'}　（ここから ${km}km・${SIM.terrainAt(u.x, u.y)}）`;
+    const TR = SIM.TROOPS, ar = u.army ? Object.entries(u.army).filter(([, n]) => n > 0).map(([k, n]) => `${(TR[k] || {}).name || k} ${n}人`).join('・') : `${u.size}人`;
     if (u.kind === 'merchant') {
-      const it = u.cargo && SGK.DATA.items[u.cargo.item];
-      return { name: '行商人', body: `${where}<br>荷：${it ? `${it.name} ${u.cargo.qty}${it.unit}` : 'なし'}<br><span class="muted">町から町へ品物を運んでいる。運んだ先では品物が安くなる。</span>`, go: '近づく' };
+      const it = u.cargo && SGK.DATA.items[u.cargo.item], pr = it && SIM.cargoPrice(u.cargo.item);
+      return { name: '行商人', body: `${where}<br>荷：${it ? `${it.name} ${u.cargo.qty}${it.unit}　<span class="muted">売値 約${pr}文/${it.unit}（1度に5${it.unit}まで）</span>` : 'なし'}<br><span class="muted">町から町へ品物を運んでいる。1.5km以内なら荷を買える。運んだ先では品物が安くなる。</span>`,
+        go: '近づく', act: it ? { label: `${it.name}を買う`, cmd: { type: 'buyCargo', id: u.id } } : null };
     }
-    if (u.kind === 'patrol') return { name: `${f ? f.name : ''}の巡回兵`, body: `勢力：${fn}<br>${where}${u.home ? `<br>本拠：${sName(u.home)}` : ''}<br><span class="muted">自勢力の拠点のあいだを見回っている。</span>`, go: '近づく' };
+    if (u.kind === 'patrol') return { name: `${f ? f.name : ''}の巡回兵 ${u.size || ''}人`, body: `勢力：${fn}<br>${where}${u.home ? `<br>本拠：${sName(u.home)}` : ''}<br>兵：${ar}<br><span class="muted">自勢力の拠点のあいだを見回っている。</span>`, go: '近づく' };
     if (u.kind === 'bandit') {
-      const TR = SIM.TROOPS, ar = u.army ? Object.entries(u.army).filter(([, n]) => n > 0).map(([k, n]) => `${(TR[k] || {}).name || k} ${n}人`).join('・') : `${u.size}人`;
       return { name: `野盗 ${u.size}人`, body: `${u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}${where}<br>手勢：${ar}<br><span class="muted">近づくと襲ってくる。倒すと金品が手に入る。</span>`, go: '攻めかかる' };
     }
     // 他のプレイヤー
@@ -225,9 +245,10 @@
   function refreshUnitInfo() {
     const u = findUnit(G.selected);
     if (!u) { selectSettlement(null); toast('見失いました', 1200); return; }
-    const i = unitInfo(u), html = `${i.name}|${i.body}|${i.go}`;
+    const i = unitInfo(u), html = `${i.name}|${i.body}|${i.go}|${i.act ? i.act.label : ''}`;
     if (html === G.infoHtml) return; G.infoHtml = html;
     $('infoName').textContent = i.name; $('infoBody').innerHTML = i.body; $('infoGo').textContent = i.go;
+    G.infoCmd = i.act ? i.act.cmd : null; $('infoAct').classList.toggle('hidden', !i.act); if (i.act) $('infoAct').textContent = i.act.label;
   }
   $('infoClose').onclick = () => selectSettlement(null);
 
@@ -244,7 +265,9 @@
   function setTab(tab) { townTab = tab; townHtml = ''; renderTown(); const t = $('town'); setFocus(t, $('tab-' + tab)); }
   function renderTown() {
     const P = G.priv; if (!P || !P.here) return openTown(false);
-    const me = P.me, h = P.here;
+    const me = P.me, h = P.here, hs = G.view.settlements.find((x) => x.id === h.id);
+    $('tab-castle').classList.toggle('hidden', !hs || hs.type !== 'castle');
+    if (townTab === 'castle' && (!hs || hs.type !== 'castle')) townTab = 'market';
     $('townName').textContent = sName(h.id);
     document.querySelectorAll('#town [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === townTab));
     let html = '';
@@ -298,6 +321,21 @@
       html += '<div class="muted" style="margin-top:10px">率いている兵</div>';
       if (!n) html += '<div class="muted" style="margin-top:4px">まだいません。野盗（地図の×印）と戦うには兵を雇いましょう</div>';
       for (const k in me.troops) html += `<div class="card"><div>${TR[k].name}　${me.troops[k]}人</div><button id="dm-${k}" data-act="dismiss" data-kind="${k}" data-qty="1">1人解き放つ</button></div>`;
+    } else if (townTab === 'castle') {
+      const C = me.castle;
+      if (C && C.id === h.id) {
+        html += `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　毎月の年貢 約${SIM.money(C.tax)}（月の初めに届く）</div>`;
+        for (const [k, v, cost, gp] of C.dev) {
+          const D = SIM.DEV[k], l = Math.floor(v), pct = v >= 10 ? 100 : Math.round((v - l) * 100);
+          html += `<div class="card" style="display:block"><div class="row" style="align-items:center"><span><b>${D.name}</b> ${l}<span class="muted">/10　${D.desc}</span></span>`
+            + (me.busy || v >= 10 ? '' : `<button id="dv-${k}" data-act="develop" data-kind="${k}" style="flex:0 0 auto">${D.act}<br><span class="muted">${SIM.money(cost)}・${D.hours}時間</span></button>`)
+            + `</div><div class="bar"><i style="width:${pct}%"></i></div><div class="muted">1回で+${gp}%（${SIM.SKILLS[D.skill].name}の技能・${SIM.ATTRS[D.attr]}が高いほど進む）</div></div>`;
+        }
+        if (me.busy) html += `<div class="muted">${me.busy.label}の最中です（「仕事」で取りやめられます）</div>`;
+      } else {
+        const lord = hs.lord ? (G.view.people[hs.lord] || {}).name : null;
+        html += `<div class="card" style="display:block">城主：${h.holder ? `<b>${h.holder}</b>（プレイヤー）` : lord || '（不明）'}<br><span class="muted">${C ? `あなたが任されている城は${C.name}です` : '部将から「城主」に昇進すると、主家の城を一つ任されます。任された城では内政（農業・商業）と築城ができ、毎月年貢が届きます'}</span></div>`;
+      }
     } else {
       html += `<div class="card"><div>ここの人に話を聞く<br><span class="muted">相場の噂などが聞けます</span></div><button id="tk" data-act="talk">話しかける</button></div>`;
     }
@@ -319,7 +357,7 @@
   document.querySelectorAll('#town [data-tab]').forEach((b) => (b.onclick = () => setTab(b.dataset.tab)));
   $('townClose').onclick = () => openTown(false);
   $('townBtn').onclick = () => openTown(true);
-  function cycleTab(d) { const tabs = ['market', 'jobs', 'work', 'army', 'talk']; setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
+  function cycleTab(d) { const tabs = ['market', 'jobs', 'work', 'army', 'talk', 'castle'].filter((t) => !$('tab-' + t).classList.contains('hidden')); setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
 
   // ---------- 人物（能力・技能・特技・部隊の昇格） ----------
   let charTab = 'stat', charHtml = '';
@@ -357,7 +395,8 @@
     } else if (charTab === 'rank') {
       const R = me.rank, RK = SIM.RANKS, cur = RK[R.rank], nx = R.clan ? RK[R.rank + 1] : null;
       html += `<div class="card" style="display:block"><b>${R.clan ? R.clanName + '　' + cur.name : '浪人'}</b><br><span class="muted">${cur.desc}</span>`
-        + (R.clan ? `<div class="muted">功績 ${R.merit}　俸禄 ${SIM.money(cur.stipend)}/月　率いる人数+${cur.cap}</div>` : '') + '</div>';
+        + (R.clan ? `<div class="muted">功績 ${R.merit}　俸禄 ${SIM.money(cur.stipend)}/月　率いる人数+${cur.cap}</div>` : '')
+        + (me.castle ? `<div class="muted">任されている城：<b>${me.castle.name}</b>　年貢 約${SIM.money(me.castle.tax)}/月</div>` : '') + '</div>';
       if (!R.clan) {
         html += `<div class="muted" style="margin:6px 0">城主のいる城で仕官できます（名声${RK[1].fame}以上）。仕えると俸禄がもらえ、主家の領地の依頼や戦で功績が積めます</div>`;
         if (R.canServe) html += `<div class="card"><div>${R.factionHere}の${R.lordHere}様に仕える</div><button id="rk-serve" data-cact="serve" ${C.fame >= RK[1].fame ? '' : 'disabled'}>仕官する</button></div>`;
@@ -366,7 +405,7 @@
           + (R.atOwn ? '' : '<div class="muted">昇進は主家の城で願い出ます</div>');
         html += '<div class="muted" style="margin-top:10px">身分の一覧</div>';
         RK.forEach((r, i) => { if (i) html += `<div class="muted">${i === R.rank ? '▶ ' : ''}${r.name}　功績${r.merit}・名声${r.fame}　俸禄${SIM.money(r.stipend)}/月　人数+${r.cap}</div>`; });
-        html += `<div class="card" style="margin-top:10px"><div>出奔する<br><span class="muted">浪人に戻る（名声-3、功績は消え、この家には二度と仕えられない）</span></div><button id="rk-leave" data-cact="leaveClan">出奔</button></div>`;
+        html += `<div class="card" style="margin-top:10px"><div>出奔する<br><span class="muted">浪人に戻る（名声-3、功績は消え、この家には二度と仕えられない${me.castle ? '。城も返上する' : ''}）</span></div><button id="rk-leave" data-cact="leaveClan">出奔</button></div>`;
       }
     } else {
       html += `<div class="muted" style="margin-bottom:6px">兵 ${SIM.troopCount(me.troops)}/${me.troopCap}　所持金 ${SIM.money(me.money)}　給金 ${SIM.money(me.wage)}/日<br>戦や調練で兵が経験を積むと、上の兵種へ昇格できます（どこでもできます）</div>`;
@@ -488,7 +527,7 @@
         if (k === 'Escape') { toggleMenu(true); return; }
         const o = { z: 'charge', x: 'hold', c: 'retreat', v: 'flank' }[k.toLowerCase()]; if (o) { command({ type: 'order', unit: 'all', order: o }); return; }
       }
-      if (k === 'Escape') { if (G.mode === 'title') $('btnJoinBack').click(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); return; }
+      if (k === 'Escape') { if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); return; }
       if (activeMenu() === $('char') && (k === 'q' || k === 'e')) { cycleCTab(k === 'q' ? -1 : 1); return; }
       if (activeMenu() === $('char') && (k === 'p' || k === 'P')) { openChar(false); return; }
       if (activeMenu() === $('town') && (k === 'q' || k === 'e')) { cycleTab(k === 'q' ? -1 : 1); return; }
@@ -560,7 +599,7 @@
       else navHold = 0;
       if (down(0)) pressMenu();
       const inBattle = activeMenu() === $('battle');
-      if (down(1) && !inBattle) { if (G.mode === 'title') $('btnJoinBack').click(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); }
+      if (down(1) && !inBattle) { if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); }
       if (activeMenu() === $('town')) { if (down(4)) cycleTab(-1); if (down(5)) cycleTab(1); }
       else if (activeMenu() === $('char')) { if (down(4)) cycleCTab(-1); if (down(5)) cycleCTab(1); if (down(8)) openChar(false); }
       else if (inBattle) padBattle(down, rx, ry, dt);

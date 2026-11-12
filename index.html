@@ -72,15 +72,21 @@
 <section id="title">
   <div id="ver"><span id="verLabel"></span><button id="updateBtn">更新</button></div>
   <h1>天下への道</h1>
-  <div class="sub">（仮題）第4段階 試作版</div>
+  <div class="sub">（仮題）第5段階 試作版</div>
   <div class="menu" style="margin-top:8px">
     <input id="nameInput" maxlength="12" placeholder="名前（空なら「浪人」）">
   </div>
   <div class="menu" id="titleMenu">
+    <button id="btnName">名前を選ぶ</button>
     <button id="btnNew">新しいワールドを作る（ホスト）</button>
     <button id="btnContinue">続きから（ホスト）</button>
     <button id="btnJoin">部屋に参加する</button>
     <button id="btnImport">セーブファイルを読み込む</button>
+  </div>
+  <div class="menu hidden" id="namePanel" style="width:min(520px,94vw)">
+    <div class="muted" style="text-align:center">名前を選んでください（コントローラーでも選べます）</div>
+    <div id="nameKeys" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"></div>
+    <div class="row"><button id="btnNameBack">戻る</button><button id="btnNameMore">ほかの候補</button></div>
   </div>
   <div class="menu hidden" id="joinPanel">
     <input id="codeInput" maxlength="5" placeholder="部屋コード（5文字）" style="text-transform:uppercase;letter-spacing:.3em;text-align:center">
@@ -105,11 +111,11 @@
   </div>
   <div class="hud hidden" id="info">
     <div id="infoName"></div><div id="infoBody"></div>
-    <div class="row"><button id="infoClose">閉じる</button><button id="infoGo">ここへ向かう</button></div>
+    <div class="row"><button id="infoClose">閉じる</button><button id="infoAct" class="hidden"></button><button id="infoGo">ここへ向かう</button></div>
   </div>
   <div class="hud hidden" id="town">
     <div class="townHead"><span id="townName"></span><button id="townClose">閉じる</button></div>
-    <div class="row tabs"><button id="tab-market" data-tab="market">市場</button><button id="tab-jobs" data-tab="jobs">依頼</button><button id="tab-work" data-tab="work">仕事</button><button id="tab-army" data-tab="army">募兵</button><button id="tab-talk" data-tab="talk">話す</button></div>
+    <div class="row tabs"><button id="tab-market" data-tab="market">市場</button><button id="tab-jobs" data-tab="jobs">依頼</button><button id="tab-work" data-tab="work">仕事</button><button id="tab-army" data-tab="army">募兵</button><button id="tab-talk" data-tab="talk">話す</button><button id="tab-castle" data-tab="castle">城</button></div>
     <div id="townBody"></div>
   </div>
   <div class="hud hidden" id="char">
@@ -136,7 +142,7 @@
 <script>
   // 更新が確実に反映されるよう、毎回最新のファイルを読み込む
   (function () {
-    const files = ['js/config.js', 'js/data/world1560.js', 'js/data/items.js', 'js/sim/world.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/save.js', 'js/net/net.js', 'js/render.js', 'js/main.js'];
+    const files = ['js/config.js', 'js/data/world1560.js', 'js/data/items.js', 'js/sim/world.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/sim/castle.js', 'js/save.js', 'js/net/net.js', 'js/render.js', 'js/main.js'];
     const v = Date.now();
     (function next(i) { if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '?v=' + v; s.onload = () => next(i + 1); document.body.appendChild(s); })(0);
   })();

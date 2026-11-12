@@ -53,6 +53,7 @@
 
   function target(s, k) { return (I()[k].cons * s.size + (s.prod[k] || 0)) * 12 + 4; }
   SIM.price = (s, k) => { const b = I()[k].base; return Math.max(b * 0.4, Math.min(b * 3, b * Math.sqrt(target(s, k) / (s.stock[k] + 1)))); };
+  SIM.cargoPrice = (k, p) => Math.ceil(I()[k].base * 0.95 * (p && SIM.tradeMod ? SIM.tradeMod(p, 'buy') : 1));
   SIM.buyPrice = (s, k, p) => Math.ceil(SIM.price(s, k) * 1.1 * (p && SIM.tradeMod ? SIM.tradeMod(p, 'buy') : 1));
   SIM.sellPrice = (s, k, p) => Math.floor(SIM.price(s, k) * 0.9 * (p && SIM.tradeMod ? SIM.tradeMod(p, 'sell') : 1));
 
@@ -177,6 +178,16 @@
         p.busy = { kind: 'gather', label: '薪拾い', until: w.time.min + 6 * 60, amount: 3 + Math.floor(SIM.rand(w) * 3) };
       } else return;
       SIM.say(p.id, `${p.busy.label}を始めました`);
+    },
+    buyCargo(w, p, c) { // 地図上の行商人から荷を買う（町より少し安い）
+      const n = w.npcs[c.id];
+      if (!n || n.kind !== 'merchant' || !n.cargo || p.battle || p.busy) return;
+      if (dist(n, p) > 1.5) return SIM.say(p.id, '行商人にもっと近づいてください');
+      const it = I()[n.cargo.item], unit = SIM.cargoPrice(n.cargo.item, p);
+      const q = Math.min(5, n.cargo.qty, CAP - SIM.cargo(p), Math.floor(p.money / unit));
+      if (q <= 0) return SIM.say(p.id, SIM.cargo(p) >= CAP ? '荷がいっぱいです' : 'お金が足りません');
+      p.money -= q * unit; p.inv[n.cargo.item] = (p.inv[n.cargo.item] || 0) + q; n.cargo.qty -= q; if (n.cargo.qty <= 0) n.cargo = null;
+      SIM.say(p.id, `行商人から${it.name}を${q}${it.unit}買いました（${SIM.money(q * unit)}）`);
     },
     cancelWork(w, p) { if (p.busy) { SIM.say(p.id, `${p.busy.label}を取りやめました`); p.busy = null; } },
     talk(w, p) {
