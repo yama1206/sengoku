@@ -97,6 +97,7 @@
     },
     function npcLife(w, dt) {
       for (const n of Object.values(w.npcs)) {
+        if (n.kind === 'bandit') continue; // 野盗は military.js で動かす
         if (n.tx == null) {
           n.wait -= dt;
           if (n.wait > 0) continue;
@@ -128,7 +129,7 @@
     return {
       t: w.time.min,
       p: Object.values(w.players).map((p) => [p.id, p.name, r(p.x), r(p.y), p.at, p.tx == null ? null : r(p.tx), p.ty == null ? null : r(p.ty), p.status]),
-      n: Object.values(w.npcs).map((n) => [n.id, n.kind, n.faction, r(n.x), r(n.y)]),
+      n: Object.values(w.npcs).map((n) => [n.id, n.kind, n.faction, r(n.x), r(n.y), n.size || 0, n.battle ? 1 : 0]),
     };
   };
   SIM.staticState = (w) => ({ settlements: w.settlements, factions: w.factions, people: w.people, scenario: w.scenario });

@@ -62,6 +62,12 @@
     for (const n of view.npcs) {
       const d = disp[n.id] || n; const [x, y] = R.toScreen(d.x, d.y);
       if (n.kind === 'merchant') { ctx.fillStyle = '#7a5a2e'; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fill(); }
+      else if (n.kind === 'bandit') {
+        ctx.strokeStyle = n.battle ? '#ff5533' : '#3a1410'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(x - 5, y - 5); ctx.lineTo(x + 5, y + 5); ctx.moveTo(x + 5, y - 5); ctx.lineTo(x - 5, y + 5); ctx.stroke();
+        ctx.font = 'bold 11px sans-serif'; ctx.textBaseline = 'top'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)';
+        const t = `野盗 ${n.size || ''}`; ctx.strokeText(t, x, y + 7); ctx.fillStyle = '#5a1a12'; ctx.fillText(t, x, y + 7);
+      }
       else {
         ctx.fillStyle = (view.factions[n.faction] || {}).color || '#555'; ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x + 5, y + 4); ctx.lineTo(x - 5, y + 4); ctx.closePath(); ctx.fill(); ctx.stroke();
@@ -76,6 +82,42 @@
       ctx.beginPath(); ctx.arc(x, y, mine ? 7 : 6, 0, 7); ctx.fill(); ctx.stroke();
       ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText(p.name, x, y - 9);
       ctx.fillStyle = mine ? '#f2c14e' : '#fff'; ctx.fillText(p.name, x, y - 9);
+    }
+  };
+
+  // ---- 戦場（リアルタイム戦闘） ----
+  R.battleLayout = (F) => { const top = 70, bottom = 210; const sc = Math.max(2, Math.min((W - 20) / F.w, (H - top - bottom) / F.h)); return { sc, ox: (W - F.w * sc) / 2, oy: top + Math.max(0, (H - top - bottom - F.h * sc) / 2) }; };
+  const ORD = { charge: '突', hold: '待', retreat: '退' };
+  R.drawBattle = function (ctx, bt, disp, myPid) {
+    const F = SGK.SIM.FIELD, TR = SGK.SIM.TROOPS, L = R.battleLayout(F);
+    const sx = (x) => L.ox + x * L.sc, sy = (y) => L.oy + y * L.sc;
+    ctx.fillStyle = '#1a1712'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#7c8a4f'; ctx.fillRect(sx(0), sy(0), F.w * L.sc, F.h * L.sc);
+    ctx.strokeStyle = '#4b5530'; ctx.lineWidth = 2; ctx.strokeRect(sx(0), sy(0), F.w * L.sc, F.h * L.sc);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    for (const u of bt.units) {
+      const [id, side, owner, type, n, , , order] = u;
+      const d = disp['u' + bt.id + '_' + id] || { x: u[5], y: u[6] };
+      const col = side === 'B' ? '#a83228' : owner === myPid ? '#f2c14e' : '#e8e8e8';
+      const cx = sx(d.x), cy = sy(d.y);
+      if (type === 'hero') {
+        ctx.fillStyle = col; ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, Math.max(5, L.sc * 1.2), 0, 7); ctx.fill(); ctx.stroke();
+      } else {
+        const shown = Math.min(n, 36), cols = Math.ceil(Math.sqrt(shown)), gap = 1.4 * L.sc, r = Math.max(1.8, L.sc * 0.5);
+        ctx.fillStyle = col; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 1;
+        for (let i = 0; i < shown; i++) {
+          const px = cx + ((i % cols) - (cols - 1) / 2) * gap, py = cy + (Math.floor(i / cols) - (Math.ceil(shown / cols) - 1) / 2) * gap;
+          ctx.beginPath();
+          if (TR[type].ranged) { ctx.moveTo(px, py - r); ctx.lineTo(px + r, py + r); ctx.lineTo(px - r, py + r); ctx.closePath(); }
+          else if (type === 'kiba') { ctx.moveTo(px, py - r * 1.3); ctx.lineTo(px + r * 1.3, py); ctx.lineTo(px, py + r * 1.3); ctx.lineTo(px - r * 1.3, py); ctx.closePath(); }
+          else ctx.arc(px, py, r, 0, 7);
+          ctx.fill(); ctx.stroke();
+        }
+      }
+      const label = `${type === 'hero' ? (side === 'A' && owner !== myPid ? (bt.names[owner] || '味方') : '本人') : (TR[type].short || TR[type].name)} ${type === 'hero' ? '' : n}${side === 'A' ? '［' + ORD[order] + '］' : ''}`;
+      ctx.font = 'bold 12px sans-serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.8)';
+      const ly = cy - Math.max(10, Math.sqrt(Math.min(n, 36)) * 0.8 * L.sc + 4);
+      ctx.strokeText(label, cx, ly); ctx.fillStyle = side === 'B' ? '#ffb4a2' : '#fff'; ctx.fillText(label, cx, ly);
     }
   };
 })();

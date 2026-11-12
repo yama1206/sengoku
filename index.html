@@ -53,6 +53,12 @@
   .grid .h { opacity:.65; font-size:12px; }
   .card { border:1px solid #4a3d27; border-radius:6px; padding:7px 9px; margin-bottom:6px; font-size:13px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
   .muted { opacity:.65; font-size:12px; }
+  #battle { bottom:10px; left:50%; transform:translateX(-50%); width:min(640px,98vw); padding:8px 12px; }
+  #battle .bh { display:flex; justify-content:space-between; font-size:14px; margin-bottom:6px; }
+  #battle .bh b { font-family:"Hiragino Mincho ProN","Yu Mincho",serif; color:var(--gold); font-size:17px; }
+  #battle .bu { display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:13px; }
+  #battle .bu .nm { flex:1; }
+  #battle button { padding:5px 9px; font-size:13px; }
   @media (max-width:700px) { #help { display:none; } #date { font-size:15px; } }
 </style>
 </head>
@@ -60,7 +66,7 @@
 <section id="title">
   <div id="ver"><span id="verLabel"></span><button id="updateBtn">更新</button></div>
   <h1>天下への道</h1>
-  <div class="sub">（仮題）第0段階 試作版</div>
+  <div class="sub">（仮題）第3段階 試作版</div>
   <div class="menu" style="margin-top:8px">
     <input id="nameInput" maxlength="12" placeholder="名前（空なら「浪人」）">
   </div>
@@ -95,10 +101,11 @@
   </div>
   <div class="hud hidden" id="town">
     <div class="townHead"><span id="townName"></span><button id="townClose">閉じる</button></div>
-    <div class="row tabs"><button id="tab-market" data-tab="market">市場</button><button id="tab-jobs" data-tab="jobs">依頼</button><button id="tab-work" data-tab="work">仕事</button><button id="tab-talk" data-tab="talk">話す</button></div>
+    <div class="row tabs"><button id="tab-market" data-tab="market">市場</button><button id="tab-jobs" data-tab="jobs">依頼</button><button id="tab-work" data-tab="work">仕事</button><button id="tab-army" data-tab="army">募兵</button><button id="tab-talk" data-tab="talk">話す</button></div>
     <div id="townBody"></div>
   </div>
-  <div class="hud" id="help">左クリック：移動／拠点の情報　右クリック：拠点へ移動　WASD：歩く　ドラッグ：地図を動かす　ホイール：拡大　Tab：近くの拠点　E：拠点に入る　F：追従　Esc：メニュー　｜　🎮 左スティック：歩く　右：視点　X：近くの拠点　A：向かう／拠点に入る　B：取消　LB/RB：拡大　START：メニュー　拠点内LB/RB：タブ切替</div>
+  <div class="hud hidden" id="battle"><div class="bh"><b id="battleTitle"></b><span id="battleInfo"></span></div><div id="battleBody"></div></div>
+  <div class="hud" id="help">左クリック：移動／拠点の情報　右クリック：拠点へ移動　WASD：歩く　ドラッグ：地図を動かす　ホイール：拡大　Tab：近くの拠点　E：拠点に入る　F：追従　Esc：メニュー　｜　🎮 左スティック：歩く　右：視点　X：近くの拠点　A：向かう／拠点に入る　B：取消　LB/RB：拡大　START：メニュー　拠点内LB/RB：タブ切替　｜　戦闘中 Z：全軍突撃　X：全軍待機　C：全軍後退</div>
   <div id="gameMenu" class="hidden">
     <div class="menu">
       <button id="mClose">ゲームに戻る</button>
@@ -115,7 +122,7 @@
 <script>
   // 更新が確実に反映されるよう、毎回最新のファイルを読み込む
   (function () {
-    const files = ['js/config.js', 'js/data/world1560.js', 'js/data/items.js', 'js/sim/world.js', 'js/sim/economy.js', 'js/save.js', 'js/net/net.js', 'js/render.js', 'js/main.js'];
+    const files = ['js/config.js', 'js/data/world1560.js', 'js/data/items.js', 'js/sim/world.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/save.js', 'js/net/net.js', 'js/render.js', 'js/main.js'];
     const v = Date.now();
     (function next(i) { if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '?v=' + v; s.onload = () => next(i + 1); document.body.appendChild(s); })(0);
   })();

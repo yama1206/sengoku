@@ -24,6 +24,7 @@
     if (G.mode === 'title') return $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
     if (!$('gameMenu').classList.contains('hidden')) return $('gameMenu');
     if (!$('town').classList.contains('hidden')) return $('town');
+    if (!$('battle').classList.contains('hidden')) return $('battle');
     return null;
   }
   function menuButtons(m) { return [...m.querySelectorAll('button')].filter((b) => !b.disabled && b.offsetParent); }
@@ -131,7 +132,7 @@
     if (G.mode === 'host') { SGK.SAVE.save(G.world); timerWorker.postMessage(0); }
     if (G.net) G.net.close();
     Object.assign(G, { mode: 'title', world: null, net: null, dyn: null, view: null, centered: false, roomCode: null });
-    $('gameMenu').classList.add('hidden'); $('info').classList.add('hidden'); $('town').classList.add('hidden'); G.priv = null;
+    $('gameMenu').classList.add('hidden'); $('info').classList.add('hidden'); $('town').classList.add('hidden'); $('battle').classList.add('hidden'); G.priv = null;
     $('btnContinue').disabled = !SGK.SAVE.has();
     show('title');
   }
@@ -148,7 +149,7 @@
       G.view = {
         t: d.t, settlements: s.settlements, factions: s.factions, people: s.people,
         players: d.p.map(([id, name, x, y, at, tx, ty, status]) => ({ id, name, x, y, at, tx, ty, status })),
-        npcs: d.n.map(([id, kind, faction, x, y]) => ({ id, kind, faction, x, y })),
+        npcs: d.n.map(([id, kind, faction, x, y, size, battle]) => ({ id, kind, faction, x, y, size, battle })),
       };
     }
     return G.view;
@@ -230,6 +231,18 @@
         html += `<div class="card"><div><b>人足仕事</b><br><span class="muted">8時間　荷運びなどの日雇い仕事で賃金をもらう</span></div><button id="wl" data-act="work" data-kind="labor">始める</button></div>`;
       }
       html += '<div class="muted">仕事中は移動できません。</div>';
+    } else if (townTab === 'army') {
+      const TR = SIM.TROOPS, n = SIM.troopCount(me.troops);
+      html += `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　兵 ${n}/${me.troopCap}　給金 ${SIM.money(me.wage)}/日</div>`;
+      html += '<div class="muted">この拠点で雇える兵</div>';
+      for (const [k, avail] of h.recruit) {
+        const t = TR[k];
+        html += `<div class="card"><div><b>${t.name}</b>　<span class="muted">${avail}人</span><br><span class="muted">1人 ${SIM.money(t.cost)}　給金 ${t.wage}文/日${t.fame ? `　名声${t.fame}以上` : ''}</span></div><div class="row">`
+          + `<button id="r1-${k}" data-act="recruit" data-kind="${k}" data-qty="1" ${avail ? '' : 'disabled'}>雇う1</button><button id="r5-${k}" data-act="recruit" data-kind="${k}" data-qty="5" ${avail ? '' : 'disabled'}>雇う5</button></div></div>`;
+      }
+      html += '<div class="muted" style="margin-top:10px">率いている兵</div>';
+      if (!n) html += '<div class="muted" style="margin-top:4px">まだいません。野盗（地図の×印）と戦うには兵を雇いましょう</div>';
+      for (const k in me.troops) html += `<div class="card"><div>${TR[k].name}　${me.troops[k]}人</div><button id="dm-${k}" data-act="dismiss" data-kind="${k}" data-qty="1">1人解き放つ</button></div>`;
     } else {
       html += `<div class="card"><div>ここの人に話を聞く<br><span class="muted">相場の噂などが聞けます</span></div><button id="tk" data-act="talk">話しかける</button></div>`;
     }
@@ -251,7 +264,32 @@
   document.querySelectorAll('#town [data-tab]').forEach((b) => (b.onclick = () => setTab(b.dataset.tab)));
   $('townClose').onclick = () => openTown(false);
   $('townBtn').onclick = () => openTown(true);
-  function cycleTab(d) { const tabs = ['market', 'jobs', 'work', 'talk']; setTab(tabs[(tabs.indexOf(townTab) + d + 4) % 4]); }
+  function cycleTab(d) { const tabs = ['market', 'jobs', 'work', 'army', 'talk']; setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
+
+  // ---------- 戦闘の操作パネル ----------
+  let battleHtml = '';
+  const ORDN = { charge: '突撃', hold: '待機', retreat: '後退' };
+  function renderBattle(bt) {
+    const TR = SIM.TROOPS;
+    const sum = (side) => bt.units.filter((u) => u[1] === side).reduce((a, u) => a + (u[3] === 'hero' ? 1 : u[4]), 0);
+    $('battleTitle').textContent = `${bt.foe}との戦い`;
+    $('battleInfo').textContent = `味方 ${sum('A')}　敵 ${sum('B')}${bt.routed ? '（敗走中）' : ''}　${bt.t}秒`;
+    let html = '';
+    for (const u of bt.units) {
+      if (u[2] !== G.myPid) continue;
+      const [id, , , type, n, , , order] = u;
+      html += `<div class="bu"><span class="nm">${type === 'hero' ? '本人' : TR[type].name + ' ' + n + '人'}　<span class="muted">${ORDN[order]}</span></span>`
+        + ['charge', 'hold', 'retreat'].map((o) => `<button id="bo-${id}-${o}" data-unit="${id}" data-order="${o}">${ORDN[o]}</button>`).join('') + '</div>';
+    }
+    html += `<div class="bu"><span class="nm"><b>全軍</b></span>` + ['charge', 'hold', 'retreat'].map((o) => `<button id="bo-all-${o}" data-unit="all" data-order="${o}">${ORDN[o]}</button>`).join('') + '</div>';
+    html += `<div class="row" style="margin-top:6px"><button id="bAuto" data-bact="battleAuto">自動で決着（スキップ）</button><button id="bFlee" data-bact="battleFlee">退却する（兵の3割を失う）</button></div>`;
+    if (html !== battleHtml) { battleHtml = html; $('battleBody').innerHTML = html; const b = $('battle'), f = currentFocus(b); if (f) setFocus(b, f); }
+  }
+  $('battleBody').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.order) command({ type: 'order', unit: b.dataset.unit, order: b.dataset.order });
+    else if (b.dataset.bact) command({ type: b.dataset.bact });
+  });
 
   // ---------- ゲーム内メニュー ----------
   function toggleMenu(open) { const m = $('gameMenu'); const o = open ?? m.classList.contains('hidden'); m.classList.toggle('hidden', !o); if (o) setFocus(m, currentFocus(m)); }
@@ -298,6 +336,10 @@
     if (activeMenu()) {
       if (dir) { e.preventDefault(); navMenu(dir[0], dir[1]); return; }
       if (k === 'Enter' || k === ' ') { e.preventDefault(); pressMenu(); return; }
+      if (activeMenu() === $('battle')) {
+        if (k === 'Escape') { toggleMenu(true); return; }
+        const o = { z: 'charge', x: 'hold', c: 'retreat' }[k.toLowerCase()]; if (o) { command({ type: 'order', unit: 'all', order: o }); return; }
+      }
       if (k === 'Escape') { if (G.mode === 'title') $('btnJoinBack').click(); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); return; }
       if (activeMenu() === $('town') && (k === 'q' || k === 'e')) { cycleTab(k === 'q' ? -1 : 1); return; }
     }
@@ -339,9 +381,10 @@
       if (nx || ny) { if (!navHold || now - lastNav > (navHold === 1 ? 400 : 150)) { navMenu(Math.abs(nx) >= Math.abs(ny) ? Math.sign(nx) : 0, Math.abs(nx) >= Math.abs(ny) ? 0 : Math.sign(ny)); lastNav = now; navHold++; } }
       else navHold = 0;
       if (down(0)) pressMenu();
-      if (down(1)) { if (G.mode === 'title') $('btnJoinBack').click(); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); }
+      const inBattle = activeMenu() === $('battle');
+      if (down(1) && !inBattle) { if (G.mode === 'title') $('btnJoinBack').click(); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); }
       if (activeMenu() === $('town')) { if (down(4)) cycleTab(-1); if (down(5)) cycleTab(1); }
-      if (down(9) && G.mode !== 'title') toggleMenu(false);
+      if (down(9) && G.mode !== 'title') toggleMenu(inBattle);
     } else if (G.mode === 'host' || G.mode === 'client') {
       move = [lx, ly];
       if (rx || ry) { R.cam.follow = false; R.cam.x += rx * dt * 600 / R.cam.scale; R.cam.y += ry * dt * 600 / R.cam.scale; }
@@ -364,9 +407,13 @@
     if ((G.mode === 'host' || G.mode === 'client') && buildView()) {
       if (G.mode === 'host') { G.priv = SIM.privateState(G.world, G.myPid); SIM.drain(G.myPid).forEach((t) => toast(t, 4000)); }
       // WASD・左スティックで直接移動
-      let mx = padMove[0] + (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0);
-      let my = padMove[1] + (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0);
+      const BT = G.priv && G.priv.battle;
+      if (BT && $('battle').classList.contains('hidden')) { $('battle').classList.remove('hidden'); openTown(false); selectSettlement(null); battleHtml = ''; }
+      if (!BT && !$('battle').classList.contains('hidden')) { $('battle').classList.add('hidden'); battleHtml = ''; }
+      let mx = BT ? 0 : padMove[0] + (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0);
+      let my = BT ? 0 : padMove[1] + (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0);
       const m = me(); dirSendAcc += dt;
+      if (BT) { mx = my = 0; }
       if (m && (mx || my)) {
         if (dirSendAcc > 0.2) { dirSendAcc = 0; const l = Math.hypot(mx, my); command({ type: 'move', x: m.x + (mx / l) * 2, y: m.y + (my / l) * 2 }); R.cam.follow = true; }
         wasDirMoving = true;
@@ -382,18 +429,24 @@
       if (R.cam.follow && md) { R.cam.x += (md.x - R.cam.x) * k; R.cam.y += (md.y - R.cam.y) * k; }
       const P = G.priv, marks = new Set();
       if (P) P.me.quests.forEach((q) => marks.add(q.type === 'deliver' ? q.to : q.from));
-      R.draw(ctx, G.view, G.disp, G.myPid, G.selected, marks);
-      $('townBtn').classList.toggle('hidden', !(P && P.here));
+      if (BT) {
+        for (const u of BT.units) {
+          const key = 'u' + BT.id + '_' + u[0], d = G.disp[key];
+          if (!d) G.disp[key] = { x: u[5], y: u[6] }; else { d.x += (u[5] - d.x) * k; d.y += (u[6] - d.y) * k; }
+        }
+        R.drawBattle(ctx, BT, G.disp, G.myPid); renderBattle(BT);
+      } else R.draw(ctx, G.view, G.disp, G.myPid, G.selected, marks);
+      $('townBtn').classList.toggle('hidden', !(P && P.here) || !!BT);
       if (!$('town').classList.contains('hidden')) renderTown();
       if (P) {
-        $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　荷 ${SIM.cargo(P.me)}/${P.me.cap}　名声 ${P.me.fame}` + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
+        $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　荷 ${SIM.cargo(P.me)}/${P.me.cap}　名声 ${P.me.fame}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}` + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
           + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品'}・${dayLeft(q.deadline)}）</div>`).join('');
       }
       // HUD
       $('date').textContent = SIM.formatDate(G.view.t) + (G.speed === 0 ? '（停止中）' : G.speed > 1 ? `（×${G.speed}）` : '');
       if (m) {
         const at = m.at && G.view.settlements.find((s) => s.id === m.at);
-        $('status').textContent = `${m.name}（${m.status || '浪人'}）　${at ? at.name + 'に滞在中' : m.tx != null ? '移動中' : '野外'}`;
+        $('status').textContent = `${m.name}（${m.status || '浪人'}）　${BT ? '戦闘中' : at ? at.name + 'に滞在中' : m.tx != null ? '移動中' : '野外'}`;
       }
       document.querySelectorAll('[data-speed]').forEach((b) => b.classList.toggle('on', +b.dataset.speed === G.speed));
     }
