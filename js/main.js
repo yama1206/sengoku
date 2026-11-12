@@ -823,6 +823,10 @@
       if (activeMenu() === $('town')) { if (down(4)) cycleTab(-1); if (down(5)) cycleTab(1); }
       else if (activeMenu() === $('char')) { if (down(4)) cycleCTab(-1); if (down(5)) cycleCTab(1); if (down(8)) openChar(false); }
       else if (inBattle) padBattle(down, lx + rx, ly + ry, dt);
+      if (!inBattle && ry) { // 右スティック：開いている画面をスクロール
+        const m = activeMenu(), sc = [m, ...m.querySelectorAll('*')].find((e) => e.scrollHeight > e.clientHeight + 2 && /(auto|scroll)/.test(getComputedStyle(e).overflowY));
+        if (sc) sc.scrollTop += ry * Math.abs(ry) * dt * 900;
+      }
       if (down(9) && G.mode !== 'title') toggleMenu(inBattle);
     } else if (G.mode === 'host' || G.mode === 'client') {
       // 左スティック：画面のカーソルを動かす（端まで行くと地図が動く）。右スティック：視点
