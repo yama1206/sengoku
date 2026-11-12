@@ -34,8 +34,8 @@
     const bs = menuButtons(m);
     return bs.find((b) => b.classList.contains('focus')) || bs.find((b) => (b.id || b.textContent) === focusMem[m.id]) || bs[0];
   }
-  function navMenu(dx, dy) {
-    const m = activeMenu(); if (!m) return false;
+  function navMenu(dx, dy, m = activeMenu()) {
+    if (!m) return false;
     const bs = menuButtons(m); if (!bs.length) return true;
     const cur = currentFocus(m); const cr = cur.getBoundingClientRect();
     const cx = cr.left + cr.width / 2, cy = cr.top + cr.height / 2;
@@ -714,7 +714,15 @@
       if (rx || ry) { R.cam.follow = false; R.cam.x += rx * dt * 600 / R.cam.scale; R.cam.y += ry * dt * 600 / R.cam.scale; }
       if (btn(4)) R.zoom(1 - dt * 1.5, G.pcurOn ? G.pcur[0] : undefined, G.pcurOn ? G.pcur[1] : undefined);
       if (btn(5)) R.zoom(1 + dt * 1.5, G.pcurOn ? G.pcur[0] : undefined, G.pcurOn ? G.pcur[1] : undefined);
-      if (down(0)) {
+      // 拠点・部隊の情報ウインドウ：十字キーでボタンを選び、Aで押す（スティックを動かすとカーソル操作に戻る）
+      const info = $('info'), infoOpen = !info.classList.contains('hidden');
+      if (!infoOpen || lx || ly) { if (G.infoNav) { G.infoNav = false; setFocus(info, null); } }
+      else if (down(12) || down(13) || down(14) || down(15)) {
+        if (!G.infoNav) { G.infoNav = true; const g = $('infoGo'); setFocus(info, g.offsetParent ? g : menuButtons(info)[0]); }
+        else navMenu(down(15) ? 1 : down(14) ? -1 : 0, down(13) ? 1 : down(12) ? -1 : 0, info);
+      }
+      if (down(0) && G.infoNav) { const b = currentFocus(info); if (b) b.click(); G.infoNav = false; setFocus(info, null); }
+      else if (down(0)) {
         if (G.pcurOn) { // カーソルの位置をクリック：部隊なら情報、拠点なら選ぶ（選んだ拠点をもう一度で向かう）、地面ならそこへ移動
           const [sx, sy] = G.pcur, uh = unitHit(sx, sy), hit = R.hitSettlement(G.view, sx, sy);
           if (uh) selectUnit(uh);
@@ -725,7 +733,7 @@
       }
       if (down(1)) { if (G.selected) selectSettlement(null); else if (G.pcurOn || !R.cam.follow) { G.pcurOn = false; R.cam.follow = true; } else command({ type: 'stop' }); }
       if (down(8)) openChar(true);
-      if (G.mode === 'host' && (down(14) || down(15))) { const S = [0, 1, 2, 4], i = S.indexOf(G.speed); G.speed = S[Math.max(0, Math.min(3, i + (down(15) ? 1 : -1)))]; toast(G.speed ? `時間の速さ ×${G.speed}` : '時間を止めました', 900); }
+      if (G.mode === 'host' && !infoOpen && (down(14) || down(15))) { const S = [0, 1, 2, 4], i = S.indexOf(G.speed); G.speed = S[Math.max(0, Math.min(3, i + (down(15) ? 1 : -1)))]; toast(G.speed ? `時間の速さ ×${G.speed}` : '時間を止めました', 900); }
       if (down(2)) cycleNear();
       if (down(3)) $('mFollow').click();
       if (down(9)) toggleMenu(true);
