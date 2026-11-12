@@ -332,7 +332,7 @@
       html += '<span class="h">品</span><span class="h">買値</span><span class="h">売値</span><span class="h">在庫</span><span class="h">所持</span><span></span><span></span><span></span><span></span>';
       for (const [k, buy, sell, stock] of h.market) {
         const it = IT[k], have = me.inv[k] || 0;
-        html += `<span>${it.name}<span class="muted">/${it.unit}<br>相場${it.base}文</span></span><span style="color:${priceCol(buy / 1.1 / it.base)}">${buy}文</span><span style="color:${priceCol(sell / 0.9 / it.base)}">${sell}文</span><span>${stock}</span><span>${have}</span>`
+        html += `<span>${it.name}<span class="muted">/${it.unit}<br>相場${it.base}文</span></span><span style="color:${priceCol(buy / 1.1 / it.base)}">${buy}文</span><span style="color:${priceCol(sell / 0.9 / it.base)}">${sell}文</span><span>${stock}</span><span>${have}${have && me.cost && me.cost[k] != null ? `<br><span style="font-size:11px;color:${sell >= me.cost[k] ? '#6fbf73' : '#e07a6a'}">平均${Math.round(me.cost[k])}文</span>` : ''}</span>`
           + `<button id="b1-${k}" data-act="buy" data-item="${k}" data-qty="1">買1</button><button id="b10-${k}" data-act="buy" data-item="${k}" data-qty="10">買10</button>`
           + `<button id="s1-${k}" data-act="sell" data-item="${k}" data-qty="1" ${have ? '' : 'disabled'}>売1</button><button id="sa-${k}" data-act="sell" data-item="${k}" data-qty="999" ${have ? '' : 'disabled'}>全部</button>`;
       }
@@ -587,12 +587,12 @@
   ['stSound', 'stMap', 'stBattle'].forEach((id) => ($(id).onclick = () => setSetTab(id)));
   $('mSettings').onclick = () => { $('mMain').classList.add('hidden'); $('mSet').classList.remove('hidden'); setSetTab(G.priv && G.priv.battle ? 'stBattle' : 'stMap'); setFocus($('gameMenu'), $(G.priv && G.priv.battle ? 'stBattle' : 'stMap')); };
   $('stBack').onclick = menuBack;
-  $('mBgm').textContent = SGK.AUDIO.label('bgm'); $('mSfx').textContent = SGK.AUDIO.label('sfx');
-  $('mBgm').onclick = () => { $('mBgm').textContent = SGK.AUDIO.cycle('bgm'); };
-  $('mSfx').onclick = () => { $('mSfx').textContent = SGK.AUDIO.cycle('sfx'); SGK.AUDIO.sfx('coin'); };
+  const VOL = { all: 'vAll', bgm: 'vBgm', sfx: 'vSfx' };
+  for (const k in VOL) $(VOL[k]).textContent = SGK.AUDIO.label(k);
+  document.querySelectorAll('[data-vol]').forEach((b) => (b.onclick = () => { const k = b.dataset.vol; $(VOL[k]).textContent = SGK.AUDIO.step(k, +b.dataset.d); if (k !== 'bgm') SGK.AUDIO.sfx('coin'); }));
   applyPad();
   // ボタンを押したときの音（売り買いは小銭の音）
-  document.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b || b.id === 'mSfx') return; SGK.AUDIO.sfx(b.dataset.act === 'buy' || b.dataset.act === 'sell' ? 'coin' : 'click'); }, true);
+  document.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b || (b.dataset.vol && b.dataset.vol !== 'bgm')) return; SGK.AUDIO.sfx(b.dataset.act === 'buy' || b.dataset.act === 'sell' ? 'coin' : 'click'); }, true);
   $('menuBtn').onclick = () => toggleMenu(true);
   $('mClose').onclick = () => toggleMenu(false);
   $('mSave').onclick = () => { toast(SGK.SAVE.save(G.world) ? 'セーブしました' : 'セーブに失敗しました'); };

@@ -10,6 +10,9 @@
   SIM.say = (pid, text) => (SIM.out[pid] = SIM.out[pid] || []).push(text);
   SIM.drain = (pid) => { const a = SIM.out[pid] || []; delete SIM.out[pid]; return a; };
   SIM.money = (m) => { m = Math.floor(m); return m >= 1000 ? `${Math.floor(m / 1000)}貫${m % 1000 ? (m % 1000) + '文' : ''}` : `${m}文`; };
+  // 持ち物の平均買値（p.cost[品] = 1つあたりの文）。買うたびに加重平均、手放して0になったら消す
+  function addCost(p, k, q, unit) { p.cost = p.cost || {}; const have = p.inv[k] || 0, old = p.cost[k] != null ? p.cost[k] : unit; p.cost[k] = (old * have + unit * q) / (have + q); }
+  function dropCost(p, k) { if (!p.inv[k] && p.cost) delete p.cost[k]; }
   SIM.cargo = (p) => Object.values(p.inv).reduce((a, b) => a + b, 0);
   const pick = (w, arr) => arr[Math.floor(SIM.rand(w) * arr.length)];
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -100,7 +103,7 @@
         if (b.kind === 'labor') { p.money += b.pay; SIM.say(p.id, `人足仕事を終えました（${SIM.money(b.pay)}）`); }
         if (b.kind === 'gather') {
           const n = Math.min(b.amount, CAP - SIM.cargo(p));
-          if (n > 0) { p.inv.firewood = (p.inv.firewood || 0) + n; SIM.say(p.id, `薪を${n}束集めました`); } else SIM.say(p.id, '荷がいっぱいで薪を持てませんでした');
+          if (n > 0) { addCost(p, 'firewood', n, 0); p.inv.firewood = (p.inv.firewood || 0) + n; SIM.say(p.id, `薪を${n}束集めました`); } else SIM.say(p.id, '荷がいっぱいで薪を持てませんでした');
         }
       }
     },
@@ -139,7 +142,7 @@
       const unit = SIM.buyPrice(s, c.item, p);
       const q = Math.min(Math.max(1, +c.qty || 1), Math.floor(s.stock[c.item]), CAP - SIM.cargo(p), Math.floor(p.money / unit));
       if (q <= 0) return SIM.say(p.id, s.stock[c.item] < 1 ? '在庫がありません' : SIM.cargo(p) >= CAP ? 'これ以上は持てません' : 'お金が足りません');
-      p.money -= unit * q; s.stock[c.item] -= q; p.inv[c.item] = (p.inv[c.item] || 0) + q;
+      p.money -= unit * q; s.stock[c.item] -= q; addCost(p, c.item, q, unit); p.inv[c.item] = (p.inv[c.item] || 0) + q;
       SIM.say(p.id, `${it.name}を${q}${it.unit}買いました（${SIM.money(unit * q)}）`);
     },
     sell(w, p, c) {
@@ -147,7 +150,7 @@
       const q = Math.min(Math.max(1, +c.qty || 1), p.inv[c.item] || 0);
       if (q <= 0) return SIM.say(p.id, '持っていません');
       const unit = SIM.sellPrice(s, c.item, p);
-      p.money += unit * q; s.stock[c.item] += q; p.inv[c.item] -= q; if (!p.inv[c.item]) delete p.inv[c.item];
+      p.money += unit * q; s.stock[c.item] += q; p.inv[c.item] -= q; if (!p.inv[c.item]) delete p.inv[c.item]; dropCost(p, c.item);
       SIM.say(p.id, `${it.name}を${q}${it.unit}売りました（${SIM.money(unit * q)}）`);
     },
     acceptJob(w, p, c) {
@@ -161,7 +164,7 @@
       const s = needTown(w, p), q = p.quests.find((x) => x.id === c.id); if (!s || !q || q.type !== 'procure') return;
       if (q.from !== s.id) return SIM.say(p.id, `納品先は${SIM.settlement(w, q.from).name}です`);
       if ((p.inv[q.item] || 0) < q.qty) return SIM.say(p.id, `${I()[q.item].name}が足りません`);
-      p.inv[q.item] -= q.qty; if (!p.inv[q.item]) delete p.inv[q.item]; s.stock[q.item] += q.qty;
+      p.inv[q.item] -= q.qty; if (!p.inv[q.item]) delete p.inv[q.item]; dropCost(p, q.item); s.stock[q.item] += q.qty;
       p.money += q.reward; p.fame += 1; p.quests = p.quests.filter((x) => x !== q);
       SIM.say(p.id, `依頼「${q.title}」達成！ ${SIM.money(q.reward)}を受け取りました（名声+1）`);
     },
@@ -187,7 +190,7 @@
       const it = I()[n.cargo.item], unit = SIM.cargoPrice(n.cargo.item, p);
       const q = Math.min(5, n.cargo.qty, CAP - SIM.cargo(p), Math.floor(p.money / unit));
       if (q <= 0) return SIM.say(p.id, SIM.cargo(p) >= CAP ? '荷がいっぱいです' : 'お金が足りません');
-      p.money -= q * unit; p.inv[n.cargo.item] = (p.inv[n.cargo.item] || 0) + q; n.cargo.qty -= q; if (n.cargo.qty <= 0) n.cargo = null;
+      p.money -= q * unit; addCost(p, n.cargo.item, q, unit); p.inv[n.cargo.item] = (p.inv[n.cargo.item] || 0) + q; n.cargo.qty -= q; if (n.cargo.qty <= 0) n.cargo = null;
       SIM.say(p.id, `行商人から${it.name}を${q}${it.unit}買いました（${SIM.money(q * unit)}）`);
     },
     cancelWork(w, p) { if (p.busy) { SIM.say(p.id, `${p.busy.label}を取りやめました`); p.busy = null; } },
@@ -210,7 +213,7 @@
     const p = w.players[pid]; if (!p) return null;
     const s = here(w, p);
     return {
-      me: { money: p.money, inv: p.inv, quests: p.quests, fame: p.fame, busy: p.busy, cap: CAP },
+      me: { money: p.money, inv: p.inv, cost: p.cost || {}, quests: p.quests, fame: p.fame, busy: p.busy, cap: CAP },
       here: s ? { id: s.id, market: Object.keys(I()).map((k) => [k, SIM.buyPrice(s, k, p), SIM.sellPrice(s, k, p), Math.floor(s.stock[k])]), jobs: Object.values(w.jobs).filter((j) => j.from === s.id) } : null,
     };
   };

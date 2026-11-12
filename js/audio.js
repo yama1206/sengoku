@@ -2,9 +2,15 @@
 // 箏・三味線・尺八・太鼓・鼓・拍子木・鈴・法螺貝ふうの音を合成し、場面ごとに曲を自動で作り続ける
 (function () {
   const A = (SGK.AUDIO = {});
-  const LV_BGM = [0, 0.12, 0.25, 0.4], LV_SFX = [0, 0.3, 0.6, 0.9], LV_NAME = ['切', '小', '中', '大'];
-  let opt = { bgm: 2, sfx: 2 };
-  try { Object.assign(opt, JSON.parse(localStorage.getItem('sgk-audio') || '{}')); } catch (e) {}
+  // 音量は 0〜10 の11段階（全体・BGM・効果音）。0 は消音
+  const MAX = 10, BGM_MAX = 0.5, SFX_MAX = 1.0, MASTER_MAX = 0.9;
+  let opt = { v: 2, all: 10, bgm: 5, sfx: 6 };
+  try {
+    const o = JSON.parse(localStorage.getItem('sgk-audio') || '{}');
+    if (o.v !== 2) { if (o.bgm != null) opt.bgm = [0, 3, 5, 8][o.bgm] ?? 5; if (o.sfx != null) opt.sfx = [0, 3, 6, 9][o.sfx] ?? 6; } // 旧4段階から移す
+    else Object.assign(opt, o);
+  } catch (e) {}
+  const LV_BGM = new Proxy({}, { get: (_, k) => (+k / MAX) * BGM_MAX }), LV_SFX = new Proxy({}, { get: (_, k) => (+k / MAX) * SFX_MAX });
   const saveOpt = () => { try { localStorage.setItem('sgk-audio', JSON.stringify(opt)); } catch (e) {} };
 
   let ctx = null, master, bgmBus, sfxBus, rev, noiseBuf;
@@ -12,7 +18,7 @@
     if (ctx) return true;
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false;
     ctx = new AC();
-    master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
+    master = ctx.createGain(); master.gain.value = MASTER_MAX * opt.all / MAX; master.connect(ctx.destination);
     bgmBus = ctx.createGain(); bgmBus.gain.value = LV_BGM[opt.bgm]; bgmBus.connect(master);
     sfxBus = ctx.createGain(); sfxBus.gain.value = LV_SFX[opt.sfx]; sfxBus.connect(master);
     // 残響（お寺の広間くらい）
@@ -179,11 +185,18 @@
     while (nextT < now + 0.25) { S.play(step, nextT, b); step++; nextT += b; }
   }
 
-  // ---------- 音量（メニューで切替） ----------
-  A.label = (k) => `${k === 'bgm' ? 'BGM' : '効果音'}：${LV_NAME[opt[k]]}`;
-  A.cycle = (k) => {
-    opt[k] = (opt[k] + 1) % 4; saveOpt();
-    if (ctx) { if (k === 'bgm') setLevel(LV_BGM[opt.bgm], 0.3); else sfxBus.gain.value = LV_SFX[opt.sfx]; }
+  // ---------- 音量（メニューで − ＋） ----------
+  const NAMES = { all: '全体', bgm: 'BGM', sfx: '効果音' };
+  A.get = (k) => opt[k];
+  A.label = (k) => `${NAMES[k]}：${opt[k] ? '■'.repeat(opt[k]) + '□'.repeat(MAX - opt[k]) : '消音'}`;
+  A.step = (k, d) => {
+    opt[k] = Math.max(0, Math.min(MAX, opt[k] + d)); saveOpt();
+    if (ctx) {
+      if (k === 'bgm') setLevel(LV_BGM[opt.bgm], 0.2);
+      else if (k === 'sfx') sfxBus.gain.value = LV_SFX[opt.sfx];
+      else master.gain.value = MASTER_MAX * opt.all / MAX;
+    }
     return A.label(k);
   };
+  A.cycle = (k) => A.step(k, opt[k] >= MAX ? -MAX : 1);
 })();
