@@ -126,6 +126,16 @@
         ctx.font = 'bold 11px sans-serif'; ctx.textBaseline = 'top'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)';
         const t = `軍勢 ${n.size || ''}`; ctx.strokeText(t, x, y + 9); ctx.fillStyle = '#2a2118'; ctx.fillText(t, x, y + 9);
       }
+      else if (n.kind === 'ronin') { // 浪人：灰色の笠
+        ctx.fillStyle = '#9a948a'; ctx.strokeStyle = '#2a2622'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 6, 0, 7); ctx.fill(); ctx.stroke();
+        ctx.font = 'bold 11px sans-serif'; ctx.textBaseline = 'top'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)';
+        ctx.strokeText('浪人', x, y + 8); ctx.fillStyle = '#2a2118'; ctx.fillText('浪人', x, y + 8);
+      }
+      else if (n.kind === 'bushou') { // 旅の武将：家紋と名前
+        const fr = frameOf(n.faction);
+        SGK.KAMON.badge(ctx, n.faction, view.factions[n.faction], x, y, 15, 'ci', fr[0], Math.min(fr[1], 2.5));
+        if (n.pname) { ctx.font = 'bold 11px sans-serif'; ctx.textBaseline = 'top'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)'; ctx.strokeText(n.pname, x, y + 9); ctx.fillStyle = '#2a2118'; ctx.fillText(n.pname, x, y + 9); }
+      }
       else {
         const fr = frameOf(n.faction); // 巡回の武将：所属の家紋
         SGK.KAMON.badge(ctx, n.faction, view.factions[n.faction], x, y, 13, 'ci', fr[0], Math.min(fr[1], 2.5));

@@ -264,7 +264,7 @@
         t: d.t, sr: d.sr, settlements: withOwners(d.ns && d.ns.length ? s.settlements.filter((x) => !d.ns.some((n) => n.id === x.id)).concat(d.ns) : s.settlements, d.ow),
         factions: d.pf && Object.keys(d.pf).length ? Object.assign({}, s.factions, d.pf) : s.factions, people: s.people, wars: d.wars || [],
         players: d.p.map(([id, name, x, y, at, tx, ty, status, path]) => ({ id, name, x, y, at, tx, ty, status, path })),
-        npcs: d.n.map(([id, kind, faction, x, y, size, battle, dest, cargo, army, home, at]) => ({ id, kind, faction, x, y, size, battle, dest, at, cargo: cargo && { item: cargo[0], qty: cargo[1] }, army, home })),
+        npcs: d.n.map(([id, kind, faction, x, y, size, battle, dest, cargo, army, home, at, pname, extra]) => ({ id, kind, faction, x, y, size, battle, dest, at, cargo: cargo && { item: cargo[0], qty: cargo[1] }, army, home, pname, extra })),
       };
     }
     return G.view;
@@ -348,7 +348,10 @@
       return { name: '行商人', body: `${where}<br>荷：${it ? `${it.name} ${u.cargo.qty}${it.unit}　<span class="muted">売値 約${pr}文/${it.unit}（1度に5${it.unit}まで）</span>` : 'なし'}<br><span class="muted">町から町へ品物を運んでいる。1.5km以内なら荷を買える。運んだ先では品物が安くなる。</span>`,
         go: '追いかける', act: it ? { label: `${it.name}を買う`, cmd: { type: 'buyCargo', id: u.id } } : null };
     }
-    if (u.kind === 'patrol') return { name: `${f ? f.name : ''}の巡回兵 ${u.size || ''}人`, body: `${u.battle === 2 ? '<b style="color:#ff6a4a">野盗と交戦中</b>（野盗に近づくと加勢できる）<br>' : u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}<br>${where}${u.home ? `<br>本拠：${sName(u.home)}` : ''}<br>兵：${ar}<br><span class="muted">自勢力の拠点のあいだを見回り、近くの野盗を退治する。</span>`, go: '追いかける' };
+    const talk = Number(km) <= 1.5 ? { label: '話しかける', cmd: { type: 'talkNpc', id: u.id } } : null;
+    if (u.kind === 'bushou') return { name: `${u.pname || '武将'}（${f ? f.name : ''}）`, body: `勢力：${fn}<br>${u.extra || ''}　${where}<br>供回り：${ar}<br><span class="muted">${talk ? '話しかけると顔をつなげる（その家に名声2で仕官できる）。うわさも聞ける' : '1.5km以内まで近づくと話しかけられる'}</span>`, go: '追いかける', act: talk };
+    if (u.kind === 'ronin') { const [need, fee] = u.extra || [0, 0]; return { name: `浪人 ${u.pname || ''}`, body: `${where}<br>手勢：${ar}<br>家臣になる条件：名声${need}・支度金${SIM.money(fee)}<br><span class="muted">主を持たない武将。家臣にすると手勢が加わり、率いる人数が増える（家臣は3人まで）${talk ? '' : '。1.5km以内まで近づくと話しかけられる'}</span>`, go: '追いかける', act: talk ? { label: '家臣に誘う', cmd: talk.cmd } : null }; }
+    if (u.kind === 'patrol') return { name: `${f ? f.name : ''} ${u.pname ? u.pname + '隊' : '巡回兵'} ${u.size || ''}人`, act: u.battle ? null : talk, body: `${u.battle === 2 ? '<b style="color:#ff6a4a">野盗と交戦中</b>（野盗に近づくと加勢できる）<br>' : u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}<br>${where}${u.home ? `<br>本拠：${sName(u.home)}` : ''}<br>兵：${ar}<br><span class="muted">自勢力の拠点のあいだを見回り、近くの野盗を退治する。話しかけると顔をつなげる。</span>`, go: '追いかける' };
     if (u.kind === 'army') {
       const t = G.mode === 'host' ? SIM.armyText(G.world, G.world.npcs[u.id]) : ((G.dyn && G.dyn.ar) || {})[u.id];
       const R = G.priv && G.priv.me && G.priv.me.rank, mine = R && R.clan, wars = G.view.wars || [];
@@ -550,6 +553,7 @@
       }
     } else if (charTab === 'rank') {
       const R = me.rank, RK = SIM.RANKS, cur = RK[R.rank], nx = R.clan && RK[R.rank + 1] && !RK[R.rank + 1].indep ? RK[R.rank + 1] : null;
+      if (me.retainers && me.retainers.length) html += `<div class="muted" style="margin-bottom:6px">家臣：${me.retainers.join('・')}（率いる人数+${me.retainers.length * 6}）</div>`;
       html += `<div class="card" style="display:block"><b>${R.clan ? R.clanName + '　' + cur.name : '浪人'}</b><br><span class="muted">${cur.desc}</span>`
         + (R.clan ? `<div class="muted">功績 ${R.merit}　俸禄 ${SIM.money(cur.stipend)}/月　率いる人数+${cur.cap}</div>` : '')
         + (R.clan ? (() => { const fb = SIM.factionBuff(G.view.factions, R.clan); return fb ? `<div class="muted">家の得意：<b>${fb.name}</b>（${fb.text}）</div>` : ''; })() : '')
@@ -562,8 +566,8 @@
           + `<button id="rk-build" data-cact="buildCastle" ${B.canRank && !B.site ? '' : 'disabled'}>ここに城を築く</button></div>`;
       }
       if (!R.clan) {
-        html += `<div class="muted" style="margin:6px 0">城主のいる城で仕官できます（名声${RK[1].fame}以上）。仕えると俸禄がもらえ、主家の領地の依頼や戦で功績が積めます</div>`;
-        if (R.canServe) html += `<div class="card"><div>${R.factionHere}の${R.lordHere}様に仕える</div><button id="rk-serve" data-cact="serve" ${C.fame >= RK[1].fame ? '' : 'disabled'}>仕官する</button></div>`;
+        html += `<div class="muted" style="margin:6px 0">城主のいる城で仕官できます（名声${(R.serveNeed != null ? R.serveNeed : RK[1].fame)}以上）。仕えると俸禄がもらえ、主家の領地の依頼や戦で功績が積めます</div>`;
+        if (R.canServe) html += `<div class="card"><div>${R.factionHere}の${R.lordHere}様に仕える</div><button id="rk-serve" data-cact="serve" ${C.fame >= (R.serveNeed != null ? R.serveNeed : RK[1].fame) ? '' : 'disabled'}>仕官する</button></div>`;
       } else {
         if (nx) html += `<div class="card"><div>次：<b>${nx.name}</b>　<span class="muted">功績${R.merit}/${nx.merit}　名声${C.fame}/${nx.fame}<br>${nx.desc}</span></div><button id="rk-promote" data-cact="promote" ${R.atOwn && R.merit >= nx.merit && C.fame >= nx.fame ? '' : 'disabled'}>昇進を願う</button></div>`
           + (R.atOwn ? '' : '<div class="muted">昇進は主家の城で願い出ます</div>');

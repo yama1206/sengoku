@@ -111,7 +111,7 @@
     return false;
   }
   SIM.moveEntity = moveEntity;
-  const UNIT_NAME = { merchant: '行商人', bandit: '野盗', army: '軍勢', patrol: '巡回兵' };
+  const UNIT_NAME = { merchant: '行商人', bandit: '野盗', army: '軍勢', patrol: '巡回兵', bushou: '武将', ronin: '浪人' };
   SIM.followName = (w, p) => { const t = p.follow && (w.npcs[p.follow] || w.players[p.follow]); return t ? t.name || UNIT_NAME[t.kind] || '部隊' : null; };
   function followStep(w, p) {
     const t = w.npcs[p.follow] || w.players[p.follow];
@@ -138,7 +138,7 @@
     },
     function npcLife(w, dt) {
       for (const n of Object.values(w.npcs)) {
-        if (n.kind === 'bandit' || n.kind === 'army' || n.fight || n.battle) continue; // 野盗は military.js、軍勢は army.js で動かす
+        if (n.kind === 'bandit' || n.kind === 'army' || n.kind === 'bushou' || n.kind === 'ronin' || n.fight || n.battle) continue; // 野盗は military.js、軍勢は army.js で動かす
         if (n.tx == null) {
           n.wait -= dt;
           if (n.wait > 0) continue;
@@ -187,7 +187,8 @@
       p: Object.values(w.players).filter(vis).map((p) => [p.id, p.name, r(p.x), r(p.y), p.at, p.tx == null ? null : r(p.tx), p.ty == null ? null : r(p.ty), p.status,
         p.tx != null && p.path ? p.path.map(([x, y]) => [r(x), r(y)]) : null]),
       n: Object.values(w.npcs).filter(vis).map((n) => [n.id, n.kind, n.faction, r(n.x), r(n.y), n.size || 0, n.battle ? 1 : n.fight ? 2 : 0,
-        n.dest || null, n.cargo ? [n.cargo.item, n.cargo.qty] : null, n.kind === 'bandit' || n.kind === 'patrol' || n.kind === 'army' ? n.army || null : null, n.home || null, n.tx == null ? n.at || null : null]),
+        n.dest || null, n.cargo ? [n.cargo.item, n.cargo.qty] : null, n.kind === 'bandit' || n.kind === 'patrol' || n.kind === 'army' || n.kind === 'bushou' || n.kind === 'ronin' ? n.army || null : null, n.home || null, n.tx == null ? n.at || null : null,
+        SIM.npcName ? SIM.npcName(w, n) : null, n.kind === 'bushou' ? n.purpose : n.kind === 'ronin' ? [n.need, n.fee] : null]),
     };
   };
   SIM.staticState = (w) => ({ settlements: w.settlements, factions: w.factions, people: w.people, scenario: w.scenario });

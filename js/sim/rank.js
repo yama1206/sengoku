@@ -104,7 +104,7 @@
       if (p.clan) return SIM.say(p.id, `すでに${fName(w, p)}に仕えています`);
       if (p.battle || p.busy) return;
       if (lordP && lordP.id === p.id) return;
-      if (p.fame < RANKS[1].fame) return SIM.say(p.id, `仕官するには名声${RANKS[1].fame}が必要です（いま${p.fame}）`);
+      const need = SIM.serveFame ? SIM.serveFame(p, s.owner) : RANKS[1].fame; if (p.fame < need) return SIM.say(p.id, `仕官するには名声${need}が必要です（いま${p.fame}）`);
       if (p.leftClan === s.owner) return SIM.say(p.id, `${w.factions[s.owner].name}は、出奔した者を二度とは迎えてくれないようです`);
       p.clan = s.owner; p.rank = 1; p.merit = 0; p.promoteHint = 0; setStatus(w, p);
       if (lordP) SIM.say(lordP.id, `${p.name}が家臣として仕えました`);

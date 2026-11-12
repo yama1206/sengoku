@@ -218,7 +218,7 @@
     work(w, p, c) {
       const s = needTown(w, p); if (!s) return;
       if (c.kind === 'labor' && s.type !== 'village') {
-        const pay = Math.round((100 + 60 * s.size + SIM.rand(w) * 40) / 10) * 10;
+        const pay = Math.round(((100 + 60 * s.size + SIM.rand(w) * 40) * 5) / 10) * 10; // 0.28.0 5倍
         p.busy = { kind: 'labor', label: '人足仕事', until: w.time.min + 8 * 60, pay };
       } else if (c.kind === 'gather' && s.type === 'village') {
         p.busy = { kind: 'gather', label: '薪拾い', until: w.time.min + 6 * 60, amount: 3 + Math.floor(SIM.rand(w) * 3) };

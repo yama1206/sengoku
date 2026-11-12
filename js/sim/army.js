@@ -23,6 +23,7 @@
     }
     return '某';
   }
+  SIM.genName = genName;
   SIM.assignLord = (w, s, quiet) => {
     const f = w.factions[s.owner]; if (!f || f.player || f.dead || s.lord || s.holder || s.site) return null;
     const busy = new Set(w.settlements.filter((x) => x.lord).map((x) => x.lord));
