@@ -101,8 +101,13 @@
         for (const p of Object.values(w.players)) if (inField(p) && dist(n, p) < 0.6) { startBattle(w, n, p); break; }
         continue;
       }
+      if (n.tgt) { // 狙っていた相手が拠点に入ったらあきらめて根城へ帰る
+        const tp = w.players[n.tgt];
+        if (!tp || !inField(tp)) { n.tgt = null; n.calm = now + 6 * 60; n.tx = n.hx; n.ty = n.hy; }
+      }
       let tgt = null, td = 5;
       if (n.calm < now) for (const p of Object.values(w.players)) { const d = dist(n, p); if (inField(p) && d < td) { td = d; tgt = p; } }
+      n.tgt = tgt ? tgt.id : null;
       if (tgt) {
         if (playerPower(tgt) > power(n.army) * 2) { // 強い相手からは逃げる
           const d = td || 1; n.tx = Math.max(0, Math.min(B.w, n.x + ((n.x - tgt.x) / d) * 3)); n.ty = Math.max(0, Math.min(B.h, n.y + ((n.y - tgt.y) / d) * 3));
