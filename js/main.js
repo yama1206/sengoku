@@ -638,7 +638,7 @@
     $('battleInfo').textContent = `味方 ${sum('A')}　敵 ${sum('B')}${bt.routed ? '（敗走中）' : ''}　${bt.t}秒`;
     let html = ''; // 部隊の一覧は出さない（地図の上でクリックして選ぶ）
     html += `<div class="row" style="margin-top:4px"><button id="bAuto" data-bact="battleAuto">自動で決着（スキップ）</button><button id="bFlee" data-bact="battleFlee">退却する（兵の3割を失う${bt.foe === '野盗' ? '・所持金の15%を奪われる' : ''}）</button></div>`;
-    if (html !== battleHtml) { battleHtml = html; $('battleBody').innerHTML = html; const b = $('battle'), f = currentFocus(b); if (f) setFocus(b, f); }
+    if (html !== battleHtml) { battleHtml = html; $('battleBody').innerHTML = html; G.bpick = null; setFocus($('battle'), null); }
   }
   $('battleBody').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
@@ -768,22 +768,27 @@
   // ---------- コントローラー（Xbox配置：A決定 B戻る X近くの拠点 Y追従 LB/RB拡大縮小 START メニュー／左スティック カーソル 右スティック視点） ----------
   const padPrev = {}; let navHold = 0, lastNav = 0;
   // 戦闘中のコントローラー：LB/RB で自分の部隊を選ぶ、左（右）スティックで移動先、X でそこへ移動
-  function padBattle(down, rx, ry, dt) {
+  // 戦闘中のコントローラー：スティックでカーソル、×/A で自分の部隊を選ぶ→行き先で ×/A を押すとそこへ移動（LB/RB でも部隊を順に選べる）
+  function padBattle(down, mx, my, dt) {
     const BT = G.priv && G.priv.battle; if (!BT) return;
     const mine = BT.units.filter((u) => u[2] === G.myPid && u[7] !== 'rout');
     if (!mine.length) return;
-    if (down(4) || down(5) || G.selUnit == null || !mine.some((u) => u[0] === G.selUnit)) {
-      const i = mine.findIndex((u) => u[0] === G.selUnit), d = down(4) ? -1 : down(5) ? 1 : 0;
-      const u = mine[(Math.max(0, i) + d + mine.length) % mine.length];
-      if (u[0] !== G.selUnit || d) { G.selUnit = u[0]; battleHtml = ''; if (G.bcur) G.bcur = [u[5], u[6]]; }
-    }
+    if (G.selUnit != null && !mine.some((u) => u[0] === G.selUnit)) G.selUnit = null;
     const F = SIM.FIELD;
-    if (rx || ry) {
-      if (!G.bcur) { const u = mine.find((x) => x[0] === G.selUnit); G.bcur = [u[5], u[6]]; }
-      G.bcur[0] = Math.max(0, Math.min(F.w, G.bcur[0] + rx * dt * 150 / R.bcam.z));
-      G.bcur[1] = Math.max(0, Math.min(F.h, G.bcur[1] + ry * dt * 150 / R.bcam.z));
+    if (!G.bcur) { const u = mine.find((x) => x[0] === G.selUnit) || mine[0]; G.bcur = [u[5], u[6]]; }
+    if (down(4) || down(5)) {
+      const i = mine.findIndex((u) => u[0] === G.selUnit), d = down(4) ? -1 : 1;
+      const u = mine[(Math.max(-1, i) + d + mine.length) % mine.length]; G.selUnit = u[0]; G.bcur = [u[5], u[6]];
     }
-    if (down(2) && G.bcur && G.selUnit != null) { command({ type: 'order', unit: G.selUnit, order: 'move', x: G.bcur[0], y: G.bcur[1] }); toast('そこへ移動します', 800); }
+    if (mx || my) {
+      G.bcur[0] = Math.max(0, Math.min(F.w, G.bcur[0] + mx * Math.abs(mx) * dt * 170 / R.bcam.z));
+      G.bcur[1] = Math.max(0, Math.min(F.h, G.bcur[1] + my * Math.abs(my) * dt * 170 / R.bcam.z));
+    }
+    if (down(0) || down(2)) {
+      const near = mine.map((u) => [u, Math.hypot(u[5] - G.bcur[0], u[6] - G.bcur[1])]).sort((a, b) => a[1] - b[1])[0];
+      if (near && near[1] < Math.max(8, 0.6 + Math.sqrt(near[0][4]) * 0.7 + 5) && near[0][0] !== G.selUnit) { G.selUnit = near[0][0]; SGK.AUDIO.sfx('click'); }
+      else if (G.selUnit != null) { command({ type: 'order', unit: G.selUnit, order: 'move', x: G.bcur[0], y: G.bcur[1] }); toast('そこへ移動します', 800); }
+    }
   }
   // 照準の十字
   function drawCross(x, y, col) {
@@ -807,14 +812,21 @@
     let move = [0, 0];
     if (activeMenu()) {
       const now = performance.now();
-      if (nx || ny) { if (!navHold || now - lastNav > (navHold === 1 ? 400 : 150)) { navMenu(Math.abs(nx) >= Math.abs(ny) ? Math.sign(nx) : 0, Math.abs(nx) >= Math.abs(ny) ? 0 : Math.sign(ny)); lastNav = now; navHold++; } }
-      else navHold = 0;
-      if (down(0)) pressMenu();
       const inBattle = activeMenu() === $('battle');
+      if (inBattle) { // 戦闘：十字キーの左右で下のボタン（自動で決着・退却）を選び、もう一度押すと選択をやめる。ボタン選択中だけ ×/A で押す
+        const bb = menuButtons($('battle'));
+        if (down(14) || down(15)) { const i = bb.indexOf(G.bpick), d = down(15) ? 1 : -1, j = i + d; G.bpick = j >= 0 && j < bb.length && i !== -1 ? bb[j] : i === -1 ? bb[d > 0 ? 0 : bb.length - 1] : null; setFocus($('battle'), G.bpick || null); }
+        if (G.bpick && !bb.includes(G.bpick)) G.bpick = null;
+        if (down(0) && G.bpick) { const b = G.bpick; G.bpick = null; setFocus($('battle'), null); b.click(); }
+        else padBattle(down, lx + rx, ly + ry, dt);
+      } else {
+        if (nx || ny) { if (!navHold || now - lastNav > (navHold === 1 ? 400 : 150)) { navMenu(Math.abs(nx) >= Math.abs(ny) ? Math.sign(nx) : 0, Math.abs(nx) >= Math.abs(ny) ? 0 : Math.sign(ny)); lastNav = now; navHold++; } }
+        else navHold = 0;
+        if (down(0)) pressMenu();
+      }
       if (down(1) && !inBattle) { if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else menuBack(); }
       if (activeMenu() === $('town')) { if (down(4)) cycleTab(-1); if (down(5)) cycleTab(1); }
       else if (activeMenu() === $('char')) { if (down(4)) cycleCTab(-1); if (down(5)) cycleCTab(1); if (down(8)) openChar(false); }
-      else if (inBattle) padBattle(down, lx + rx, ly + ry, dt);
       if (!inBattle && ry) { // 右スティック：開いている画面をスクロール
         const m = activeMenu(), sc = [m, ...m.querySelectorAll('*')].find((e) => e.scrollHeight > e.clientHeight + 2 && /(auto|scroll)/.test(getComputedStyle(e).overflowY));
         if (sc) sc.scrollTop += ry * Math.abs(ry) * dt * 900;
