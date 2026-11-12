@@ -581,11 +581,11 @@
   if (!PADS[padStyle]) padStyle = 'xbox';
   function applyPad() { const P = PADS[padStyle]; $('mPad').textContent = `コントローラー表示：${P.name}`; document.querySelectorAll('.pk').forEach((e) => (e.textContent = P.k[e.dataset.k] || e.dataset.k)); }
   $('mPad').onclick = () => { const ks = Object.keys(PADS); padStyle = ks[(ks.indexOf(padStyle) + 1) % ks.length]; try { localStorage.setItem('sgk-pad', padStyle); } catch (e) {} applyPad(); };
-  function setTab(id) {
+  function setSetTab(id) {
     [['stSound', 'spSound'], ['stMap', 'spMap'], ['stBattle', 'spBattle']].forEach(([b, p]) => { $(b).classList.toggle('on', b === id); $(p).classList.toggle('hidden', b !== id); });
   }
-  ['stSound', 'stMap', 'stBattle'].forEach((id) => ($(id).onclick = () => setTab(id)));
-  $('mSettings').onclick = () => { $('mMain').classList.add('hidden'); $('mSet').classList.remove('hidden'); setTab(G.priv && G.priv.battle ? 'stBattle' : 'stMap'); setFocus($('gameMenu'), $(G.priv && G.priv.battle ? 'stBattle' : 'stMap')); };
+  ['stSound', 'stMap', 'stBattle'].forEach((id) => ($(id).onclick = () => setSetTab(id)));
+  $('mSettings').onclick = () => { $('mMain').classList.add('hidden'); $('mSet').classList.remove('hidden'); setSetTab(G.priv && G.priv.battle ? 'stBattle' : 'stMap'); setFocus($('gameMenu'), $(G.priv && G.priv.battle ? 'stBattle' : 'stMap')); };
   $('stBack').onclick = menuBack;
   $('mBgm').textContent = SGK.AUDIO.label('bgm'); $('mSfx').textContent = SGK.AUDIO.label('sfx');
   $('mBgm').onclick = () => { $('mBgm').textContent = SGK.AUDIO.cycle('bgm'); };
