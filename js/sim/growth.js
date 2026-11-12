@@ -56,7 +56,7 @@
     const s = p.skills[k] = p.skills[k] || [0, 0];
     if (s[0] >= MAX_SKILL) return;
     const before = SIM.charLevel(p);
-    s[1] += amt * (0.5 + p.attrs[SKILLS[k].attr] * 0.15);
+    s[1] += amt * (0.5 + p.attrs[SKILLS[k].attr] * 0.15) * (SIM.growMul ? SIM.growMul(p, k) : 1); // 0.38.0 成長の型
     while (s[0] < MAX_SKILL && s[1] >= SIM.skillNeed(s[0])) {
       s[1] -= SIM.skillNeed(s[0]); s[0]++;
       if (PERKS.some((x) => x.skill === k && x.lv === s[0])) SIM.say(p.id, `${SKILLS[k].name}が${s[0]}になりました！ 人物画面で特技を選べます`);

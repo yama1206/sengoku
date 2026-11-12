@@ -99,6 +99,24 @@
     const i = (v, a, b) => Math.max(a, Math.min(b, Math.round(+v || 0)));
     return { f: i(m.f, 0, 3), s: i(m.s, 0, 6), n: i(m.n, 1, 8), d: i(m.d, 0, 6), z: i(m.z, 1, 6), r: i(m.r, 0, 7), c: i(m.c, -1, 6) };
   };
+  SIM.okMon = okMon;
+  // ---- 0.38.0 はじめに作る人物：能力値の割り振り・成長の型・家紋 ----
+  const CREATE = SIM.CREATE = { base: 1, points: 10, max: 7 };
+  const GROW = SIM.GROW = {
+    bal: { name: '万能型', desc: 'どの技能もほどほどに伸びる（すべて+5%）', mul: {}, all: 1.05 },
+    war: { name: '武人型', desc: '武芸・指揮・弓術・馬術・調練が伸びやすい（+40%）。商い・内政は伸びにくい', mul: { bugei: 1.4, shiki: 1.4, kyujutsu: 1.4, bajutsu: 1.4, chouren: 1.4 }, all: 0.85 },
+    shou: { name: '商人型', desc: '算術・交渉が伸びやすい（+50%）。はじめの所持金+2000文', mul: { sanjutsu: 1.5, kosho: 1.5 }, all: 0.9, money: 2000 },
+    sei: { name: '政治型', desc: '内政・築城・医術が伸びやすい（+40%）', mul: { naisei: 1.4, chikujo: 1.4, ijutsu: 1.4 }, all: 0.9 },
+  };
+  SIM.growMul = (p, k) => { const g = GROW[p.grow]; return g ? (g.mul[k] || g.all || 1) : 1; };
+  SIM.applyProfile = (p, pr) => {
+    if (!pr || typeof pr !== 'object') return;
+    const A = pr.attrs, ks = Object.keys(SIM.ATTRS);
+    if (A && ks.every((k) => Number.isInteger(A[k]) && A[k] >= CREATE.base && A[k] <= CREATE.max) && ks.reduce((a, k) => a + A[k], 0) <= CREATE.base * ks.length + CREATE.points)
+      p.attrs = Object.fromEntries(ks.map((k) => [k, A[k]]));
+    if (GROW[pr.grow]) { p.grow = pr.grow; p.money += GROW[pr.grow].money || 0; }
+    const m = okMon(pr.mon); if (m) p.mon = m;
+  };
   SIM.commands.setMon = (w, p, c) => {
     const m = okMon(c.mon); if (!m) return;
     p.mon = m;
@@ -138,6 +156,7 @@
     r.me.memo = best;
     r.me.infamy = p.infamy || 0;
     r.me.mon = p.mon || null;
+    r.me.grow = p.grow ? GROW[p.grow].name : null;
     if (r.me.captives) r.me.captives = r.me.captives.map((a) => { const q = w.people[a[0]]; return a.concat([q && !q.refused ? Math.round(SIM.recruitChance(p, q) * 100) : null]); });
     const f = fOf(w, p);
     if (f && r.me.rank && r.me.rank.daimyo) {

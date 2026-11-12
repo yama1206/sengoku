@@ -82,7 +82,7 @@
     const end = (why) => { if (done) return; done = true; h.onBye(why); try { peer.destroy(); } catch (e) {} };
     peer.on('open', () => {
       conn = peer.connect(SGK.CFG.PEER_PREFIX + code.replace(/\D/g, ''), { reliable: true });
-      conn.on('open', () => conn.send({ t: 'hello', token, name, ver: SGK.VERSION, fcode: NET.myCode() }));
+      conn.on('open', () => conn.send({ t: 'hello', token, name, ver: SGK.VERSION, fcode: NET.myCode(), prof: NET.prof || null }));
       conn.on('data', (m) => {
         if (m.t === 'welcome') h.onWelcome(m);
         else if (m.t === 'state') h.onState(m);

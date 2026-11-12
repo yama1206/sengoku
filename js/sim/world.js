@@ -47,7 +47,7 @@
 
   SIM.settlement = (w, id) => w.settlements.find((s) => s.id === id);
 
-  SIM.addPlayer = function (w, token, name) {
+  SIM.addPlayer = function (w, token, name, prof) {
     if (w.tokens[token]) {
       const p = w.players[w.tokens[token]];
       if (name) p.name = name;
@@ -59,6 +59,7 @@
     w.players[id] = { id, name: name || '浪人', x: st.x + (SIM.rand(w) - 0.5), y: st.y + (SIM.rand(w) - 0.5),
       tx: null, ty: null, dest: null, at: st.id, speed: SGK.CFG.WALK_KM_PER_DAY, status: '浪人' };
     SIM.ensurePlayer(w.players[id]);
+    if (prof && SIM.applyProfile) SIM.applyProfile(w.players[id], prof); // 0.38.0 はじめに作った人物
     w.tokens[token] = id;
     return id;
   };

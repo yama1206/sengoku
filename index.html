@@ -91,7 +91,7 @@
     <input id="nameInput" maxlength="12" placeholder="名前（空なら「浪人」）">
   </div>
   <div class="menu" id="titleMenu">
-    <button id="btnName">名前を選ぶ</button>
+    <button id="btnName">人物をつくる</button>
     <button id="btnNew">新しいワールドを作る（ホスト）</button>
     <button id="btnContinue">続きから（ホスト）</button>
     <button id="btnFriend">フレンド（コードなしで参加）</button>
@@ -104,6 +104,7 @@
     <div id="nameKeys" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"></div>
     <div class="row"><button id="btnNameBack">戻る</button><button id="btnNameMore">ほかの候補</button></div>
   </div>
+  <div class="menu hidden" id="createPanel" style="width:min(560px,96vw);max-height:86vh;overflow:auto"><div id="createBody"></div></div>
   <div class="menu hidden" id="joinPanel">
     <input id="codeInput" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="部屋コード（数字6けた）" style="letter-spacing:.3em;text-align:center">
     <div id="codeKeys" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:6px 0"></div>

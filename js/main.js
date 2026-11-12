@@ -21,7 +21,7 @@
   // ---------- メニュー操作（キー・コントローラー：押した方向へ移動／決定してもカーソル位置は保つ） ----------
   const focusMem = {};
   function activeMenu() {
-    if (G.mode === 'title') return !$('slotPanel').classList.contains('hidden') ? $('slotPanel') : !$('friendPanel').classList.contains('hidden') ? $('friendPanel') : !$('namePanel').classList.contains('hidden') ? $('namePanel') : $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
+    if (G.mode === 'title') return !$('createPanel').classList.contains('hidden') ? $('createPanel') : !$('slotPanel').classList.contains('hidden') ? $('slotPanel') : !$('friendPanel').classList.contains('hidden') ? $('friendPanel') : !$('namePanel').classList.contains('hidden') ? $('namePanel') : $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
     if (!$('gameMenu').classList.contains('hidden')) return $('gameMenu');
     if (!$('char').classList.contains('hidden')) return $('char');
     if (!$('town').classList.contains('hidden')) return $('town');
@@ -125,7 +125,7 @@
     ci.value = b.dataset.ck === 'del' ? ci.value.slice(0, -1) : (ci.value + b.dataset.ck).slice(0, CL);
     if (ci.value.length === CL && b.dataset.ck !== 'del') setFocus($('joinPanel'), $('btnJoinGo'));
   });
-  function titleBack() { if (probe) { probe.close(); probe = null; } $('slotPanel').classList.add('hidden'); $('friendPanel').classList.add('hidden'); $('joinPanel').classList.add('hidden'); $('namePanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); setFocus($('titleMenu'), currentFocus($('titleMenu'))); }
+  function titleBack() { if (probe) { probe.close(); probe = null; } $('slotPanel').classList.add('hidden'); $('friendPanel').classList.add('hidden'); $('joinPanel').classList.add('hidden'); $('namePanel').classList.add('hidden'); $('createPanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); setFocus($('titleMenu'), currentFocus($('titleMenu'))); }
   $('btnJoinBack').onclick = titleBack;
   // ---------- フレンド ----------
   let probe = null; const fstat = {};
@@ -160,6 +160,66 @@
     if (b.dataset.fjoin) { const c = b.dataset.fjoin; titleBack(); startClient(c); }
     else if (b.dataset.fdel) { SGK.NET.removeFriend(b.dataset.fdel); renderFriends(); setFocus($('friendPanel'), $('btnFriendRefresh')); }
   });
+  // ---------- 家紋の編集（人物画面とはじめの人物づくりで共用） ----------
+  const MON_RANGE = { f: [0, 3], s: [0, 6], n: [1, 8], d: [0, 6], z: [1, 6], r: [0, 7], c: [-1, 6] };
+  function monDefault() { return { f: 1, s: 0, n: 3, d: 3, z: 3, r: 0, c: -1 }; }
+  function monStep(d, k, dir) {
+    const K = SGK.KAMON; d = Object.assign({}, d);
+    if (k === 'mode') return d.p ? monDefault() : { p: K.PRESETS[0] };
+    if (k === 'p') { const L = K.PRESETS; d.p = L[(L.indexOf(d.p) + dir + L.length) % L.length]; return d; }
+    const [a, b] = MON_RANGE[k], span = b - a + 1; d[k] = ((d[k] - a + dir) % span + span) % span + a; return d;
+  }
+  function monEditorHtml(d, cvId) {
+    const K = SGK.KAMON;
+    const row = (k, label, val) => `<div class="row" style="align-items:center;gap:6px;margin:3px 0"><span style="width:5em">${label}</span><button id="mk-${k}-m" data-mk="${k}" data-md="-1">◀</button><span style="min-width:8em;text-align:center">${val}</span><button id="mk-${k}-p" data-mk="${k}" data-md="1">▶</button></div>`;
+    let h = `<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap"><canvas id="${cvId}" width="120" height="120" style="background:#f4ecd8;border-radius:60px;border:2px solid #2a2118"></canvas><div>`;
+    h += `<div class="row" style="gap:6px;margin-bottom:4px"><button id="mk-mode" data-mk="mode">${d.p ? '自作にする' : '名家の紋から選ぶ'}</button></div>`;
+    if (d.p) h += row('p', '紋', K.PRESET_NAMES[d.p] || d.p);
+    else h += row('f', '枠', K.FRAMES[d.f]) + row('s', '図形', K.SHAPES[d.s]) + row('n', '数', d.n) + row('d', '間隔', d.d) + row('z', '大きさ', d.z) + row('r', '向き', d.r) + row('c', '中央', d.c < 0 ? 'なし' : K.SHAPES[d.c]);
+    return h + `</div></div><span hidden>${JSON.stringify(d)}</span>`;
+  }
+  function drawMonPrev(id, d) { const pv = $(id); if (!pv || !d) return; const x = pv.getContext('2d'); x.clearRect(0, 0, 120, 120); x.drawImage(SGK.KAMON.monImage(d, 120), 0, 0); }
+
+  // ---------- 0.38.0 はじめの人物づくり（名前・家紋・能力値・成長の型） ----------
+  const ATK = Object.keys(SIM.ATTRS), GK = Object.keys(SIM.GROW);
+  function loadProf() {
+    let p = null; try { p = JSON.parse(localStorage.getItem('sgk_prof') || 'null'); } catch (e) {}
+    p = p || {}; const C = SIM.CREATE;
+    if (!p.attrs || !ATK.every((k) => p.attrs[k] >= C.base)) p.attrs = { bu: 3, tou: 3, chi: 3, sei: 3, mi: 3 };
+    if (!SIM.GROW[p.grow]) p.grow = 'bal';
+    p.mon = p.mon || monDefault();
+    return p;
+  }
+  const myProf = () => { const p = loadProf(); SGK.NET.prof = p; return p; };
+  let prof = loadProf(), crNames = [];
+  const crLeft = () => SIM.CREATE.base * ATK.length + SIM.CREATE.points - ATK.reduce((a, k) => a + prof.attrs[k], 0);
+  function renderCreate() {
+    const C = SIM.CREATE, g = SIM.GROW[prof.grow];
+    let h = `<div class="muted" style="text-align:center">新しく始める人物です（すでに遊んでいるワールドの人物は変わりません）</div>`;
+    h += `<div style="margin-top:6px"><b>名前</b>　${(($('nameInput').value.trim()) || '浪人').replace(/[<&]/g, '')}</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:4px 0">${crNames.map((n, i) => `<button id="cn-${i}" data-cr="nm" data-v="${n}">${n}</button>`).join('')}</div><div class="row"><button id="cr-more" data-cr="more">ほかの候補</button></div>`;
+    h += `<div style="margin-top:8px"><b>能力値</b>　<span class="muted">残り ${crLeft()}点（1つ${C.max}まで）</span></div>`;
+    for (const k of ATK) h += `<div class="row" style="align-items:center;gap:6px;margin:3px 0"><span style="width:4em">${SIM.ATTRS[k]}</span><button id="ca-${k}-m" data-cr="at" data-k="${k}" data-md="-1">◀</button><span style="min-width:3em;text-align:center">${prof.attrs[k]}</span><button id="ca-${k}-p" data-cr="at" data-k="${k}" data-md="1">▶</button></div>`;
+    h += `<div style="margin-top:8px"><b>成長の型</b></div><div class="row" style="align-items:center;gap:6px"><button id="cg-m" data-cr="gr" data-md="-1">◀</button><span style="min-width:6em;text-align:center">${g.name}</span><button id="cg-p" data-cr="gr" data-md="1">▶</button></div><div class="muted">${g.desc}</div>`;
+    h += `<div style="margin-top:8px"><b>家紋</b></div>` + monEditorHtml(prof.mon, 'crMon');
+    h += `<div class="row" style="margin-top:8px"><button id="cr-back" data-cr="back">戻る</button><button id="cr-ok" data-cr="ok">この人物で決める</button></div>`;
+    $('createBody').innerHTML = h; drawMonPrev('crMon', prof.mon);
+    const pn = $('createPanel'); setFocus(pn, currentFocus(pn));
+  }
+  function pickNames() { const pk = (a) => a[Math.floor(Math.random() * a.length)], set = new Set(); while (set.size < 6) set.add(pk(SEI) + pk(MEI)); crNames = [...set]; }
+  $('btnName').onclick = () => { prof = loadProf(); pickNames(); $('createPanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); renderCreate(); setFocus($('createPanel'), $('cr-ok')); };
+  $('createBody').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    const C = SIM.CREATE, dir = +b.dataset.md || 0;
+    if (b.dataset.mk) prof.mon = monStep(prof.mon, b.dataset.mk, dir);
+    else if (b.dataset.cr === 'nm') { $('nameInput').value = b.dataset.v; localStorage.setItem('sgk_name', b.dataset.v); }
+    else if (b.dataset.cr === 'more') pickNames();
+    else if (b.dataset.cr === 'at') { const k = b.dataset.k, v = prof.attrs[k] + dir; if (v >= C.base && v <= C.max && (dir < 0 || crLeft() > 0)) prof.attrs[k] = v; }
+    else if (b.dataset.cr === 'gr') prof.grow = GK[(GK.indexOf(prof.grow) + dir + GK.length) % GK.length];
+    else if (b.dataset.cr === 'back') { $('createPanel').classList.add('hidden'); titleBack(); return; }
+    else if (b.dataset.cr === 'ok') { localStorage.setItem('sgk_prof', JSON.stringify(prof)); myName(); $('createPanel').classList.add('hidden'); titleBack(); titleMsg(`${myName()}（${SIM.GROW[prof.grow].name}）で始めます${crLeft() ? `（能力値の残り${crLeft()}点は使われません）` : ''}`); return; }
+    renderCreate();
+  });
+
   // 名前を候補から選ぶ（キーボードがなくても決められる）
   const SEI = ['木下', '明智', '前田', '佐々', '滝川', '山内', '蜂須賀', '池田', '森', '堀', '竹中', '黒田', '島', '可児', '真田', '本多', '井伊', '藤堂'];
   const MEI = ['藤吉郎', '十兵衛', '又左衛門', '内蔵助', '彦右衛門', '伊右衛門', '小六', '勝三郎', '三左衛門', '久太郎', '半兵衛', '官兵衛', '左近', '才蔵', '源次郎', '平八郎', '弥助', '五郎左'];
@@ -183,7 +243,7 @@
 
   function startHost(world, msg) {
     G.mode = 'host'; G.world = world; G.speed = 1; G.disp = {}; G.selected = null;
-    G.myPid = SIM.addPlayer(world, token, myName());
+    G.myPid = SIM.addPlayer(world, token, myName(), myProf());
     G.stat = SIM.staticState(world);
     show('game'); hostUI(true); toast(msg);
     centerOnMe();
@@ -196,7 +256,7 @@
         onError: (t) => toast(t, 5000),
         info: () => ({ name: myName(), n: (G.net ? G.net.count() : 0) + 1, max: CFG.MAX_PLAYERS }),
         onHello: (conn, m) => {
-          const pid = SIM.addPlayer(G.world, String(m.token).slice(0, 40), String(m.name || '').slice(0, 12));
+          const pid = SIM.addPlayer(G.world, String(m.token).slice(0, 40), String(m.name || '').slice(0, 12), m.prof);
           if (pid) { if (m.fcode) SGK.NET.addFriend(m.fcode, m.name); conn.send({ t: 'welcome', pid, static: G.stat, ver: SGK.VERSION, hostCode: G.roomCode, hostName: myName() }); toast(`${G.world.players[pid].name} が参加しました`); updateRoom(); }
           return pid;
         },
@@ -235,6 +295,7 @@
     if (!window.Peer) return titleMsg('通信ライブラリを読み込めませんでした');
     titleMsg('接続しています…');
     G.mode = 'connecting';
+    myProf();
     G.net = SGK.NET.join(code, token, myName(), {
       onWelcome: (m) => { SGK.NET.addFriend(m.hostCode || code, m.hostName); G.mode = 'client'; G.myPid = m.pid; G.stat = m.static; G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
       onState: (m) => { G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; G.priv = m.priv; (m.msgs || []).forEach((t) => toast(t, 4000)); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } },
@@ -553,6 +614,7 @@
     document.querySelectorAll('#char [data-ctab]').forEach((b) => b.classList.toggle('on', b.dataset.ctab === charTab));
     let html = '';
     if (charTab === 'stat') {
+      if (me.grow) html += `<div class="muted" style="margin-bottom:4px">成長の型：<b>${me.grow}</b></div>`;
       html += `<div class="muted" style="margin-bottom:6px">能力値（上げられる点：${C.points}）　技能は使うほど伸び、元の能力値が高いほど伸びやすくなります</div>`;
       for (const a in SIM.ATTRS) html += `<div class="card"><div><b>${SIM.ATTRS[a]}</b>　${C.attrs[a]}<span class="muted">/10</span></div><button id="at-${a}" data-cact="addAttr" data-attr="${a}" ${C.points > 0 && C.attrs[a] < 10 ? '' : 'disabled'}>＋1</button></div>`;
       html += '<div class="muted" style="margin:10px 0 4px">技能</div>';
@@ -570,14 +632,9 @@
           + (have === x ? '<span>習得</span>' : `<button id="pk-${x.id}" data-cact="pickPerk" data-id="${x.id}" ${reach && !have ? '' : 'disabled'}>選ぶ</button>`) + '</div>';
       }
     } else if (charTab === 'mon') { // 0.36.0 家紋を選ぶ・作る
-      const K = SGK.KAMON, d = G.monDraft = G.monDraft || (me.mon ? Object.assign({}, me.mon) : { f: 1, s: 0, n: 3, d: 3, z: 3, r: 0, c: -1 });
-      const row = (k, label, val) => `<div class="row" style="align-items:center;gap:6px;margin:3px 0"><span style="width:5em">${label}</span><button id="mk-${k}-m" data-mk="${k}" data-md="-1">◀</button><span style="min-width:8em;text-align:center">${val}</span><button id="mk-${k}-p" data-mk="${k}" data-md="1">▶</button></div>`;
+      const d = G.monDraft = G.monDraft || (me.mon ? Object.assign({}, me.mon) : monDefault());
       html += `<div class="muted" style="margin-bottom:6px">地図のあなたの印と、独立したときの家の紋になります。${me.mon ? '' : '（いまは家紋なし）'}</div>`;
-      html += `<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap"><canvas id="monPrev" width="120" height="120" style="background:#f4ecd8;border-radius:60px;border:2px solid #2a2118"></canvas><div>`;
-      html += `<div class="row" style="gap:6px;margin-bottom:4px"><button id="mk-mode" data-mk="mode" class="${d.p ? '' : 'on'}">${d.p ? '自作にする' : '名家の紋から選ぶ'}</button></div>`;
-      if (d.p) html += row('p', '紋', K.PRESET_NAMES[d.p] || d.p);
-      else html += row('f', '枠', K.FRAMES[d.f]) + row('s', '図形', K.SHAPES[d.s]) + row('n', '数', d.n) + row('d', '間隔', d.d) + row('z', '大きさ', d.z) + row('r', '向き', d.r) + row('c', '中央', d.c < 0 ? 'なし' : K.SHAPES[d.c]);
-      html += `<div class="row" style="margin-top:6px"><button id="mk-ok" data-mk="ok">この家紋にする</button></div></div></div><span hidden>${JSON.stringify(d)}</span>`;
+      html += monEditorHtml(d, 'monPrev') + `<div class="row" style="margin-top:6px"><button id="mk-ok" data-mk="ok">この家紋にする</button></div>`;
     } else if (charTab === 'rank') {
       const R = me.rank, RK = SIM.RANKS, cur = RK[R.rank], nx = R.clan && RK[R.rank + 1] && !RK[R.rank + 1].indep ? RK[R.rank + 1] : null;
       if (me.retainers && me.retainers.length) html += `<div class="muted" style="margin-bottom:6px">家臣：${me.retainers.join('・')}（率いる人数+${me.retainers.length * 6}）</div>`;
@@ -649,17 +706,12 @@
       }
     }
     if (html !== charHtml) { charHtml = html; $('charBody').innerHTML = html; const c = $('char'), f = currentFocus(c); if (f) setFocus(c, f);
-      const pv = $('monPrev'); if (pv && G.monDraft) { const x = pv.getContext('2d'); x.clearRect(0, 0, 120, 120); x.drawImage(SGK.KAMON.monImage(G.monDraft, 120), 0, 0); } }
+      drawMonPrev('monPrev', G.monDraft); }
   }
-  const MON_RANGE = { f: [0, 3], s: [0, 6], n: [1, 8], d: [0, 6], z: [1, 6], r: [0, 7], c: [-1, 6] };
   $('charBody').addEventListener('click', (e) => {
-    const m = e.target.closest('button[data-mk]'); if (!m) return;
-    const d = G.monDraft, k = m.dataset.mk, K = SGK.KAMON; if (!d) return;
-    if (k === 'ok') { command({ type: 'setMon', mon: d }); return; }
-    if (k === 'mode') { G.monDraft = d.p ? { f: 1, s: 0, n: 3, d: 3, z: 3, r: 0, c: -1 } : { p: K.PRESETS[0] }; }
-    else if (k === 'p') { const L = K.PRESETS, i = (L.indexOf(d.p) + +m.dataset.md + L.length) % L.length; d.p = L[i]; }
-    else { const [a, b] = MON_RANGE[k], span = b - a + 1; d[k] = ((d[k] - a + +m.dataset.md) % span + span) % span + a; }
-    renderChar();
+    const m = e.target.closest('button[data-mk]'); if (!m || !G.monDraft) return;
+    if (m.dataset.mk === 'ok') { command({ type: 'setMon', mon: G.monDraft }); return; }
+    G.monDraft = monStep(G.monDraft, m.dataset.mk, +m.dataset.md); renderChar();
   });
   $('charBody').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-cact]'); if (!b) return;
