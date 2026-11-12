@@ -489,7 +489,12 @@
     if (b.dataset.qty) c.qty = +b.dataset.qty;
     if (b.dataset.id) c.id = b.dataset.id;
     if (b.dataset.kind) c.kind = b.dataset.kind;
+    const job = c.type === 'acceptJob' && G.priv && G.priv.here && (G.priv.here.jobs || []).find((j) => j.id === c.id);
     command(c);
+    if (job && job.type === 'deliver' && (G.priv.me.quests || []).length < 3) { // 届け物を受けたら、届け先へカーソルを合わせる
+      const to = G.view.settlements.find((x) => x.id === job.to);
+      if (to) { openTown(false); R.cam.follow = false; R.cam.x = to.x; R.cam.y = to.y; G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; selectSettlement(to); }
+    }
   });
   document.querySelectorAll('#town [data-tab]').forEach((b) => (b.onclick = () => setTab(b.dataset.tab)));
   $('townClose').onclick = () => openTown(false);
