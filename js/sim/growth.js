@@ -154,7 +154,10 @@
   SIM.systems.push(function growthTick(w) {
     for (const p of Object.values(w.players)) {
       const d = Math.hypot(p.x - p.lx, p.y - p.ly); p.lx = p.x; p.ly = p.y;
-      if (d < 3) gain(p, 'bajutsu', d * 0.15); // 歩いた距離で馬術（ワープ・敗走は除く）
+      if (d < 3) { // 移動した距離で馬術（ワープ・敗走は除く）。ふだんは少しだけ、騎馬を連れていると多めに上がる
+        const n = SIM.troopCount(p.troops || {}); let cav = 0; for (const k in p.troops || {}) if (SIM.TROOPS[k] && SIM.TROOPS[k].cav) cav += p.troops[k];
+        gain(p, 'bajutsu', d * 0.025 * (1 + (n ? cav / n : 0) * 3));
+      }
     }
     const day = Math.floor(w.time.min / 1440);
     if (w.gday == null) w.gday = day;
