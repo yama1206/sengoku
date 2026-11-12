@@ -29,7 +29,7 @@
       if (!Object.keys(s.prod).length) s.prod = JSON.parse(JSON.stringify(d.prod && Object.keys(d.prod).length ? d.prod : SGK.DATA.defProd(s))); // 古いセーブで生産のない拠点に付ける
       s.size = s.size || SIZE[s.type];
       s.stock = s.stock || {};
-      for (const k in I()) if (s.stock[k] == null) s.stock[k] = Math.max(15, target(s, k) * (1 + SIM.rand(w) * 0.6)); // 開始時からどこもある程度の在庫
+      for (const k in I()) if (s.stock[k] == null) s.stock[k] = Math.max(6, target(s, k) * (0.5 + SIM.rand(w) * 0.6)); // 開始時からどこもある程度の在庫（多すぎない程度）
     }
     for (const p of Object.values(w.players)) SIM.ensurePlayer(p);
     if (!Object.keys(w.jobs).length) w.settlements.forEach((s) => { genJob(w, s); genJob(w, s); });
@@ -81,7 +81,7 @@
   // ---- 1日ごとの処理 ----
   function daily(w) {
     const now = w.time.min;
-    for (const s of w.settlements) for (const k in I()) s.stock[k] = Math.max(0, s.stock[k] + (s.prod[k] || 0) - I()[k].cons * s.size);
+    for (const s of w.settlements) for (const k in I()) { const t = target(s, k); s.stock[k] = Math.max(0, s.stock[k] + (s.prod[k] || 0) - I()[k].cons * s.size); if (s.stock[k] > t * 1.3) s.stock[k] -= (s.stock[k] - t * 1.3) * 0.25; } // 目安の1.3倍を超えた分は傷んだり蔵からよそへ流れたりして減る
     share(w);
     for (const j of Object.values(w.jobs)) if (j.expires < now) delete w.jobs[j.id];
     for (const s of w.settlements) {
@@ -139,9 +139,9 @@
       const a = L[i], b = L[j]; if (!a || !b) continue;
       for (const k in I()) {
         const ta = target(a, k), tb = target(b, k), ra = a.stock[k] / ta, rb = b.stock[k] / tb;
-        if (Math.abs(ra - rb) < 0.15) continue;
+        if (Math.abs(ra - rb) < 0.4) continue; // 近い拠点どうしの融通は控えめ（地域ごとの値段の差を残す）
         const [hi, lo, th, tl] = ra > rb ? [a, b, ta, tb] : [b, a, tb, ta];
-        const q = Math.min(hi.stock[k] * 0.12, Math.abs(ra - rb) * Math.min(th, tl) * 0.15);
+        const q = Math.min(hi.stock[k] * 0.05, Math.abs(ra - rb) * Math.min(th, tl) * 0.05);
         hi.stock[k] -= q; lo.stock[k] += q;
       }
     }
