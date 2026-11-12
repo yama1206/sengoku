@@ -47,7 +47,7 @@
   function setGoal(n, x, y, dest) { n.tx = x; n.ty = y; n.dest = dest || null; n.path = SIM.findPath(n.x, n.y, x, y); }
   // 行軍の速さ：プレイヤーと同じく人数（大軍ほど遅い）と兵種の割合で決まる
   SIM.armySpeed = (n) => SGK.CFG.WALK_KM_PER_DAY * SIM.sizeSpeed(n.size || 0) * SIM.mixSpeed(n.army);
-  function armyName(w, n) { const g = n.gens && w.people[n.gens[0]]; return g ? `${g.name}の軍勢` : `${fName(w, n.faction)}の軍勢`; }
+  function armyName(w, n) { const g = (n.gens && w.people[n.gens[0]]) || (n.person && w.people[n.person]); return g ? `${g.name}の軍勢` : `${fName(w, n.faction)}の軍勢`; }
   SIM.launchArmy = (w, o) => {
     const id = 'a' + w.nextId++, size = SIM.troopCount(o.army);
     const n = w.npcs[id] = { id, kind: 'army', faction: o.faction, x: o.from.x, y: o.from.y, tx: null, ty: null, dest: null, at: null, home: o.from.id,
@@ -223,7 +223,8 @@
   };
   SIM.commands.liftSiege = (w, p) => { if (p.siege && !p.battle) { SIM.say(p.id, '包囲を解きました'); p.siege = null; } };
   SIM.commands.attackArmy = (w, p, c) => {
-    const n = w.npcs[c.id]; if (!n || n.kind !== 'army' || n.battle || p.battle) return;
+    const n = w.npcs[c.id]; if (!n || !['army', 'patrol', 'bushou'].includes(n.kind) || n.battle || n.fight || p.battle) return;
+    if (n.loot == null) n.loot = Math.round((200 + (n.size || 0) * 30) / 10) * 10;
     if (!SIM.atWar(w, p.clan, n.faction)) return SIM.say(p.id, `${fName(w, n.faction)}とは戦をしていません`);
     if (dist(p, n) > AR.fightKm) return SIM.say(p.id, `もっと近づいてください（${AR.fightKm}km以内）`);
     if (p.busy) p.busy = null;
@@ -373,4 +374,46 @@
     }
     SIM.ensure(w);
   };
+  // ---- 0.30.0 武将の隊：戦をしている家のプレイヤーが近くにいて、こちらが互角以上なら攻めかかる ----
+  const HUNT = { km: 4, hitKm: 0.4, ratio: 0.8, rest: 12 * 60 };
+  const heroPow = () => SIM.TROOPS.hero.hp * SIM.TROOPS.hero.atk;
+  const isGen = (n) => (n.kind === 'patrol' || n.kind === 'bushou') && n.faction && n.army && !n.battle && !n.fight;
+  function huntable(w, n, p) {
+    return p.clan && SIM.atWar(w, n.faction, p.clan) && M.inField(p) && !p.battle && dist(n, p) < HUNT.km
+      && M.power(n.army) >= (M.power(p.troops) + heroPow()) * HUNT.ratio;
+  }
+  function giveUp(w, n) {
+    n.hunt = null; n.calm = w.time.min + HUNT.rest; n.tx = n.ty = null; n.path = null; n.dest = null;
+    if (n.kind === 'bushou') n.wait = 0; // 用事に戻る（家へ帰る）
+    else n.wait = 60;
+  }
+  SIM.systems.push(function generalHunt(w) {
+    const ps = Object.values(w.players);
+    for (const n of Object.values(w.npcs)) {
+      if (!isGen(n)) continue;
+      let p = n.hunt && w.players[n.hunt];
+      if (n.hunt && (!p || !huntable(w, n, p))) { giveUp(w, n); continue; }
+      if (!p) {
+        if ((n.calm || 0) > w.time.min || (n.size || 0) < 6) continue;
+        p = ps.filter((q) => huntable(w, n, q)).sort((a, b) => dist(a, n) - dist(b, n))[0];
+        if (!p) continue;
+        n.hunt = p.id; SIM.say(p.id, `${armyName(w, n)}（${fName(w, n.faction)}・${n.size}人）がこちらへ向かってきます！`);
+      }
+      n.tx = p.x; n.ty = p.y; n.path = null; n.dest = null; n.at = null;
+      if (dist(n, p) < HUNT.hitKm) {
+        n.hunt = null; if (n.loot == null) n.loot = Math.round((200 + n.size * 30) / 10) * 10;
+        if (p.busy) p.busy = null;
+        fieldBattle(w, n, p, `${armyName(w, n)}（${fName(w, n.faction)}・${n.size}人）に攻めかかられました！`);
+      }
+    }
+    // 討たれた武将の隊は、しばらくすると城から新しく出てくる
+    const d = Math.floor(w.time.min / 1440); if (w.genDay === d) return; w.genDay = d;
+    const homes = new Set(Object.values(w.npcs).filter((n) => n.kind === 'patrol').map((n) => n.home));
+    for (const s of w.settlements) {
+      if (s.type !== 'castle' || s.site || !s.owner || homes.has(s.id) || rnd(w) > 0.25) continue;
+      const f = w.factions[s.owner]; if (!f || f.player || f.dead) continue;
+      const n = SIM.spawnNpc(w, 'patrol', s.owner, s);
+      n.army = { yari: 8 + Math.floor(rnd(w) * 8), yumi: 2 + Math.floor(rnd(w) * 5) }; n.size = SIM.troopCount(n.army);
+    }
+  });
 })();

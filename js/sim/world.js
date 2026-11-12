@@ -111,7 +111,7 @@
     return false;
   }
   SIM.moveEntity = moveEntity;
-  const UNIT_NAME = { merchant: '行商人', bandit: '野盗', army: '軍勢', patrol: '巡回兵', bushou: '武将', ronin: '浪人' };
+  const UNIT_NAME = { merchant: '行商人', bandit: '野盗', army: '軍勢', patrol: '武将の隊', bushou: '武将', ronin: '浪人' };
   SIM.followName = (w, p) => { const t = p.follow && (w.npcs[p.follow] || w.players[p.follow]); return t ? t.name || UNIT_NAME[t.kind] || '部隊' : null; };
   function followStep(w, p) {
     const t = w.npcs[p.follow] || w.players[p.follow];

@@ -139,7 +139,7 @@
   function patrolTick(w, dt) {
     const bandits = Object.values(w.npcs).filter((n) => n.kind === 'bandit' && !n.battle);
     for (const pa of Object.values(w.npcs)) {
-      if (pa.kind !== 'patrol' || pa.battle || !pa.army) continue;
+      if (pa.kind !== 'patrol' || pa.battle || !pa.army || pa.hunt) continue;
       if (pa.fight) {
         const bd = w.npcs[pa.fight];
         if (!bd || bd.fight !== pa.id) { pa.fight = null; continue; }
