@@ -321,7 +321,7 @@
   // 持ち主が変わった城（独立など）を地図に反映する
   const withOwners = (list, ow) => (ow && Object.keys(ow).length ? list.map((x) => (ow[x.id] && ow[x.id] !== x.owner ? Object.assign({}, x, { owner: ow[x.id] }) : x)) : list);
   const holders = () => (G.mode === 'host' ? SIM.holders(G.world) : (G.dyn && G.dyn.h) || {});
-  $('infoAct').onclick = () => { if (G.infoCmd) command(G.infoCmd); };
+  $('infoAct').onclick = () => { if (typeof G.infoCmd === 'function') G.infoCmd(); else if (G.infoCmd) command(G.infoCmd); };
   $('infoGo').onclick = () => {
     if (G.selKind === 'u') { const u = findUnit(G.selected); if (u) command({ type: 'follow', id: u.id }); return; }
     const s = G.view.settlements.find((x) => x.id === G.selected); if (s) moveTo(s.x, s.y, s.id);
@@ -425,8 +425,11 @@
       html += '<div class="muted" style="margin-top:10px">この拠点の依頼</div>';
       if (!h.jobs.length) html += '<div class="muted" style="margin-top:4px">いまは依頼がありません</div>';
       for (const j of h.jobs) {
-        const what = j.type === 'deliver' ? `届け先：${sName(j.to)}` : `${IT[j.item].name}を${j.qty}${IT[j.item].unit}、ここへ納品`;
-        html += `<div class="card"><div><b>${j.title}</b>　<span class="muted">依頼主：${j.giver}</span><br><span class="muted">${what}　報酬 ${SIM.money(j.reward)}　期限${j.days}日</span></div><button id="ac-${j.id}" data-act="acceptJob" data-id="${j.id}">受ける</button></div>`;
+        const to = j.type === 'deliver' && G.view.settlements.find((x) => x.id === j.to), fr = G.view.settlements.find((x) => x.id === j.from);
+        const km = to && fr ? Math.round(Math.hypot(to.x - fr.x, to.y - fr.y)) : null;
+        const what = j.type === 'deliver' ? `届け先：${sName(j.to)}${km != null ? `（${dirOf(fr, to)}へ約${km}km）` : ''}` : `${IT[j.item].name}を${j.qty}${IT[j.item].unit}、ここへ納品`;
+        html += `<div class="card"><div><b>${j.title}</b>　<span class="muted">依頼主：${j.giver}</span><br><span class="muted">${what}　報酬 ${SIM.money(j.reward)}　期限${j.days}日</span></div><div class="row">`
+          + (to ? `<button id="lk-${j.id}" data-look="${j.to}">地図で見る</button>` : '') + `<button id="ac-${j.id}" data-act="acceptJob" data-id="${j.id}">受ける</button></div></div>`;
       }
     } else if (townTab === 'work') {
       const s = G.view.settlements.find((x) => x.id === h.id);
@@ -482,7 +485,18 @@
       const t = $('town'), f = currentFocus(t); if (f) setFocus(t, f);
     }
   }
+  // 方角（地図の上が北）
+  function dirOf(a, b) { const ang = Math.atan2(-(b.y - a.y), b.x - a.x) * 180 / Math.PI; return ['東', '北東', '北', '北西', '西', '南西', '南', '南東'][Math.round(((ang + 360) % 360) / 45) % 8]; }
+  // 依頼の届け先を地図で見る（「依頼に戻る」で拠点の画面へ戻れる）
+  function lookAt(id) {
+    const to = G.view.settlements.find((x) => x.id === id); if (!to) return;
+    const back = { label: '依頼の画面に戻る', fn: () => { selectSettlement(null); R.cam.follow = true; openTown(true); } };
+    openTown(false); R.cam.follow = false; R.cam.x = to.x; R.cam.y = to.y; G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; selectSettlement(to);
+    G.infoCmd = back.fn; $('infoAct').textContent = back.label; $('infoAct').classList.remove('hidden');
+    setFocus($('info'), $('infoAct'));
+  }
   $('townBody').addEventListener('click', (e) => {
+    const lb = e.target.closest('button[data-look]'); if (lb) return lookAt(lb.dataset.look);
     const b = e.target.closest('button[data-act]'); if (!b) return;
     const c = { type: b.dataset.act };
     if (b.dataset.item) c.item = b.dataset.item;
