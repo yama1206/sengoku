@@ -166,9 +166,17 @@
     if (p.busy) { SIM.say(p.id, '仕事中です'); return null; }
     return s;
   }
+  // 調達の依頼が出ている品は、その拠点では買えない（買ってすぐ納品できないように）
+  SIM.noBuy = (w, s) => {
+    const r = new Set();
+    for (const j of Object.values(w.jobs)) if (j.type === 'procure' && j.from === s.id) r.add(j.item);
+    for (const p of Object.values(w.players)) for (const q of p.quests || []) if (q.type === 'procure' && q.from === s.id) r.add(q.item);
+    return r;
+  };
   Object.assign(SIM.commands, {
     buy(w, p, c) {
       const s = needTown(w, p), it = I()[c.item]; if (!s || !it) return;
+      if (SIM.noBuy(w, s).has(c.item)) return SIM.say(p.id, `${it.name}はこの拠点で調達の依頼が出ているので、ここでは買えません`);
       const unit = SIM.buyPrice(s, c.item, p);
       const q = Math.min(Math.max(1, +c.qty || 1), Math.floor(s.stock[c.item]), CAP - SIM.cargo(p), Math.floor(p.money / unit));
       if (q <= 0) return SIM.say(p.id, s.stock[c.item] < 1 ? '在庫がありません' : SIM.cargo(p) >= CAP ? 'これ以上は持てません' : 'お金が足りません');
@@ -244,7 +252,7 @@
     const s = here(w, p);
     return {
       me: { money: p.money, inv: p.inv, cost: p.cost || {}, quests: p.quests, fame: p.fame, busy: p.busy, cap: CAP },
-      here: s ? { id: s.id, market: Object.keys(I()).map((k) => [k, SIM.buyPrice(s, k, p), SIM.sellPrice(s, k, p), Math.floor(s.stock[k])]), jobs: Object.values(w.jobs).filter((j) => j.from === s.id) } : null,
+      here: s ? { id: s.id, noBuy: [...SIM.noBuy(w, s)], market: Object.keys(I()).map((k) => [k, SIM.buyPrice(s, k, p), SIM.sellPrice(s, k, p), Math.floor(s.stock[k])]), jobs: Object.values(w.jobs).filter((j) => j.from === s.id) } : null,
     };
   };
 })();
