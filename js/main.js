@@ -673,7 +673,7 @@
   function renderCaptive(list) {
     const el = $('captive'), on = list && list.length && !(G.priv && G.priv.battle);
     el.classList.toggle('hidden', !on); if (!on) { captiveHtml = ''; return; }
-    const html = list.map(([id, nm, fn, t, b]) => `<div class="cp"><span>${fn}の${nm}<span class="muted">（統${t}・武${b}）</span></span><button id="cr_${id}" data-cap="releaseCaptive" data-id="${id}">逃がす</button><button id="ck_${id}" data-cap="killCaptive" data-id="${id}">斬る</button></div>`).join('');
+    const html = list.map(([id, nm, fn, t, b, rm]) => `<div class="cp"><span>${fn}の${nm}<span class="muted">（統${t}・武${b}）</span></span><button id="cr_${id}" data-cap="releaseCaptive" data-id="${id}">逃がす（身代金${SIM.money(rm || 0)}）</button><button id="ck_${id}" data-cap="killCaptive" data-id="${id}">斬る</button></div>`).join('');
     if (html !== captiveHtml) { captiveHtml = html; $('captiveBody').innerHTML = html; }
   }
   $('captiveBody').addEventListener('click', (e) => {

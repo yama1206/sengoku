@@ -212,12 +212,13 @@
     }
     if (h) { h.vass.push(pr.id); pr.castle = h.id; }
   }
+  SIM.ransom = (pr) => { return 500 + ((pr.tou || 50) + (pr.bu || 50)) * 8; }; // 0.35.1 逃がすときの身代金
   const captiveCmd = (kill) => (w, p, c) => {
     const i = (p.captives || []).indexOf(c.id); if (i < 0) return;
     p.captives.splice(i, 1);
     const pr = w.people[c.id]; if (!pr || pr.dead) return;
     if (kill) { pr.dead = true; pr.captive = null; SIM.say(p.id, `${fNm(w, pr.faction)}の${pr.name}を斬りました`); }
-    else { freeCaptive(w, pr); p.fame = (p.fame || 0) + 1; SIM.say(p.id, `${fNm(w, pr.faction)}の${pr.name}を逃がしました（名声+1）`); }
+    else { const m = SIM.ransom(pr); freeCaptive(w, pr); p.money += m; p.fame = (p.fame || 0) + 1; SIM.say(p.id, `${fNm(w, pr.faction)}の${pr.name}を逃がし、身代金${SIM.money(m)}を受け取りました（名声+1）`); }
   };
   SIM.commands.releaseCaptive = captiveCmd(false);
   SIM.commands.killCaptive = captiveCmd(true);
@@ -231,7 +232,7 @@
       v[s.id] = { lord: lord ? [lord.name, lord.tou, lord.bu] : null, vass: (s.vass || []).filter((id) => live(w, id)).map((id) => { const q = w.people[id]; return [q.name, q.tou, q.bu]; }) };
     }
     r.me.vass = v;
-    r.me.captives = (p.captives || []).map((id) => { const q = w.people[id]; return q ? [id, q.name, fNm(w, q.faction), q.tou, q.bu] : null; }).filter(Boolean);
+    r.me.captives = (p.captives || []).map((id) => { const q = w.people[id]; return q ? [id, q.name, fNm(w, q.faction), q.tou, q.bu, SIM.ransom(q)] : null; }).filter(Boolean);
     return r;
   };
 })();
