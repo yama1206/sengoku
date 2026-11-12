@@ -12,7 +12,7 @@
     yari: { name: '足軽（槍）', short: '槍', tier: 2, hp: 10, atk: 2, def: 1, spd: 4, range: 2.5, cost: 300, wage: 10, up: ['nagayari', 'kiba'] },
     yumi: { name: '弓足軽', short: '弓', tier: 2, hp: 8, atk: 1.5, def: 0, spd: 4, range: 35, ranged: true, cost: 500, wage: 15, up: ['teppo'] },
     nagayari: { name: '長槍足軽', short: '長槍', tier: 3, hp: 12, atk: 2.6, def: 1.5, spd: 4, range: 3.5, cost: 700, wage: 18, up: ['yarigashira'] },
-    kiba: { name: '騎馬武者', short: '騎', tier: 3, hp: 18, atk: 4, def: 2, spd: 9, range: 2.5, cav: true, cost: 1500, wage: 40, fame: 5, up: ['horo'] },
+    kiba: { name: '騎馬武者', short: '騎', tier: 3, hp: 18, atk: 4, def: 2, spd: 9, range: 2.5, cav: true, cost: 750, wage: 40, fame: 5, up: ['horo'] },
     teppo: { name: '鉄砲足軽', short: '鉄砲', tier: 3, hp: 8, atk: 3, def: 0, spd: 3.5, range: 40, ranged: true, cost: 1000, wage: 25, up: ['teppogashira'] },
     yarigashira: { name: '槍組頭', short: '組頭', tier: 4, hp: 15, atk: 3.4, def: 2.2, spd: 4.2, range: 3.5, cost: 1200, wage: 30 },
     teppogashira: { name: '鉄砲頭', short: '鉄砲頭', tier: 4, hp: 10, atk: 4, def: 0.5, spd: 3.5, range: 45, ranged: true, cost: 1800, wage: 40 },
