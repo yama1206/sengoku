@@ -23,15 +23,22 @@
     }
     return '某';
   }
-  SIM.assignLord = (w, s) => {
+  SIM.assignLord = (w, s, quiet) => {
     const f = w.factions[s.owner]; if (!f || f.player || f.dead || s.lord || s.holder || s.site) return null;
     const busy = new Set(w.settlements.filter((x) => x.lord).map((x) => x.lord));
     let id = Object.keys(w.people).find((k) => w.people[k].faction === s.owner && !busy.has(k) && k !== f.leader);
     if (!id && f.leader && w.people[f.leader] && !busy.has(f.leader)) id = f.leader;
     if (!id) { id = 'g' + w.nextId++; w.people[id] = { name: genName(w), faction: s.owner, loyal: 55 + Math.floor(rnd(w) * 20) }; }
     s.lord = id;
-    news(w, `${f.name}は${s.name}に${w.people[id].name}を城主として置きました`);
+    if (!quiet) news(w, `${f.name}は${s.name}に${w.people[id].name}を城主として置きました`);
     return id;
+  };
+  // 城主のいない城（データで決めていない城）には、はじめから城主・城代を置く。古いセーブにも
+  const baseEnsureL = SIM.ensure;
+  SIM.ensure = (w) => {
+    baseEnsureL(w);
+    if (!w.lordsFilled) { for (const s of w.settlements) if (s.type === 'castle' && s.owner && !s.lord && !s.holder) SIM.assignLord(w, s, true); w.lordsFilled = true; }
+    return w;
   };
 
   // ---- 軍勢（地図の上を動くNPC。kind: 'army'） ----
