@@ -82,15 +82,30 @@
       }
     }
     if (!found) return null;
-    // マスの列 → 向きが変わるところだけ残す
+    // マスの列 → 同じ地形のあいだは見通せる所まで一直線にする（斜めのギザギザをなくす）
     const cells = [];
     for (let k = t; k !== -1; k = from[k]) cells.push(k);
     cells.reverse();
-    const pts = [];
-    for (let n = 1; n < cells.length - 1; n++) {
-      const a = cells[n - 1], b = cells[n], c = cells[n + 1];
-      if (b - a !== c - b) pts.push([((b % gw) + 0.5) * CELL, (Math.floor(b / gw) + 0.5) * CELL]);
+    const cx = (k) => ((k % gw) + 0.5) * CELL, cy = (k) => (Math.floor(k / gw) + 0.5) * CELL;
+    // a から b へまっすぐ進んでも、通るマスがすべて a と同じ地形か
+    function clear(ax, ay, b, kind) {
+      const bx = cx(b), by = cy(b), n = Math.ceil(Math.hypot(bx - ax, by - ay) / (CELL * 0.25));
+      for (let s2 = 1; s2 <= n; s2++) {
+        const x = ax + (bx - ax) * s2 / n, y = ay + (by - ay) * s2 / n;
+        if (g[cj(y) * gw + ci(x)] !== kind) return false;
+      }
+      return true;
     }
+    const pts = [];
+    let ax = x0, ay = y0, ak = cells[0], i = 0;
+    while (i < cells.length - 1) {
+      let j = i + 1;
+      while (j + 1 < cells.length && clear(ax, ay, cells[j + 1], g[ak])) j++;
+      if (j === cells.length - 1) break;
+      pts.push([cx(cells[j]), cy(cells[j])]);
+      ax = cx(cells[j]); ay = cy(cells[j]); ak = cells[j]; i = j;
+    }
+    // 最後の区間も、見通せるなら目的地へ直行
     pts.push([x1, y1]);
     return pts;
   };

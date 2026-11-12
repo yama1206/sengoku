@@ -36,8 +36,11 @@
   #info { bottom:56px; left:50%; transform:translateX(-50%); min-width:260px; }
   #infoName { font-family:"Hiragino Mincho ProN","Yu Mincho",serif; font-size:20px; color:var(--gold); }
   #infoBody { margin:4px 0 8px; font-size:14px; line-height:1.6; }
-  #help { bottom:10px; left:10px; font-size:12px; opacity:.85; padding:5px 10px; }
-  #gameMenu { position:absolute; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; }
+  #help { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 18px; max-width:min(560px,94vw); max-height:86vh; overflow:auto; font-size:13px; line-height:1.6; }
+  #help b { font-family:"Hiragino Mincho ProN","Yu Mincho",serif; font-size:18px; color:var(--gold); }
+  #help h4 { margin:10px 0 2px; color:var(--gold); font-size:14px; }
+  #help p { margin:0; }
+  #gameMenu { position:absolute; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap; overflow:auto; }
   #gameMenu .menu { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
   #toasts { position:absolute; top:80px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:6px; pointer-events:none; }
   .toast { background:var(--panel); border:1px solid var(--gold); border-radius:6px; padding:6px 14px; font-size:14px; }
@@ -64,7 +67,7 @@
   #battle .bu { display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:13px; }
   #battle .bu .nm { flex:1; }
   #battle button { padding:5px 9px; font-size:13px; }
-  @media (max-width:700px) { #help { display:none; } #date { font-size:15px; } }
+  @media (max-width:700px) { #date { font-size:15px; } }
   .bu.sel { outline: 1px solid #f2c14e; }
 </style>
 </head>
@@ -125,8 +128,16 @@
     <div id="charBody"></div>
   </div>
   <div class="hud hidden" id="battle"><div class="bh"><b id="battleTitle"></b><span id="battleInfo"></span></div><div id="battleBody"></div></div>
-  <div class="hud" id="help">左クリック：移動／拠点の情報　右クリック：拠点へ移動　WASD：歩く　ドラッグ：地図を動かす　ホイール：拡大　Tab：近くの拠点　E：拠点に入る　F：追従　Esc：メニュー　P：人物　｜　🎮 左スティック：カーソル　A：クリック（地面→移動／拠点→選ぶ・もう一度で向かう）　右スティック：視点　X：近くの拠点　B：取消・カーソルを消す　LB/RB：拡大　十字←→：時間の速さ（情報ウインドウが出ているときは十字キーでボタンを選ぶ→A）　BACK：人物　START：メニュー　拠点内LB/RB：タブ切替　｜　戦闘中 Z：全軍突撃　V：全軍回り込み　X：全軍待機　C：全軍後退　部隊をクリック→地面をクリックで移動　🎮 LB/RB：部隊を選ぶ　左スティック：移動先　X：そこへ移動　十字キー：ボタン選択</div>
   <div id="gameMenu" class="hidden">
+    <div id="help">
+      <b>操作説明</b>
+      <h4>地図（キーボード・マウス）</h4>
+      <p>左クリック：移動／拠点の情報　右クリック：拠点へ移動　WASD：歩く　ドラッグ：地図を動かす　ホイール：拡大<br>Tab：近くの拠点　E：拠点に入る　F：追従　Esc：メニュー　P：人物</p>
+      <h4>地図（コントローラー）</h4>
+      <p>左スティック：カーソル　A：クリック（地面→移動／拠点→選ぶ・もう一度で向かう）　B：取消・カーソルを消す<br>右スティック：視点　LB/RB：拡大　X：近くの拠点　十字←→：時間の速さ<br>情報ウインドウ表示中：十字キーでボタンを選ぶ→A　BACK：人物　START：メニュー　拠点内LB/RB：タブ切替</p>
+      <h4>戦闘中</h4>
+      <p>Z：全軍突撃　V：全軍回り込み　X：全軍待機　C：全軍後退　部隊をクリック→地面をクリックで移動<br>🎮 LB/RB：部隊を選ぶ　左スティック：移動先　X：そこへ移動　十字キー：ボタン選択</p>
+    </div>
     <div class="menu">
       <button id="mClose">ゲームに戻る</button>
       <button id="mChar">人物・部隊</button>

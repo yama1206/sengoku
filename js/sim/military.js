@@ -343,9 +343,11 @@
     for (const k in tr) { const t = TR[k]; if (!t) continue; if (t.cav) cav += tr[k]; else if (/^teppo/.test(k)) gun += tr[k]; }
     return 1 + 0.1 * (cav - gun) / n;
   };
+  // 兵の人数で行軍の速さが変わる：少人数ならほぼそのまま、大軍ほど遅い（最大-40%）
+  SIM.sizeSpeed = (n) => (n ? 1 - Math.min(0.4, 0.04 + Math.sqrt(n) * 0.03) : 1);
   SIM.systems.push(
     function militaryDay(w) { const d = Math.floor(w.time.min / 1440); while (w.mday < d) { w.mday++; daily(w); } },
-    function partySpeed(w) { for (const p of Object.values(w.players)) p.speed = (CFG.WALK_KM_PER_DAY - (SIM.troopCount(p.troops) ? 4 : 0) + SIM.speedBonus(p)) * SIM.mixSpeed(p.troops); },
+    function partySpeed(w) { for (const p of Object.values(w.players)) p.speed = (CFG.WALK_KM_PER_DAY + SIM.speedBonus(p)) * SIM.sizeSpeed(SIM.troopCount(p.troops)) * SIM.mixSpeed(p.troops); },
     banditTick,
     function battles(w, dtMin) { const sec = dtMin / CFG.MIN_PER_SEC; for (const b of Object.values(w.battles)) stepBattle(w, b, sec); },
   );
