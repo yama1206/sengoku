@@ -18,6 +18,8 @@
     nagashima: { rice: 2, salt: 1 }, okawachi: { rice: 3 }, ano: { rice: 3, salt: 1 }, ujiyamada: { salt: 2, rice: 2, sake: 1 },
     odani: { rice: 2, iron: 1 }, kunitomo: { iron: 3 }, kannonji: { rice: 4 }, kusatsu: { rice: 2, tea: 1 }, hino: { sake: 2, firewood: 2 },
     ichijodani: { rice: 3, sake: 1 }, tsuruga: { salt: 3 },
+    kariya: { rice: 2 }, nishio: { rice: 2, salt: 1 }, tahara: { salt: 2 }, gujo: { firewood: 3 }, kitakata: { rice: 2 }, sone: { rice: 2 },
+    kameyama: { rice: 2 }, kanbe: { rice: 2 }, sawayama: { rice: 2 }, ono: { firewood: 2, rice: 1 }, takaya: { cotton: 2, rice: 2 }, kishiwada: { salt: 2 }, koshimizu: { rice: 2 },
     kyo: { sake: 3, tea: 2, cotton: 1 }, akutagawa: { rice: 2 }, iimori: { rice: 2 }, shigisan: { firewood: 3 }, ishiyama: { rice: 2 },
     sakai: { iron: 2, cotton: 1, salt: 1 }, hyogo: { salt: 3 }, nara: { sake: 3 },
   };

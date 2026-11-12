@@ -76,9 +76,12 @@
       else { ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill(); ctx.stroke(); }
       if (marks && marks.has(s.id)) { ctx.fillStyle = '#f2c14e'; ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y - 24); ctx.lineTo(x + 6, y - 17); ctx.lineTo(x, y - 10); ctx.lineTo(x - 6, y - 17); ctx.closePath(); ctx.fill(); ctx.stroke(); }
       if (s.id === selectedId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 13, 0, 7); ctx.stroke(); }
+      if (s.site) { ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 2; ctx.setLineDash([3, 3]); ctx.strokeRect(x - 10, y - 10, 20, 20); ctx.setLineDash([]); }
+      if (cam.scale < 6 && !s.lord && !s.built && s.type !== 'town' && s.id !== selectedId) continue; // 引いたときは主な拠点の名前だけ
+      const label = s.site ? s.name + '（普請中）' : s.name;
       ctx.font = `${s.type === 'castle' ? 'bold 13px' : '12px'} "Hiragino Mincho ProN","Yu Mincho",serif`;
-      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)'; ctx.strokeText(s.name, x, y + 9);
-      ctx.fillStyle = '#2a2118'; ctx.fillText(s.name, x, y + 9);
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)'; ctx.strokeText(label, x, y + 9);
+      ctx.fillStyle = '#2a2118'; ctx.fillText(label, x, y + 9);
     }
     // 視界の外を少し暗く（他の部隊は見えない）
     const meV = view.players.find((p) => p.id === myPid);

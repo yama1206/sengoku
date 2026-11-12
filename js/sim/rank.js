@@ -110,7 +110,7 @@
       if (p.fame < nx.fame) return SIM.say(p.id, `名声が足りません（${p.fame}/${nx.fame}）`);
       if (p.rank + 1 === 5) { // 城主：主家の城を一つ任される
         const s = SIM.grantCastle(w, p);
-        if (!s) return SIM.say(p.id, `いま${fName(w, p)}に任せられる城がありません`);
+        if (!s) return SIM.say(p.id, `いま${fName(w, p)}に任せられる城がありません。野外に新しく城を築くこともできます（人物画面の「身分」）`);
         SIM.say(p.id, `${s.name}を任されました！ 城の「城」の画面で内政・築城ができます`);
       }
       p.rank++; p.promoteHint = 0; setStatus(w, p);

@@ -173,7 +173,7 @@
     } else if (G.mode === 'client' && G.dyn) {
       const d = G.dyn, s = G.stat;
       G.view = {
-        t: d.t, sr: d.sr, settlements: s.settlements, factions: s.factions, people: s.people,
+        t: d.t, sr: d.sr, settlements: d.ns && d.ns.length ? s.settlements.filter((x) => !d.ns.some((n) => n.id === x.id)).concat(d.ns) : s.settlements, factions: s.factions, people: s.people,
         players: d.p.map(([id, name, x, y, at, tx, ty, status, path]) => ({ id, name, x, y, at, tx, ty, status, path })),
         npcs: d.n.map(([id, kind, faction, x, y, size, battle, dest, cargo, army, home, at]) => ({ id, kind, faction, x, y, size, battle, dest, at, cargo: cargo && { item: cargo[0], qty: cargo[1] }, army, home })),
       };
@@ -198,7 +198,7 @@
     const kind = { castle: '城', town: '町', village: '村' }[s.type];
     $('infoName').textContent = s.name;
     const ho = holders()[s.id];
-    $('infoBody').innerHTML = `${kind}　勢力：<b style="color:${f ? f.color : '#ccc'}">${f ? f.name : 'なし'}</b><br>城主・代官：${ho ? `<b>${ho}</b>（プレイヤー）` : lord || '（不明）'}`;
+    $('infoBody').innerHTML = `${kind}${s.site ? `（普請中 ${Math.floor(s.site.prog * 100)}%）` : ''}　勢力：<b style="color:${f ? f.color : '#ccc'}">${f ? f.name : 'なし'}</b><br>城主・代官：${ho ? `<b>${ho}</b>（プレイヤー）` : lord || '（不明）'}`;
     $('info').classList.remove('hidden');
   }
   const holders = () => (G.mode === 'host' ? SIM.holders(G.world) : (G.dyn && G.dyn.h) || {});
@@ -322,8 +322,14 @@
       if (!n) html += '<div class="muted" style="margin-top:4px">まだいません。野盗（地図の×印）と戦うには兵を雇いましょう</div>';
       for (const k in me.troops) html += `<div class="card"><div>${TR[k].name}　${me.troops[k]}人</div><button id="dm-${k}" data-act="dismiss" data-kind="${k}" data-qty="1">1人解き放つ</button></div>`;
     } else if (townTab === 'castle') {
-      const C = me.castle;
-      if (C && C.id === h.id) {
+      const C = (me.castles || []).find((c) => c.id === h.id);
+      if (h.site != null) {
+        const B = me.build;
+        html += `<div class="card" style="display:block"><b>普請中</b> ${h.site}%<div class="bar"><i style="width:${h.site}%"></i></div><span class="muted">普請を1回（${B.hours}時間）すると約+${B.gain}%進む（築城の技能・知略が高いほど早い）。完成すると、縄張りをした部将以上の人がこの城の城主になります</span></div>`;
+        if (h.mine && !me.busy) html += `<div class="card"><div>普請に加わる</div><button id="bw" data-act="buildWork">普請する</button></div>`;
+        else if (me.busy) html += `<div class="muted">${me.busy.label}の最中です</div>`;
+        else html += '<div class="muted">主家の城ではないので普請に加われません</div>';
+      } else if (C) {
         html += `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　毎月の年貢 約${SIM.money(C.tax)}（月の初めに届く）</div>`;
         for (const [k, v, cost, gp] of C.dev) {
           const D = SIM.DEV[k], l = Math.floor(v), pct = v >= 10 ? 100 : Math.round((v - l) * 100);
@@ -334,7 +340,7 @@
         if (me.busy) html += `<div class="muted">${me.busy.label}の最中です（「仕事」で取りやめられます）</div>`;
       } else {
         const lord = hs.lord ? (G.view.people[hs.lord] || {}).name : null;
-        html += `<div class="card" style="display:block">城主：${h.holder ? `<b>${h.holder}</b>（プレイヤー）` : lord || '（不明）'}<br><span class="muted">${C ? `あなたが任されている城は${C.name}です` : '部将から「城主」に昇進すると、主家の城を一つ任されます。任された城では内政（農業・商業）と築城ができ、毎月年貢が届きます'}</span></div>`;
+        html += `<div class="card" style="display:block">城主：${h.holder ? `<b>${h.holder}</b>（プレイヤー）` : lord || '（不明）'}<br><span class="muted">${me.castle ? `あなたが治めている城：${(me.castles || []).map((c) => c.name).join('・')}` : '部将から「城主」に昇進すると、主家の城を一つ任されます。部将以上は野外に新しく城を築くこともできます（人物画面の「身分」）'}</span></div>`;
       }
     } else {
       html += `<div class="card"><div>ここの人に話を聞く<br><span class="muted">相場の噂などが聞けます</span></div><button id="tk" data-act="talk">話しかける</button></div>`;
@@ -396,7 +402,13 @@
       const R = me.rank, RK = SIM.RANKS, cur = RK[R.rank], nx = R.clan ? RK[R.rank + 1] : null;
       html += `<div class="card" style="display:block"><b>${R.clan ? R.clanName + '　' + cur.name : '浪人'}</b><br><span class="muted">${cur.desc}</span>`
         + (R.clan ? `<div class="muted">功績 ${R.merit}　俸禄 ${SIM.money(cur.stipend)}/月　率いる人数+${cur.cap}</div>` : '')
-        + (me.castle ? `<div class="muted">任されている城：<b>${me.castle.name}</b>　年貢 約${SIM.money(me.castle.tax)}/月</div>` : '') + '</div>';
+        + (me.castles && me.castles.length ? `<div class="muted">治めている城：${me.castles.map((c) => `<b>${c.name}</b>（年貢 約${SIM.money(c.tax)}/月）`).join('・')}</div>` : '') + '</div>';
+      const B = me.build;
+      if (B) {
+        html += `<div class="card"><div><b>築城</b>　<span class="muted">いま立っている野外に新しく城を築く（${SIM.money(B.cost)}・ほかの拠点から${B.minKm}km以上・部将以上）<br>`
+          + `${B.site ? `いま${B.site}を普請中です。その城に入って「城」の画面で普請を進めます` : '縄張りのあと、その城で普請を重ねると完成し、あなたが城主になります'}</span></div>`
+          + `<button id="rk-build" data-cact="buildCastle" ${B.canRank && !B.site ? '' : 'disabled'}>ここに城を築く</button></div>`;
+      }
       if (!R.clan) {
         html += `<div class="muted" style="margin:6px 0">城主のいる城で仕官できます（名声${RK[1].fame}以上）。仕えると俸禄がもらえ、主家の領地の依頼や戦で功績が積めます</div>`;
         if (R.canServe) html += `<div class="card"><div>${R.factionHere}の${R.lordHere}様に仕える</div><button id="rk-serve" data-cact="serve" ${C.fame >= RK[1].fame ? '' : 'disabled'}>仕官する</button></div>`;

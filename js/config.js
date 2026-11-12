@@ -1,7 +1,7 @@
 // 基本設定（数値はここで調整）
 window.SGK = window.SGK || {};
-SGK.VERSION = '0.8.0';
-SGK.SAVE_SCHEMA = 6; // セーブデータの形式番号（形式を変えたら上げて、save.js の migrate に変換を書く）
+SGK.VERSION = '0.9.0';
+SGK.SAVE_SCHEMA = 7; // セーブデータの形式番号（形式を変えたら上げて、save.js の migrate に変換を書く）
 SGK.CFG = {
   MIN_PER_SEC: 30,      // 現実1秒 = ゲーム内30分（1日 = 約48秒）
   TICK_MS: 100,         // ホストの計算間隔
