@@ -206,20 +206,25 @@
   function selectSettlement(s) {
     G.selected = s ? s.id : null; G.selKind = s ? 's' : null; $('infoGo').textContent = 'ここへ向かう'; $('infoAct').classList.add('hidden');
     if (!s) { $('info').classList.add('hidden'); return; }
-    const f = G.view.factions[s.owner], lord = s.lord ? (G.view.people[s.lord] || {}).name : null;
+    const f = G.view.factions[s.owner], lord = lordName(s);
     const kind = { castle: '城', town: '町', village: '村' }[s.type];
     $('infoName').textContent = s.name;
     const ho = holders()[s.id];
     $('infoBody').innerHTML = `${kind}${s.site ? `（普請中 ${Math.floor(s.site.prog * 100)}%）` : ''}　勢力：<b style="color:${f ? f.color : '#ccc'}">${f ? f.name : 'なし'}</b>${(() => { const fb = SIM.factionBuff(G.view.factions, s.owner); return fb ? `<span class="muted">（得意：${fb.name}・${fb.text}）</span>` : ''; })()}<br>城主・代官：${ho ? `<b>${ho}</b>（プレイヤー）` : lord || '（不明）'}`;
     if (s.type === 'castle') {
       const cs = castleStat(s), m = G.priv && G.priv.me, W = m && m.war, R = m && m.rank, at = G.view.wars || [];
-      const lordN = cs.lord ? (G.view.people[cs.lord] || {}).name : null;
+      const lordN = cs.lordName;
       $('infoBody').innerHTML += `<br>守備兵 約${cs.gar}人${lordN && cs.loyal != null ? `　${lordN}の忠誠 ${cs.loyal}` : ''}`;
+      if (cs.bs) $('infoBody').innerHTML += `<br><b style="color:#e06050">${cs.bs.by}に包囲されている（総攻めまであと${cs.bs.days}日）</b>`;
       const mine = R && R.clan, war = mine && s.owner !== mine && at.includes(mine < s.owner ? `${mine}|${s.owner}` : `${s.owner}|${mine}`);
       if (war) $('infoBody').innerHTML += '　<b style="color:#e06050">交戦中</b>';
       const mp = me(), near = mp && Math.hypot(mp.x - s.x, mp.y - s.y) <= (W ? W.nearKm : 2);
       let act = null;
-      if (war && W.canSiege && near) act = { label: '城を攻める', cmd: { type: 'siege', id: s.id } };
+      const sg = W && W.siege && W.siege.sid === s.id ? W.siege : null;
+      if (sg) $('infoBody').innerHTML += `<br>${sg.ready ? '総攻めの支度が整っています' : `包囲中：総攻めまであと${sg.days}日`}`;
+      if (sg && sg.ready && near) act = { label: '総攻めをかける', cmd: { type: 'assault', id: s.id } };
+      else if (sg) act = { label: '包囲を解く', cmd: { type: 'liftSiege' } };
+      else if (war && W.canSiege && near && !(W.siege)) act = { label: `城を包囲する（${W.ar ? W.ar.siegeDays : 3}日後に総攻め）`, cmd: { type: 'siege', id: s.id } };
       else if (W && W.canPersuade && cs.lord && s.owner !== mine && mp && mp.at === s.id) act = { label: `調略する（${SIM.money(W.persuadeCost)}・成功率${W.chance != null ? W.chance : '?'}%）`, cmd: { type: 'persuade' } };
       else if (R && R.daimyo && s.owner === mine && cs.lord && mp && mp.at === s.id) act = { label: `褒美を与える（${SIM.money(W.rewardCost)}）`, cmd: { type: 'reward' } };
       G.infoCmd = act ? act.cmd : null; $('infoAct').classList.toggle('hidden', !act); if (act) $('infoAct').textContent = act.label;
@@ -228,8 +233,13 @@
   }
   // 城の守備兵・城主・忠誠（ホストは直接、参加者は送られてきた値）
   function castleStat(s) {
-    if (G.mode === 'host') { const pr = s.lord && G.world.people[s.lord]; return { gar: SIM.garrison(s), lord: s.lord, loyal: pr ? pr.loyal : null }; }
-    const c = G.dyn && G.dyn.cs && G.dyn.cs[s.id]; return c ? { gar: c[0], lord: c[1], loyal: c[2] } : { gar: '?', lord: s.lord, loyal: null };
+    if (G.mode === 'host') { const pr = s.lord && G.world.people[s.lord]; return { gar: SIM.garrison(s), lord: s.lord, loyal: pr ? pr.loyal : null, lordName: pr ? pr.name : null, bs: SIM.siegeInfo(G.world, s.id) }; }
+    const c = G.dyn && G.dyn.cs && G.dyn.cs[s.id], bs = (G.dyn && G.dyn.bs && G.dyn.bs[s.id]) || null;
+    return c ? { gar: c[0], lord: c[1], loyal: c[2], lordName: c[3] || (G.view.people[c[1]] || {}).name || null, bs } : { gar: '?', lord: s.lord, loyal: null, lordName: s.lord ? (G.view.people[s.lord] || {}).name : null, bs };
+  }
+  function lordName(s) { // 城は最新の城主（新しく置かれた武将も）、町や村は元のデータ
+    if (s.type === 'castle') return castleStat(s).lordName;
+    return s.lord ? (G.view.people[s.lord] || {}).name : null;
   }
   // 持ち主が変わった城（独立など）を地図に反映する
   const withOwners = (list, ow) => (ow && Object.keys(ow).length ? list.map((x) => (ow[x.id] && ow[x.id] !== x.owner ? Object.assign({}, x, { owner: ow[x.id] }) : x)) : list);
@@ -262,6 +272,13 @@
         go: '近づく', act: it ? { label: `${it.name}を買う`, cmd: { type: 'buyCargo', id: u.id } } : null };
     }
     if (u.kind === 'patrol') return { name: `${f ? f.name : ''}の巡回兵 ${u.size || ''}人`, body: `勢力：${fn}<br>${where}${u.home ? `<br>本拠：${sName(u.home)}` : ''}<br>兵：${ar}<br><span class="muted">自勢力の拠点のあいだを見回っている。</span>`, go: '近づく' };
+    if (u.kind === 'army') {
+      const t = G.mode === 'host' ? SIM.armyText(G.world, G.world.npcs[u.id]) : ((G.dyn && G.dyn.ar) || {})[u.id];
+      const R = G.priv && G.priv.me && G.priv.me.rank, mine = R && R.clan, wars = G.view.wars || [];
+      const war = mine && u.faction && wars.includes(mine < u.faction ? `${mine}|${u.faction}` : `${u.faction}|${mine}`);
+      const act = war && !u.battle && Number(km) <= ((G.priv.me.war && G.priv.me.war.ar) ? G.priv.me.war.ar.fightKm : 2) ? { label: '攻めかかる', cmd: { type: 'attackArmy', id: u.id } } : null;
+      return { name: `${t ? t.name : '軍勢'} ${u.size}人`, body: `${u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}${war ? '　<b style="color:#e06050">交戦中</b>' : ''}<br>${t ? t.text : ''}<br>兵：${ar}<br><span class="muted">${war ? `敵の軍勢。${(G.priv.me.war && G.priv.me.war.ar ? G.priv.me.war.ar.fightKm : 2)}km以内まで近づくと攻めかかれます。打ち破れば包囲が解けます` : '武将たちが率いる軍勢'}</span>`, go: '近づく', act };
+    }
     if (u.kind === 'bandit') {
       return { name: `野盗 ${u.size}人`, body: `${u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}${where}<br>手勢：${ar}<br><span class="muted">近づくと襲ってくる。倒すと金品が手に入る。</span>`, go: '攻めかかる' };
     }
@@ -371,7 +388,7 @@
         }
         if (me.busy) html += `<div class="muted">${me.busy.label}の最中です（「仕事」で取りやめられます）</div>`;
       } else {
-        const lord = hs.lord ? (G.view.people[hs.lord] || {}).name : null;
+        const lord = lordName(hs);
         html += `<div class="card" style="display:block">城主：${h.holder ? `<b>${h.holder}</b>（プレイヤー）` : lord || '（不明）'}<br><span class="muted">${me.castle ? `あなたが治めている城：${(me.castles || []).map((c) => c.name).join('・')}` : '部将から「城主」に昇進すると、主家の城を一つ任されます。部将以上は野外に新しく城を築くこともできます（人物画面の「身分」）'}</span></div>`;
       }
     } else {
@@ -464,8 +481,14 @@
         }
         if (me.war) {
           const fn = (k) => (G.view.factions[k] || {}).name || k;
-          html += `<div class="muted" style="margin-top:10px">戦の相手：${me.war.enemies.length ? me.war.enemies.map(fn).join('・') : 'なし'}${me.war.canSiege ? `　（敵の城の${me.war.nearKm}km以内で、城を選んで「城を攻める」）` : ''}</div>`;
-          for (const c of me.war.camps) html += `<div class="muted" style="color:#e06050">${c.att}の軍勢${c.n}人が${c.to}へ（あと${c.days}日）。城に入っていれば守りに加われます</div>`;
+          const W = me.war;
+          html += `<div class="muted" style="margin-top:10px">戦の相手：${W.enemies.length ? W.enemies.map(fn).join('・') : 'なし'}${W.canSiege ? `　（敵の城の${W.nearKm}km以内で、城を選んで「城を包囲する」。${W.ar ? W.ar.siegeDays : 3}日後に総攻め）` : ''}</div>`;
+          if (W.siege) html += `<div class="muted" style="color:#e8c060">${W.siege.name}を包囲中：${W.siege.ready ? '総攻めの支度が整っています（城を選んで「総攻めをかける」）' : `総攻めまであと${W.siege.days}日。敵の援軍に注意`}</div>`;
+          for (const c of W.camps) html += `<div class="muted" style="color:#e06050">${c.att}の軍勢${c.n}人が${c.to}${c.siege ? `を包囲中（総攻めまであと${c.days}日）` : `へ進軍中（あと${c.days}日ほど）`}。城に入れば守りに加われます。軍勢に攻めかかって追い払うこともできます</div>`;
+          if (W.canMuster) {
+            if (W.allies) html += `<div class="card" style="margin-top:6px"><div>陣触れで加わった武将：${W.allies.gens.join('・')}<br><span class="muted">兵${W.allies.n}人・あと${W.allies.days}日。戦ではあなたの部隊として指図できます</span></div><button id="rk-disband" data-cact="disband">解散</button></div>`;
+            else html += `<div class="card" style="margin-top:6px"><div>陣触れ（軍勢を集める）<br><span class="muted">主家の城で発すると、近くの城（${W.ar ? W.ar.musterKm : 40}km以内）の武将が城兵の一部を連れて加わります（${W.ar ? W.ar.musterDays : 30}日間）${W.musterCD ? `。あと${W.musterCD}日は発せません` : ''}</span></div><button id="rk-muster" data-cact="muster" ${W.musterCD ? 'disabled' : ''}>陣触れ</button></div>`;
+          }
         }
         html += '<div class="muted" style="margin-top:10px">身分の一覧</div>';
         RK.forEach((r, i) => { if (i && !r.indep) html += `<div class="muted">${i === R.rank ? '▶ ' : ''}${r.name}　功績${r.merit}・名声${r.fame}　俸禄${SIM.money(r.stipend)}/月　人数+${r.cap}</div>`; });
@@ -540,6 +563,9 @@
   $('mExport').onclick = () => { SGK.SAVE.save(G.world); SGK.SAVE.exportFile(G.world); };
   $('mFollow').onclick = () => { R.cam.follow = !R.cam.follow; toast(R.cam.follow ? '自分を追いかけます' : '追いかけを止めました', 1200); };
   $('mTitle').onclick = () => backToTitle();
+  // テスト用（ホストだけ）
+  $('mTest').onclick = () => { const on = document.querySelector('.testBtn').classList.contains('hidden'); document.querySelectorAll('.testBtn').forEach((b) => b.classList.toggle('hidden', !on)); };
+  document.querySelectorAll('.testBtn').forEach((b) => { b.onclick = () => { if (G.mode !== 'host') return; SIM.debug(G.world, G.myPid, b.dataset.dbg); (SIM.out[G.myPid] || []).splice(0).forEach((t) => toast(t, 3000)); }; });
 
   // ---------- マウス・タッチ ----------
   const cv = $('map'), ctx = cv.getContext('2d');

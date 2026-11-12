@@ -135,6 +135,17 @@
       <button id="mSave" class="hostOnly">セーブ</button>
       <button id="mExport" class="hostOnly">セーブをファイルに書き出す</button>
       <button id="mTitle">タイトルへ戻る</button>
+      <button id="mTest" class="hostOnly">テスト用（開く／閉じる）</button>
+      <div class="testBox">
+        <button class="testBtn hidden" id="dbg-money" data-dbg="money">お金+10貫</button>
+        <button class="testBtn hidden" id="dbg-fame" data-dbg="fame">名声+30</button>
+        <button class="testBtn hidden" id="dbg-troops" data-dbg="troops">兵を足す（槍・弓・騎馬10人ずつ）</button>
+        <button class="testBtn hidden" id="dbg-rank" data-dbg="rank">身分を一つ上げる</button>
+        <button class="testBtn hidden" id="dbg-lord" data-dbg="lord">城主にする</button>
+        <button class="testBtn hidden" id="dbg-daimyo" data-dbg="daimyo">大名にする（独立）</button>
+        <button class="testBtn hidden" id="dbg-days" data-dbg="days">10日進める</button>
+        <button class="testBtn hidden" id="dbg-war" data-dbg="war">包囲をすぐ終わらせる（総攻めへ）</button>
+      </div>
     </div>
   </div>
   <div id="toasts"></div>
@@ -144,7 +155,7 @@
 <script>
   // 更新が確実に反映されるよう、毎回最新のファイルを読み込む
   (function () {
-    const files = ['js/config.js', 'js/data/world1560.js', 'js/data/items.js', 'js/sim/world.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/sim/castle.js', 'js/sim/daimyo.js', 'js/sim/siege.js', 'js/save.js', 'js/net/net.js', 'js/render.js', 'js/main.js'];
+    const files = ['js/config.js', 'js/data/world1560.js', 'js/data/items.js', 'js/sim/world.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/sim/castle.js', 'js/sim/daimyo.js', 'js/sim/siege.js', 'js/sim/army.js', 'js/save.js', 'js/net/net.js', 'js/render.js', 'js/main.js'];
     const v = Date.now();
     (function next(i) { if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '?v=' + v; s.onload = () => next(i + 1); document.body.appendChild(s); })(0);
   })();

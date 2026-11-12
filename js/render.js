@@ -104,6 +104,13 @@
         ctx.font = 'bold 11px sans-serif'; ctx.textBaseline = 'top'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)';
         const t = `野盗 ${n.size || ''}`; ctx.strokeText(t, x, y + 7); ctx.fillStyle = '#5a1a12'; ctx.fillText(t, x, y + 7);
       }
+      else if (n.kind === 'army') { // 軍勢：旗印
+        const col = (view.factions[n.faction] || {}).color || '#555';
+        ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 6, y + 7); ctx.lineTo(x - 6, y - 9); ctx.stroke();
+        ctx.fillStyle = n.battle ? '#ff5533' : col; ctx.lineWidth = 1.5; ctx.fillRect(x - 5, y - 9, 11, 8); ctx.strokeRect(x - 5, y - 9, 11, 8);
+        ctx.font = 'bold 11px sans-serif'; ctx.textBaseline = 'top'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)';
+        const t = `軍勢 ${n.size || ''}`; ctx.strokeText(t, x, y + 8); ctx.fillStyle = '#2a2118'; ctx.fillText(t, x, y + 8);
+      }
       else {
         ctx.fillStyle = (view.factions[n.faction] || {}).color || '#555'; ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x + 5, y + 4); ctx.lineTo(x - 5, y + 4); ctx.closePath(); ctx.fill(); ctx.stroke();

@@ -257,12 +257,12 @@
         u.order = 'rout';
         for (const v of us) if (v.side === u.side && v !== u && v.type !== 'hero' && dist(u, v) < 40) v.mor -= 10;
         if (u.owner) SIM.say(u.owner, `${unitName(u)}が崩れて逃げ出しました！`);
-        else b.pids.forEach((pid) => SIM.say(pid, `敵の${unitName(u)}が崩れました！`));
+        else b.pids.forEach((pid) => SIM.say(pid, u.side === 'B' ? `敵の${unitName(u)}が崩れました！` : `城兵の${unitName(u)}が崩れました！`));
       }
     }
     // 野盗は数が減ると逃げ出す
     const bn = b.units.filter((u) => u.side === 'B' && alive(u)).reduce((a, u) => a + u.n, 0);
-    if (!b.routed && bn < b.foeN * 0.2) { b.routed = true; b.units.forEach((u) => { if (u.side === 'B') u.order = 'rout'; }); b.pids.forEach((pid) => SIM.say(pid, '野盗が逃げ出しました！')); }
+    if (!b.routed && bn < b.foeN * 0.2) { b.routed = true; b.units.forEach((u) => { if (u.side === 'B') u.order = 'rout'; }); b.pids.forEach((pid) => SIM.say(pid, `${b.foe}が逃げ出しました！`)); }
     const aLive = b.units.some((u) => u.side === 'A' && alive(u)), bLive = b.units.some((u) => u.side === 'B' && alive(u));
     const bFight = b.units.some((u) => u.side === 'B' && alive(u) && u.order !== 'rout');
     if (!bLive || (!bFight && b.routed)) finish(w, b, 'win');
@@ -404,5 +404,5 @@
     return r;
   };
   SIM.FIELD = FIELD;
-  SIM._mil = { addUnits, genTerrain, inField, power }; // 攻城戦（siege.js）から使う
+  SIM._mil = { addUnits, genTerrain, inField, power, surviving }; // 攻城戦（siege.js）から使う
 })();

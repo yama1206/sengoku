@@ -75,6 +75,7 @@
     for (const [pid2, pr] of Object.entries(w.people)) if (pr.faction === from && w.factions[from] && w.factions[from].leader !== pid2) pr.loyal = Math.max(0, pr.loyal - 3);
     news(w, `${s.name}が${fName(w, from)}から${fName(w, to)}の手に渡りました${lord ? (joined ? `（${lord.name}は降りました）` : `（${lord.name}は落ち延びました）`) : ''}`);
     if (!castles(w, from).length) ruin(w, from);
+    if (!s.lord && !s.holder && SIM.assignLord) SIM.assignLord(w, s);
     SIM.ensure(w);
     return joined;
   }
@@ -89,7 +90,7 @@
   }
 
   // ---- 攻城戦（プレイヤーが攻める） ----
-  SIM.commands.siege = (w, p, c) => {
+  SIM._assault = (w, p, c) => { // 総攻め（包囲を終えてから。army.js の assault から呼ぶ）
     const s = SIM.settlement(w, c.id);
     if (!s || s.type !== 'castle' || s.site || p.battle || p.busy) return;
     const f = w.factions[p.clan];
@@ -99,14 +100,14 @@
     if (dist(p, s) > SIEGE.nearKm) return SIM.say(p.id, `${s.name}の近く（${SIEGE.nearKm}km以内）まで来てください`);
     if (!SIM.troopCount(p.troops)) return SIM.say(p.id, '兵がいないと城は攻められません');
     const id = 'b' + w.nextId++, gar = Object.assign({}, s.gar);
-    const b = w.battles[id] = { id, npc: null, siege: s.id, foe: `${s.name}の守備兵`, foeN: SIM.troopCount(gar), loot: 1500 + SIM.troopCount(gar) * 40,
+    const b = w.battles[id] = { id, npc: null, siege: s.id, war: 1, foe: `${s.name}の守備兵`, foeN: SIM.troopCount(gar), loot: 1500 + SIM.troopCount(gar) * 40,
       pids: [], units: [], next: 1, t: 0, start: {}, routed: false, hd: {}, rd: {}, ter: M.genTerrain(w), lk: { A: null, B: { x: 28, y: SIM.FIELD.h / 2 } }, visA: [] };
     b.ter.push({ k: 'h', x: SIM.FIELD.w - 30, y: SIM.FIELD.h / 2, r: 34 }); // 城のある丘
     const joiners = Object.values(w.players).filter((q) => q === p || (q.clan === p.clan && M.inField(q) && !q.busy && dist(q, p) < 1.5));
     for (const q of joiners) {
       b.pids.push(q.id); q.battle = id; q.tx = q.ty = null; q.dest = null; q.at = null; b.start[q.id] = Object.assign({}, q.troops);
-      M.addUnits(w, b, 'A', q.id, Object.assign({ hero: 1 }, q.troops));
-      SIM.say(q.id, `${s.name}を攻めます！ 守備兵およそ${b.foeN}人。城兵は丘の上で待ち構えています`);
+      SIM.addPlayerSide(w, b, q);
+      SIM.say(q.id, `${s.name}に総攻めをかけます！ 守備兵およそ${b.foeN}人。城兵は丘の上で待ち構えています`);
     }
     M.addUnits(w, b, 'B', null, gar);
     const wall = Math.floor((s.dev && s.dev.wall) || 0), fb = SIM.factionBuff(w.factions, s.owner);
@@ -191,6 +192,7 @@
   // ---- 毎月：守備兵の補充・忠誠の変化・寝返り・CPUの出陣・戦と和睦 ----
   function monthly(w) {
     for (const s of w.settlements) if (s.type === 'castle' && !s.site) {
+      if (SIM.besieged && SIM.besieged(w, s.id)) continue; // 包囲されている城は補充できない
       const mx = garMax(w, s), n = SIM.garrison(s);
       if (n < mx) s.gar = garOf(Math.min(mx, n + Math.max(2, Math.round(mx * 0.15))));
     }
@@ -221,14 +223,15 @@
       for (const x of castles(w, att)) for (const y of castles(w, def)) { const d = dist(x, y); if (!best || d < best[2]) best = [x, y, d]; }
       if (!best || best[2] > 60) continue;
       const [src, tgt, d] = best;
-      if (w.camps.some((c) => c.to === tgt.id)) continue;
+      if (SIM.armyTo(w, tgt.id)) continue;
       // 近くの城（3つまで）から兵を集める
-      let n = 0;
-      for (const x of castles(w, att).sort((a2, b2) => dist(a2, tgt) - dist(b2, tgt)).slice(0, 3)) { const t = Math.floor(SIM.garrison(x) * 0.5); n += t; x.gar = garOf(SIM.garrison(x) - t); }
+      let n = 0; const gens = [];
+      for (const x of castles(w, att).sort((a2, b2) => dist(a2, tgt) - dist(b2, tgt)).slice(0, 3)) {
+        const t = Math.floor(SIM.garrison(x) * 0.5); n += t; x.gar = garOf(SIM.garrison(x) - t);
+        if (x.lord && w.people[x.lord] && !gens.includes(x.lord)) gens.push(x.lord); // 城主が武将として加わる
+      }
       if (n < 12) { src.gar = garOf(SIM.garrison(src) + n); continue; }
-      const army = garOf(n);
-      w.camps.push({ from: src.id, to: tgt.id, att, army, eta: w.time.min + Math.max(1, d / SIEGE.marchKmDay) * 1440 });
-      news(w, `${fName(w, att)}の軍勢${n}人が${src.name}を発ち、${tgt.name}へ向かっているそうです（${Math.ceil(d / SIEGE.marchKmDay)}日ほど）`);
+      SIM.launchArmy(w, { faction: att, from: src, to: tgt, army: garOf(n), gens, mode: 'siege' });
     }
     // ときどき戦が終わり、ときどき隣の家と戦が始まる（CPUどうし）
     for (const k of Object.keys(w.wars)) { const [a, b] = k.split('|'); if (!w.factions[a].player && !w.factions[b].player && rnd(w) < 0.04) { setWar(w, a, b, false); news(w, `${fName(w, a)}と${fName(w, b)}が和睦しました`); } }
@@ -240,9 +243,9 @@
       if (a && b) { setWar(w, a, b, true); news(w, `${fName(w, a)}と${fName(w, b)}が戦を始めました`); }
     }
   }
+  // 総攻めを自動で決着（城に守る人がいないとき）。戻り値：落ちたら true、退けたら残りの兵の割合
   function campArrive(w, c) {
-    const s = SIM.settlement(w, c.to), src = SIM.settlement(w, c.from); if (!s) return;
-    if (s.owner === c.att || !SIM.atWar(w, c.att, s.owner)) { if (src && src.owner === c.att) src.gar = garOf(SIM.garrison(src) + SIM.troopCount(c.army)); return; }
+    const s = SIM.settlement(w, c.to); if (!s) return 0;
     const wall = Math.floor((s.dev && s.dev.wall) || 0);
     const defs = Object.values(w.players).filter((p) => p.at === s.id && p.tx == null && !p.battle && p.clan === s.owner);
     const aPow = M.power(c.army) * (0.75 + rnd(w) * 0.5);
@@ -259,26 +262,25 @@
     if (win) {
       const left = Math.max(5, Math.round(SIM.troopCount(c.army) * (1 - loss)));
       capture(w, s, c.att); s.gar = garOf(left);
+      return true;
       for (const p of defs) { const r = castles(w, p.clan).sort((a, b) => dist(a, s) - dist(b, s))[0] || w.settlements.find((x) => x.type !== 'castle'); if (r) { p.x = r.x; p.y = r.y; p.at = r.id; } }
     } else {
       s.gar = garOf(Math.max(3, Math.round(SIM.garrison(s) * (1 - loss * 0.5))));
       news(w, `${s.name}は${fName(w, c.att)}の攻撃を退けました`);
+      return 1 - loss;
     }
   }
+  SIM._campArrive = campArrive; SIM._garOf = garOf; SIM._garMax = garMax; SIM.SIEGE = SIEGE;
   SIM.systems.push(function warTick(w) {
     const d = Math.floor(w.time.min / 1440);
     while (w.wday < d) { w.wday++; if (w.wday % 30 === 15) monthly(w); }
-    if (w.camps.length) {
-      const due = w.camps.filter((c) => c.eta <= w.time.min);
-      if (due.length) { w.camps = w.camps.filter((c) => c.eta > w.time.min); for (const c of due) campArrive(w, c); }
-    }
   });
 
   // ---- 地図・画面に送る情報 ----
   const baseDyn = SIM.dynamicState;
   SIM.dynamicState = function (w, pid) {
     const d = baseDyn(w, pid);
-    d.cs = Object.fromEntries(w.settlements.filter((s) => s.type === 'castle').map((s) => [s.id, [SIM.garrison(s), s.lord || null, s.lord && w.people[s.lord] ? w.people[s.lord].loyal : null]]));
+    d.cs = Object.fromEntries(w.settlements.filter((s) => s.type === 'castle').map((s) => { const pr = s.lord && w.people[s.lord]; return [s.id, [SIM.garrison(s), s.lord || null, pr ? pr.loyal : null, pr ? pr.name : null]]; }));
     d.wars = Object.keys(w.wars);
     d.fd = Object.keys(w.factions).filter((k) => w.factions[k].dead);
     return d;
@@ -292,7 +294,7 @@
       canSiege: !!f && (p.rank >= SIEGE.minRank || f.leader === pid), canPersuade: !!f && (p.rank >= SIEGE.persuadeRank || f.leader === pid),
       persuadeCost: SIEGE.persuadeCost, rewardCost: SIEGE.rewardCost, nearKm: SIEGE.nearKm,
       chance: s && s.lord && s.owner !== p.clan ? Math.round(SIM.persuadeChance(w, p, s) * 100) : null,
-      camps: w.camps.filter((c) => { const t = SIM.settlement(w, c.to); return t && t.owner === p.clan; }).map((c) => ({ to: SIM.settlement(w, c.to).name, att: fName(w, c.att), n: SIM.troopCount(c.army), days: Math.max(0, Math.ceil((c.eta - w.time.min) / 1440)) })),
+      camps: SIM.threats ? SIM.threats(w, p) : [],
     };
     if (r.me.rank && r.me.rank.daimyo) {
       r.me.rank.daimyo.diplo = Object.keys(w.factions).filter((k) => k !== p.clan && alive(w, k)).map((k) => ({ id: k, name: w.factions[k].name, war: SIM.atWar(w, p.clan, k), castles: castles(w, k).length, truce: Math.max(0, Math.ceil(((w.truce[key(p.clan, k)] || 0) - w.time.min) / 1440)) }));
