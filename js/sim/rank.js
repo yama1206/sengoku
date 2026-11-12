@@ -5,14 +5,14 @@
   // 身分の段階（数値はすべて仮）。merit：必要な功績、fame：必要な名声、cap：率いる人数の加算、stipend：毎月の俸禄（文）
   const RANKS = SIM.RANKS = [
     { name: '浪人', merit: 0, fame: 0, cap: 0, stipend: 0, desc: 'どこにも仕えていない' },
-    { name: '足軽', merit: 0, fame: 5, cap: 5, stipend: 300, desc: '仕官したばかり。主家の依頼や戦で功績を積む' },
-    { name: '足軽組頭', merit: 60, fame: 10, cap: 15, stipend: 800, desc: '主家の城で兵を2割安く雇える' },
-    { name: '侍大将', merit: 200, fame: 20, cap: 30, stipend: 1800, desc: '主家の城で騎馬を名声に関係なく雇える' },
-    { name: '部将', merit: 500, fame: 35, cap: 50, stipend: 3500, desc: '大軍を率いる重臣' },
-    { name: '城主', merit: 900, fame: 50, cap: 70, stipend: 2000, desc: '主家から城を一つ任される。内政・築城で城を育て、毎月の年貢を受け取る' },
-    { name: '家老', merit: 1500, fame: 70, cap: 90, stipend: 3000, castles: 2, desc: '城を2つまで任される（加増）。主家の城で兵を3割安く雇える' },
-    { name: '国主', merit: 2500, fame: 90, cap: 120, stipend: 4500, castles: 4, desc: '一国を預かる重臣。城を4つまで任され、年貢が1割増える' },
-    { name: '大名', merit: 0, fame: 60, cap: 150, stipend: 0, castles: 99, indep: true, desc: '城主以上が独立してなる。自分の家を興し、治める城はすべて自分の領地。ほかのプレイヤーを家臣に迎えられる' },
+    { name: '足軽', merit: 0, fame: 5, cap: 3, stipend: 300, desc: '仕官したばかり。主家の依頼や戦で功績を積む' },
+    { name: '足軽組頭', merit: 60, fame: 10, cap: 8, stipend: 800, desc: '主家の城で兵を2割安く雇える' },
+    { name: '侍大将', merit: 200, fame: 20, cap: 15, stipend: 1800, desc: '主家の城で騎馬を名声に関係なく雇える' },
+    { name: '部将', merit: 500, fame: 35, cap: 25, stipend: 3500, desc: '大軍を率いる重臣' },
+    { name: '城主', merit: 900, fame: 50, cap: 35, stipend: 2000, desc: '主家から城を一つ任される。内政・築城で城を育て、毎月の年貢を受け取る' },
+    { name: '家老', merit: 1500, fame: 70, cap: 45, stipend: 3000, castles: 2, desc: '城を2つまで任される（加増）。主家の城で兵を3割安く雇える' },
+    { name: '国主', merit: 2500, fame: 90, cap: 60, stipend: 4500, castles: 4, desc: '一国を預かる重臣。城を4つまで任され、年貢が1割増える' },
+    { name: '大名', merit: 0, fame: 60, cap: 75, stipend: 0, castles: 99, indep: true, desc: '城主以上が独立してなる。自分の家を興し、治める城はすべて自分の領地。ほかのプレイヤーを家臣に迎えられる' },
   ];
   SIM.castleLimit = (p) => (p.rank >= 5 ? RANKS[p.rank].castles || 1 : 0);
   const fName = (w, p) => (w.factions[p.clan] || {}).name || '';
@@ -48,7 +48,7 @@
 
   // ---- 身分が効くところ ----
   const baseCap = SIM.troopCap;
-  SIM.troopCap = (p) => Math.ceil(Math.min(250, baseCap(p) + RANKS[p.rank || 0].cap)); // 小数は切り上げ
+  SIM.troopCap = (p) => Math.ceil(Math.min(150, baseCap(p) + RANKS[p.rank || 0].cap)); // 小数は切り上げ
   // 募兵：主家の城では組頭以上が2割引、侍大将以上は騎馬の名声条件なし
   const baseRecruit = SIM.commands.recruit;
   if (baseRecruit) SIM.commands.recruit = (w, p, c) => {
