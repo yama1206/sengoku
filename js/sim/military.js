@@ -249,6 +249,8 @@
 
   // ---- 戦闘の計算（ホストで毎tick） ----
   const rad = (u) => 0.6 + Math.sqrt(u.n) * 0.7;
+  const atkHalf = (u) => (TR[u.type].ranged ? Math.PI / 4 : Math.PI / 2); // 攻撃できる向き：弓・鉄砲は前方90°、それ以外は前方180°
+  const reachOf = (b, u) => rad(u) + TR[u.type].range + (u.ra || 0) + (TR[u.type].ranged && terAt(b, u).h ? 5 : 0);
   const alive = (u) => u.hp > 0 && !u.gone;
   const unitName = (u) => (u.type === 'hero' ? '本人' : TR[u.type].name);
   function stepBattle(w, b, dt) {
@@ -287,6 +289,7 @@
       }
       // 攻撃
       turnTo(u, Math.atan2(e.y - u.y, e.x - u.x), (t.cav ? 1.6 : 0.9) * dt);
+      if (angDiff(u.f, Math.atan2(e.y - u.y, e.x - u.x)) > atkHalf(u) + Math.atan2(rad(e), ed || 1)) { if (u.order === 'move' && goTo(u, u.mx, u.my, spd * 0.7)) u.order = 'hold'; continue; } // 0.33.1 攻撃は前方の扇形だけ（向き直ってから）
       const te = terAt(b, e), T2 = TR[e.type];
       const per = Math.max(0.25, t.atk * (u.am || 1) - (T2.def + (e.da || 0)) * 0.5);
       let mul = 1;
@@ -510,7 +513,7 @@
     r.battle = b ? { id: b.id, foe: b.foe, t: Math.floor(b.t), routed: b.routed,
       names: Object.fromEntries(b.pids.map((x) => [x, (w.players[x] || {}).name])),
       ter: b.ter || [], units: b.units.filter((u) => alive(u) && (u.side === 'A' || (b.visA || []).includes(u.id)))
-        .map((u) => [u.id, u.side, u.owner, u.type, u.n, r1(u.x), r1(u.y), u.order, Math.round(visRange(b, u)), Math.round(u.mor), Math.round(u.f * 100) / 100, u.type === 'hero' ? Math.ceil(u.hp) : undefined]) } : null;
+        .map((u) => [u.id, u.side, u.owner, u.type, u.n, r1(u.x), r1(u.y), u.order, Math.round(visRange(b, u)), Math.round(u.mor), Math.round(u.f * 100) / 100, u.type === 'hero' ? Math.ceil(u.hp) : undefined, r1(reachOf(b, u))]) } : null;
     return r;
   };
   SIM.FIELD = FIELD;

@@ -206,6 +206,11 @@
       const col = side === 'B' ? '#a83228' : owner === myPid ? '#f2c14e' : '#e8e8e8';
       const cx = sx(d.x), cy = sy(d.y), T = TR[type];
       const rr = Math.max(6, Math.sqrt(Math.min(n, 36)) * 0.8 * L.sc);
+      if (id === selUnit && owner === myPid && u[12] && face != null) { // 0.33.1 選んだ部隊の攻撃範囲（扇形）
+        const hf = T && T.ranged ? Math.PI / 4 : Math.PI / 2, R = u[12] * L.sc;
+        ctx.fillStyle = 'rgba(255,90,60,.16)'; ctx.strokeStyle = 'rgba(255,120,90,.8)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, R, face - hf, face + hf); ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
       if (id === selUnit && owner === myPid) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.arc(cx, cy, rr + 6, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
       // 向き
       if (face != null) { ctx.strokeStyle = side === 'B' ? '#ffb4a2' : '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(face) * (rr + 7), cy + Math.sin(face) * (rr + 7)); ctx.stroke(); }
