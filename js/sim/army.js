@@ -62,13 +62,14 @@
     n.mode = 'return'; n.home = h.id; n.until = null; n.target = null; setGoal(n, h.x, h.y, h.id);
   }
   function sendRelief(w, fid, s, target) { // 包囲された城の近くの城から援軍を出す
-    const f = w.factions[fid]; if (!f || f.player || f.dead) return;
+    const f = w.factions[fid]; if (!f || f.dead) return; // プレイヤー大名の家でも、CPUの家臣（プレイヤーに任されていない城）が援軍を出す
     if (Object.values(w.npcs).some((n) => n.kind === 'army' && n.mode === 'relief' && n.faction === fid && n.to === s.id)) return;
-    const srcs = castles(w, fid).filter((x) => x.id !== s.id && !SIM.besieged(w, x.id) && dist(x, s) <= AR.reliefKm && SIM.garrison(x) >= 20).sort((a, b) => dist(a, s) - dist(b, s)).slice(0, 2);
+    const srcs = castles(w, fid).filter((x) => x.id !== s.id && !x.holder && !x.site && !SIM.besieged(w, x.id) && dist(x, s) <= AR.reliefKm && SIM.garrison(x) >= 20).sort((a, b) => dist(a, s) - dist(b, s)).slice(0, 2);
     let army = {}; const gens = [];
     for (const x of srcs) { const t = Math.floor(SIM.garrison(x) * 0.5); army = addTr(army, garOf(t)); x.gar = garOf(SIM.garrison(x) - t); if (x.lord && w.people[x.lord]) gens.push(x.lord); }
     if (SIM.troopCount(army) < 12) { if (srcs[0]) srcs[0].gar = addTr(srcs[0].gar, army); return; }
     SIM.launchArmy(w, { faction: fid, from: srcs[0], to: s, army, gens, mode: 'relief', target });
+    if (f.player) for (const q of Object.values(w.players)) if (q.clan === fid) SIM.say(q.id, `${srcs.map((x) => x.name).join('・')}から${s.name}へ援軍（${SIM.troopCount(army)}人）が向かっています`);
   }
   function beginSiege(w, n, s) {
     n.until = w.time.min + AR.siegeDays * 1440; n.tx = n.ty = null; n.dest = null; n.x = s.x + 0.7; n.y = s.y + 0.4;
@@ -120,7 +121,9 @@
   SIM.addPlayerSide = (w, b, q) => { // 本人と兵、陣触れで加わった武将の兵
     M.addUnits(w, b, 'A', q.id, Object.assign({ hero: 1 }, q.troops));
     const al = q.allies && q.allies.troops;
-    if (al && SIM.troopCount(al)) { const k = b.units.length; M.addUnits(w, b, 'A', q.id, al); for (const u of b.units.slice(k)) { u.ally = 1; u.y = Math.min(SIM.FIELD.h - 4, u.y + 18); } }
+    if (al && SIM.troopCount(al)) {
+      const st = b.start[q.id]; if (st) for (const t in al) st[t] = (st[t] || 0) + al[t]; // 損失の計算に加勢の兵も含める
+      const k = b.units.length; M.addUnits(w, b, 'A', q.id, al); for (const u of b.units.slice(k)) { u.ally = 1; u.y = Math.min(SIM.FIELD.h - 4, u.y + 18); } }
   };
   function fieldBattle(w, n, p, msg) { // 野戦：プレイヤー側 対 軍勢
     const b = newBattle(w, n, { field: 1 });
