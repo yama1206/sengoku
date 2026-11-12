@@ -578,8 +578,8 @@
         html += `<div class="muted" style="margin:6px 0">城主のいる城で仕官できます（名声${(R.serveNeed != null ? R.serveNeed : RK[1].fame)}以上）。仕えると俸禄がもらえ、主家の領地の依頼や戦で功績が積めます</div>`;
         if (R.canServe) html += `<div class="card"><div>${R.factionHere}の${R.lordHere}様に仕える</div><button id="rk-serve" data-cact="serve" ${C.fame >= (R.serveNeed != null ? R.serveNeed : RK[1].fame) ? '' : 'disabled'}>仕官する</button></div>`;
       } else {
-        if (nx) html += `<div class="card"><div>次：<b>${nx.name}</b>　<span class="muted">功績${R.merit}/${nx.merit}　名声${C.fame}/${nx.fame}<br>${nx.desc}</span></div><button id="rk-promote" data-cact="promote" ${R.atOwn && R.merit >= nx.merit && C.fame >= nx.fame ? '' : 'disabled'}>昇進を願う</button></div>`
-          + (R.atOwn ? '' : '<div class="muted">昇進は主家の城で願い出ます</div>');
+        if (nx) html += `<div class="card"><div>次：<b>${nx.name}</b>　<span class="muted">功績${R.merit}/${nx.merit}　名声${C.fame}/${nx.fame}<br>${nx.desc}</span></div><button id="rk-promote" data-cact="promote" ${R.merit >= nx.merit && C.fame >= nx.fame ? '' : 'disabled'}>昇進を願う</button></div>`
+          + '';
         if (R.rank >= 6 && !cur.indep && R.held < R.limit) html += `<div class="card"><div>加増を願う<br><span class="muted">城をもう一つ任せてもらう（主家の城で）</span></div><button id="rk-ask" data-cact="askCastle" ${R.atClanCastle ? '' : 'disabled'}>願い出る</button></div>`;
         if (!cur.indep && R.rank >= R.indep.rank - 1) html += `<div class="card"><div><b>独立する</b>　<span class="muted">${RK[R.indep.rank].name}以上・名声${R.indep.fame}以上で、自分の治める城の中で宣言できる。治める城をすべて持って自分の家を興し、大名になる（主家には二度と戻れない）</span></div><button id="rk-indep" data-cact="independence" ${R.indep.can ? '' : 'disabled'}>独立</button></div>`;
         const D = R.daimyo;
