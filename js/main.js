@@ -60,6 +60,17 @@
     try { const r = SGK.SAVE.load(); if (!r) return titleMsg('セーブがありません'); startHost(r.world, r.from.endsWith('main') ? '続きから再開しました' : 'セーブが読めなかったので、バックアップから再開しました'); }
     catch (e) { titleMsg(e.message); }
   };
+  // 年の表示（和暦／西暦／両方）を切り替える。押すたびに次の形式へ（カーソルはその場に残る）
+  const YEAR_FMTS = [['era', '和暦'], ['ad', '西暦'], ['both', '和暦＋西暦']];
+  SIM.yearFmt = YEAR_FMTS.some(([k]) => k === localStorage.getItem('sgk_yearfmt')) ? localStorage.getItem('sgk_yearfmt') : 'era';
+  const yearLabel = () => { const n = YEAR_FMTS.find(([k]) => k === SIM.yearFmt)[1]; document.querySelectorAll('.yearBtn').forEach((b) => { b.textContent = `年の表示：${n}`; }); };
+  const cycleYear = () => {
+    const i = YEAR_FMTS.findIndex(([k]) => k === SIM.yearFmt);
+    SIM.yearFmt = YEAR_FMTS[(i + 1) % YEAR_FMTS.length][0]; localStorage.setItem('sgk_yearfmt', SIM.yearFmt); yearLabel();
+  };
+  yearLabel();
+  $('btnYear').onclick = cycleYear;
+  $('mYear').onclick = cycleYear;
   $('btnImport').onclick = () => $('fileInput').click();
   $('fileInput').onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) SGK.SAVE.importFile(f).then((w) => startHost(w, 'セーブファイルから再開しました')).catch((err) => titleMsg(err.message)); };
   $('btnJoin').onclick = () => { $('joinPanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); $('codeInput').focus(); };

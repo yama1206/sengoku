@@ -167,6 +167,8 @@
 
   // ===== 暦（仮：1か月30日・閏月なし） =====
   const SHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+  // 年の表示形式（'era'=和暦 / 'ad'=西暦 / 'both'=両方）。見た目だけの設定なので各自の端末に保存する
+  SIM.yearFmt = 'era';
   SIM.formatDate = function (min) {
     const st = SGK.DATA.start;
     const total = st.minute + min;
@@ -176,6 +178,8 @@
     const month = Math.floor((dayIdx % 360) / 30) + 1, day = (dayIdx % 30) + 1;
     const hour = Math.floor(mod / 60);
     const eraY = year - st.eraStartYear + 1;
-    return `${st.era}${eraY === 1 ? '元' : eraY}年 ${month}月${day}日 ${SHI[Math.floor(((hour + 1) % 24) / 2)]}の刻`;
+    const wa = `${st.era}${eraY === 1 ? '元' : eraY}年`;
+    const ys = SIM.yearFmt === 'ad' ? `${year}年` : SIM.yearFmt === 'both' ? `${wa}（${year}年）` : wa;
+    return `${ys} ${month}月${day}日 ${SHI[Math.floor(((hour + 1) % 24) / 2)]}の刻`;
   };
 })();
