@@ -87,7 +87,8 @@
     <button id="btnName">名前を選ぶ</button>
     <button id="btnNew">新しいワールドを作る（ホスト）</button>
     <button id="btnContinue">続きから（ホスト）</button>
-    <button id="btnJoin">部屋に参加する</button>
+    <button id="btnFriend">フレンド（コードなしで参加）</button>
+    <button id="btnJoin">部屋コードで参加する</button>
     <button id="btnImport">セーブファイルを読み込む</button>
     <button id="btnYear" class="yearBtn"></button>
   </div>
@@ -100,6 +101,12 @@
     <input id="codeInput" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="部屋コード（数字6けた）" style="letter-spacing:.3em;text-align:center">
     <div id="codeKeys" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:6px 0"></div>
     <div class="row"><button id="btnJoinBack">戻る</button><button id="btnJoinGo">参加</button></div>
+  </div>
+  <div class="menu hidden" id="friendPanel" style="width:min(520px,94vw)">
+    <div class="muted" style="text-align:center">あなたのフレンドコード <b id="myFcode" style="letter-spacing:.2em"></b><br>ホストするといつもこの番号の部屋になります。一緒に遊んだ相手は自動でフレンドに入ります</div>
+    <div id="friendList" style="max-height:46vh;overflow:auto"></div>
+    <div class="row"><input id="fcInput" maxlength="6" inputmode="numeric" placeholder="フレンドコードで追加" style="letter-spacing:.2em;text-align:center"><button id="btnFcAdd">追加</button></div>
+    <div class="row"><button id="btnFriendBack">戻る</button><button id="btnFriendRefresh">状況を更新</button></div>
   </div>
   <div id="titleMsg"></div>
   <input type="file" id="fileInput" accept=".json,application/json" class="hidden">

@@ -21,7 +21,7 @@
   // ---------- メニュー操作（キー・コントローラー：押した方向へ移動／決定してもカーソル位置は保つ） ----------
   const focusMem = {};
   function activeMenu() {
-    if (G.mode === 'title') return !$('namePanel').classList.contains('hidden') ? $('namePanel') : $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
+    if (G.mode === 'title') return !$('friendPanel').classList.contains('hidden') ? $('friendPanel') : !$('namePanel').classList.contains('hidden') ? $('namePanel') : $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
     if (!$('gameMenu').classList.contains('hidden')) return $('gameMenu');
     if (!$('char').classList.contains('hidden')) return $('char');
     if (!$('town').classList.contains('hidden')) return $('town');
@@ -83,8 +83,41 @@
     ci.value = b.dataset.ck === 'del' ? ci.value.slice(0, -1) : (ci.value + b.dataset.ck).slice(0, CL);
     if (ci.value.length === CL && b.dataset.ck !== 'del') setFocus($('joinPanel'), $('btnJoinGo'));
   });
-  function titleBack() { $('joinPanel').classList.add('hidden'); $('namePanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); setFocus($('titleMenu'), currentFocus($('titleMenu'))); }
+  function titleBack() { if (probe) { probe.close(); probe = null; } $('friendPanel').classList.add('hidden'); $('joinPanel').classList.add('hidden'); $('namePanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); setFocus($('titleMenu'), currentFocus($('titleMenu'))); }
   $('btnJoinBack').onclick = titleBack;
+  // ---------- フレンド ----------
+  let probe = null; const fstat = {};
+  function renderFriends() {
+    const NET = SGK.NET, l = NET.friends();
+    $('myFcode').textContent = NET.myCode();
+    $('friendList').innerHTML = l.length ? l.map((f) => {
+      const st = fstat[f.code], on = st && st !== 'off' && st !== '…';
+      const txt = st === '…' || !st ? '確認中…' : st === 'off' ? '部屋は開いていません' : st.ver !== SGK.VERSION ? `部屋あり（バージョン違い ${st.ver}）` : `部屋あり ${st.n || 1}/${st.max || CFG.MAX_PLAYERS}人`;
+      return `<div class="card"><div><b>${(f.name || 'フレンド').replace(/[<&]/g, '')}</b>　<span class="muted">${f.code}</span><br><span class="${on ? '' : 'muted'}" style="${on ? 'color:#8fe08f' : ''}">${txt}</span></div>`
+        + `<div class="row"><button id="fj-${f.code}" data-fjoin="${f.code}" ${on && st.ver === SGK.VERSION ? '' : 'disabled'}>参加</button><button id="fd-${f.code}" data-fdel="${f.code}">削除</button></div></div>`;
+    }).join('') : '<div class="muted" style="text-align:center;margin:8px">まだフレンドがいません。部屋コードで一度参加するか、フレンドコードを追加してください</div>';
+  }
+  function refreshFriends() {
+    const codes = SGK.NET.friends().map((f) => f.code);
+    if (probe) probe.close();
+    codes.forEach((c) => (fstat[c] = '…')); renderFriends();
+    probe = SGK.NET.probe(codes, (c, info) => { fstat[c] = info || 'off'; if (info && info.name) SGK.NET.addFriend(c, info.name); renderFriends(); });
+  }
+  $('btnFriend').onclick = () => { $('friendPanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); refreshFriends(); setFocus($('friendPanel'), $('btnFriendRefresh')); };
+  $('btnFriendBack').onclick = titleBack;
+  $('btnFriendRefresh').onclick = refreshFriends;
+  $('fcInput').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, CL); });
+  $('btnFcAdd').onclick = () => {
+    const c = $('fcInput').value;
+    if (c === SGK.NET.myCode()) return titleMsg('それは自分のフレンドコードです');
+    if (!SGK.NET.addFriend(c)) return titleMsg(`フレンドコード（数字${CL}けた）を入れてください`);
+    $('fcInput').value = ''; titleMsg('フレンドに追加しました'); refreshFriends();
+  };
+  $('friendList').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.fjoin) { const c = b.dataset.fjoin; titleBack(); startClient(c); }
+    else if (b.dataset.fdel) { SGK.NET.removeFriend(b.dataset.fdel); renderFriends(); setFocus($('friendPanel'), $('btnFriendRefresh')); }
+  });
   // 名前を候補から選ぶ（キーボードがなくても決められる）
   const SEI = ['木下', '明智', '前田', '佐々', '滝川', '山内', '蜂須賀', '池田', '森', '堀', '竹中', '黒田', '島', '可児', '真田', '本多', '井伊', '藤堂'];
   const MEI = ['藤吉郎', '十兵衛', '又左衛門', '内蔵助', '彦右衛門', '伊右衛門', '小六', '勝三郎', '三左衛門', '久太郎', '半兵衛', '官兵衛', '左近', '才蔵', '源次郎', '平八郎', '弥助', '五郎左'];
@@ -119,9 +152,10 @@
       G.net = SGK.NET.host({
         onReady: (code) => { G.roomCode = code; updateRoom(); },
         onError: (t) => toast(t, 5000),
+        info: () => ({ name: myName(), n: (G.net ? G.net.count() : 0) + 1, max: CFG.MAX_PLAYERS }),
         onHello: (conn, m) => {
           const pid = SIM.addPlayer(G.world, String(m.token).slice(0, 40), String(m.name || '').slice(0, 12));
-          if (pid) { conn.send({ t: 'welcome', pid, static: G.stat, ver: SGK.VERSION }); toast(`${G.world.players[pid].name} が参加しました`); updateRoom(); }
+          if (pid) { if (m.fcode) SGK.NET.addFriend(m.fcode, m.name); conn.send({ t: 'welcome', pid, static: G.stat, ver: SGK.VERSION, hostCode: G.roomCode, hostName: myName() }); toast(`${G.world.players[pid].name} が参加しました`); updateRoom(); }
           return pid;
         },
         onCmd: (pid, cmd) => SIM.applyCommand(G.world, pid, cmd),
@@ -158,7 +192,7 @@
     titleMsg('接続しています…');
     G.mode = 'connecting';
     G.net = SGK.NET.join(code, token, myName(), {
-      onWelcome: (m) => { G.mode = 'client'; G.myPid = m.pid; G.stat = m.static; G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
+      onWelcome: (m) => { SGK.NET.addFriend(m.hostCode || code, m.hostName); G.mode = 'client'; G.myPid = m.pid; G.stat = m.static; G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
       onState: (m) => { G.dyn = m.s; G.speed = m.sp; G.priv = m.priv; (m.msgs || []).forEach((t) => toast(t, 4000)); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } },
       onBye: (why) => { backToTitle(); titleMsg(why); },
       onError: (t) => titleMsg(t),
@@ -273,7 +307,7 @@
       return { name: '行商人', body: `${where}<br>荷：${it ? `${it.name} ${u.cargo.qty}${it.unit}　<span class="muted">売値 約${pr}文/${it.unit}（1度に5${it.unit}まで）</span>` : 'なし'}<br><span class="muted">町から町へ品物を運んでいる。1.5km以内なら荷を買える。運んだ先では品物が安くなる。</span>`,
         go: '追いかける', act: it ? { label: `${it.name}を買う`, cmd: { type: 'buyCargo', id: u.id } } : null };
     }
-    if (u.kind === 'patrol') return { name: `${f ? f.name : ''}の巡回兵 ${u.size || ''}人`, body: `勢力：${fn}<br>${where}${u.home ? `<br>本拠：${sName(u.home)}` : ''}<br>兵：${ar}<br><span class="muted">自勢力の拠点のあいだを見回っている。</span>`, go: '追いかける' };
+    if (u.kind === 'patrol') return { name: `${f ? f.name : ''}の巡回兵 ${u.size || ''}人`, body: `${u.battle === 2 ? '<b style="color:#ff6a4a">野盗と交戦中</b>（野盗に近づくと加勢できる）<br>' : u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}<br>${where}${u.home ? `<br>本拠：${sName(u.home)}` : ''}<br>兵：${ar}<br><span class="muted">自勢力の拠点のあいだを見回り、近くの野盗を退治する。</span>`, go: '追いかける' };
     if (u.kind === 'army') {
       const t = G.mode === 'host' ? SIM.armyText(G.world, G.world.npcs[u.id]) : ((G.dyn && G.dyn.ar) || {})[u.id];
       const R = G.priv && G.priv.me && G.priv.me.rank, mine = R && R.clan, wars = G.view.wars || [];
@@ -282,7 +316,7 @@
       return { name: `${t ? t.name : '軍勢'} ${u.size}人`, body: `${u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}${war ? '　<b style="color:#e06050">交戦中</b>' : ''}<br>${t ? t.text : ''}<br>兵：${ar}<br><span class="muted">${war ? `敵の軍勢。${(G.priv.me.war && G.priv.me.war.ar ? G.priv.me.war.ar.fightKm : 2)}km以内まで近づくと攻めかかれます。打ち破れば包囲が解けます` : '武将たちが率いる軍勢'}</span>`, go: '追いかける', act };
     }
     if (u.kind === 'bandit') {
-      return { name: `野盗 ${u.size}人`, body: `${u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}${where}<br>手勢：${ar}<br><span class="muted">近づくと襲ってくる。倒すと金品が手に入る。</span>`, go: '攻めかかる' };
+      return { name: `野盗 ${u.size}人`, body: `${u.battle === 2 ? '<b style="color:#ff6a4a">巡回兵と交戦中</b>（近づくと加勢できる）<br>' : u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}${where}<br>手勢：${ar}<br><span class="muted">近づくと襲ってくる。倒すと金品が手に入る。</span>`, go: u.battle === 2 ? '加勢する' : '攻めかかる' };
     }
     // 他のプレイヤー
     return { name: u.name, body: `プレイヤー（${u.status || '浪人'}）<br>${where}`, go: '追いかける' };
@@ -643,7 +677,7 @@
   // ---------- キーボード ----------
   const keys = new Set();
   window.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT') { if (e.key === 'Enter' && G.mode === 'title' && e.target.id === 'codeInput') $('btnJoinGo').click(); return; }
+    if (e.target.tagName === 'INPUT') { if (e.key === 'Enter' && G.mode === 'title' && e.target.id === 'codeInput') $('btnJoinGo').click(); if (e.key === 'Enter' && e.target.id === 'fcInput') $('btnFcAdd').click(); return; }
     const k = e.key;
     const dir = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[k];
     if (activeMenu()) {

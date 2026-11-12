@@ -28,7 +28,7 @@
     castle: { yari: [1, 10], yumi: [0.5, 6], kiba: [0.25, 3] },
   };
   const FIELD = { w: 300, h: 200 };
-  const MAX_BANDITS = 140; // 地図の広さに合わせて（全国）
+  const MAX_BANDITS = 200; // 地図の広さに合わせて（全国）
 
   SIM.troopCount = (tr) => Object.values(tr || {}).reduce((a, b) => a + b, 0);
   SIM.troopCap = (p) => Math.min(120, 10 + p.fame * 3);
@@ -56,7 +56,7 @@
     }
     for (const p of Object.values(w.players)) if (p.battle && !w.battles[p.battle]) p.battle = null;
     for (const b of Object.values(w.battles)) { b.ter = b.ter || []; b.lk = b.lk || { A: null, B: null }; for (const u of b.units) { if (u.f == null) u.f = u.side === 'A' ? 0 : Math.PI; if (u.mor == null) u.mor = u.mo = 65; if (u.n0 == null) u.n0 = u.n; } }
-    if (!Object.values(w.npcs).some((n) => n.kind === 'bandit')) for (let i = 0; i < 70; i++) spawnBandit(w);
+    if (!Object.values(w.npcs).some((n) => n.kind === 'bandit')) for (let i = 0; i < 100; i++) spawnBandit(w);
     for (const n of Object.values(w.npcs)) if (n.kind === 'patrol' && !n.army) { // 巡回兵の手勢
       n.army = { yari: 8 + Math.floor(rnd(w) * 8), yumi: 2 + Math.floor(rnd(w) * 5) }; n.size = SIM.troopCount(n.army);
     }
@@ -66,12 +66,12 @@
   // ---- 野盗 ----
   function spawnBandit(w) {
     const B = SGK.DATA.bounds;
-    // 野盗は山の中を好み、街道の上や拠点のそばには出ない
-    const wantMt = rnd(w) < 0.7;
-    for (let i = 0; i < 120; i++) {
+    // 野盗は2割が山の中、残りは街道沿いや野原に出る。拠点のすぐそばには出ない
+    const wantMt = rnd(w) < 0.2, wantRoad = !wantMt && rnd(w) < 0.5;
+    for (let i = 0; i < 160; i++) {
       const x = 3 + rnd(w) * (B.w - 6), y = 3 + rnd(w) * (B.h - 6), t = SIM.terrainAt(x, y);
-      if (t === '海' || t === '街道' || (wantMt && i < 90 && t !== '山地')) continue;
-      if (w.settlements.some((s) => Math.hypot(s.x - x, s.y - y) < 6)) continue;
+      if (t === '海' || (wantMt && i < 120 && t !== '山地') || (wantRoad && i < 120 && !nearRoad(x, y))) continue;
+      if (w.settlements.some((s) => Math.hypot(s.x - x, s.y - y) < 3)) continue;
       const id = 'n' + w.nextId++;
       // 日が経つほど大きな野盗団が出る。ときどき大勢の野盗団も
       const extra = Math.min(14, Math.floor(w.time.min / 1440 / 15)), big = rnd(w) < 0.25 ? 1.6 : 1;
@@ -82,6 +82,7 @@
       return;
     }
   }
+  function nearRoad(x, y) { for (const [dx, dy] of [[0, 0], [1.5, 0], [-1.5, 0], [0, 1.5], [0, -1.5]]) if (SIM.terrainAt(x + dx, y + dy) === '街道') return true; return false; }
   function moveTo(e, dtMin) {
     if (e.tx == null) return false;
     const dx = e.tx - e.x, dy = e.ty - e.y, d = Math.hypot(dx, dy), step = (e.speed / 1440) * dtMin * SIM.speedAt(e.x, e.y);
@@ -95,6 +96,10 @@
     const now = w.time.min, B = SGK.DATA.bounds;
     for (const n of Object.values(w.npcs)) {
       if (n.kind !== 'bandit' || n.battle) continue;
+      if (n.fight) { // 巡回兵と交戦中：近づいたプレイヤーは加勢になる
+        for (const p of Object.values(w.players)) if (inField(p) && dist(n, p) < 0.6) { startBattle(w, n, p); break; }
+        continue;
+      }
       let tgt = null, td = 5;
       if (n.calm < now) for (const p of Object.values(w.players)) { const d = dist(n, p); if (inField(p) && d < td) { td = d; tgt = p; } }
       if (tgt) {
@@ -109,9 +114,48 @@
         n.wait -= dt; if (n.wait > 0) continue;
         const x = n.hx + (rnd(w) - 0.5) * 12, y = n.hy + (rnd(w) - 0.5) * 12;
         const t = x > 0 && y > 0 && x < B.w && y < B.h ? SIM.terrainAt(x, y) : '海';
-        if (t !== '海' && t !== '街道' && (t === '山地' || SIM.terrainAt(n.hx, n.hy) !== '山地')) { n.tx = x; n.ty = y; } // 街道には出ず、山の野盗は山にとどまる
+        if (t !== '海') { n.tx = x; n.ty = y; }
         n.wait = 60 + rnd(w) * 300;
       } else moveTo(n, dt);
+    }
+  }
+
+  // ---- 巡回兵：近くの野盗を見つけると向かっていき、地図の上で戦う（プレイヤーは近づけば加勢できる） ----
+  const SEEK_KM = 4, FIGHT_KM = 0.8;
+  function loseTroops(e, k) {
+    e.fa = (e.fa || 0) + k;
+    while (e.fa >= 1 && SIM.troopCount(e.army)) {
+      e.fa -= 1; const ty = Object.keys(e.army).sort((a, b) => e.army[b] - e.army[a])[0];
+      if (!--e.army[ty]) delete e.army[ty];
+    }
+    e.size = SIM.troopCount(e.army);
+  }
+  function patrolTick(w, dt) {
+    const bandits = Object.values(w.npcs).filter((n) => n.kind === 'bandit' && !n.battle);
+    for (const pa of Object.values(w.npcs)) {
+      if (pa.kind !== 'patrol' || pa.battle || !pa.army) continue;
+      if (pa.fight) {
+        const bd = w.npcs[pa.fight];
+        if (!bd || bd.fight !== pa.id) { pa.fight = null; continue; }
+        if (bd.battle) continue; // プレイヤーが加勢して戦場で戦っている
+        const hr = dt / 60, nA = SIM.troopCount(pa.army), nB = bd.size;
+        loseTroops(pa, nB * 0.05 * hr * (0.7 + rnd(w) * 0.6));
+        loseTroops(bd, nA * 0.06 * hr * (0.7 + rnd(w) * 0.6));
+        if (!bd.size) { delete w.npcs[bd.id]; pa.fight = null; }
+        else if (bd.size <= (bd.f0 || 10) * 0.4) { // 野盗が逃げ出す
+          bd.fight = null; pa.fight = null; bd.calm = w.time.min + 8 * 60;
+          const d = dist(bd, pa) || 1; bd.tx = bd.x + ((bd.x - pa.x) / d) * 5; bd.ty = bd.y + ((bd.y - pa.y) / d) * 5;
+        } else if (pa.size <= 3) { pa.fight = null; bd.fight = null; } // 巡回兵が崩れる
+        continue;
+      }
+      if (pa.size < 6) continue; // 弱っている巡回兵は戦わない
+      let tg = null, td = SEEK_KM;
+      for (const b of bandits) { if (b.fight) continue; const d = dist(pa, b); if (d < td) { td = d; tg = b; } }
+      if (!tg) continue;
+      if (td < FIGHT_KM) {
+        pa.fight = tg.id; tg.fight = pa.id; tg.f0 = tg.size; pa.fa = tg.fa = 0;
+        pa.tx = pa.ty = tg.tx = tg.ty = null; pa.path = null;
+      } else { pa.tx = tg.x; pa.ty = tg.y; pa.path = null; pa.dest = null; pa.at = null; }
     }
   }
 
@@ -177,7 +221,13 @@
     for (const q of joiners) {
       b.pids.push(q.id); q.battle = id; q.tx = q.ty = null; q.dest = null; b.start[q.id] = Object.assign({}, q.troops);
       addUnits(w, b, 'A', q.id, Object.assign({ hero: 1 }, q.troops));
-      SIM.say(q.id, `野盗${n.size}人に襲われました！ 敵の姿はまだ見えません。偵察に出すか、待ち構えるか…`);
+      SIM.say(q.id, n.fight ? `巡回兵に加勢し、野盗${n.size}人に攻めかかります！` : `野盗${n.size}人に襲われました！ 敵の姿はまだ見えません。偵察に出すか、待ち構えるか…`);
+    }
+    const pa = n.fight && w.npcs[n.fight];
+    if (pa && pa.army && SIM.troopCount(pa.army)) { // 味方の巡回兵も戦場に出る（自動で突撃）
+      const k = b.units.length; addUnits(w, b, 'A', null, pa.army);
+      for (let i = k; i < b.units.length; i++) { b.units[i].ally = pa.id; b.units[i].order = 'charge'; }
+      pa.battle = id; b.ally = pa.id;
     }
     addUnits(w, b, 'B', null, n.army);
   }
@@ -316,6 +366,12 @@
       } else SIM.say(pid, `戦場から退きました。${lt}`);
       SIM.onBattleEnd(w, b, p, res, after);
     }
+    const pa = b.ally && w.npcs[b.ally];
+    if (pa) {
+      const army = {}; for (const u of b.units) if (u.ally === pa.id && u.hp > 0) army[u.type] = (army[u.type] || 0) + u.n;
+      pa.army = army; pa.size = SIM.troopCount(army); pa.battle = null; pa.fight = null;
+    }
+    if (n) n.fight = null;
     if (n) {
       if (res === 'win') delete w.npcs[n.id];
       else {
@@ -337,7 +393,8 @@
       for (const k in p.troops) { const go = Math.ceil(p.troops[k] * 0.2); p.troops[k] -= go; left += go; if (p.troops[k] <= 0) delete p.troops[k]; }
       SIM.say(p.id, `給金が払えず、兵${left}人が去りました`);
     }
-    if (Object.values(w.npcs).filter((n) => n.kind === 'bandit').length < MAX_BANDITS) for (let i = 0; i < 2; i++) if (rnd(w) < 0.7) spawnBandit(w);
+    for (const n of Object.values(w.npcs)) if (n.kind === 'patrol' && n.army && !n.fight && !n.battle && SIM.troopCount(n.army) < 12) { n.army.yari = (n.army.yari || 0) + 2; n.size = SIM.troopCount(n.army); } // 巡回兵の補充
+    if (Object.values(w.npcs).filter((n) => n.kind === 'bandit').length < MAX_BANDITS) for (let i = 0; i < 5; i++) if (rnd(w) < 0.7) spawnBandit(w);
   }
 
   // 兵種の割合で行軍の速さが少し変わる：騎馬が多いほど速く（最大+10%）、鉄砲が多いほど遅く（最大-10%）
@@ -353,6 +410,7 @@
     function militaryDay(w) { const d = Math.floor(w.time.min / 1440); while (w.mday < d) { w.mday++; daily(w); } },
     function partySpeed(w) { for (const p of Object.values(w.players)) p.speed = (CFG.WALK_KM_PER_DAY + SIM.speedBonus(p)) * SIM.sizeSpeed(SIM.troopCount(p.troops)) * SIM.mixSpeed(p.troops); },
     banditTick,
+    patrolTick,
     function battles(w, dtMin) { const sec = dtMin / CFG.MIN_PER_SEC; for (const b of Object.values(w.battles)) stepBattle(w, b, sec); },
   );
 

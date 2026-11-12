@@ -138,7 +138,7 @@
     },
     function npcLife(w, dt) {
       for (const n of Object.values(w.npcs)) {
-        if (n.kind === 'bandit' || n.kind === 'army') continue; // 野盗は military.js、軍勢は army.js で動かす
+        if (n.kind === 'bandit' || n.kind === 'army' || n.fight || n.battle) continue; // 野盗は military.js、軍勢は army.js で動かす
         if (n.tx == null) {
           n.wait -= dt;
           if (n.wait > 0) continue;
@@ -186,7 +186,7 @@
       t: w.time.min,
       p: Object.values(w.players).filter(vis).map((p) => [p.id, p.name, r(p.x), r(p.y), p.at, p.tx == null ? null : r(p.tx), p.ty == null ? null : r(p.ty), p.status,
         p.tx != null && p.path ? p.path.map(([x, y]) => [r(x), r(y)]) : null]),
-      n: Object.values(w.npcs).filter(vis).map((n) => [n.id, n.kind, n.faction, r(n.x), r(n.y), n.size || 0, n.battle ? 1 : 0,
+      n: Object.values(w.npcs).filter(vis).map((n) => [n.id, n.kind, n.faction, r(n.x), r(n.y), n.size || 0, n.battle ? 1 : n.fight ? 2 : 0,
         n.dest || null, n.cargo ? [n.cargo.item, n.cargo.qty] : null, n.kind === 'bandit' || n.kind === 'patrol' || n.kind === 'army' ? n.army || null : null, n.home || null, n.tx == null ? n.at || null : null]),
     };
   };
