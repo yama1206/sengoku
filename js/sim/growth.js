@@ -200,7 +200,7 @@
   SIM.privateState = function (w, pid) {
     const r = basePriv(w, pid); if (!r) return r;
     const p = w.players[pid];
-    r.me.char = { attrs: p.attrs, skills: p.skills, perks: p.perks, level: SIM.charLevel(p), points: SIM.attrPoints(p), txp: p.txp, fame: p.fame };
+    r.me.char = { attrs: p.attrs, skills: p.skills, perks: p.perks, level: SIM.charLevel(p), points: SIM.attrPoints(p), txp: p.txp, fame: Math.round(p.fame * 10) / 10 };
     return r;
   };
 })();

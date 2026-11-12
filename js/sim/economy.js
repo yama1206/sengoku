@@ -64,11 +64,15 @@
 
   // ---- 依頼の作成 ----
   function giverOf(w, s) { return s.type === 'castle' && s.lord ? (w.people[s.lord] || {}).name + '様' : s.type === 'town' ? '町の商家' : '村の名主'; }
+  // 依頼の名声：ふつうは+0.5、遠く（80km以上）への届け物は+1
+  function jobFame(w, q) { const a = SIM.settlement(w, q.from), b = q.to && SIM.settlement(w, q.to); return q.type === 'deliver' && a && b && dist(a, b) >= 80 ? 1 : 0.5; }
   function genJob(w, s) {
     const id = 'j' + w.nextId++, now = w.time.min, giver = giverOf(w, s);
     let job;
     if (SIM.rand(w) < 0.55) {
-      const to = pick(w, w.settlements.filter((x) => x.id !== s.id)); const d = dist(s, to);
+      const r = SIM.rand(w), lim = r < 0.6 ? 40 : r < 0.9 ? 90 : 1e9; // 6割は40km以内、3割は90km以内の近場へ
+      let tos = w.settlements.filter((x) => x.id !== s.id && dist(s, x) < lim); if (!tos.length) tos = w.settlements.filter((x) => x.id !== s.id);
+      const to = pick(w, tos); const d = dist(s, to);
       job = { id, type: 'deliver', from: s.id, to: to.id, days: Math.ceil(d / 20) + 2, reward: Math.round((60 + d * 12) / 10) * 10, title: `${to.name}へ届け物`, giver };
     } else {
       const k = pick(w, Object.keys(I()).filter((k) => !(s.prod[k] > 0))); const it = I()[k]; const qty = 4 + Math.floor(SIM.rand(w) * 9);
@@ -154,7 +158,7 @@
     SIM.say(p.id, `${s.name}に着きました`);
     p.quests = p.quests.filter((q) => {
       if (q.type !== 'deliver' || q.to !== p.at) return true;
-      p.money += q.reward; p.fame += 1; SIM.say(p.id, `依頼「${q.title}」達成！ ${SIM.money(q.reward)}を受け取りました（名声+1）`); return false;
+      const fm = jobFame(w, q); p.money += q.reward; p.fame += fm; SIM.say(p.id, `依頼「${q.title}」達成！ ${SIM.money(q.reward)}を受け取りました（名声+${fm}）`); return false;
     });
   };
 
@@ -203,8 +207,8 @@
       if (q.from !== s.id) return SIM.say(p.id, `納品先は${SIM.settlement(w, q.from).name}です`);
       if ((p.inv[q.item] || 0) < q.qty) return SIM.say(p.id, `${I()[q.item].name}が足りません`);
       p.inv[q.item] -= q.qty; if (!p.inv[q.item]) delete p.inv[q.item]; dropCost(p, q.item); s.stock[q.item] += q.qty;
-      p.money += q.reward; p.fame += 1; p.quests = p.quests.filter((x) => x !== q);
-      SIM.say(p.id, `依頼「${q.title}」達成！ ${SIM.money(q.reward)}を受け取りました（名声+1）`);
+      const fm = jobFame(w, q); p.money += q.reward; p.fame += fm; p.quests = p.quests.filter((x) => x !== q);
+      SIM.say(p.id, `依頼「${q.title}」達成！ ${SIM.money(q.reward)}を受け取りました（名声+${fm}）`);
     },
     abandonJob(w, p, c) {
       const q = p.quests.find((x) => x.id === c.id); if (!q) return;
@@ -251,7 +255,7 @@
     const p = w.players[pid]; if (!p) return null;
     const s = here(w, p);
     return {
-      me: { money: p.money, inv: p.inv, cost: p.cost || {}, quests: p.quests, fame: p.fame, busy: p.busy, cap: CAP },
+      me: { money: p.money, inv: p.inv, cost: p.cost || {}, quests: p.quests, fame: Math.round(p.fame * 10) / 10, busy: p.busy, cap: CAP },
       here: s ? { id: s.id, noBuy: [...SIM.noBuy(w, s)], market: Object.keys(I()).map((k) => [k, SIM.buyPrice(s, k, p), SIM.sellPrice(s, k, p), Math.floor(s.stock[k])]), jobs: Object.values(w.jobs).filter((j) => j.from === s.id) } : null,
     };
   };
