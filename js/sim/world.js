@@ -180,7 +180,7 @@
     const eraY = year - st.eraStartYear + 1;
     const wa = `${st.era}${eraY === 1 ? '元' : eraY}年`;
     const ys = SIM.yearFmt === 'ad' ? `${year}年` : SIM.yearFmt === 'both' ? `${wa}（${year}年）` : wa;
-    return `${ys} ${month}月${day}日 ${SHI[Math.floor(((hour + 1) % 24) / 2)]}の刻（${String(hour).padStart(2, '0')}:${String(Math.floor(mod % 60)).padStart(2, '0')}）`;
+    return `${ys} ${month}月${day}日 ${String(hour).padStart(2, '0')}:${String(Math.floor(mod % 60)).padStart(2, '0')}`;
   };
   // 明るさ（1＝昼、0＝夜）。5〜7時に明けて、17〜19時に暮れる
   SIM.daylight = function (min) {
