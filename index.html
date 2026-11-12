@@ -45,6 +45,8 @@
   .pk { color:var(--gold); font-weight:bold; }
   #gameMenu { position:absolute; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap; overflow:auto; }
   #gameMenu .menu { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  #warBoard { position:absolute; left:10px; bottom:10px; max-width:min(440px,60vw); font-size:13px; padding:6px 9px; pointer-events:none; }
+  #warBoard div { margin:2px 0; }
   #toasts { position:absolute; top:80px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:6px; pointer-events:none; }
   .toast { background:var(--panel); border:1px solid var(--gold); border-radius:6px; padding:6px 14px; font-size:14px; }
   #quests { margin-top:6px; font-size:12px; line-height:1.5; max-width:300px; }
@@ -119,6 +121,7 @@
 
 <section id="game" class="hidden">
   <canvas id="map"></canvas>
+  <div class="hud hidden" id="warBoard"></div>
   <div class="hud" id="hudL"><div id="date"></div><div id="hpBar"></div><div id="status"></div><div id="quests"></div></div>
   <div id="hudR">
     <div class="hud" id="roomInfo"></div>

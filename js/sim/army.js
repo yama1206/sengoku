@@ -416,4 +416,30 @@
       n.army = { yari: 8 + Math.floor(rnd(w) * 8), yumi: 2 + Math.floor(rnd(w) * 5) }; n.size = SIM.troopCount(n.army);
     }
   });
+  // ---- 0.31.0 戦況：自分の家が攻めている・攻められている城（画面左下に出し続ける） ----
+  SIM.warBoard = (w, p) => {
+    if (!p.clan) return [];
+    const out = [], left = (t) => Math.max(0, Math.ceil((t - w.time.min) / 1440));
+    for (const n of Object.values(w.npcs)) {
+      if (n.kind !== 'army' || n.mode !== 'siege') continue;
+      const s = SIM.settlement(w, n.to); if (!s) continue;
+      const st = n.until == null ? `進軍中（あと約${Math.max(1, Math.ceil(dist(n, s) / (n.speed || AR.speed)))}日）` : `包囲中・総攻めまで${left(n.until)}日`;
+      if (n.faction === p.clan) out.push({ atk: 1, text: `${s.name}（${fName(w, s.owner)}）を攻撃：${armyName(w, n)} ${n.size}人　${st}` });
+      else if (s.owner === p.clan) out.push({ atk: 0, text: `${s.name}が攻撃されています：${fName(w, n.faction)}の${armyName(w, n)} ${n.size}人　${st}` });
+    }
+    for (const q of Object.values(w.players)) {
+      if (!q.siege) continue;
+      const s = SIM.settlement(w, q.siege.sid); if (!s) continue;
+      const st = w.time.min >= q.siege.until ? '総攻めできます' : `包囲中・総攻めまで${left(q.siege.until)}日`;
+      if (q.clan === p.clan) out.push({ atk: 1, text: `${s.name}（${fName(w, s.owner)}）を攻撃：${q.id === p.id ? 'あなた' : q.name}　${st}` });
+      else if (s.owner === p.clan) out.push({ atk: 0, text: `${s.name}が攻撃されています：${fName(w, q.clan)}の${q.name}　${st}` });
+    }
+    return out.sort((a, b) => a.atk - b.atk);
+  };
+  const basePrivWB = SIM.privateState;
+  SIM.privateState = function (w, pid) {
+    const r = basePrivWB(w, pid); if (!r) return r;
+    r.me.warBoard = SIM.warBoard(w, w.players[pid]);
+    return r;
+  };
 })();
