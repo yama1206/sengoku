@@ -1,6 +1,6 @@
 // 基本設定（数値はここで調整）
 window.SGK = window.SGK || {};
-SGK.VERSION = '0.7.0';
+SGK.VERSION = '0.7.1';
 SGK.SAVE_SCHEMA = 5; // セーブデータの形式番号（形式を変えたら上げて、save.js の migrate に変換を書く）
 SGK.CFG = {
   MIN_PER_SEC: 30,      // 現実1秒 = ゲーム内30分（1日 = 約48秒）
@@ -12,4 +12,5 @@ SGK.CFG = {
   MAX_PLAYERS: 4,
   PEER_PREFIX: 'sgk-r8-',
   WALK_KM_PER_DAY: 30,  // 徒歩の移動速度
+  SIGHT_KM: 14,         // 地図で他の部隊が見える範囲（km）。山では狭く、城では広い
 };

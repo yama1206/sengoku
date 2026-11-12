@@ -80,6 +80,16 @@
       ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)'; ctx.strokeText(s.name, x, y + 9);
       ctx.fillStyle = '#2a2118'; ctx.fillText(s.name, x, y + 9);
     }
+    // 視界の外を少し暗く（他の部隊は見えない）
+    const meV = view.players.find((p) => p.id === myPid);
+    if (meV && view.sr) {
+      const d = disp[meV.id] || meV, [cx, cy] = R.toScreen(d.x, d.y), rr = view.sr * cam.scale;
+      const gr = ctx.createRadialGradient(cx, cy, rr * 0.85, cx, cy, rr * 1.05);
+      gr.addColorStop(0, 'rgba(20,16,10,0)'); gr.addColorStop(1, 'rgba(20,16,10,.38)');
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = 'rgba(255,240,200,.35)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 6]);
+      ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+    }
     // NPC
     for (const n of view.npcs) {
       const d = disp[n.id] || n; const [x, y] = R.toScreen(d.x, d.y);

@@ -140,14 +140,26 @@
     }
   };
 
-  // 参加者へ送る動く部分（将来は「各プレイヤーの近くだけ」に絞る）
+  // 地図の視界：自分の周りだけ他の部隊（NPC・他プレイヤー）が見える
+  SIM.sightRadius = function (w, p) {
+    let r = SGK.CFG.SIGHT_KM;
+    if (p.at && p.tx == null) { const s = SIM.settlement(w, p.at); if (s && s.type === 'castle') r *= 1.5; }
+    else if (SIM.speedAt && SIM.terrainAt(p.x, p.y) === '山地') r *= 0.6;
+    return r;
+  };
+  SIM.canSee = (p, r, x, y) => Math.hypot(x - p.x, y - p.y) <= r;
+
+  // 参加者へ送る動く部分（pid を渡すと、その人に見えるものだけ）
   const r = (v) => Math.round(v * 100) / 100;
-  SIM.dynamicState = function (w) {
+  SIM.dynamicState = function (w, pid) {
+    const me = pid && w.players[pid], sr = me ? SIM.sightRadius(w, me) : 0;
+    const vis = (e) => !me || e === me || SIM.canSee(me, sr, e.x, e.y);
     return {
+      sr: me ? r(sr) : null,
       t: w.time.min,
-      p: Object.values(w.players).map((p) => [p.id, p.name, r(p.x), r(p.y), p.at, p.tx == null ? null : r(p.tx), p.ty == null ? null : r(p.ty), p.status,
+      p: Object.values(w.players).filter(vis).map((p) => [p.id, p.name, r(p.x), r(p.y), p.at, p.tx == null ? null : r(p.tx), p.ty == null ? null : r(p.ty), p.status,
         p.tx != null && p.path ? p.path.map(([x, y]) => [r(x), r(y)]) : null]),
-      n: Object.values(w.npcs).map((n) => [n.id, n.kind, n.faction, r(n.x), r(n.y), n.size || 0, n.battle ? 1 : 0]),
+      n: Object.values(w.npcs).filter(vis).map((n) => [n.id, n.kind, n.faction, r(n.x), r(n.y), n.size || 0, n.battle ? 1 : 0]),
     };
   };
   SIM.staticState = (w) => ({ settlements: w.settlements, factions: w.factions, people: w.people, scenario: w.scenario });

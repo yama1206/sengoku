@@ -100,7 +100,7 @@
     netAcc += dt * 1000;
     if (netAcc >= CFG.NET_SEND_MS) {
       netAcc = 0;
-      if (G.net) { const dyn = SIM.dynamicState(G.world); G.net.each((pid) => ({ t: 'state', s: dyn, sp: G.speed, priv: SIM.privateState(G.world, pid), msgs: SIM.drain(pid) })); }
+      if (G.net) { G.net.each((pid) => ({ t: 'state', s: SIM.dynamicState(G.world, pid), sp: G.speed, priv: SIM.privateState(G.world, pid), msgs: SIM.drain(pid) })); }
       for (const pid in SIM.out) if (pid !== G.myPid) delete SIM.out[pid]; // 接続していない人宛ては捨てる
     }
     saveAcc += dt;
@@ -144,11 +144,13 @@
   function buildView() {
     if (G.mode === 'host') {
       const w = G.world;
-      G.view = { t: w.time.min, settlements: w.settlements, factions: w.factions, people: w.people, players: Object.values(w.players), npcs: Object.values(w.npcs) };
+      const m = w.players[G.myPid], sr = m ? SIM.sightRadius(w, m) : 0;
+      const vis = (e) => !m || e === m || SIM.canSee(m, sr, e.x, e.y);
+      G.view = { t: w.time.min, sr, settlements: w.settlements, factions: w.factions, people: w.people, players: Object.values(w.players).filter(vis), npcs: Object.values(w.npcs).filter(vis) };
     } else if (G.mode === 'client' && G.dyn) {
       const d = G.dyn, s = G.stat;
       G.view = {
-        t: d.t, settlements: s.settlements, factions: s.factions, people: s.people,
+        t: d.t, sr: d.sr, settlements: s.settlements, factions: s.factions, people: s.people,
         players: d.p.map(([id, name, x, y, at, tx, ty, status, path]) => ({ id, name, x, y, at, tx, ty, status, path })),
         npcs: d.n.map(([id, kind, faction, x, y, size, battle]) => ({ id, kind, faction, x, y, size, battle })),
       };
