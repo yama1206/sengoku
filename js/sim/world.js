@@ -72,9 +72,11 @@
       let dest = null;
       if (c.dest) { const s = SIM.settlement(w, c.dest); if (s) { x = s.x; y = s.y; dest = s.id; } }
       if (!dest && SIM.isSea(x, y)) return; // 海の上は目的地にできない（船は後日）
-      p.tx = x; p.ty = y; p.dest = dest; p.at = null;
+      const path = SIM.findPath(p.x, p.y, x, y);
+      if (!path) return SIM.say(p.id, 'そこへは陸路で行けません');
+      p.tx = x; p.ty = y; p.dest = dest; p.at = null; p.path = path;
     },
-    stop(w, p) { p.tx = p.ty = null; p.dest = null; },
+    stop(w, p) { p.tx = p.ty = null; p.dest = null; p.path = null; },
   };
   SIM.applyCommand = function (w, pid, cmd) {
     const p = w.players[pid];
@@ -83,14 +85,22 @@
   };
 
   // ===== システム（毎tick順番に実行。機能を増やすときはここに足す） =====
+  // 道筋（path）の通過点を順にたどる。速さは足もとの地形（街道・平地・山）で変わる
   function moveEntity(e, dtMin) {
-    if (e.tx == null) return false;
-    const dx = e.tx - e.x, dy = e.ty - e.y, d = Math.hypot(dx, dy);
-    const step = (e.speed / 1440) * dtMin;
-    if (d <= step) { e.x = e.tx; e.y = e.ty; e.tx = e.ty = null; return true; }
-    e.x += (dx / d) * step; e.y += (dy / d) * step;
+    if (e.tx == null) { e.path = null; return false; }
+    if (!e.path || !e.path.length) e.path = [[e.tx, e.ty]];
+    let left = dtMin;
+    while (left > 0 && e.path.length) {
+      const [wx, wy] = e.path[0];
+      const dx = wx - e.x, dy = wy - e.y, d = Math.hypot(dx, dy);
+      const v = (e.speed / 1440) * SIM.speedAt(e.x, e.y); // km/分
+      if (d <= v * left) { e.x = wx; e.y = wy; left -= v > 0 ? d / v : left; e.path.shift(); continue; }
+      e.x += (dx / d) * v * left; e.y += (dy / d) * v * left; left = 0;
+    }
+    if (!e.path.length) { e.x = e.tx; e.y = e.ty; e.tx = e.ty = null; e.path = null; return true; }
     return false;
   }
+  SIM.moveEntity = moveEntity;
   SIM.systems = [
     function playerMove(w, dt) {
       for (const p of Object.values(w.players)) {
@@ -113,7 +123,7 @@
           if (!cands.length) cands = w.settlements.filter((s) => s.id !== n.at);
           const s = cands[Math.floor(SIM.rand(w) * cands.length)];
           if (n.kind === 'merchant') SIM.merchantDepart(w, n, SIM.settlement(w, n.at));
-          n.tx = s.x; n.ty = s.y; n.dest = s.id; n.at = null;
+          n.tx = s.x; n.ty = s.y; n.dest = s.id; n.at = null; n.path = SIM.findPath(n.x, n.y, s.x, s.y);
         } else if (moveEntity(n, dt)) {
           n.at = n.dest; n.dest = null; if (n.kind === 'merchant') SIM.merchantArrive(w, n, SIM.settlement(w, n.at)); n.wait = 120 + SIM.rand(w) * 480;
         }
@@ -135,7 +145,8 @@
   SIM.dynamicState = function (w) {
     return {
       t: w.time.min,
-      p: Object.values(w.players).map((p) => [p.id, p.name, r(p.x), r(p.y), p.at, p.tx == null ? null : r(p.tx), p.ty == null ? null : r(p.ty), p.status]),
+      p: Object.values(w.players).map((p) => [p.id, p.name, r(p.x), r(p.y), p.at, p.tx == null ? null : r(p.tx), p.ty == null ? null : r(p.ty), p.status,
+        p.tx != null && p.path ? p.path.map(([x, y]) => [r(x), r(y)]) : null]),
       n: Object.values(w.npcs).map((n) => [n.id, n.kind, n.faction, r(n.x), r(n.y), n.size || 0, n.battle ? 1 : 0]),
     };
   };

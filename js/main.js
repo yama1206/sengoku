@@ -149,7 +149,7 @@
       const d = G.dyn, s = G.stat;
       G.view = {
         t: d.t, settlements: s.settlements, factions: s.factions, people: s.people,
-        players: d.p.map(([id, name, x, y, at, tx, ty, status]) => ({ id, name, x, y, at, tx, ty, status })),
+        players: d.p.map(([id, name, x, y, at, tx, ty, status, path]) => ({ id, name, x, y, at, tx, ty, status, path })),
         npcs: d.n.map(([id, kind, faction, x, y, size, battle]) => ({ id, kind, faction, x, y, size, battle })),
       };
     }
@@ -548,7 +548,7 @@
       $('date').textContent = SIM.formatDate(G.view.t) + (G.speed === 0 ? '（停止中）' : G.speed > 1 ? `（×${G.speed}）` : '');
       if (m) {
         const at = m.at && G.view.settlements.find((s) => s.id === m.at);
-        $('status').textContent = `${m.name}（${m.status || '浪人'}）　${BT ? '戦闘中' : at ? at.name + 'に滞在中' : m.tx != null ? '移動中' : '野外'}`;
+        $('status').textContent = `${m.name}（${m.status || '浪人'}）　${BT ? '戦闘中' : at ? at.name + 'に滞在中' : m.tx != null ? `移動中（${SIM.terrainAt(m.x, m.y)}）` : `野外（${SIM.terrainAt(m.x, m.y)}）`}`;
       }
       document.querySelectorAll('[data-speed]').forEach((b) => b.classList.toggle('on', +b.dataset.speed === G.speed));
     }

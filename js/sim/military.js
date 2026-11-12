@@ -76,7 +76,7 @@
   }
   function moveTo(e, dtMin) {
     if (e.tx == null) return false;
-    const dx = e.tx - e.x, dy = e.ty - e.y, d = Math.hypot(dx, dy), step = (e.speed / 1440) * dtMin;
+    const dx = e.tx - e.x, dy = e.ty - e.y, d = Math.hypot(dx, dy), step = (e.speed / 1440) * dtMin * SIM.speedAt(e.x, e.y);
     if (d <= step) { e.x = e.tx; e.y = e.ty; e.tx = e.ty = null; return true; }
     e.x += (dx / d) * step; e.y += (dy / d) * step; return false;
   }

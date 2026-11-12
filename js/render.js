@@ -32,6 +32,26 @@
     // 海
     ctx.fillStyle = '#7d9fae';
     for (const s of T.seas) { path(ctx, s, true); ctx.fill(); }
+    // 山地
+    ctx.fillStyle = 'rgba(120,128,82,.45)'; ctx.strokeStyle = 'rgba(80,86,50,.5)'; ctx.lineWidth = 1;
+    for (const m of T.mountains || []) { path(ctx, m.pts, true); ctx.fill(); ctx.stroke(); }
+    // 山の印（∧）を散らす
+    ctx.strokeStyle = 'rgba(70,62,40,.55)'; ctx.lineWidth = 1.2;
+    const step = Math.max(4, 28 / cam.scale);
+    for (const m of T.mountains || []) {
+      let x0m = Infinity, y0m = Infinity, x1m = -Infinity, y1m = -Infinity;
+      for (const [x, y] of m.pts) { x0m = Math.min(x0m, x); y0m = Math.min(y0m, y); x1m = Math.max(x1m, x); y1m = Math.max(y1m, y); }
+      for (let y = Math.ceil(y0m / step) * step; y < y1m; y += step) for (let x = Math.ceil(x0m / step) * step + ((y / step) % 2 ? step / 2 : 0); x < x1m; x += step) {
+        const [a, b] = R.toScreen(x, y);
+        if (a < -10 || b < -10 || a > W + 10 || b > H + 10 || !SGK.SIM.pointInPoly(x, y, m.pts)) continue; ctx.beginPath(); ctx.moveTo(a - 5, b + 3); ctx.lineTo(a, b - 4); ctx.lineTo(a + 5, b + 3); ctx.stroke();
+      }
+    }
+    // 街道
+    ctx.lineCap = ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(245,232,190,.9)'; ctx.lineWidth = Math.max(4, cam.scale * 0.9);
+    for (const r of T.roads || []) { path(ctx, r.pts); ctx.stroke(); }
+    ctx.strokeStyle = '#8a6a3c'; ctx.lineWidth = Math.max(1.5, cam.scale * 0.3);
+    for (const r of T.roads || []) { path(ctx, r.pts); ctx.stroke(); }
     // 川
     ctx.strokeStyle = '#7d9fae'; ctx.lineCap = ctx.lineJoin = 'round';
     ctx.lineWidth = Math.max(2, cam.scale * 0.35);
@@ -41,7 +61,9 @@
     if (me && me.tx != null) {
       const d = disp[me.id] || me;
       ctx.setLineDash([6, 6]); ctx.strokeStyle = 'rgba(60,40,20,.7)'; ctx.lineWidth = 2;
-      path(ctx, [[d.x, d.y], [me.tx, me.ty]]); ctx.stroke(); ctx.setLineDash([]);
+      // 残りの道筋（いま向かっている通過点から）
+      const rest = me.path && me.path.length ? me.path : [[me.tx, me.ty]];
+      path(ctx, [[d.x, d.y], ...rest]); ctx.stroke(); ctx.setLineDash([]);
     }
     // 拠点
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
