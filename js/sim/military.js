@@ -70,7 +70,7 @@
     const wantMt = rnd(w) < 0.2, wantRoad = !wantMt && rnd(w) < 0.5;
     for (let i = 0; i < 160; i++) {
       const x = 3 + rnd(w) * (B.w - 6), y = 3 + rnd(w) * (B.h - 6), t = SIM.terrainAt(x, y);
-      if (t === '海' || (wantMt && i < 120 && t !== '山地') || (wantRoad && i < 120 && !nearRoad(x, y))) continue;
+      if (t === '海' || SIM.isSea(x, y) || (wantMt && i < 120 && t !== '山地') || (wantRoad && i < 120 && !nearRoad(x, y))) continue;
       if (w.settlements.some((s) => Math.hypot(s.x - x, s.y - y) < 3)) continue;
       const id = 'n' + w.nextId++;
       // 日が経つほど大きな野盗団が出る。ときどき大勢の野盗団も
@@ -120,7 +120,7 @@
         n.wait -= dt; if (n.wait > 0) continue;
         const x = n.hx + (rnd(w) - 0.5) * 12, y = n.hy + (rnd(w) - 0.5) * 12;
         const t = x > 0 && y > 0 && x < B.w && y < B.h ? SIM.terrainAt(x, y) : '海';
-        if (t !== '海') { n.tx = x; n.ty = y; }
+        if (t !== '海' && !SIM.isSea(x, y)) { n.tx = x; n.ty = y; } // 渡し船の上には出ない
         n.wait = 60 + rnd(w) * 300;
       } else moveTo(n, dt);
     }

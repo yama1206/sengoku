@@ -92,7 +92,7 @@
         if (ni < 0 || nj < 0 || ni >= gw || nj >= gh) continue;
         const n = nj * gw + ni;
         if (g[n] === 0 && n !== t) continue; // 海・湖（目的地のマスだけは岸辺として許す）
-        if (di && dj && (g[j * gw + ni] === 0 || g[nj * gw + i] === 0)) continue; // 岸の角を斜めにすり抜けない
+        if (di && dj && !(g[k] === 3 && g[n] === 3) && (g[j * gw + ni] === 0 || g[nj * gw + i] === 0)) continue; // 岸の角を斜めにすり抜けない（渡し船の道どうしは斜めにつながってよい）
         const c = C[k] + (dl * CELL) / ((mk + (MULT[g[n]] || SPEED.plain)) / 2);
         if (c < getC(n)) { stamp[n] = run; C[n] = c; F[n] = k; open.push(c + h(n), n); }
       }

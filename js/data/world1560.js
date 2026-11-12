@@ -583,6 +583,7 @@
     { name: '讃岐の渡し', via: ['bmatsuyama', [34.47, 133.8], [34.3, 133.85], 'sogo', 'shozui'] },
     { name: '伊予・土佐の道', via: ['sogo', [34.0, 133.55], [33.95, 133.15], 'yuzuki', [33.55, 132.6], 'kurose', [33.1, 132.6], 'nakamura', [33.3, 133.15], 'asakura_t', 'oko', 'akijo', [33.6, 134.25], [33.9, 134.6], 'shozui'] },
     { name: '芸予の渡し', via: ['niitakayama', [34.2, 132.95], 'yuzuki'] },
+    { name: '豊予の渡し', via: ['jizogatake', [33.45, 132.42], [33.39, 132.2], [33.34, 132.02], [33.27, 131.88], [33.24, 131.74], 'funai'] }, // 佐田岬〜佐賀関
     { name: '西海道', via: ['moji', [33.85, 130.8], 'tachibanayama', 'hakata', 'iwaya', [33.32, 130.5], 'yanagawa', 'kumamoto', [32.5, 130.65], 'hitoyoshi', [31.95, 130.6], 'kajiki', 'uchijo'] },
     { name: '肥前の道', via: ['hakata', [33.4, 130.2], 'muranaka', [33.3, 129.95], 'hirado'] },
     { name: '島原の道', via: ['muranaka', [33.0, 130.1], 'hinoe'] },
