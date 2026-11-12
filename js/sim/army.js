@@ -37,15 +37,18 @@
   // ---- 軍勢（地図の上を動くNPC。kind: 'army'） ----
   // mode: siege（城へ進軍→包囲→総攻め）／relief（援軍：包囲している相手へ向かう）／return（引き上げ）
   function setGoal(n, x, y, dest) { n.tx = x; n.ty = y; n.dest = dest || null; n.path = SIM.findPath(n.x, n.y, x, y); }
+  // 行軍の速さ：プレイヤーと同じく人数（大軍ほど遅い）と兵種の割合で決まる
+  SIM.armySpeed = (n) => SGK.CFG.WALK_KM_PER_DAY * SIM.sizeSpeed(n.size || 0) * SIM.mixSpeed(n.army);
   function armyName(w, n) { const g = n.gens && w.people[n.gens[0]]; return g ? `${g.name}の軍勢` : `${fName(w, n.faction)}の軍勢`; }
   SIM.launchArmy = (w, o) => {
     const id = 'a' + w.nextId++, size = SIM.troopCount(o.army);
     const n = w.npcs[id] = { id, kind: 'army', faction: o.faction, x: o.from.x, y: o.from.y, tx: null, ty: null, dest: null, at: null, home: o.from.id,
       speed: AR.speed, wait: 0, calm: 0, army: o.army, size, gens: (o.gens || []).slice(0, 4), mode: o.mode, to: o.to ? o.to.id : null, target: o.target || null, until: null, loot: 800 + size * 25 };
+    n.speed = SIM.armySpeed(n);
     const gn = n.gens.map((g) => (w.people[g] || {}).name).filter(Boolean);
     if (o.mode === 'siege') {
       setGoal(n, o.to.x + 0.7, o.to.y + 0.4, o.to.id);
-      news(w, `${fName(w, o.faction)}の軍勢${size}人${gn.length ? `（${gn.join('・')}）` : ''}が${o.from.name}を発ち、${o.to.name}へ向かっているそうです（${Math.max(1, Math.ceil(dist(o.from, o.to) / AR.speed))}日ほど）`);
+      news(w, `${fName(w, o.faction)}の軍勢${size}人${gn.length ? `（${gn.join('・')}）` : ''}が${o.from.name}を発ち、${o.to.name}へ向かっているそうです（${Math.max(1, Math.ceil(dist(o.from, o.to) / n.speed))}日ほど）`);
       for (const p of Object.values(w.players)) if (p.clan === o.to.owner) SIM.say(p.id, `【急報】${fName(w, o.faction)}の軍勢${size}人が${o.to.name}へ向かっています！ 着いても${AR.siegeDays}日は包囲するので、そのあいだに城へ入るか、軍勢に攻めかかって追い払えます`);
     } else if (o.mode === 'relief') {
       news(w, `${fName(w, o.faction)}の援軍${size}人${gn.length ? `（${gn.join('・')}）` : ''}が${o.to ? o.to.name : ''}の救援に向かっているそうです`);
@@ -253,6 +256,7 @@
     for (const n of Object.values(w.npcs)) {
       if (n.kind !== 'army' || n.battle) continue;
       if (!w.factions[n.faction] || w.factions[n.faction].dead || !n.size) { delete w.npcs[n.id]; continue; }
+      n.speed = SIM.armySpeed(n); // 戦で減ると速くなる（古いセーブの軍勢もここで直る）
       if (n.mode === 'siege') {
         const s = SIM.settlement(w, n.to);
         if (s && s.owner === n.faction) { s.gar = addTr(s.gar, n.army); delete w.npcs[n.id]; continue; } // 落とした城に入る
@@ -303,7 +307,7 @@
     return { name: armyName(w, n), text: `${st}${gn.length ? `<br>武将：${gn.join('・')}` : ''}` };
   };
   SIM.threats = (w, p) => Object.values(w.npcs).filter((n) => n.kind === 'army' && n.mode === 'siege' && SIM.settlement(w, n.to) && SIM.settlement(w, n.to).owner === p.clan)
-    .map((n) => { const s = SIM.settlement(w, n.to); return { to: s.name, att: fName(w, n.faction), n: n.size, siege: n.until != null, days: Math.max(0, Math.ceil(n.until != null ? (n.until - w.time.min) / 1440 : dist(n, s) / AR.speed)) }; });
+    .map((n) => { const s = SIM.settlement(w, n.to); return { to: s.name, att: fName(w, n.faction), n: n.size, siege: n.until != null, days: Math.max(0, Math.ceil(n.until != null ? (n.until - w.time.min) / 1440 : dist(n, s) / (n.speed || AR.speed))) }; });
   SIM.siegeInfo = (w, sid) => { // 城が包囲されていれば、誰に・総攻めまで何日
     const a = Object.values(w.npcs).find((n) => n.kind === 'army' && n.mode === 'siege' && n.to === sid && n.until != null);
     const p = !a && Object.values(w.players).find((q) => q.siege && q.siege.sid === sid);
