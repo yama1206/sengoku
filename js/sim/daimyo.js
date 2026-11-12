@@ -96,6 +96,7 @@
       c.owner = id; c.lord = null;
       for (const n2 of Object.values(w.npcs)) if (n2.home === c.id && n2.faction === old) n2.faction = id;
     }
+    if (SIM.setWar && w.factions[old]) SIM.setWar(w, id, old, true); // 元の主家とは戦になる
     p.leftClan = old; p.clan = id; p.rank = RANKS.length - 1; p.promoteHint = 0;
     p.fame += 10; p.status = `${name} ${RANKS[p.rank].name}`;
     SIM.say(p.id, `${oldName}から独立し、${name}を興しました！ ${cs.map((c) => c.name).join('・')}はあなたの領地です（名声+10）`);

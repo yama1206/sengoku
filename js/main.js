@@ -180,12 +180,12 @@
       const w = G.world;
       const m = w.players[G.myPid], sr = m ? SIM.sightRadius(w, m) : 0;
       const vis = (e) => !m || e === m || SIM.canSee(m, sr, e.x, e.y);
-      G.view = { t: w.time.min, sr, settlements: w.settlements, factions: w.factions, people: w.people, players: Object.values(w.players).filter(vis), npcs: Object.values(w.npcs).filter(vis) };
+      G.view = { t: w.time.min, sr, settlements: w.settlements, factions: w.factions, people: w.people, wars: Object.keys(w.wars || {}), players: Object.values(w.players).filter(vis), npcs: Object.values(w.npcs).filter(vis) };
     } else if (G.mode === 'client' && G.dyn) {
       const d = G.dyn, s = G.stat;
       G.view = {
         t: d.t, sr: d.sr, settlements: withOwners(d.ns && d.ns.length ? s.settlements.filter((x) => !d.ns.some((n) => n.id === x.id)).concat(d.ns) : s.settlements, d.ow),
-        factions: d.pf && Object.keys(d.pf).length ? Object.assign({}, s.factions, d.pf) : s.factions, people: s.people,
+        factions: d.pf && Object.keys(d.pf).length ? Object.assign({}, s.factions, d.pf) : s.factions, people: s.people, wars: d.wars || [],
         players: d.p.map(([id, name, x, y, at, tx, ty, status, path]) => ({ id, name, x, y, at, tx, ty, status, path })),
         npcs: d.n.map(([id, kind, faction, x, y, size, battle, dest, cargo, army, home, at]) => ({ id, kind, faction, x, y, size, battle, dest, at, cargo: cargo && { item: cargo[0], qty: cargo[1] }, army, home })),
       };
@@ -211,7 +211,25 @@
     $('infoName').textContent = s.name;
     const ho = holders()[s.id];
     $('infoBody').innerHTML = `${kind}${s.site ? `（普請中 ${Math.floor(s.site.prog * 100)}%）` : ''}　勢力：<b style="color:${f ? f.color : '#ccc'}">${f ? f.name : 'なし'}</b>${(() => { const fb = SIM.factionBuff(G.view.factions, s.owner); return fb ? `<span class="muted">（得意：${fb.name}・${fb.text}）</span>` : ''; })()}<br>城主・代官：${ho ? `<b>${ho}</b>（プレイヤー）` : lord || '（不明）'}`;
+    if (s.type === 'castle') {
+      const cs = castleStat(s), m = G.priv && G.priv.me, W = m && m.war, R = m && m.rank, at = G.view.wars || [];
+      const lordN = cs.lord ? (G.view.people[cs.lord] || {}).name : null;
+      $('infoBody').innerHTML += `<br>守備兵 約${cs.gar}人${lordN && cs.loyal != null ? `　${lordN}の忠誠 ${cs.loyal}` : ''}`;
+      const mine = R && R.clan, war = mine && s.owner !== mine && at.includes(mine < s.owner ? `${mine}|${s.owner}` : `${s.owner}|${mine}`);
+      if (war) $('infoBody').innerHTML += '　<b style="color:#e06050">交戦中</b>';
+      const mp = me(), near = mp && Math.hypot(mp.x - s.x, mp.y - s.y) <= (W ? W.nearKm : 2);
+      let act = null;
+      if (war && W.canSiege && near) act = { label: '城を攻める', cmd: { type: 'siege', id: s.id } };
+      else if (W && W.canPersuade && cs.lord && s.owner !== mine && mp && mp.at === s.id) act = { label: `調略する（${SIM.money(W.persuadeCost)}・成功率${W.chance != null ? W.chance : '?'}%）`, cmd: { type: 'persuade' } };
+      else if (R && R.daimyo && s.owner === mine && cs.lord && mp && mp.at === s.id) act = { label: `褒美を与える（${SIM.money(W.rewardCost)}）`, cmd: { type: 'reward' } };
+      G.infoCmd = act ? act.cmd : null; $('infoAct').classList.toggle('hidden', !act); if (act) $('infoAct').textContent = act.label;
+    }
     $('info').classList.remove('hidden');
+  }
+  // 城の守備兵・城主・忠誠（ホストは直接、参加者は送られてきた値）
+  function castleStat(s) {
+    if (G.mode === 'host') { const pr = s.lord && G.world.people[s.lord]; return { gar: SIM.garrison(s), lord: s.lord, loyal: pr ? pr.loyal : null }; }
+    const c = G.dyn && G.dyn.cs && G.dyn.cs[s.id]; return c ? { gar: c[0], lord: c[1], loyal: c[2] } : { gar: '?', lord: s.lord, loyal: null };
   }
   // 持ち主が変わった城（独立など）を地図に反映する
   const withOwners = (list, ow) => (ow && Object.keys(ow).length ? list.map((x) => (ow[x.id] && ow[x.id] !== x.owner ? Object.assign({}, x, { owner: ow[x.id] }) : x)) : list);
@@ -438,7 +456,16 @@
           html += `<div class="muted" style="margin-top:10px">当主として（領地の城 ${D.count}）</div>`;
           if (!D.vassals.length) html += '<div class="muted">家臣はまだいません。ほかのプレイヤーがあなたの城で「仕官する」と家臣になります</div>';
           for (const v of D.vassals) html += `<div class="card"><div>${v.name}　<span class="muted">${v.rank}${v.next ? `　次：${v.next}` : ''}</span></div><button id="vs-${v.id}" data-cact="grantVassal" data-id="${v.id}" ${v.ok ? '' : 'disabled'}>取り立てる</button></div>`;
+          if (D.generals.length) { html += '<div class="muted" style="margin-top:6px">武将の忠誠（低いと寝返ることがあります。城で「褒美を与える」と上がります）</div>'; for (const g of D.generals) html += `<div class="muted">${g.name}（${g.castle}）　忠誠 <b style="color:${g.loyal < 30 ? '#e06050' : g.loyal < 50 ? '#d0a040' : 'inherit'}">${g.loyal}</b></div>`; }
+          html += `<div class="muted" style="margin-top:6px">外交（宣戦・和睦。和睦は${SIM.money(D.peaceCost)}・相手が断ることも）</div>`;
+          for (const d of D.diplo) html += `<div class="card"><div>${d.name}　<span class="muted">城${d.castles}${d.war ? '　<b style="color:#e06050">交戦中</b>' : d.truce ? `　和睦中（あと${d.truce}日）` : ''}</span></div>`
+            + (d.war ? `<button id="dp-${d.id}" data-cact="makePeace" data-id="${d.id}">和睦</button>` : `<button id="dp-${d.id}" data-cact="declareWar" data-id="${d.id}" ${d.truce ? 'disabled' : ''}>宣戦</button>`) + '</div>';
           for (const c of D.lent) html += `<div class="card"><div>${c.name}　<span class="muted">${c.who}に任せている</span></div><button id="rc-${c.id}" data-cact="recallCastle" data-id="${c.id}">召し上げる</button></div>`;
+        }
+        if (me.war) {
+          const fn = (k) => (G.view.factions[k] || {}).name || k;
+          html += `<div class="muted" style="margin-top:10px">戦の相手：${me.war.enemies.length ? me.war.enemies.map(fn).join('・') : 'なし'}${me.war.canSiege ? `　（敵の城の${me.war.nearKm}km以内で、城を選んで「城を攻める」）` : ''}</div>`;
+          for (const c of me.war.camps) html += `<div class="muted" style="color:#e06050">${c.att}の軍勢${c.n}人が${c.to}へ（あと${c.days}日）。城に入っていれば守りに加われます</div>`;
         }
         html += '<div class="muted" style="margin-top:10px">身分の一覧</div>';
         RK.forEach((r, i) => { if (i && !r.indep) html += `<div class="muted">${i === R.rank ? '▶ ' : ''}${r.name}　功績${r.merit}・名声${r.fame}　俸禄${SIM.money(r.stipend)}/月　人数+${r.cap}</div>`; });

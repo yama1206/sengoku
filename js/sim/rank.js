@@ -77,7 +77,7 @@
   const baseEnd = SIM.onBattleEnd;
   SIM.onBattleEnd = (w, b, p, res, after) => {
     baseEnd(w, b, p, res, after);
-    if (!p.clan || res !== 'win') return;
+    if (!p.clan || res !== 'win' || b.siege) return;
     const near = w.settlements.filter((s) => s.owner === p.clan).some((s) => Math.hypot(s.x - p.x, s.y - p.y) < 12);
     addMerit(w, p, (5 + (b.foeN || 10) * 0.6) * (near ? 1.5 : 1), near ? '領内の野盗を討った' : '野盗を討った');
   };

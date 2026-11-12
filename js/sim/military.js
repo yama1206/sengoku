@@ -404,4 +404,5 @@
     return r;
   };
   SIM.FIELD = FIELD;
+  SIM._mil = { addUnits, genTerrain, inField, power }; // 攻城戦（siege.js）から使う
 })();
