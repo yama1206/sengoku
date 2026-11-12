@@ -6,7 +6,7 @@
 
   // 兵の種類（数値はすべて仮）。hp/atk/def は兵1人あたり、spd は戦場での m/秒、range は m
   const TR = SIM.TROOPS = {
-    hero: { name: '本人', hp: 50, atk: 6, def: 2, spd: 5, range: 2 },
+    hero: { name: '本人', hp: 35, atk: 4.5, def: 2, spd: 5, range: 2 },
     // tier：兵の格。up：昇格先（兵種ツリー）
     nohei: { name: '農兵', short: '農', tier: 1, hp: 8, atk: 1.4, def: 0, spd: 4, range: 2.5, cost: 150, wage: 6, up: ['yari', 'yumi'] },
     yari: { name: '足軽（槍）', short: '槍', tier: 2, hp: 10, atk: 2, def: 1, spd: 4, range: 2.5, cost: 300, wage: 10, up: ['nagayari', 'kiba'] },
@@ -204,7 +204,7 @@
   function addUnits(w, b, side, owner, army) {
     const list = Object.entries(army).filter(([, n]) => n > 0);
     const fx = side === 'A' ? 1 : -1, base = side === 'A' ? 28 : FIELD.w - 28;
-    const mo = owner ? SIM.moraleBase(w, owner) : 55;
+    const mo = owner ? SIM.moraleBase(w, owner) : (army.bandit || army.banditBow) ? 75 : 55; // 野盗は少々の損害では崩れない
     list.forEach(([type, n], i) => {
       const t = TR[type], m = owner ? SIM.unitMods(w, owner, type) : { am: 1, da: 0, ra: 0, hm: 1 };
       b.units.push({ id: b.next++, side, owner, type, n, n0: n, hp: n * t.hp * m.hm, mh: t.hp * m.hm, am: m.am, da: m.da, ra: m.ra,
@@ -284,7 +284,7 @@
       if (t.cav && tu.f) mul *= 0.7;
       if (tu.h && !te.h) mul *= 1.15; // 高所から
       mul *= 0.55 + (0.45 * u.mor) / 100; // 士気
-      const d = (t.ranged && !melee ? u.n * per * dt * 0.35 * (1 - ed / (reach * 1.6)) : Math.min(u.n, e.n * 2 + 3) * per * dt * 0.5) * mul;
+      const d = (t.ranged && !melee ? u.n * per * dt * 0.35 * (1 - ed / (reach * 1.6)) : Math.min(u.n, e.type === 'hero' ? 8 : e.n * 2 + 3) * per * dt * 0.5) * mul;
       dmg.set(e, (dmg.get(e) || 0) + d);
       if (dir !== 'front') hit.set(e, Math.max(hit.get(e) || 0, dir === 'rear' ? 2 : 1));
       if (t.ranged) u.shot = b.t;
