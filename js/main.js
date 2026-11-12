@@ -651,7 +651,7 @@
 
   // ---------- コントローラー（Xbox配置：A決定 B戻る X近くの拠点 Y追従 LB/RB拡大縮小 START メニュー／左スティック カーソル 右スティック視点） ----------
   const padPrev = {}; let navHold = 0, lastNav = 0;
-  // 戦闘中のコントローラー：LB/RB で自分の部隊を選ぶ、右スティックで移動先、X でそこへ移動
+  // 戦闘中のコントローラー：LB/RB で自分の部隊を選ぶ、左（右）スティックで移動先、X でそこへ移動
   function padBattle(down, rx, ry, dt) {
     const BT = G.priv && G.priv.battle; if (!BT) return;
     const mine = BT.units.filter((u) => u[2] === G.myPid && u[7] !== 'rout');
@@ -685,8 +685,9 @@
     const down = (i) => btn(i) && !padPrev[i];
     const dz = (v) => (Math.abs(v) < 0.2 ? 0 : v);
     const lx = dz(gp.axes[0] || 0), ly = dz(gp.axes[1] || 0), rx = dz(gp.axes[2] || 0), ry = dz(gp.axes[3] || 0);
-    let nx = (btn(15) ? 1 : 0) - (btn(14) ? 1 : 0) + (Math.abs(lx) > 0.5 ? Math.sign(lx) : 0);
-    let ny = (btn(13) ? 1 : 0) - (btn(12) ? 1 : 0) + (Math.abs(ly) > 0.5 ? Math.sign(ly) : 0);
+    const stickNav = activeMenu() !== $('battle'); // 戦闘中は左スティックを移動先に使うので、メニュー移動は十字キーだけ
+    let nx = (btn(15) ? 1 : 0) - (btn(14) ? 1 : 0) + (stickNav && Math.abs(lx) > 0.5 ? Math.sign(lx) : 0);
+    let ny = (btn(13) ? 1 : 0) - (btn(12) ? 1 : 0) + (stickNav && Math.abs(ly) > 0.5 ? Math.sign(ly) : 0);
     let move = [0, 0];
     if (activeMenu()) {
       const now = performance.now();
@@ -697,7 +698,7 @@
       if (down(1) && !inBattle) { if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); }
       if (activeMenu() === $('town')) { if (down(4)) cycleTab(-1); if (down(5)) cycleTab(1); }
       else if (activeMenu() === $('char')) { if (down(4)) cycleCTab(-1); if (down(5)) cycleCTab(1); if (down(8)) openChar(false); }
-      else if (inBattle) padBattle(down, rx, ry, dt);
+      else if (inBattle) padBattle(down, lx + rx, ly + ry, dt);
       if (down(9) && G.mode !== 'title') toggleMenu(inBattle);
     } else if (G.mode === 'host' || G.mode === 'client') {
       // 左スティック：画面のカーソルを動かす（端まで行くと地図が動く）。右スティック：視点
