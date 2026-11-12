@@ -257,7 +257,7 @@
   function unitHit(sx, sy) {
     let best = null, bd = 13;
     for (const e of [...G.view.npcs, ...G.view.players]) {
-      if (e.id === G.myPid) continue;
+      if (e.id === G.myPid || e.at) continue; // 拠点に入っている者は選べない
       const d0 = G.disp[e.id] || e, [x, y] = R.toScreen(d0.x, d0.y), d = Math.hypot(x - sx, y - sy);
       if (d < bd) { bd = d; best = e; }
     }
