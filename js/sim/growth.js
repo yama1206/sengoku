@@ -93,6 +93,7 @@
     if (t.cav) am *= 1 + lvOf(p, 'bajutsu') * 0.004 + fx(p, 'cavAtk');
     return { am, da: fx(p, 'troopDef'), ra: t.ranged ? fx(p, 'rangedRange') : 0, hm: t.ranged ? 1 + fx(p, 'rangedHp') : 1 };
   };
+  SIM.moraleBase = (w, pid) => { const p = w.players[pid]; return p ? Math.min(95, 60 + (p.attrs.tou - 3) * 4 + lvOf(p, 'shiki') * 0.25 + (p.attrs.mi - 3) * 1.5) : 65; };
   SIM.onBattleEnd = (w, b, p, res, after) => {
     const foe = b.foeN || 10, men = SIM.troopCount(b.start[p.id]);
     gain(p, 'bugei', ((b.hd || {})[p.id] || 0) * 0.15 + 2);

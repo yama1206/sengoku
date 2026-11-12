@@ -65,6 +65,7 @@
   #battle .bu .nm { flex:1; }
   #battle button { padding:5px 9px; font-size:13px; }
   @media (max-width:700px) { #help { display:none; } #date { font-size:15px; } }
+  .bu.sel { outline: 1px solid #f2c14e; }
 </style>
 </head>
 <body>
@@ -116,7 +117,7 @@
     <div id="charBody"></div>
   </div>
   <div class="hud hidden" id="battle"><div class="bh"><b id="battleTitle"></b><span id="battleInfo"></span></div><div id="battleBody"></div></div>
-  <div class="hud" id="help">左クリック：移動／拠点の情報　右クリック：拠点へ移動　WASD：歩く　ドラッグ：地図を動かす　ホイール：拡大　Tab：近くの拠点　E：拠点に入る　F：追従　Esc：メニュー　P：人物　｜　🎮 左スティック：歩く　右：視点　X：近くの拠点　A：向かう／拠点に入る　B：取消　LB/RB：拡大　START：メニュー（人物・部隊もここ）　拠点内LB/RB：タブ切替　｜　戦闘中 Z：全軍突撃　X：全軍待機　C：全軍後退</div>
+  <div class="hud" id="help">左クリック：移動／拠点の情報　右クリック：拠点へ移動　WASD：歩く　ドラッグ：地図を動かす　ホイール：拡大　Tab：近くの拠点　E：拠点に入る　F：追従　Esc：メニュー　P：人物　｜　🎮 左スティック：歩く　右：視点　X：近くの拠点　A：向かう／拠点に入る　B：取消　LB/RB：拡大　START：メニュー（人物・部隊もここ）　拠点内LB/RB：タブ切替　｜　戦闘中 Z：全軍突撃　V：全軍回り込み　X：全軍待機　C：全軍後退　部隊をクリック→地面をクリックで移動</div>
   <div id="gameMenu" class="hidden">
     <div class="menu">
       <button id="mClose">ゲームに戻る</button>

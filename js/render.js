@@ -87,37 +87,72 @@
 
   // ---- 戦場（リアルタイム戦闘） ----
   R.battleLayout = (F) => { const top = 70, bottom = 210; const sc = Math.max(2, Math.min((W - 20) / F.w, (H - top - bottom) / F.h)); return { sc, ox: (W - F.w * sc) / 2, oy: top + Math.max(0, (H - top - bottom - F.h * sc) / 2) }; };
-  const ORD = { charge: '突', hold: '待', retreat: '退' };
-  R.drawBattle = function (ctx, bt, disp, myPid) {
+  const ORD = { charge: '突', hold: '待', retreat: '退', flank: '回', move: '移', rout: '潰走' };
+  let fogCv = null;
+  R.drawBattle = function (ctx, bt, disp, myPid, selUnit) {
     const F = SGK.SIM.FIELD, TR = SGK.SIM.TROOPS, L = R.battleLayout(F);
     const sx = (x) => L.ox + x * L.sc, sy = (y) => L.oy + y * L.sc;
     ctx.fillStyle = '#1a1712'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#7c8a4f'; ctx.fillRect(sx(0), sy(0), F.w * L.sc, F.h * L.sc);
+    // 地形：丘・林
+    for (const t of bt.ter || []) if (t.k === 'h') {
+      for (let i = 3; i >= 1; i--) { ctx.fillStyle = `rgba(150,130,80,${0.18 + (3 - i) * 0.08})`; ctx.beginPath(); ctx.arc(sx(t.x), sy(t.y), (t.r * L.sc * i) / 3, 0, 7); ctx.fill(); }
+    }
+    for (const t of bt.ter || []) if (t.k === 'f') {
+      ctx.fillStyle = 'rgba(40,70,35,.85)'; ctx.beginPath(); ctx.arc(sx(t.x), sy(t.y), t.r * L.sc, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(25,50,22,.9)';
+      for (let i = 0; i < 9; i++) { const a = i * 2.4, rr = (t.r * 0.6 * ((i % 3) + 1)) / 3; ctx.beginPath(); ctx.arc(sx(t.x + Math.cos(a) * rr), sy(t.y + Math.sin(a) * rr), Math.max(2, L.sc * 2.2), 0, 7); ctx.fill(); }
+    }
+    // 視界の外は暗く（味方の部隊が見ている範囲だけ明るい）
+    if (!fogCv) fogCv = document.createElement('canvas');
+    if (fogCv.width !== W || fogCv.height !== H) { fogCv.width = W; fogCv.height = H; }
+    const fc = fogCv.getContext('2d');
+    fc.globalCompositeOperation = 'source-over'; fc.clearRect(0, 0, W, H);
+    fc.fillStyle = 'rgba(10,12,20,.55)'; fc.fillRect(sx(0), sy(0), F.w * L.sc, F.h * L.sc);
+    fc.globalCompositeOperation = 'destination-out';
+    for (const u of bt.units) if (u[1] === 'A') {
+      const d = disp['u' + bt.id + '_' + u[0]] || { x: u[5], y: u[6] };
+      const g = fc.createRadialGradient(sx(d.x), sy(d.y), 0, sx(d.x), sy(d.y), u[8] * L.sc);
+      g.addColorStop(0.8, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      fc.fillStyle = g; fc.beginPath(); fc.arc(sx(d.x), sy(d.y), u[8] * L.sc, 0, 7); fc.fill();
+    }
+    ctx.drawImage(fogCv, 0, 0);
     ctx.strokeStyle = '#4b5530'; ctx.lineWidth = 2; ctx.strokeRect(sx(0), sy(0), F.w * L.sc, F.h * L.sc);
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     for (const u of bt.units) {
-      const [id, side, owner, type, n, , , order] = u;
+      const [id, side, owner, type, n, , , order, , mor, face] = u;
       const d = disp['u' + bt.id + '_' + id] || { x: u[5], y: u[6] };
       const col = side === 'B' ? '#a83228' : owner === myPid ? '#f2c14e' : '#e8e8e8';
-      const cx = sx(d.x), cy = sy(d.y);
+      const cx = sx(d.x), cy = sy(d.y), T = TR[type];
+      const rr = Math.max(6, Math.sqrt(Math.min(n, 36)) * 0.8 * L.sc);
+      if (id === selUnit && owner === myPid) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.arc(cx, cy, rr + 6, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+      // 向き
+      if (face != null) { ctx.strokeStyle = side === 'B' ? '#ffb4a2' : '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(face) * (rr + 7), cy + Math.sin(face) * (rr + 7)); ctx.stroke(); }
       if (type === 'hero') {
         ctx.fillStyle = col; ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, Math.max(5, L.sc * 1.2), 0, 7); ctx.fill(); ctx.stroke();
       } else {
         const shown = Math.min(n, 36), cols = Math.ceil(Math.sqrt(shown)), gap = 1.4 * L.sc, r = Math.max(1.8, L.sc * 0.5);
-        ctx.fillStyle = col; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 1;
+        ctx.fillStyle = order === 'rout' ? '#888' : col; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 1;
         for (let i = 0; i < shown; i++) {
           const px = cx + ((i % cols) - (cols - 1) / 2) * gap, py = cy + (Math.floor(i / cols) - (Math.ceil(shown / cols) - 1) / 2) * gap;
           ctx.beginPath();
-          if (TR[type].ranged) { ctx.moveTo(px, py - r); ctx.lineTo(px + r, py + r); ctx.lineTo(px - r, py + r); ctx.closePath(); }
-          else if (TR[type].cav) { ctx.moveTo(px, py - r * 1.3); ctx.lineTo(px + r * 1.3, py); ctx.lineTo(px, py + r * 1.3); ctx.lineTo(px - r * 1.3, py); ctx.closePath(); }
+          if (T.ranged) { ctx.moveTo(px, py - r); ctx.lineTo(px + r, py + r); ctx.lineTo(px - r, py + r); ctx.closePath(); }
+          else if (T.cav) { ctx.moveTo(px, py - r * 1.3); ctx.lineTo(px + r * 1.3, py); ctx.lineTo(px, py + r * 1.3); ctx.lineTo(px - r * 1.3, py); ctx.closePath(); }
           else ctx.arc(px, py, r, 0, 7);
           ctx.fill(); ctx.stroke();
         }
       }
-      const label = `${type === 'hero' ? (side === 'A' && owner !== myPid ? (bt.names[owner] || '味方') : '本人') : (TR[type].short || TR[type].name)} ${type === 'hero' ? '' : n}${side === 'A' ? '［' + ORD[order] + '］' : ''}`;
+      const cls = T.cls ? `〔${SGK.SIM.CLS_NAME[T.cls]}〕` : '';
+      const label = `${type === 'hero' ? (side === 'A' && owner !== myPid ? (bt.names[owner] || '味方') : '本人') : (T.short || T.name) + cls} ${type === 'hero' ? '' : n}${side === 'A' ? '［' + ORD[order] + '］' : order === 'rout' ? '［潰走］' : ''}`;
       ctx.font = 'bold 12px sans-serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.8)';
-      const ly = cy - Math.max(10, Math.sqrt(Math.min(n, 36)) * 0.8 * L.sc + 4);
+      const ly = cy - rr - 4;
       ctx.strokeText(label, cx, ly); ctx.fillStyle = side === 'B' ? '#ffb4a2' : '#fff'; ctx.fillText(label, cx, ly);
+      if (type !== 'hero' && mor != null) { // 士気の棒
+        const bw = 28; ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(cx - bw / 2, cy + rr + 3, bw, 4);
+        ctx.fillStyle = mor > 50 ? '#7fc46a' : mor > 25 ? '#e2b94a' : '#d9534f'; ctx.fillRect(cx - bw / 2, cy + rr + 3, (bw * Math.max(0, Math.min(100, mor))) / 100, 4);
+      }
     }
   };
+  // 戦場の画面座標 → 戦場の座標（m）
+  R.battleToField = (px, py) => { const L = R.battleLayout(SGK.SIM.FIELD); return [(px - L.ox) / L.sc, (py - L.oy) / L.sc]; };
 })();

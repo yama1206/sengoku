@@ -27,7 +27,7 @@
     town: { nohei: [1, 8], yari: [1, 8], yumi: [0.5, 6] },
     castle: { yari: [1, 10], yumi: [0.5, 6], kiba: [0.25, 3] },
   };
-  const FIELD = { w: 120, h: 80 };
+  const FIELD = { w: 300, h: 200 };
   const MAX_BANDITS = 14; // 地図の広さに合わせて
 
   SIM.troopCount = (tr) => Object.values(tr || {}).reduce((a, b) => a + b, 0);
@@ -55,6 +55,7 @@
       for (const k in POOL[s.type]) if (s.pool[k] == null) s.pool[k] = Math.floor(POOL[s.type][k][1] / 2);
     }
     for (const p of Object.values(w.players)) if (p.battle && !w.battles[p.battle]) p.battle = null;
+    for (const b of Object.values(w.battles)) { b.ter = b.ter || []; b.lk = b.lk || { A: null, B: null }; for (const u of b.units) { if (u.f == null) u.f = u.side === 'A' ? 0 : Math.PI; if (u.mor == null) u.mor = u.mo = 65; if (u.n0 == null) u.n0 = u.n; } }
     if (!Object.values(w.npcs).some((n) => n.kind === 'bandit')) for (let i = 0; i < 10; i++) spawnBandit(w);
     return w;
   };
@@ -105,26 +106,71 @@
     }
   }
 
+  // ---- 三すくみ・視界・地形（数値はすべて仮・ここで調整） ----
+  const CLS = { nohei: 'spear', yari: 'spear', nagayari: 'spear', yarigashira: 'spear', bandit: 'spear',
+    yumi: 'bow', teppo: 'bow', teppogashira: 'bow', banditBow: 'bow', kiba: 'cav', horo: 'cav' };
+  for (const k in CLS) TR[k].cls = CLS[k];
+  const BEATS = SIM.BEATS = { spear: 'cav', cav: 'bow', bow: 'spear' }; // 槍＞騎馬＞弓＞槍
+  SIM.CLS_NAME = { spear: '槍', cav: '騎馬', bow: '弓' };
+  const ADV_ATK = 1.3, ADV_TAKEN = 1.2; // 有利な相手へ与えるダメージ×1.3、不利な相手から受けるダメージ×1.2（同時にかかる）
+  const VIS = { base: 50, cav: 65, hero: 60, hill: 30, forestHide: 22, reveal: 2 }; // 視界（m）。林の中の敵は22mまで近づかないと見えない。撃つと2秒見える
+  const ROUT = 15; // 士気がこれ以下で潰走
+  SIM.moraleBase = SIM.moraleBase || (() => 65);
+
+  function genTerrain(w) {
+    const ter = [], nf = 4 + Math.floor(rnd(w) * 4), nh = 2 + Math.floor(rnd(w) * 2);
+    for (let i = 0; i < nf + nh; i++) {
+      const hill = i >= nf;
+      ter.push({ k: hill ? 'h' : 'f', x: Math.round(55 + rnd(w) * (FIELD.w - 110)), y: Math.round(15 + rnd(w) * (FIELD.h - 30)), r: Math.round(hill ? 22 + rnd(w) * 14 : 11 + rnd(w) * 15) });
+    }
+    return ter;
+  }
+  function terAt(b, u) {
+    const o = { f: false, h: false };
+    for (const t of b.ter || []) if (Math.hypot(u.x - t.x, u.y - t.y) < t.r) o[t.k] = true;
+    return o;
+  }
+  function visRange(b, u) {
+    const t = terAt(b, u), T = TR[u.type];
+    let r = T.cav ? VIS.cav : u.type === 'hero' ? VIS.hero : VIS.base;
+    if (t.h) r += VIS.hill; if (t.f) r *= 0.7;
+    return r;
+  }
+  function visibleTo(b, side, us) {
+    const own = us.filter((u) => u.side === side), set = new Set();
+    for (const e of us) {
+      if (e.side === side) continue;
+      if (b.t - (e.shot || -99) < VIS.reveal) { set.add(e); continue; }
+      const hide = terAt(b, e).f;
+      for (const o of own) { const vr = visRange(b, o); if (dist(o, e) < (hide ? Math.min(VIS.forestHide, vr) : vr) + rad(e)) { set.add(e); break; } }
+    }
+    return set;
+  }
+  const angDiff = (a, b) => { let d = Math.abs(a - b) % (Math.PI * 2); return d > Math.PI ? Math.PI * 2 - d : d; };
+  function turnTo(u, a, rate) { let d = a - u.f; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; u.f += Math.max(-rate, Math.min(rate, d)); }
+
   // ---- 戦闘の開始 ----
   function addUnits(w, b, side, owner, army) {
     const list = Object.entries(army).filter(([, n]) => n > 0);
-    const fx = side === 'A' ? 1 : -1, base = side === 'A' ? 22 : FIELD.w - 22;
+    const fx = side === 'A' ? 1 : -1, base = side === 'A' ? 28 : FIELD.w - 28;
+    const mo = owner ? SIM.moraleBase(w, owner) : 55;
     list.forEach(([type, n], i) => {
       const t = TR[type], m = owner ? SIM.unitMods(w, owner, type) : { am: 1, da: 0, ra: 0, hm: 1 };
-      b.units.push({ id: b.next++, side, owner, type, n, hp: n * t.hp * m.hm, mh: t.hp * m.hm, am: m.am, da: m.da, ra: m.ra,
+      b.units.push({ id: b.next++, side, owner, type, n, n0: n, hp: n * t.hp * m.hm, mh: t.hp * m.hm, am: m.am, da: m.da, ra: m.ra,
         x: base - fx * (t.ranged ? 8 : type === 'hero' ? 4 : 0), y: FIELD.h / 2 + (i - (list.length - 1) / 2) * 14 + (side === 'A' ? (b.pids.length - 1) * 6 : 0),
-        order: side === 'A' ? 'hold' : 'charge' });
+        f: side === 'A' ? 0 : Math.PI, mor: type === 'hero' ? 100 : mo, mo, order: side === 'A' ? 'hold' : 'charge' });
     });
   }
   function startBattle(w, n, p) {
     const id = 'b' + w.nextId++;
-    const b = w.battles[id] = { id, npc: n.id, foe: '野盗', foeN: n.size, loot: n.loot, pids: [], units: [], next: 1, t: 0, start: {}, routed: false, hd: {}, rd: {} };
+    const b = w.battles[id] = { id, npc: n.id, foe: '野盗', foeN: n.size, loot: n.loot, pids: [], units: [], next: 1, t: 0, start: {}, routed: false, hd: {}, rd: {},
+      ter: genTerrain(w), lk: { A: null, B: { x: 28, y: FIELD.h / 2 } }, visA: [] };
     n.battle = id; n.tx = n.ty = null;
     const joiners = Object.values(w.players).filter((q) => q === p || (inField(q) && dist(q, n) < 1.5));
     for (const q of joiners) {
       b.pids.push(q.id); q.battle = id; q.tx = q.ty = null; q.dest = null; b.start[q.id] = Object.assign({}, q.troops);
       addUnits(w, b, 'A', q.id, Object.assign({ hero: 1 }, q.troops));
-      SIM.say(q.id, `野盗${n.size}人に襲われました！ 部隊に命令を出してください`);
+      SIM.say(q.id, `野盗${n.size}人に襲われました！ 敵の姿はまだ見えません。偵察に出すか、待ち構えるか…`);
     }
     addUnits(w, b, 'B', null, n.army);
   }
@@ -132,27 +178,60 @@
   // ---- 戦闘の計算（ホストで毎tick） ----
   const rad = (u) => 0.6 + Math.sqrt(u.n) * 0.7;
   const alive = (u) => u.hp > 0 && !u.gone;
+  const unitName = (u) => (u.type === 'hero' ? '本人' : TR[u.type].name);
   function stepBattle(w, b, dt) {
     b.t += dt;
-    const us = b.units.filter(alive), dmg = new Map();
+    const us = b.units.filter(alive), dmg = new Map(), hit = new Map();
+    const vis = { A: visibleTo(b, 'A', us), B: visibleTo(b, 'B', us) };
+    b.visA = [...vis.A].map((u) => u.id);
+    for (const s of ['A', 'B']) if (vis[s].size) { const a = [...vis[s]]; b.lk[s] = { x: a.reduce((q, u) => q + u.x, 0) / a.length, y: a.reduce((q, u) => q + u.y, 0) / a.length }; }
+    const goTo = (u, x, y, spd) => { const d = Math.hypot(x - u.x, y - u.y); if (d < 0.3) return true; const s = Math.min(spd * dt, d); u.x += ((x - u.x) / d) * s; u.y += ((y - u.y) / d) * s; u.f = Math.atan2(y - u.y, x - u.x); return false; };
     for (const u of us) {
-      const t = TR[u.type];
-      if (u.order === 'retreat') {
-        const ex = u.side === 'A' ? -4 : FIELD.w + 4; u.x += Math.sign(ex - u.x) * t.spd * dt;
+      const t = TR[u.type], tu = terAt(b, u);
+      const spd = t.spd * (t.cav && tu.f ? 0.5 : 1) * (tu.h ? 0.85 : 1);
+      if (u.order === 'retreat' || u.order === 'rout') {
+        const ex = u.side === 'A' ? -4 : FIELD.w + 4; u.x += Math.sign(ex - u.x) * spd * (u.order === 'rout' ? 1.1 : 1) * dt; u.f = u.side === 'A' ? Math.PI : 0;
         if ((u.side === 'A' && u.x < 1) || (u.side === 'B' && u.x > FIELD.w - 1)) u.gone = true;
         continue;
       }
       let e = null, ed = Infinity;
-      for (const v of us) if (v.side !== u.side) { const d = dist(u, v); if (d < ed) { ed = d; e = v; } }
-      if (!e) continue;
-      const reach = rad(u) + rad(e) + t.range + (u.ra || 0);
-      if (ed > reach) {
-        if (u.order === 'charge') { const s = Math.min(t.spd * dt, ed - reach + 0.3); u.x += ((e.x - u.x) / ed) * s; u.y += ((e.y - u.y) / ed) * s; }
+      for (const v of vis[u.side]) if (alive(v)) { const d = dist(u, v); if (d < ed) { ed = d; e = v; } }
+      const reach = e ? rad(u) + rad(e) + t.range + (u.ra || 0) + (t.ranged && tu.h ? 5 : 0) : 0;
+      if (!e || ed > reach) {
+        if (u.order === 'move') { if (goTo(u, u.mx, u.my, spd)) u.order = 'hold'; }
+        else if (u.order === 'charge' || u.order === 'flank') {
+          if (e && u.order === 'flank' && angDiff(e.f, Math.atan2(u.y - e.y, u.x - e.x)) < 1.2) {
+            // 回り込み：敵の向きに対して横～後ろの点を目指す
+            const sgn = Math.sin(Math.atan2(u.y - e.y, u.x - e.x) - e.f) >= 0 ? 1 : -1, a = e.f + sgn * Math.PI * 0.6, R2 = rad(e) + 16;
+            goTo(u, Math.max(2, Math.min(FIELD.w - 2, e.x + Math.cos(a) * R2)), Math.max(2, Math.min(FIELD.h - 2, e.y + Math.sin(a) * R2)), spd);
+          } else if (e) goTo(u, e.x + ((u.x - e.x) / ed) * (reach - 0.3), e.y + ((u.y - e.y) / ed) * (reach - 0.3), spd);
+          else { // 見えない：最後に見た場所、なければ敵陣の方へ進む
+            const lk = b.lk[u.side];
+            if (lk) { if (goTo(u, lk.x, lk.y, spd * 0.8) || Math.hypot(lk.x - u.x, lk.y - u.y) < 6) b.lk[u.side] = null; }
+            else goTo(u, u.side === 'A' ? FIELD.w - 10 : 10, u.y, spd * 0.8);
+          }
+        }
         continue;
       }
-      const per = Math.max(0.25, t.atk * (u.am || 1) - (TR[e.type].def + (e.da || 0)) * 0.5);
-      const d = t.ranged ? u.n * per * dt * 0.35 * (1 - ed / (reach * 1.6)) : Math.min(u.n, e.n * 2 + 3) * per * dt * 0.5;
+      // 攻撃
+      turnTo(u, Math.atan2(e.y - u.y, e.x - u.x), (t.cav ? 1.6 : 0.9) * dt);
+      const te = terAt(b, e), T2 = TR[e.type];
+      const per = Math.max(0.25, t.atk * (u.am || 1) - (T2.def + (e.da || 0)) * 0.5);
+      let mul = 1;
+      if (t.cls && BEATS[t.cls] === T2.cls) mul *= ADV_ATK * ADV_TAKEN; // 三すくみ
+      const dirA = angDiff(e.f, Math.atan2(u.y - e.y, u.x - e.x)), dir = dirA < Math.PI / 3 ? 'front' : dirA < (Math.PI * 2) / 3 ? 'side' : 'rear';
+      if (!t.ranged) { if (dir === 'side') mul *= t.cav ? 1.4 : 1.25; if (dir === 'rear') mul *= t.cav ? 1.8 : 1.5; } else if (dir !== 'front') mul *= 1.15;
+      if (t.cav && T2.cls === 'spear' && dir === 'front') mul *= 0.7; // 槍衾への正面突撃
+      const melee = ed < rad(u) + rad(e) + 3.5;
+      if (t.ranged && melee) mul *= 0.45; // 弓・鉄砲は接近戦に弱い
+      if (t.ranged && te.f) mul *= 0.6; // 林の中の敵は射ちにくい
+      if (t.cav && tu.f) mul *= 0.7;
+      if (tu.h && !te.h) mul *= 1.15; // 高所から
+      mul *= 0.55 + (0.45 * u.mor) / 100; // 士気
+      const d = (t.ranged && !melee ? u.n * per * dt * 0.35 * (1 - ed / (reach * 1.6)) : Math.min(u.n, e.n * 2 + 3) * per * dt * 0.5) * mul;
       dmg.set(e, (dmg.get(e) || 0) + d);
+      if (dir !== 'front') hit.set(e, Math.max(hit.get(e) || 0, dir === 'rear' ? 2 : 1));
+      if (t.ranged) u.shot = b.t;
       if (u.owner) { const key = u.type === 'hero' ? 'hd' : t.ranged ? 'rd' : null; if (key) { b[key] = b[key] || {}; b[key][u.owner] = (b[key][u.owner] || 0) + d; } }
     }
     // 味方同士が重ならないように押し合う
@@ -161,15 +240,32 @@
       const d = dist(a, c) || 0.01, m = rad(a) + rad(c);
       if (d < m) { const k = (m - d) / 2 / d; a.x -= (c.x - a.x) * k; a.y -= (c.y - a.y) * k; c.x += (c.x - a.x) * k; c.y += (c.y - a.y) * k; }
     }
-    for (const u of us) { u.y = Math.max(2, Math.min(FIELD.h - 2, u.y)); }
-    for (const [u, d] of dmg) { u.hp = Math.max(0, u.hp - d); u.n = Math.ceil(u.hp / (u.mh || TR[u.type].hp) - 1e-6); }
+    for (const u of us) { u.y = Math.max(2, Math.min(FIELD.h - 2, u.y)); if (u.order !== 'retreat' && u.order !== 'rout') u.x = Math.max(2, Math.min(FIELD.w - 2, u.x)); }
+    for (const [u, d] of dmg) {
+      const before = u.n;
+      u.hp = Math.max(0, u.hp - d); u.n = Math.ceil(u.hp / (u.mh || TR[u.type].hp) - 1e-6);
+      if (u.type === 'hero') { if (u.hp <= 0 && u.owner) for (const v of us) if (v.owner === u.owner && v !== u) v.mor -= 25; continue; }
+      u.mor -= ((before - u.n) / (u.n0 || 1)) * 110 + (hit.get(u) || 0) * 3 * dt; // 損害と側面・背後からの攻撃で士気が下がる
+    }
+    // 士気の回復と潰走
+    for (const u of us) {
+      if (u.type === 'hero' || !alive(u) || u.order === 'rout') continue;
+      if (!dmg.has(u)) { const hero = us.some((h) => h.type === 'hero' && h.side === u.side && alive(h) && dist(h, u) < 40); u.mor = Math.min(u.mo, u.mor + dt * (hero ? 2 : 1)); }
+      if (u.mor <= ROUT) {
+        u.order = 'rout';
+        for (const v of us) if (v.side === u.side && v !== u && v.type !== 'hero' && dist(u, v) < 40) v.mor -= 10;
+        if (u.owner) SIM.say(u.owner, `${unitName(u)}が崩れて逃げ出しました！`);
+        else b.pids.forEach((pid) => SIM.say(pid, `敵の${unitName(u)}が崩れました！`));
+      }
+    }
     // 野盗は数が減ると逃げ出す
     const bn = b.units.filter((u) => u.side === 'B' && alive(u)).reduce((a, u) => a + u.n, 0);
-    if (!b.routed && bn < b.foeN * 0.3) { b.routed = true; b.units.forEach((u) => { if (u.side === 'B') u.order = 'retreat'; }); b.pids.forEach((pid) => SIM.say(pid, '野盗が逃げ出しました！')); }
+    if (!b.routed && bn < b.foeN * 0.3) { b.routed = true; b.units.forEach((u) => { if (u.side === 'B') u.order = 'rout'; }); b.pids.forEach((pid) => SIM.say(pid, '野盗が逃げ出しました！')); }
     const aLive = b.units.some((u) => u.side === 'A' && alive(u)), bLive = b.units.some((u) => u.side === 'B' && alive(u));
-    if (!bLive) finish(w, b, 'win');
+    const bFight = b.units.some((u) => u.side === 'B' && alive(u) && u.order !== 'rout');
+    if (!bLive || (!bFight && b.routed)) finish(w, b, 'win');
     else if (!aLive) finish(w, b, b.units.some((u) => u.side === 'A' && u.gone && u.hp > 0) ? 'escape' : 'lose');
-    else if (b.t > 300) autoResolve(w, b); // 長引いたら自動で決着
+    else if (b.t > 420) autoResolve(w, b); // 長引いたら自動で決着
   }
 
   function autoResolve(w, b) {
@@ -271,8 +367,11 @@
       SIM.say(p.id, `${TR[c.kind].name}を${q}人解き放ちました`);
     },
     order(w, p, c) {
-      const b = w.battles[p.battle]; if (!b || !['charge', 'hold', 'retreat'].includes(c.order)) return;
-      for (const u of b.units) if (u.owner === p.id && (c.unit === 'all' || u.id === +c.unit)) u.order = c.order;
+      const b = w.battles[p.battle]; if (!b || !['charge', 'hold', 'retreat', 'flank', 'move'].includes(c.order)) return;
+      for (const u of b.units) if (u.owner === p.id && u.order !== 'rout' && (c.unit === 'all' || u.id === +c.unit)) {
+        u.order = c.order;
+        if (c.order === 'move') { u.mx = Math.max(2, Math.min(FIELD.w - 2, +c.x || 0)); u.my = Math.max(2, Math.min(FIELD.h - 2, +c.y || 0)); }
+      }
     },
     battleAuto(w, p) { const b = w.battles[p.battle]; if (b) autoResolve(w, b); },
     battleFlee(w, p) {
@@ -298,7 +397,8 @@
     const b = p.battle && w.battles[p.battle];
     r.battle = b ? { id: b.id, foe: b.foe, t: Math.floor(b.t), routed: b.routed,
       names: Object.fromEntries(b.pids.map((x) => [x, (w.players[x] || {}).name])),
-      units: b.units.filter(alive).map((u) => [u.id, u.side, u.owner, u.type, u.n, r1(u.x), r1(u.y), u.order]) } : null;
+      ter: b.ter || [], units: b.units.filter((u) => alive(u) && (u.side === 'A' || (b.visA || []).includes(u.id)))
+        .map((u) => [u.id, u.side, u.owner, u.type, u.n, r1(u.x), r1(u.y), u.order, Math.round(visRange(b, u)), Math.round(u.mor), r1(u.f)]) } : null;
     return r;
   };
   SIM.FIELD = FIELD;

@@ -350,7 +350,7 @@
 
   // ---------- 戦闘の操作パネル ----------
   let battleHtml = '';
-  const ORDN = { charge: '突撃', hold: '待機', retreat: '後退' };
+  const ORDN = { charge: '突撃', hold: '待機', retreat: '後退', flank: '回り込み', move: '移動中', rout: '潰走中' };
   function renderBattle(bt) {
     const TR = SIM.TROOPS;
     const sum = (side) => bt.units.filter((u) => u[1] === side).reduce((a, u) => a + (u[3] === 'hero' ? 1 : u[4]), 0);
@@ -359,17 +359,20 @@
     let html = '';
     for (const u of bt.units) {
       if (u[2] !== G.myPid) continue;
-      const [id, , , type, n, , , order] = u;
-      html += `<div class="bu"><span class="nm">${type === 'hero' ? '本人' : TR[type].name + ' ' + n + '人'}　<span class="muted">${ORDN[order]}</span></span>`
-        + ['charge', 'hold', 'retreat'].map((o) => `<button id="bo-${id}-${o}" data-unit="${id}" data-order="${o}">${ORDN[o]}</button>`).join('') + '</div>';
+      const [id, , , type, n, , , order, , mor] = u, T = TR[type];
+      html += `<div class="bu ${G.selUnit === id ? 'sel' : ''}"><span class="nm">${type === 'hero' ? '本人' : T.name + (T.cls ? '〔' + SIM.CLS_NAME[T.cls] + '〕' : '') + ' ' + n + '人'}　<span class="muted">${ORDN[order]}${type === 'hero' ? '' : '　士気' + mor}</span></span>`
+        + `<button id="bs-${id}" data-sel="${id}">選ぶ</button>`
+        + ['charge', 'flank', 'hold', 'retreat'].map((o) => `<button id="bo-${id}-${o}" data-unit="${id}" data-order="${o}" ${order === 'rout' ? 'disabled' : ''}>${ORDN[o]}</button>`).join('') + '</div>';
     }
-    html += `<div class="bu"><span class="nm"><b>全軍</b></span>` + ['charge', 'hold', 'retreat'].map((o) => `<button id="bo-all-${o}" data-unit="all" data-order="${o}">${ORDN[o]}</button>`).join('') + '</div>';
+    html += `<div class="bu"><span class="nm"><b>全軍</b></span>` + ['charge', 'flank', 'hold', 'retreat'].map((o) => `<button id="bo-all-${o}" data-unit="all" data-order="${o}">${ORDN[o]}</button>`).join('') + '</div>';
+    html += `<div class="muted" style="margin-top:4px">部隊を「選ぶ」かクリックして、戦場をクリックするとそこへ移動。三すくみ：槍＞騎馬＞弓＞槍。側面・背後から攻めると有利（騎馬は特に）</div>`;
     html += `<div class="row" style="margin-top:6px"><button id="bAuto" data-bact="battleAuto">自動で決着（スキップ）</button><button id="bFlee" data-bact="battleFlee">退却する（兵の3割を失う）</button></div>`;
     if (html !== battleHtml) { battleHtml = html; $('battleBody').innerHTML = html; const b = $('battle'), f = currentFocus(b); if (f) setFocus(b, f); }
   }
   $('battleBody').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.order) command({ type: 'order', unit: b.dataset.unit, order: b.dataset.order });
+    if (b.dataset.sel) { G.selUnit = +b.dataset.sel; battleHtml = ''; }
+    else if (b.dataset.order) command({ type: 'order', unit: b.dataset.unit, order: b.dataset.order });
     else if (b.dataset.bact) command({ type: b.dataset.bact });
   });
 
@@ -401,6 +404,14 @@
   cv.addEventListener('pointerup', (e) => {
     const p = ptrs.get(e.pointerId); ptrs.delete(e.pointerId);
     if (!p || dragMoved || !G.view) return;
+    const BT = G.priv && G.priv.battle;
+    if (BT) { // 戦闘中：自分の部隊をクリックで選択、地面をクリックで選んだ部隊を移動
+      const [fx, fy] = R.battleToField(e.offsetX, e.offsetY), L = R.battleLayout(SIM.FIELD);
+      const mine = BT.units.filter((u) => u[2] === G.myPid).map((u) => [u, Math.hypot(u[5] - fx, u[6] - fy)]).sort((a, b) => a[1] - b[1])[0];
+      if (mine && mine[1] * L.sc < 18 && p.btn !== 2) { G.selUnit = mine[0][0]; battleHtml = ''; return; }
+      if (G.selUnit != null) command({ type: 'order', unit: G.selUnit, order: 'move', x: fx, y: fy });
+      return;
+    }
     const hit = R.hitSettlement(G.view, e.offsetX, e.offsetY);
     const [wx, wy] = R.toWorld(e.offsetX, e.offsetY);
     if (p.btn === 2) { hit ? moveTo(hit.x, hit.y, hit.id) : moveTo(wx, wy); } // 右クリック：すぐ移動
@@ -420,7 +431,7 @@
       if (k === 'Enter' || k === ' ') { e.preventDefault(); pressMenu(); return; }
       if (activeMenu() === $('battle')) {
         if (k === 'Escape') { toggleMenu(true); return; }
-        const o = { z: 'charge', x: 'hold', c: 'retreat' }[k.toLowerCase()]; if (o) { command({ type: 'order', unit: 'all', order: o }); return; }
+        const o = { z: 'charge', x: 'hold', c: 'retreat', v: 'flank' }[k.toLowerCase()]; if (o) { command({ type: 'order', unit: 'all', order: o }); return; }
       }
       if (k === 'Escape') { if (G.mode === 'title') $('btnJoinBack').click(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); return; }
       if (activeMenu() === $('char') && (k === 'q' || k === 'e')) { cycleCTab(k === 'q' ? -1 : 1); return; }
@@ -520,7 +531,7 @@
           const key = 'u' + BT.id + '_' + u[0], d = G.disp[key];
           if (!d) G.disp[key] = { x: u[5], y: u[6] }; else { d.x += (u[5] - d.x) * k; d.y += (u[6] - d.y) * k; }
         }
-        R.drawBattle(ctx, BT, G.disp, G.myPid); renderBattle(BT);
+        R.drawBattle(ctx, BT, G.disp, G.myPid, G.selUnit); renderBattle(BT);
       } else R.draw(ctx, G.view, G.disp, G.myPid, G.selected, marks);
       $('townBtn').classList.toggle('hidden', !(P && P.here) || !!BT);
       // 拠点に着いたら自動で拠点画面を開く
