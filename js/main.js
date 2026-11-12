@@ -266,7 +266,7 @@
       G.view = {
         t: d.t, sr: d.sr, settlements: withOwners(d.ns && d.ns.length ? s.settlements.filter((x) => !d.ns.some((n) => n.id === x.id)).concat(d.ns) : s.settlements, d.ow),
         factions: d.pf && Object.keys(d.pf).length ? Object.assign({}, s.factions, d.pf) : s.factions, people: s.people, wars: d.wars || [],
-        players: d.p.map(([id, name, x, y, at, tx, ty, status, path]) => ({ id, name, x, y, at, tx, ty, status, path })),
+        players: d.p.map(([id, name, x, y, at, tx, ty, status, path]) => ({ id, name, x, y, at, tx, ty, status, path, mon: d.mons && d.mons[id] })),
         npcs: d.n.map(([id, kind, faction, x, y, size, battle, dest, cargo, army, home, at, pname, extra, lead]) => ({ id, kind, faction, x, y, size, battle, dest, at, cargo: cargo && { item: cargo[0], qty: cargo[1] }, army, home, pname, lead, extra })),
       };
     }
@@ -421,7 +421,9 @@
       html += '<span class="h">品</span><span class="h">買値</span><span class="h">売値</span><span class="h">在庫</span><span class="h">所持</span><span></span><span></span><span></span><span></span>';
       for (const [k, buy, sell, stock] of h.market) {
         const it = IT[k], have = me.inv[k] || 0;
-        html += `<span>${it.name}<span class="muted">/${it.unit}<br>相場${it.base}文</span></span><span style="color:${priceCol(buy / 1.1 / it.base)}">${buy}文</span><span style="color:${priceCol(sell / 0.9 / it.base)}">${sell}文</span><span>${stock}</span><span>${have}${have && me.cost && me.cost[k] != null ? `<br><span style="font-size:11px;color:${sell >= me.cost[k] ? '#6fbf73' : '#e07a6a'}">平均${Math.round(me.cost[k])}文</span>` : ''}</span>`
+        const mm = me.memo && me.memo[k], ago = (x) => (x[2] <= 0 ? '今日' : x[2] + '日前');
+        const memo = mm ? `<br><span style="font-size:11px;color:#9ab">${mm.sell && mm.sell[1] > sell ? `高く売れる：${sName(mm.sell[0])} ${mm.sell[1]}文(${ago(mm.sell)})` : ''}${mm.buy && mm.buy[1] < buy ? `${mm.sell && mm.sell[1] > sell ? '<br>' : ''}安く買える：${sName(mm.buy[0])} ${mm.buy[1]}文(${ago(mm.buy)})` : ''}</span>` : '';
+        html += `<span>${it.name}<span class="muted">/${it.unit}<br>相場${it.base}文</span>${memo}</span><span style="color:${priceCol(buy / 1.1 / it.base)}">${buy}文</span><span style="color:${priceCol(sell / 0.9 / it.base)}">${sell}文</span><span>${stock}</span><span>${have}${have && me.cost && me.cost[k] != null ? `<br><span style="font-size:11px;color:${sell >= me.cost[k] ? '#6fbf73' : '#e07a6a'}">平均${Math.round(me.cost[k])}文</span>` : ''}</span>`
           + ((h.noBuy || []).includes(k) ? `<button id="b1-${k}" disabled title="調達の依頼が出ているので買えない">依頼品</button><button id="b10-${k}" disabled>－</button>` : `<button id="b1-${k}" data-act="buy" data-item="${k}" data-qty="1">買1</button><button id="b10-${k}" data-act="buy" data-item="${k}" data-qty="10">買10</button>`)
           + `<button id="s1-${k}" data-act="sell" data-item="${k}" data-qty="1" ${have ? '' : 'disabled'}>売1</button><button id="sa-${k}" data-act="sell" data-item="${k}" data-qty="999" ${have ? '' : 'disabled'}>全部</button>`;
       }
@@ -543,7 +545,7 @@
     openTown(false); toggleMenu(false); c.classList.remove('hidden'); charHtml = ''; renderChar(); setFocus(c, currentFocus(c));
   }
   function setCTab(t) { charTab = t; charHtml = ''; renderChar(); setFocus($('char'), $('ctab-' + t)); }
-  function cycleCTab(d) { const t = ['stat', 'perk', 'army', 'rank']; setCTab(t[(t.indexOf(charTab) + d + t.length) % t.length]); }
+  function cycleCTab(d) { const t = ['stat', 'perk', 'army', 'rank', 'mon']; setCTab(t[(t.indexOf(charTab) + d + t.length) % t.length]); }
   function renderChar() {
     const P = G.priv; if (!P || !P.me.char || P.battle) return openChar(false);
     const me = P.me, C = me.char, TR = SIM.TROOPS, m = G.view && G.view.players.find((x) => x.id === G.myPid);
@@ -567,6 +569,15 @@
         for (const x of opts) html += `<div class="card perk ${have === x ? 'have' : ''}"><div><b>${x.name}</b><br><span class="muted">${x.desc}</span></div>`
           + (have === x ? '<span>習得</span>' : `<button id="pk-${x.id}" data-cact="pickPerk" data-id="${x.id}" ${reach && !have ? '' : 'disabled'}>選ぶ</button>`) + '</div>';
       }
+    } else if (charTab === 'mon') { // 0.36.0 家紋を選ぶ・作る
+      const K = SGK.KAMON, d = G.monDraft = G.monDraft || (me.mon ? Object.assign({}, me.mon) : { f: 1, s: 0, n: 3, d: 3, z: 3, r: 0, c: -1 });
+      const row = (k, label, val) => `<div class="row" style="align-items:center;gap:6px;margin:3px 0"><span style="width:5em">${label}</span><button id="mk-${k}-m" data-mk="${k}" data-md="-1">◀</button><span style="min-width:8em;text-align:center">${val}</span><button id="mk-${k}-p" data-mk="${k}" data-md="1">▶</button></div>`;
+      html += `<div class="muted" style="margin-bottom:6px">地図のあなたの印と、独立したときの家の紋になります。${me.mon ? '' : '（いまは家紋なし）'}</div>`;
+      html += `<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap"><canvas id="monPrev" width="120" height="120" style="background:#f4ecd8;border-radius:60px;border:2px solid #2a2118"></canvas><div>`;
+      html += `<div class="row" style="gap:6px;margin-bottom:4px"><button id="mk-mode" data-mk="mode" class="${d.p ? '' : 'on'}">${d.p ? '自作にする' : '名家の紋から選ぶ'}</button></div>`;
+      if (d.p) html += row('p', '紋', K.PRESET_NAMES[d.p] || d.p);
+      else html += row('f', '枠', K.FRAMES[d.f]) + row('s', '図形', K.SHAPES[d.s]) + row('n', '数', d.n) + row('d', '間隔', d.d) + row('z', '大きさ', d.z) + row('r', '向き', d.r) + row('c', '中央', d.c < 0 ? 'なし' : K.SHAPES[d.c]);
+      html += `<div class="row" style="margin-top:6px"><button id="mk-ok" data-mk="ok">この家紋にする</button></div></div></div><span hidden>${JSON.stringify(d)}</span>`;
     } else if (charTab === 'rank') {
       const R = me.rank, RK = SIM.RANKS, cur = RK[R.rank], nx = R.clan && RK[R.rank + 1] && !RK[R.rank + 1].indep ? RK[R.rank + 1] : null;
       if (me.retainers && me.retainers.length) html += `<div class="muted" style="margin-bottom:6px">家臣：${me.retainers.join('・')}（率いる人数+${me.retainers.length * 6}）</div>`;
@@ -598,6 +609,9 @@
           html += `<div class="muted" style="margin-top:6px">外交（宣戦・和睦。和睦は${SIM.money(D.peaceCost)}・相手が断ることも）</div>`;
           for (const d of D.diplo) html += `<div class="card"><div>${d.name}　<span class="muted">城${d.castles}${d.war ? '　<b style="color:#e06050">交戦中</b>' : d.truce ? `　和睦中（あと${d.truce}日）` : ''}</span></div>`
             + (d.war ? `<button id="dp-${d.id}" data-cact="makePeace" data-id="${d.id}">和睦</button>` : `<button id="dp-${d.id}" data-cact="declareWar" data-id="${d.id}" ${d.truce ? 'disabled' : ''}>宣戦</button>`) + '</div>';
+          if (D.open && D.open.length) { html += '<div class="muted" style="margin-top:6px">城主の任命（家臣を城主にすると、その城はCPUの城主が治めます。家臣の枠も空きます）</div>';
+            for (const [cid, cn] of D.open) html += `<div class="card"><div>${cn}</div>${D.ret.length ? D.ret.map(([rid, rn]) => `<button id="ap-${cid}-${rid}" data-cact="appointLord" data-id="${cid}" data-who="${rid}">${rn}を任命</button>`).join('') : '<span class="muted">任命できる家臣がいません</span>'}</div>`; }
+          for (const [cid, cn, ln] of D.lords || []) html += `<div class="card"><div>${cn}　<span class="muted">城主：${ln}</span></div><button id="dl-${cid}" data-cact="dismissLord" data-id="${cid}">直轄にする</button></div>`;
           for (const c of D.lent) html += `<div class="card"><div>${c.name}　<span class="muted">${c.who}に任せている</span></div><button id="rc-${c.id}" data-cact="recallCastle" data-id="${c.id}">召し上げる</button></div>`;
         }
         if (me.war) {
@@ -634,12 +648,23 @@
         html += '</div>';
       }
     }
-    if (html !== charHtml) { charHtml = html; $('charBody').innerHTML = html; const c = $('char'), f = currentFocus(c); if (f) setFocus(c, f); }
+    if (html !== charHtml) { charHtml = html; $('charBody').innerHTML = html; const c = $('char'), f = currentFocus(c); if (f) setFocus(c, f);
+      const pv = $('monPrev'); if (pv && G.monDraft) { const x = pv.getContext('2d'); x.clearRect(0, 0, 120, 120); x.drawImage(SGK.KAMON.monImage(G.monDraft, 120), 0, 0); } }
   }
+  const MON_RANGE = { f: [0, 3], s: [0, 6], n: [1, 8], d: [0, 6], z: [1, 6], r: [0, 7], c: [-1, 6] };
+  $('charBody').addEventListener('click', (e) => {
+    const m = e.target.closest('button[data-mk]'); if (!m) return;
+    const d = G.monDraft, k = m.dataset.mk, K = SGK.KAMON; if (!d) return;
+    if (k === 'ok') { command({ type: 'setMon', mon: d }); return; }
+    if (k === 'mode') { G.monDraft = d.p ? { f: 1, s: 0, n: 3, d: 3, z: 3, r: 0, c: -1 } : { p: K.PRESETS[0] }; }
+    else if (k === 'p') { const L = K.PRESETS, i = (L.indexOf(d.p) + +m.dataset.md + L.length) % L.length; d.p = L[i]; }
+    else { const [a, b] = MON_RANGE[k], span = b - a + 1; d[k] = ((d[k] - a + +m.dataset.md) % span + span) % span + a; }
+    renderChar();
+  });
   $('charBody').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-cact]'); if (!b) return;
     const c = { type: b.dataset.cact };
-    for (const k of ['attr', 'id', 'from', 'to']) if (b.dataset[k]) c[k] = b.dataset[k];
+    for (const k of ['attr', 'id', 'from', 'to', 'who']) if (b.dataset[k]) c[k] = b.dataset[k];
     if (b.dataset.qty) c.qty = +b.dataset.qty;
     command(c);
   });
@@ -673,7 +698,7 @@
   function renderCaptive(list) {
     const el = $('captive'), on = list && list.length && !(G.priv && G.priv.battle);
     el.classList.toggle('hidden', !on); if (!on) { captiveHtml = ''; return; }
-    const html = list.map(([id, nm, fn, t, b, rm]) => `<div class="cp"><span>${fn}の${nm}<span class="muted">（統${t}・武${b}）</span></span><button id="cr_${id}" data-cap="releaseCaptive" data-id="${id}">逃がす（身代金${SIM.money(rm || 0)}）</button><button id="ck_${id}" data-cap="killCaptive" data-id="${id}">斬る</button></div>`).join('');
+    const html = list.map(([id, nm, fn, t, b, rm, rc]) => `<div class="cp"><span>${fn}の${nm}<span class="muted">（統${t}・武${b}）</span></span><button id="cr_${id}" data-cap="releaseCaptive" data-id="${id}">逃がす（身代金${SIM.money(rm || 0)}）</button><button id="cg_${id}" data-cap="recruitCaptive" data-id="${id}" ${rc == null ? 'disabled' : ''}>${rc == null ? '登用（断られた）' : `登用する（${rc}%）`}</button><button id="ck_${id}" data-cap="killCaptive" data-id="${id}">斬る</button></div>`).join('');
     if (html !== captiveHtml) { captiveHtml = html; $('captiveBody').innerHTML = html; }
   }
   $('captiveBody').addEventListener('click', (e) => {
@@ -981,7 +1006,7 @@
         { const wb = P.me.warBoard || [], el = $('warBoard'), h = wb.length ? '<b>戦況</b>' + wb.map((x) => `<div style="color:${x.atk ? '#e0c060' : '#ff6a4a'}">${x.atk ? '⚔' : '⚠'} ${x.text}</div>`).join('') : '';
           el.classList.toggle('hidden', !h || !!(G.priv && G.priv.battle)); if (el.dataset.h !== h) { el.innerHTML = h; el.dataset.h = h; } }
         renderCaptive(P.me.captives);
-        $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　荷 ${SIM.cargo(P.me)}/${P.me.cap}　名声 ${P.me.fame}${P.me.rank && P.me.rank.clan ? `　功績 ${P.me.rank.merit}${(() => { const n = SIM.RANKS[P.me.rank.rank + 1]; return n && !n.indep ? '/' + n.merit : ''; })()}` : ''}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.wage ? `<br>兵の給金 ${SIM.money(P.me.wage)}/日${P.me.money < P.me.wage ? '　<b style="color:#e07a6a">払えません</b>' : '（約' + Math.floor(P.me.money / P.me.wage) + '日分）'}` : '') + (P.me.riceNeed ? `<br>士気 <b style="color:${P.me.morale < 35 ? '#e07a6a' : P.me.morale < 60 ? '#e0c060' : '#6fbf73'}">${P.me.morale}</b>　兵糧 米${(P.me.inv && P.me.inv.rice) || 0}/${P.me.riceCap}俵（1日${P.me.riceNeed}俵・${P.me.hungry ? '<b style="color:#e07a6a">米が足りません</b>' : '約' + P.me.riceDays + '日分'}）` : '') + (P.me.follow ? `<br>追跡中：${P.me.follow}` : '') + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
+        $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　荷 ${SIM.cargo(P.me)}/${P.me.cap}　名声 ${P.me.fame}${P.me.infamy ? `　<span style="color:#e07a6a">悪名 ${P.me.infamy}</span>` : ''}${P.me.rank && P.me.rank.clan ? `　功績 ${P.me.rank.merit}${(() => { const n = SIM.RANKS[P.me.rank.rank + 1]; return n && !n.indep ? '/' + n.merit : ''; })()}` : ''}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.wage ? `<br>兵の給金 ${SIM.money(P.me.wage)}/日${P.me.money < P.me.wage ? '　<b style="color:#e07a6a">払えません</b>' : '（約' + Math.floor(P.me.money / P.me.wage) + '日分）'}` : '') + (P.me.riceNeed ? `<br>士気 <b style="color:${P.me.morale < 35 ? '#e07a6a' : P.me.morale < 60 ? '#e0c060' : '#6fbf73'}">${P.me.morale}</b>　兵糧 米${(P.me.inv && P.me.inv.rice) || 0}/${P.me.riceCap}俵（1日${P.me.riceNeed}俵・${P.me.hungry ? '<b style="color:#e07a6a">米が足りません</b>' : '約' + P.me.riceDays + '日分'}）` : '') + (P.me.follow ? `<br>追跡中：${P.me.follow}` : '') + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
           + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品'}・${dayLeft(q.deadline)}）</div>`).join('');
       }
       // HUD

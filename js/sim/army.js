@@ -66,6 +66,7 @@
   SIM.armyTo = (w, sid) => Object.values(w.npcs).some((n) => n.kind === 'army' && n.mode === 'siege' && n.to === sid);
   SIM.besieged = (w, sid) => Object.values(w.npcs).some((n) => n.kind === 'army' && n.mode === 'siege' && n.to === sid && n.until != null)
     || Object.values(w.players).some((p) => p.siege && p.siege.sid === sid);
+  SIM._armyGoHome = (w, n) => goHome(w, n);
   function goHome(w, n) {
     let h = SIM.settlement(w, n.home);
     if (!h || h.owner !== n.faction) h = castles(w, n.faction).sort((a, b) => dist(a, n) - dist(b, n))[0];

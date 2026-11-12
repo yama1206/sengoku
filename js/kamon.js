@@ -94,9 +94,46 @@
     c.strokeStyle = INK; c.lineWidth = 0.13; c.beginPath(); c.arc(0, 0, 0.86, 0, Math.PI * 2); c.stroke();
     c.fillStyle = INK; c.font = 'bold 1.15px "Hiragino Mincho ProN","Yu Mincho",serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(ch, 0, 0.06);
   }
+  // ---- 自作の家紋：枠・図形・数・間隔・大きさ・向き・中央の図形を組み合わせる ----
+  K.FRAMES = ['なし', '丸', '角', '菱'];
+  K.SHAPES = ['丸', '菱', '角', '鱗', '花弁', '引両', '輪'];
+  K.PRESETS = Object.keys(DESIGNS);
+  K.PRESET_NAMES = { oda: '織田木瓜', asakura: '三つ盛木瓜', azai: '三つ盛亀甲', rokkaku: '隅立て四つ目結', miyoshi: '三階菱', imagawa: '二つ引両', tsutsui: '梅鉢', ashikaga: '五七桐', saito: '立波', kitabatake: '笹竜胆', honganji: '下り藤', nagano: '檜扇', takeda: '武田菱', hojo: '三つ鱗', mori: '一文字に三つ星', shimazu: '丸に十字', amako: '平四つ目結', nagao: '九曜', ryuzoji: '日足', mogami: '丸に二つ引両', utsunomiya: '三つ巴', ito: '木瓜', chosokabe: '片喰' };
+  function shape(c, k, x, y, r, a) {
+    c.save(); c.translate(x, y); c.rotate(a); c.fillStyle = INK;
+    if (k === 0) circ(c, 0, 0, r);
+    else if (k === 1) poly(c, [[0, -r], [r * 0.75, 0], [0, r], [-r * 0.75, 0]]);
+    else if (k === 2) c.fillRect(-r * 0.8, -r * 0.8, r * 1.6, r * 1.6);
+    else if (k === 3) poly(c, [[0, -r], [r * 0.95, r * 0.7], [-r * 0.95, r * 0.7]]);
+    else if (k === 4) { c.beginPath(); c.ellipse(0, 0, r * 0.45, r, 0, 0, Math.PI * 2); c.fill(); }
+    else if (k === 5) c.fillRect(-r * 1.4, -r * 0.3, r * 2.8, r * 0.6);
+    else { circ(c, 0, 0, r); c.fillStyle = PAPER; circ(c, 0, 0, r * 0.55); }
+    c.restore();
+  }
+  K.drawMon = function (c, m) {
+    if (m.p && DESIGNS[m.p]) return DESIGNS[m.p](c);
+    const inner = m.f ? 0.72 : 0.95;
+    if (m.f) {
+      c.strokeStyle = INK; c.lineWidth = 0.14; c.beginPath();
+      if (m.f === 1) c.arc(0, 0, 0.86, 0, Math.PI * 2); else if (m.f === 2) c.rect(-0.8, -0.8, 1.6, 1.6); else { c.moveTo(0, -0.92); c.lineTo(0.92, 0); c.lineTo(0, 0.92); c.lineTo(-0.92, 0); c.closePath(); }
+      c.stroke();
+    }
+    const n = m.n || 1, d = (m.d || 0) / 6 * inner * 0.7, r = (m.z || 3) / 6 * inner * 0.6, rot = (m.r || 0) * Math.PI / 8;
+    if (m.s === 5 && n > 1) { for (let i = 0; i < n; i++) shape(c, 5, 0, (i - (n - 1) / 2) * r * 0.9 * (1 + d * 2), r * 0.6, rot); } // 引両は並べる
+    else for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + (i * 2 * Math.PI) / n + rot; shape(c, m.s || 0, n > 1 ? Math.cos(a) * d : 0, n > 1 ? Math.sin(a) * d : 0, r, n > 1 ? a + Math.PI / 2 : rot); }
+    if (m.c != null && m.c >= 0) shape(c, m.c, 0, 0, r * 0.6, 0);
+  };
+  K.monImage = function (m, px) {
+    const key = 'mon:' + JSON.stringify(m) + ':' + (px || PX);
+    if (cache[key]) return cache[key];
+    const P = px || PX, cv = document.createElement('canvas'); cv.width = cv.height = P;
+    const c = cv.getContext('2d'); c.translate(P / 2, P / 2); c.scale(P * 0.4, P * 0.4); K.drawMon(c, m);
+    return (cache[key] = cv);
+  };
   const cache = {};
   const PX = 64;
   K.image = function (fid, f) {
+    if (f && f.mon) return K.monImage(f.mon);
     const key = fid + ':' + (f && f.name);
     if (cache[key]) return cache[key];
     const cv = document.createElement('canvas'); cv.width = cv.height = PX;
@@ -104,6 +141,14 @@
     const d = DESIGNS[(f && f.kamon) || fid];
     if (d) d(c); else charMon(c, ((f && f.name) || '?').replace(/家$/, '').charAt(0));
     return (cache[key] = cv);
+  };
+  // プレイヤーの印（家紋を決めていれば紋、なければ null を返して呼び手が点を描く）
+  K.monBadge = function (ctx, m, x, y, size, frame, lw) {
+    if (!m) return false; const h = size / 2;
+    ctx.fillStyle = PAPER; ctx.strokeStyle = frame || '#2a2118'; ctx.lineWidth = lw || 2;
+    ctx.beginPath(); ctx.arc(x, y, h, 0, Math.PI * 2); ctx.fill();
+    ctx.drawImage(K.monImage(m), x - h * 0.98, y - h * 0.98, h * 1.96, h * 1.96); ctx.stroke();
+    return true;
   };
   // 紋の印を描く：shape は 'sq'（城）か 'ci'（町・村・部隊）。frame は枠の色
   K.badge = function (ctx, fid, f, x, y, size, shape, frame, lw) {

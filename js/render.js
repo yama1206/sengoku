@@ -148,9 +148,11 @@
       const mine = p.id === myPid;
       if (p.id === selectedId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 12, 0, 7); ctx.stroke(); }
       ctx.fillStyle = mine ? '#f2c14e' : '#e8e8e8'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(x, y, mine ? 7 : 6, 0, 7); ctx.fill(); ctx.stroke();
-      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText(p.name, x, y - 9);
-      ctx.fillStyle = mine ? '#f2c14e' : '#fff'; ctx.fillText(p.name, x, y - 9);
+      const mb = SGK.KAMON.monBadge(ctx, p.mon, x, y, 18, mine ? '#f2c14e' : '#e8e8e8', 2.5); // 0.36.0 家紋を決めていれば紋の印
+      if (!mb) { ctx.beginPath(); ctx.arc(x, y, mine ? 7 : 6, 0, 7); ctx.fill(); ctx.stroke(); }
+      const ty = y - (mb ? 11 : 9);
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText(p.name, x, ty);
+      ctx.fillStyle = mine ? '#f2c14e' : '#fff'; ctx.fillText(p.name, x, ty);
     }
   };
 
