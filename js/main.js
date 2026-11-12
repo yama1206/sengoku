@@ -303,6 +303,11 @@
 
   // ---------- 拠点の中（市場・依頼・仕事・話す） ----------
   const IT = SGK.DATA.items;
+  // 値段の色：相場より安いほど青、高いほど赤（相場の半分・2倍でいちばん濃い）
+  function priceCol(r) {
+    const t = Math.max(-1, Math.min(1, Math.log(r) / Math.LN2)), N = [236, 228, 210], C = t < 0 ? [80, 160, 255] : [255, 85, 70], a = Math.abs(t);
+    return `rgb(${N.map((n, i) => Math.round(n + (C[i] - n) * a)).join(',')})`;
+  }
   let townTab = 'market', townHtml = '';
   const dayLeft = (dl) => { const d = (dl - G.view.t) / 1440; return d >= 1 ? `あと${Math.floor(d)}日` : 'まもなく期限'; };
   const sName = (id) => (G.view.settlements.find((x) => x.id === id) || {}).name || '?';
@@ -325,7 +330,7 @@
       html += '<span class="h">品</span><span class="h">買値</span><span class="h">売値</span><span class="h">在庫</span><span class="h">所持</span><span></span><span></span><span></span><span></span>';
       for (const [k, buy, sell, stock] of h.market) {
         const it = IT[k], have = me.inv[k] || 0;
-        html += `<span>${it.name}<span class="muted">/${it.unit}</span></span><span>${buy}文</span><span>${sell}文</span><span>${stock}</span><span>${have}</span>`
+        html += `<span>${it.name}<span class="muted">/${it.unit}<br>相場${it.base}文</span></span><span style="color:${priceCol(buy / 1.1 / it.base)}">${buy}文</span><span style="color:${priceCol(sell / 0.9 / it.base)}">${sell}文</span><span>${stock}</span><span>${have}</span>`
           + `<button id="b1-${k}" data-act="buy" data-item="${k}" data-qty="1">買1</button><button id="b10-${k}" data-act="buy" data-item="${k}" data-qty="10">買10</button>`
           + `<button id="s1-${k}" data-act="sell" data-item="${k}" data-qty="1" ${have ? '' : 'disabled'}>売1</button><button id="sa-${k}" data-act="sell" data-item="${k}" data-qty="999" ${have ? '' : 'disabled'}>全部</button>`;
       }
