@@ -25,6 +25,9 @@
 
   R.draw = function (ctx, view, disp, myPid, selectedId, marks) {
     const T = SGK.DATA.terrain, B = SGK.DATA.bounds;
+    // 枠の色：敵対している勢力は赤、自分の家は金、ほかは墨色
+    const myClan = view.myClan, wars = view.wars || [];
+    const frameOf = (fid) => !fid || !myClan ? ['#2a2118', 1.5] : fid === myClan ? ['#d9a52a', 2.5] : wars.includes(myClan < fid ? `${myClan}|${fid}` : `${fid}|${myClan}`) ? ['#e0281e', 3] : ['#2a2118', 1.5];
     ctx.fillStyle = '#1a1712'; ctx.fillRect(0, 0, W, H);
     // 陸
     const [x0, y0] = R.toScreen(0, 0), [x1, y1] = R.toScreen(B.w, B.h);
@@ -76,19 +79,18 @@
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     for (const s of view.settlements) {
       const [x, y] = R.toScreen(s.x, s.y);
-      const col = (view.factions[s.owner] || {}).color || '#666';
-      ctx.lineWidth = 2; ctx.strokeStyle = '#2a2118'; ctx.fillStyle = col;
-      if (s.type === 'castle') { ctx.fillRect(x - 7, y - 7, 14, 14); ctx.strokeRect(x - 7, y - 7, 14, 14); }
-      else if (s.type === 'town') { ctx.beginPath(); ctx.arc(x, y, 6, 0, 7); ctx.fill(); ctx.stroke(); }
-      else { ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill(); ctx.stroke(); }
+      const fr = frameOf(s.owner);
+      if (s.type === 'castle') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 20, 'sq', fr[0], fr[1]);
+      else if (s.type === 'town') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 16, 'ci', fr[0], fr[1]);
+      else SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 11, 'ci', fr[0], Math.min(fr[1], 2));
       if (marks && marks.has(s.id)) { ctx.fillStyle = '#f2c14e'; ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y - 24); ctx.lineTo(x + 6, y - 17); ctx.lineTo(x, y - 10); ctx.lineTo(x - 6, y - 17); ctx.closePath(); ctx.fill(); ctx.stroke(); }
-      if (s.id === selectedId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 13, 0, 7); ctx.stroke(); }
-      if (s.site) { ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 2; ctx.setLineDash([3, 3]); ctx.strokeRect(x - 10, y - 10, 20, 20); ctx.setLineDash([]); }
+      if (s.id === selectedId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 17, 0, 7); ctx.stroke(); }
+      if (s.site) { ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 2; ctx.setLineDash([3, 3]); ctx.strokeRect(x - 13, y - 13, 26, 26); ctx.setLineDash([]); }
       if (cam.scale < 6 && !s.lord && !s.built && s.type !== 'town' && s.id !== selectedId) continue; // 引いたときは主な拠点の名前だけ
       const label = s.site ? s.name + '（普請中）' : s.name;
       ctx.font = `${s.type === 'castle' ? 'bold 13px' : '12px'} "Hiragino Mincho ProN","Yu Mincho",serif`;
-      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)'; ctx.strokeText(label, x, y + 9);
-      ctx.fillStyle = '#2a2118'; ctx.fillText(label, x, y + 9);
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)'; ctx.strokeText(label, x, y + 12);
+      ctx.fillStyle = '#2a2118'; ctx.fillText(label, x, y + 12);
     }
     // 視界の外を少し暗く（他の部隊は見えない）
     const meV = view.players.find((p) => p.id === myPid);
@@ -112,15 +114,16 @@
         const t = `野盗 ${n.size || ''}`; ctx.strokeText(t, x, y + 7); ctx.fillStyle = '#5a1a12'; ctx.fillText(t, x, y + 7);
       }
       else if (n.kind === 'army') { // 軍勢：旗印
-        const col = (view.factions[n.faction] || {}).color || '#555';
-        ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 6, y + 7); ctx.lineTo(x - 6, y - 9); ctx.stroke();
-        ctx.fillStyle = n.battle ? '#ff5533' : col; ctx.lineWidth = 1.5; ctx.fillRect(x - 5, y - 9, 11, 8); ctx.strokeRect(x - 5, y - 9, 11, 8);
+        const fr = frameOf(n.faction);
+        ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 10, y + 9); ctx.lineTo(x - 10, y - 13); ctx.stroke(); // 旗竿
+        if (n.battle) { ctx.fillStyle = 'rgba(255,85,51,.55)'; ctx.beginPath(); ctx.arc(x, y - 2, 13, 0, 7); ctx.fill(); }
+        SGK.KAMON.badge(ctx, n.faction, view.factions[n.faction], x, y - 2, 18, 'ci', fr[0], fr[1]);
         ctx.font = 'bold 11px sans-serif'; ctx.textBaseline = 'top'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)';
-        const t = `軍勢 ${n.size || ''}`; ctx.strokeText(t, x, y + 8); ctx.fillStyle = '#2a2118'; ctx.fillText(t, x, y + 8);
+        const t = `軍勢 ${n.size || ''}`; ctx.strokeText(t, x, y + 9); ctx.fillStyle = '#2a2118'; ctx.fillText(t, x, y + 9);
       }
       else {
-        ctx.fillStyle = (view.factions[n.faction] || {}).color || '#555'; ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x + 5, y + 4); ctx.lineTo(x - 5, y + 4); ctx.closePath(); ctx.fill(); ctx.stroke();
+        const fr = frameOf(n.faction); // 巡回の武将：所属の家紋
+        SGK.KAMON.badge(ctx, n.faction, view.factions[n.faction], x, y, 13, 'ci', fr[0], Math.min(fr[1], 2.5));
       }
     }
     // プレイヤー

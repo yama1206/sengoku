@@ -248,7 +248,7 @@
   const holders = () => (G.mode === 'host' ? SIM.holders(G.world) : (G.dyn && G.dyn.h) || {});
   $('infoAct').onclick = () => { if (G.infoCmd) command(G.infoCmd); };
   $('infoGo').onclick = () => {
-    if (G.selKind === 'u') { const u = findUnit(G.selected); if (u) moveTo(u.x, u.y); return; }
+    if (G.selKind === 'u') { const u = findUnit(G.selected); if (u) command({ type: 'follow', id: u.id }); return; }
     const s = G.view.settlements.find((x) => x.id === G.selected); if (s) moveTo(s.x, s.y, s.id);
   };
 
@@ -271,21 +271,21 @@
     if (u.kind === 'merchant') {
       const it = u.cargo && SGK.DATA.items[u.cargo.item], pr = it && SIM.cargoPrice(u.cargo.item);
       return { name: '行商人', body: `${where}<br>荷：${it ? `${it.name} ${u.cargo.qty}${it.unit}　<span class="muted">売値 約${pr}文/${it.unit}（1度に5${it.unit}まで）</span>` : 'なし'}<br><span class="muted">町から町へ品物を運んでいる。1.5km以内なら荷を買える。運んだ先では品物が安くなる。</span>`,
-        go: '近づく', act: it ? { label: `${it.name}を買う`, cmd: { type: 'buyCargo', id: u.id } } : null };
+        go: '追いかける', act: it ? { label: `${it.name}を買う`, cmd: { type: 'buyCargo', id: u.id } } : null };
     }
-    if (u.kind === 'patrol') return { name: `${f ? f.name : ''}の巡回兵 ${u.size || ''}人`, body: `勢力：${fn}<br>${where}${u.home ? `<br>本拠：${sName(u.home)}` : ''}<br>兵：${ar}<br><span class="muted">自勢力の拠点のあいだを見回っている。</span>`, go: '近づく' };
+    if (u.kind === 'patrol') return { name: `${f ? f.name : ''}の巡回兵 ${u.size || ''}人`, body: `勢力：${fn}<br>${where}${u.home ? `<br>本拠：${sName(u.home)}` : ''}<br>兵：${ar}<br><span class="muted">自勢力の拠点のあいだを見回っている。</span>`, go: '追いかける' };
     if (u.kind === 'army') {
       const t = G.mode === 'host' ? SIM.armyText(G.world, G.world.npcs[u.id]) : ((G.dyn && G.dyn.ar) || {})[u.id];
       const R = G.priv && G.priv.me && G.priv.me.rank, mine = R && R.clan, wars = G.view.wars || [];
       const war = mine && u.faction && wars.includes(mine < u.faction ? `${mine}|${u.faction}` : `${u.faction}|${mine}`);
       const act = war && !u.battle && Number(km) <= ((G.priv.me.war && G.priv.me.war.ar) ? G.priv.me.war.ar.fightKm : 2) ? { label: '攻めかかる', cmd: { type: 'attackArmy', id: u.id } } : null;
-      return { name: `${t ? t.name : '軍勢'} ${u.size}人`, body: `${u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}${war ? '　<b style="color:#e06050">交戦中</b>' : ''}<br>${t ? t.text : ''}<br>兵：${ar}<br><span class="muted">${war ? `敵の軍勢。${(G.priv.me.war && G.priv.me.war.ar ? G.priv.me.war.ar.fightKm : 2)}km以内まで近づくと攻めかかれます。打ち破れば包囲が解けます` : '武将たちが率いる軍勢'}</span>`, go: '近づく', act };
+      return { name: `${t ? t.name : '軍勢'} ${u.size}人`, body: `${u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}${war ? '　<b style="color:#e06050">交戦中</b>' : ''}<br>${t ? t.text : ''}<br>兵：${ar}<br><span class="muted">${war ? `敵の軍勢。${(G.priv.me.war && G.priv.me.war.ar ? G.priv.me.war.ar.fightKm : 2)}km以内まで近づくと攻めかかれます。打ち破れば包囲が解けます` : '武将たちが率いる軍勢'}</span>`, go: '追いかける', act };
     }
     if (u.kind === 'bandit') {
       return { name: `野盗 ${u.size}人`, body: `${u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}${where}<br>手勢：${ar}<br><span class="muted">近づくと襲ってくる。倒すと金品が手に入る。</span>`, go: '攻めかかる' };
     }
     // 他のプレイヤー
-    return { name: u.name, body: `プレイヤー（${u.status || '浪人'}）<br>${where}`, go: '近づく' };
+    return { name: u.name, body: `プレイヤー（${u.status || '浪人'}）<br>${where}`, go: '追いかける' };
   }
   function selectUnit(u) {
     if (!u) return selectSettlement(null);
@@ -817,6 +817,7 @@
         if (G.bcur) { const L = R.battleLayout(SIM.FIELD); drawCross(L.ox + G.bcur[0] * L.sc, L.oy + G.bcur[1] * L.sc, '#f2c14e'); }
       } else {
         G.bcur = null;
+        G.view.myClan = P && P.me && P.me.rank ? P.me.rank.clan || null : null;
         R.draw(ctx, G.view, G.disp, G.myPid, G.selected, marks);
         if (G.pcurOn) drawCross(G.pcur[0], G.pcur[1], '#fff');
       }
@@ -831,7 +832,7 @@
       if (!$('town').classList.contains('hidden')) renderTown();
       if (!$('char').classList.contains('hidden')) renderChar();
       if (P) {
-        $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　荷 ${SIM.cargo(P.me)}/${P.me.cap}　名声 ${P.me.fame}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
+        $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　荷 ${SIM.cargo(P.me)}/${P.me.cap}　名声 ${P.me.fame}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.follow ? `<br>追跡中：${P.me.follow}` : '') + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
           + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品'}・${dayLeft(q.deadline)}）</div>`).join('');
       }
       // HUD
