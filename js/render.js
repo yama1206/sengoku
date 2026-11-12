@@ -23,7 +23,7 @@
     if (close) ctx.closePath();
   }
 
-  R.draw = function (ctx, view, disp, myPid, selectedId) {
+  R.draw = function (ctx, view, disp, myPid, selectedId, marks) {
     const T = SGK.DATA.terrain, B = SGK.DATA.bounds;
     ctx.fillStyle = '#1a1712'; ctx.fillRect(0, 0, W, H);
     // 陸
@@ -52,6 +52,7 @@
       if (s.type === 'castle') { ctx.fillRect(x - 7, y - 7, 14, 14); ctx.strokeRect(x - 7, y - 7, 14, 14); }
       else if (s.type === 'town') { ctx.beginPath(); ctx.arc(x, y, 6, 0, 7); ctx.fill(); ctx.stroke(); }
       else { ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill(); ctx.stroke(); }
+      if (marks && marks.has(s.id)) { ctx.fillStyle = '#f2c14e'; ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y - 24); ctx.lineTo(x + 6, y - 17); ctx.lineTo(x, y - 10); ctx.lineTo(x - 6, y - 17); ctx.closePath(); ctx.fill(); ctx.stroke(); }
       if (s.id === selectedId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 13, 0, 7); ctx.stroke(); }
       ctx.font = `${s.type === 'castle' ? 'bold 13px' : '12px'} "Hiragino Mincho ProN","Yu Mincho",serif`;
       ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)'; ctx.strokeText(s.name, x, y + 9);

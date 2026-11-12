@@ -35,7 +35,7 @@
     const castles = w.settlements.filter((s) => s.type === 'castle');
     towns.forEach((s) => SIM.spawnNpc(w, 'merchant', null, s));
     castles.forEach((s) => SIM.spawnNpc(w, 'patrol', s.owner, s));
-    return w;
+    return SIM.ensure(w);
   };
 
   SIM.spawnNpc = function (w, kind, faction, at) {
@@ -57,7 +57,8 @@
     const st = SIM.settlement(w, SGK.DATA.startSettlement);
     const id = 'p' + w.nextId++;
     w.players[id] = { id, name: name || '浪人', x: st.x + (SIM.rand(w) - 0.5), y: st.y + (SIM.rand(w) - 0.5),
-      tx: null, ty: null, dest: null, at: st.id, speed: SGK.CFG.WALK_KM_PER_DAY, status: '浪人', money: 0 };
+      tx: null, ty: null, dest: null, at: st.id, speed: SGK.CFG.WALK_KM_PER_DAY, status: '浪人' };
+    SIM.ensurePlayer(w.players[id]);
     w.tokens[token] = id;
     return id;
   };
@@ -65,6 +66,7 @@
   // ===== コマンド（プレイヤーの操作はすべてここを通る：通信・セーブ・記録を同じ形で扱える） =====
   SIM.commands = {
     move(w, p, c) {
+      if (p.busy) return SIM.say(p.id, `${p.busy.label}の最中です（取りやめると報酬はもらえません）`);
       const B = SGK.DATA.bounds;
       let x = Math.max(0, Math.min(B.w, +c.x)), y = Math.max(0, Math.min(B.h, +c.y));
       let dest = null;
@@ -91,7 +93,7 @@
   }
   SIM.systems = [
     function playerMove(w, dt) {
-      for (const p of Object.values(w.players)) if (moveEntity(p, dt) && p.dest) { p.at = p.dest; p.dest = null; }
+      for (const p of Object.values(w.players)) if (moveEntity(p, dt) && p.dest) { p.at = p.dest; p.dest = null; SIM.onPlayerArrive(w, p); }
     },
     function npcLife(w, dt) {
       for (const n of Object.values(w.npcs)) {
@@ -102,9 +104,10 @@
           let cands = w.settlements.filter((s) => s.id !== n.at && (n.kind === 'merchant' ? s.type !== 'castle' || SIM.rand(w) < 0.3 : s.owner === n.faction));
           if (!cands.length) cands = w.settlements.filter((s) => s.id !== n.at);
           const s = cands[Math.floor(SIM.rand(w) * cands.length)];
+          if (n.kind === 'merchant') SIM.merchantDepart(w, n, SIM.settlement(w, n.at));
           n.tx = s.x; n.ty = s.y; n.dest = s.id; n.at = null;
         } else if (moveEntity(n, dt)) {
-          n.at = n.dest; n.dest = null; n.wait = 120 + SIM.rand(w) * 480;
+          n.at = n.dest; n.dest = null; if (n.kind === 'merchant') SIM.merchantArrive(w, n, SIM.settlement(w, n.at)); n.wait = 120 + SIM.rand(w) * 480;
         }
       }
     },

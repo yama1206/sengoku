@@ -23,6 +23,7 @@
   function activeMenu() {
     if (G.mode === 'title') return $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
     if (!$('gameMenu').classList.contains('hidden')) return $('gameMenu');
+    if (!$('town').classList.contains('hidden')) return $('town');
     return null;
   }
   function menuButtons(m) { return [...m.querySelectorAll('button')].filter((b) => !b.disabled && b.offsetParent); }
@@ -95,7 +96,11 @@
     const now = performance.now(); const dt = Math.min(5, (now - lastTick) / 1000); lastTick = now;
     SIM.step(G.world, dt * CFG.MIN_PER_SEC * G.speed);
     netAcc += dt * 1000;
-    if (netAcc >= CFG.NET_SEND_MS && G.net) { netAcc = 0; G.net.broadcast({ t: 'state', s: SIM.dynamicState(G.world), sp: G.speed }); }
+    if (netAcc >= CFG.NET_SEND_MS) {
+      netAcc = 0;
+      if (G.net) { const dyn = SIM.dynamicState(G.world); G.net.each((pid) => ({ t: 'state', s: dyn, sp: G.speed, priv: SIM.privateState(G.world, pid), msgs: SIM.drain(pid) })); }
+      for (const pid in SIM.out) if (pid !== G.myPid) delete SIM.out[pid]; // 接続していない人宛ては捨てる
+    }
     saveAcc += dt;
     if (saveAcc >= CFG.AUTOSAVE_SEC) { saveAcc = 0; SGK.SAVE.save(G.world); if (++saveCount % CFG.BACKUP_EVERY === 0) SGK.SAVE.backup(G.world); }
   }
@@ -116,7 +121,7 @@
     G.mode = 'connecting';
     G.net = SGK.NET.join(code, token, myName(), {
       onWelcome: (m) => { G.mode = 'client'; G.myPid = m.pid; G.stat = m.static; G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
-      onState: (m) => { G.dyn = m.s; G.speed = m.sp; if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } },
+      onState: (m) => { G.dyn = m.s; G.speed = m.sp; G.priv = m.priv; (m.msgs || []).forEach((t) => toast(t, 4000)); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } },
       onBye: (why) => { backToTitle(); titleMsg(why); },
       onError: (t) => titleMsg(t),
     });
@@ -126,7 +131,7 @@
     if (G.mode === 'host') { SGK.SAVE.save(G.world); timerWorker.postMessage(0); }
     if (G.net) G.net.close();
     Object.assign(G, { mode: 'title', world: null, net: null, dyn: null, view: null, centered: false, roomCode: null });
-    $('gameMenu').classList.add('hidden'); $('info').classList.add('hidden');
+    $('gameMenu').classList.add('hidden'); $('info').classList.add('hidden'); $('town').classList.add('hidden'); G.priv = null;
     $('btnContinue').disabled = !SGK.SAVE.has();
     show('title');
   }
@@ -170,6 +175,83 @@
   }
   $('infoGo').onclick = () => { const s = G.view.settlements.find((x) => x.id === G.selected); if (s) moveTo(s.x, s.y, s.id); };
   $('infoClose').onclick = () => selectSettlement(null);
+
+  // ---------- 拠点の中（市場・依頼・仕事・話す） ----------
+  const IT = SGK.DATA.items;
+  let townTab = 'market', townHtml = '';
+  const dayLeft = (dl) => { const d = (dl - G.view.t) / 1440; return d >= 1 ? `あと${Math.floor(d)}日` : 'まもなく期限'; };
+  const sName = (id) => (G.view.settlements.find((x) => x.id === id) || {}).name || '?';
+  function openTown(open) {
+    const t = $('town');
+    if (open === false || !G.priv || !G.priv.here) { t.classList.add('hidden'); return; }
+    t.classList.remove('hidden'); townHtml = ''; renderTown(); setFocus(t, currentFocus(t));
+  }
+  function setTab(tab) { townTab = tab; townHtml = ''; renderTown(); const t = $('town'); setFocus(t, $('tab-' + tab)); }
+  function renderTown() {
+    const P = G.priv; if (!P || !P.here) return openTown(false);
+    const me = P.me, h = P.here;
+    $('townName').textContent = sName(h.id);
+    document.querySelectorAll('#town [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === townTab));
+    let html = '';
+    if (townTab === 'market') {
+      html += `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　荷 ${SIM.cargo(me)}/${me.cap}</div><div class="grid">`;
+      html += '<span class="h">品</span><span class="h">買値</span><span class="h">売値</span><span class="h">在庫</span><span class="h">所持</span><span></span><span></span><span></span><span></span>';
+      for (const [k, buy, sell, stock] of h.market) {
+        const it = IT[k], have = me.inv[k] || 0;
+        html += `<span>${it.name}<span class="muted">/${it.unit}</span></span><span>${buy}文</span><span>${sell}文</span><span>${stock}</span><span>${have}</span>`
+          + `<button id="b1-${k}" data-act="buy" data-item="${k}" data-qty="1">買1</button><button id="b10-${k}" data-act="buy" data-item="${k}" data-qty="10">買10</button>`
+          + `<button id="s1-${k}" data-act="sell" data-item="${k}" data-qty="1" ${have ? '' : 'disabled'}>売1</button><button id="sa-${k}" data-act="sell" data-item="${k}" data-qty="999" ${have ? '' : 'disabled'}>全部</button>`;
+      }
+      html += '</div>';
+    } else if (townTab === 'jobs') {
+      html += `<div class="muted">受けている依頼（${me.quests.length}/3）</div>`;
+      if (!me.quests.length) html += '<div class="muted" style="margin:4px 0 8px">なし</div>';
+      for (const q of me.quests) {
+        const where = q.type === 'deliver' ? `届け先：${sName(q.to)}` : `納品先：${sName(q.from)}（所持 ${me.inv[q.item] || 0}/${q.qty}）`;
+        const canDeliver = q.type === 'procure' && q.from === h.id;
+        html += `<div class="card"><div><b>${q.title}</b><br><span class="muted">${where}　報酬 ${SIM.money(q.reward)}　${dayLeft(q.deadline)}</span></div><div class="row">`
+          + (canDeliver ? `<button id="dq-${q.id}" data-act="deliverJob" data-id="${q.id}">納品</button>` : '')
+          + `<button id="aq-${q.id}" data-act="abandonJob" data-id="${q.id}">やめる</button></div></div>`;
+      }
+      html += '<div class="muted" style="margin-top:10px">この拠点の依頼</div>';
+      if (!h.jobs.length) html += '<div class="muted" style="margin-top:4px">いまは依頼がありません</div>';
+      for (const j of h.jobs) {
+        const what = j.type === 'deliver' ? `届け先：${sName(j.to)}` : `${IT[j.item].name}を${j.qty}${IT[j.item].unit}、ここへ納品`;
+        html += `<div class="card"><div><b>${j.title}</b>　<span class="muted">依頼主：${j.giver}</span><br><span class="muted">${what}　報酬 ${SIM.money(j.reward)}　期限${j.days}日</span></div><button id="ac-${j.id}" data-act="acceptJob" data-id="${j.id}">受ける</button></div>`;
+      }
+    } else if (townTab === 'work') {
+      const s = G.view.settlements.find((x) => x.id === h.id);
+      if (me.busy) {
+        const left = Math.max(0, Math.ceil((me.busy.until - G.view.t) / 60));
+        html += `<div class="card"><div><b>${me.busy.label}</b>の最中です<br><span class="muted">残り約${left}時間</span></div><button id="cw" data-act="cancelWork">取りやめる</button></div>`;
+      } else if (s.type === 'village') {
+        html += `<div class="card"><div><b>薪拾い</b><br><span class="muted">6時間　薪を3〜5束（荷に空きが必要）</span></div><button id="wg" data-act="work" data-kind="gather">始める</button></div>`;
+      } else {
+        html += `<div class="card"><div><b>人足仕事</b><br><span class="muted">8時間　荷運びなどの日雇い仕事で賃金をもらう</span></div><button id="wl" data-act="work" data-kind="labor">始める</button></div>`;
+      }
+      html += '<div class="muted">仕事中は移動できません。</div>';
+    } else {
+      html += `<div class="card"><div>ここの人に話を聞く<br><span class="muted">相場の噂などが聞けます</span></div><button id="tk" data-act="talk">話しかける</button></div>`;
+    }
+    html += `<div class="muted" style="margin-top:8px">名声 ${me.fame}</div>`;
+    if (html !== townHtml) {
+      townHtml = html; $('townBody').innerHTML = html;
+      const t = $('town'), f = currentFocus(t); if (f) setFocus(t, f);
+    }
+  }
+  $('townBody').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const c = { type: b.dataset.act };
+    if (b.dataset.item) c.item = b.dataset.item;
+    if (b.dataset.qty) c.qty = +b.dataset.qty;
+    if (b.dataset.id) c.id = b.dataset.id;
+    if (b.dataset.kind) c.kind = b.dataset.kind;
+    command(c);
+  });
+  document.querySelectorAll('#town [data-tab]').forEach((b) => (b.onclick = () => setTab(b.dataset.tab)));
+  $('townClose').onclick = () => openTown(false);
+  $('townBtn').onclick = () => openTown(true);
+  function cycleTab(d) { const tabs = ['market', 'jobs', 'work', 'talk']; setTab(tabs[(tabs.indexOf(townTab) + d + 4) % 4]); }
 
   // ---------- ゲーム内メニュー ----------
   function toggleMenu(open) { const m = $('gameMenu'); const o = open ?? m.classList.contains('hidden'); m.classList.toggle('hidden', !o); if (o) setFocus(m, currentFocus(m)); }
@@ -216,13 +298,15 @@
     if (activeMenu()) {
       if (dir) { e.preventDefault(); navMenu(dir[0], dir[1]); return; }
       if (k === 'Enter' || k === ' ') { e.preventDefault(); pressMenu(); return; }
-      if (k === 'Escape') { if (G.mode === 'title') $('btnJoinBack').click(); else toggleMenu(false); return; }
+      if (k === 'Escape') { if (G.mode === 'title') $('btnJoinBack').click(); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); return; }
+      if (activeMenu() === $('town') && (k === 'q' || k === 'e')) { cycleTab(k === 'q' ? -1 : 1); return; }
     }
     if (G.mode !== 'host' && G.mode !== 'client') return;
     keys.add(k.toLowerCase());
     if (k === 'Escape') toggleMenu();
     else if (k === 'f' || k === 'F') $('mFollow').click();
     else if (k === 'Tab') { e.preventDefault(); cycleNear(); }
+    else if (k === 'e' || k === 'E') openTown(true);
     else if (k === 'Enter' && G.selected) $('infoGo').click();
     else if (k === '+' || k === '=') R.zoom(1.2); else if (k === '-') R.zoom(1 / 1.2);
     else if (G.mode === 'host' && '1234'.includes(k)) G.speed = [0, 1, 2, 4][+k - 1];
@@ -255,13 +339,14 @@
       if (nx || ny) { if (!navHold || now - lastNav > (navHold === 1 ? 400 : 150)) { navMenu(Math.abs(nx) >= Math.abs(ny) ? Math.sign(nx) : 0, Math.abs(nx) >= Math.abs(ny) ? 0 : Math.sign(ny)); lastNav = now; navHold++; } }
       else navHold = 0;
       if (down(0)) pressMenu();
-      if (down(1)) { if (G.mode === 'title') $('btnJoinBack').click(); else toggleMenu(false); }
+      if (down(1)) { if (G.mode === 'title') $('btnJoinBack').click(); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); }
+      if (activeMenu() === $('town')) { if (down(4)) cycleTab(-1); if (down(5)) cycleTab(1); }
       if (down(9) && G.mode !== 'title') toggleMenu(false);
     } else if (G.mode === 'host' || G.mode === 'client') {
       move = [lx, ly];
       if (rx || ry) { R.cam.follow = false; R.cam.x += rx * dt * 600 / R.cam.scale; R.cam.y += ry * dt * 600 / R.cam.scale; }
       if (btn(4)) R.zoom(1 - dt * 1.5); if (btn(5)) R.zoom(1 + dt * 1.5);
-      if (down(0) && G.selected) $('infoGo').click();
+      if (down(0)) { if (G.selected) $('infoGo').click(); else openTown(true); }
       if (down(1)) { if (G.selected) selectSettlement(null); else command({ type: 'stop' }); }
       if (down(2)) cycleNear();
       if (down(3)) $('mFollow').click();
@@ -277,6 +362,7 @@
     const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
     const padMove = pollPad(dt);
     if ((G.mode === 'host' || G.mode === 'client') && buildView()) {
+      if (G.mode === 'host') { G.priv = SIM.privateState(G.world, G.myPid); SIM.drain(G.myPid).forEach((t) => toast(t, 4000)); }
       // WASD・左スティックで直接移動
       let mx = padMove[0] + (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0);
       let my = padMove[1] + (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0);
@@ -294,7 +380,15 @@
       }
       const md = m && G.disp[m.id];
       if (R.cam.follow && md) { R.cam.x += (md.x - R.cam.x) * k; R.cam.y += (md.y - R.cam.y) * k; }
-      R.draw(ctx, G.view, G.disp, G.myPid, G.selected);
+      const P = G.priv, marks = new Set();
+      if (P) P.me.quests.forEach((q) => marks.add(q.type === 'deliver' ? q.to : q.from));
+      R.draw(ctx, G.view, G.disp, G.myPid, G.selected, marks);
+      $('townBtn').classList.toggle('hidden', !(P && P.here));
+      if (!$('town').classList.contains('hidden')) renderTown();
+      if (P) {
+        $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　荷 ${SIM.cargo(P.me)}/${P.me.cap}　名声 ${P.me.fame}` + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
+          + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品'}・${dayLeft(q.deadline)}）</div>`).join('');
+      }
       // HUD
       $('date').textContent = SIM.formatDate(G.view.t) + (G.speed === 0 ? '（停止中）' : G.speed > 1 ? `（×${G.speed}）` : '');
       if (m) {

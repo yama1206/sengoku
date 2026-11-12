@@ -6,8 +6,8 @@
   SAVE.migrate = function (w) {
     if (!w || typeof w !== 'object' || !w.schema) throw new Error('セーブデータの形式が違います');
     if (w.schema > SGK.SAVE_SCHEMA) throw new Error('新しいバージョンのセーブです。ゲームを更新してください');
-    // 例：if (w.schema === 1) { ...変換... ; w.schema = 2; }
-    return w;
+    // 足りない項目（市場・所持金など）を補う。形式が変わるたびに ensure 側で対応する
+    return SGK.SIM.ensure(w);
   };
 
   SAVE.save = function (w) {

@@ -24,6 +24,7 @@
       conn.on('close', () => { const pid = conns.get(conn); conns.delete(conn); if (pid) h.onLeave(pid); });
     });
     return {
+      each(fn) { for (const [c, pid] of conns) if (c.open) c.send(fn(pid)); },
       broadcast(msg) { for (const c of conns.keys()) if (c.open) c.send(msg); },
       count: () => conns.size,
       pids: () => [...conns.values()],
