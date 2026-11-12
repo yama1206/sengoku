@@ -93,7 +93,14 @@
   }
   SIM.systems = [
     function playerMove(w, dt) {
-      for (const p of Object.values(w.players)) if (moveEntity(p, dt) && p.dest) { p.at = p.dest; p.dest = null; SIM.onPlayerArrive(w, p); }
+      for (const p of Object.values(w.players)) {
+        if (moveEntity(p, dt) && p.dest) { p.at = p.dest; p.dest = null; SIM.onPlayerArrive(w, p); continue; }
+        // 歩いて（WASD・スティック）拠点の上で止まったときも「到着」とみなす
+        if (p.tx == null && !p.at && !p.battle) {
+          const s = w.settlements.find((x) => Math.hypot(x.x - p.x, x.y - p.y) < 0.8);
+          if (s) { p.x = s.x; p.y = s.y; p.at = s.id; SIM.onPlayerArrive(w, p); }
+        }
+      }
     },
     function npcLife(w, dt) {
       for (const n of Object.values(w.npcs)) {

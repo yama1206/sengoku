@@ -523,6 +523,10 @@
         R.drawBattle(ctx, BT, G.disp, G.myPid); renderBattle(BT);
       } else R.draw(ctx, G.view, G.disp, G.myPid, G.selected, marks);
       $('townBtn').classList.toggle('hidden', !(P && P.here) || !!BT);
+      // 拠点に着いたら自動で拠点画面を開く
+      const hereId = P && P.here && !BT ? P.here.id : null;
+      if (hereId && hereId !== G.lastHere && $('char').classList.contains('hidden') && $('gameMenu').classList.contains('hidden')) openTown(true);
+      G.lastHere = hereId;
       if (!$('town').classList.contains('hidden')) renderTown();
       if (!$('char').classList.contains('hidden')) renderChar();
       if (P) {
