@@ -21,7 +21,7 @@
   // ---------- メニュー操作（キー・コントローラー：押した方向へ移動／決定してもカーソル位置は保つ） ----------
   const focusMem = {};
   function activeMenu() {
-    if (G.mode === 'title') return !$('friendPanel').classList.contains('hidden') ? $('friendPanel') : !$('namePanel').classList.contains('hidden') ? $('namePanel') : $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
+    if (G.mode === 'title') return !$('slotPanel').classList.contains('hidden') ? $('slotPanel') : !$('friendPanel').classList.contains('hidden') ? $('friendPanel') : !$('namePanel').classList.contains('hidden') ? $('namePanel') : $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
     if (!$('gameMenu').classList.contains('hidden')) return $('gameMenu');
     if (!$('char').classList.contains('hidden')) return $('char');
     if (!$('town').classList.contains('hidden')) return $('town');
@@ -54,12 +54,53 @@
   document.addEventListener('mouseover', (e) => { const m = activeMenu(); if (m && e.target.tagName === 'BUTTON' && m.contains(e.target)) setFocus(m, e.target); });
 
   // ---------- タイトル ----------
-  $('btnContinue').disabled = !SGK.SAVE.has();
-  $('btnNew').onclick = () => startHost(SIM.createWorld(Math.floor(Math.random() * 2 ** 31)), '新しいワールドを作りました');
-  $('btnContinue').onclick = () => {
-    try { const r = SGK.SAVE.load(); if (!r) return titleMsg('セーブがありません'); startHost(r.world, r.from.endsWith('main') ? '続きから再開しました' : 'セーブが読めなかったので、バックアップから再開しました'); }
-    catch (e) { titleMsg(e.message); }
-  };
+  // ---------- セーブスロット（new：新しく作る／load：続きから／import：ファイルを読み込む） ----------
+  let slotMode = 'load', slotConfirm = null, importWorld = null;
+  const contBtn = () => { $('btnContinue').disabled = !SGK.SAVE.has(); };
+  SGK.SAVE.ready.then(contBtn); contBtn();
+  function renderSlots() {
+    const T = { new: '新しいワールドを作るスロットを選んでください', load: '続きから遊ぶスロットを選んでください', import: '読み込んだセーブを入れるスロットを選んでください' };
+    $('slotTitle').textContent = T[slotMode];
+    $('slotList').innerHTML = SGK.SAVE.slots().map(({ n, meta: m }) => {
+      const desc = m ? `${SIM.formatDate(m.min)}　${(m.names || []).join('・').replace(/[<&]/g, '')}<br><span class="muted">保存 ${new Date(m.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}　ver ${m.ver || '?'}</span>` : '<span class="muted">空き</span>';
+      const cf = slotConfirm === n;
+      let btns = '';
+      if (slotMode === 'load') btns = `<button id="sl-${n}" data-slot="${n}" ${m ? '' : 'disabled'}>続きから</button>` + (m ? `<button id="sd-${n}" data-sdel="${n}">${slotConfirm === -n ? '本当に削除' : '削除'}</button>` : '');
+      else btns = `<button id="sl-${n}" data-slot="${n}">${m ? (cf ? '本当に上書き' : '上書き') : slotMode === 'new' ? 'ここに作る' : 'ここに入れる'}</button>`;
+      return `<div class="card"><div><b>スロット${n}</b>　${desc}</div><div class="row">${btns}</div></div>`;
+    }).join('');
+  }
+  function openSlots(mode) {
+    slotMode = mode; slotConfirm = null; renderSlots();
+    $('slotPanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden');
+    const first = [...$('slotList').querySelectorAll('button:not([disabled])')][0]; setFocus($('slotPanel'), first || $('btnSlotBack'));
+  }
+  $('btnSlotBack').onclick = () => { importWorld = null; titleBack(); };
+  $('slotList').addEventListener('click', async (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    const keep = (id) => { renderSlots(); const nb = $(id); if (nb) setFocus($('slotPanel'), nb); };
+    if (b.dataset.sdel) {
+      const n = +b.dataset.sdel;
+      if (slotConfirm !== -n) { slotConfirm = -n; return keep(b.id); }
+      await SGK.SAVE.remove(n); slotConfirm = null; titleMsg(`スロット${n}を削除しました`); contBtn(); return keep(b.id);
+    }
+    const n = +b.dataset.slot, used = SGK.SAVE.slots()[n - 1].meta;
+    if (slotMode !== 'load' && used && slotConfirm !== n) { slotConfirm = n; return keep(b.id); }
+    if (slotMode === 'load') {
+      try {
+        const r = await SGK.SAVE.load(n); if (!r) return titleMsg('このスロットのセーブが読めませんでした');
+        titleBack(); startHost(r.world, r.from === 'main' ? `スロット${n}の続きから再開しました` : 'セーブが読めなかったので、バックアップから再開しました');
+      } catch (err) { titleMsg(err.message); }
+      return;
+    }
+    if (used) await SGK.SAVE.remove(n);
+    SGK.SAVE.slot = n;
+    const w = slotMode === 'import' ? importWorld : SIM.createWorld(Math.floor(Math.random() * 2 ** 31));
+    importWorld = null; titleBack();
+    startHost(w, slotMode === 'import' ? `セーブファイルをスロット${n}に読み込みました` : `スロット${n}に新しいワールドを作りました`);
+  });
+  $('btnNew').onclick = () => openSlots('new');
+  $('btnContinue').onclick = () => openSlots('load');
   // 年の表示（和暦／西暦／両方）を切り替える。押すたびに次の形式へ（カーソルはその場に残る）
   const YEAR_FMTS = [['era', '和暦'], ['ad', '西暦'], ['both', '和暦＋西暦']];
   SIM.yearFmt = YEAR_FMTS.some(([k]) => k === localStorage.getItem('sgk_yearfmt')) ? localStorage.getItem('sgk_yearfmt') : 'era';
@@ -72,7 +113,7 @@
   $('btnYear').onclick = cycleYear;
   $('mYear').onclick = cycleYear;
   $('btnImport').onclick = () => $('fileInput').click();
-  $('fileInput').onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) SGK.SAVE.importFile(f).then((w) => startHost(w, 'セーブファイルから再開しました')).catch((err) => titleMsg(err.message)); };
+  $('fileInput').onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) SGK.SAVE.importFile(f).then((w) => { importWorld = w; openSlots('import'); }).catch((err) => titleMsg(err.message)); };
   $('btnJoin').onclick = () => { $('joinPanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); $('codeInput').focus(); };
   // 部屋コードの文字ボタン（コントローラーでも入力できる）
   const CL = SGK.NET.CODE_LEN;
@@ -83,7 +124,7 @@
     ci.value = b.dataset.ck === 'del' ? ci.value.slice(0, -1) : (ci.value + b.dataset.ck).slice(0, CL);
     if (ci.value.length === CL && b.dataset.ck !== 'del') setFocus($('joinPanel'), $('btnJoinGo'));
   });
-  function titleBack() { if (probe) { probe.close(); probe = null; } $('friendPanel').classList.add('hidden'); $('joinPanel').classList.add('hidden'); $('namePanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); setFocus($('titleMenu'), currentFocus($('titleMenu'))); }
+  function titleBack() { if (probe) { probe.close(); probe = null; } $('slotPanel').classList.add('hidden'); $('friendPanel').classList.add('hidden'); $('joinPanel').classList.add('hidden'); $('namePanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); setFocus($('titleMenu'), currentFocus($('titleMenu'))); }
   $('btnJoinBack').onclick = titleBack;
   // ---------- フレンド ----------
   let probe = null; const fstat = {};
@@ -204,7 +245,7 @@
     if (G.net) G.net.close();
     Object.assign(G, { mode: 'title', world: null, net: null, dyn: null, view: null, centered: false, roomCode: null });
     $('gameMenu').classList.add('hidden'); $('info').classList.add('hidden'); $('town').classList.add('hidden'); $('battle').classList.add('hidden'); $('char').classList.add('hidden'); G.priv = null;
-    $('btnContinue').disabled = !SGK.SAVE.has();
+    contBtn();
     show('title');
   }
   // タブを閉じるときもセーブ
@@ -628,7 +669,7 @@
   document.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b || (b.dataset.vol && b.dataset.vol !== 'bgm')) return; SGK.AUDIO.sfx(b.dataset.act === 'buy' || b.dataset.act === 'sell' ? 'coin' : 'click'); }, true);
   $('menuBtn').onclick = () => toggleMenu(true);
   $('mClose').onclick = () => toggleMenu(false);
-  $('mSave').onclick = () => { toast(SGK.SAVE.save(G.world) ? 'セーブしました' : 'セーブに失敗しました'); };
+  $('mSave').onclick = () => { SGK.SAVE.save(G.world).then((ok) => toast(ok ? `スロット${SGK.SAVE.slot}にセーブしました` : 'セーブに失敗しました')); };
   $('mExport').onclick = () => { SGK.SAVE.save(G.world); SGK.SAVE.exportFile(G.world); };
   $('mFollow').onclick = () => { R.cam.follow = !R.cam.follow; toast(R.cam.follow ? '自分を追いかけます' : '追いかけを止めました', 1200); };
   $('mTitle').onclick = () => backToTitle();
