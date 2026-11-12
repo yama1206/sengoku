@@ -170,7 +170,7 @@
     yumi: 'bow', teppo: 'bow', teppogashira: 'bow', banditBow: 'bow', kiba: 'cav', horo: 'cav' };
   for (const k in CLS) TR[k].cls = CLS[k];
   SIM.CLS_NAME = { spear: '槍', cav: '騎馬', bow: '弓' };
-  const VIS = { base: 50, cav: 65, hero: 60, hill: 30, forestHide: 22, reveal: 2 }; // 視界（m）。林の中の敵は22mまで近づかないと見えない。撃つと2秒見える
+  const VIS = { base: 50, cav: 65, hero: 60, hill: 30, forestHide: 22, reveal: 2, half: Math.PI / 3, near: 12, ambush: 1.35 }; // 0.33.0 視界は前方120°の扇形（12m以内は気配で分かる）。見えていない相手からの攻撃は1.35倍 // 視界（m）。林の中の敵は22mまで近づかないと見えない。撃つと2秒見える
   const ROUT = 15; // 士気がこれ以下で潰走
   SIM.moraleBase = SIM.moraleBase || (() => 65);
 
@@ -193,13 +193,19 @@
     if (t.h) r += VIS.hill; if (t.f) r *= 0.7;
     return r;
   }
+  function sees(b, o, e, hide) { // o から e が見えるか（扇形の視界）
+    const d = dist(o, e), vr = visRange(b, o);
+    if (d >= (hide ? Math.min(VIS.forestHide, vr) : vr) + rad(e)) return false;
+    if (d < VIS.near + rad(o) + rad(e)) return true;
+    return angDiff(o.f, Math.atan2(e.y - o.y, e.x - o.x)) < VIS.half + Math.atan2(rad(e), d);
+  }
   function visibleTo(b, side, us) {
     const own = us.filter((u) => u.side === side), set = new Set();
     for (const e of us) {
       if (e.side === side) continue;
       if (b.t - (e.shot || -99) < VIS.reveal) { set.add(e); continue; }
       const hide = terAt(b, e).f;
-      for (const o of own) { const vr = visRange(b, o); if (dist(o, e) < (hide ? Math.min(VIS.forestHide, vr) : vr) + rad(e)) { set.add(e); break; } }
+      for (const o of own) if (sees(b, o, e, hide)) { set.add(e); break; }
     }
     return set;
   }
@@ -292,10 +298,12 @@
       if (t.ranged && te.f) mul *= 0.6; // 林の中の敵は射ちにくい
       if (t.cav && tu.f) mul *= 0.7;
       if (tu.h && !te.h) mul *= 1.15; // 高所から
+      const unseen = !sees(b, e, u, terAt(b, u).f) && b.t - (u.shot || -99) >= VIS.reveal; // 狙われた側から見えていない
+      if (unseen) mul *= VIS.ambush;
       mul *= 0.55 + (0.45 * u.mor) / 100; // 士気
       const d = (t.ranged && !melee ? u.n * per * dt * 0.35 * (1 - ed / (reach * 1.6)) : Math.min(u.n, e.type === 'hero' ? 8 : e.n * 2 + 3) * per * dt * 0.5) * mul;
       dmg.set(e, (dmg.get(e) || 0) + d);
-      if (dir !== 'front') hit.set(e, Math.max(hit.get(e) || 0, dir === 'rear' ? 2 : 1));
+      if (dir !== 'front' || unseen) hit.set(e, Math.max(hit.get(e) || 0, dir === 'rear' || unseen ? 2 : 1));
       if (t.ranged) u.shot = b.t;
       if (u.owner) { const key = u.type === 'hero' ? 'hd' : t.ranged ? 'rd' : null; if (key) { b[key] = b[key] || {}; b[key][u.owner] = (b[key][u.owner] || 0) + d; } }
       if (u.order === 'move' && goTo(u, u.mx, u.my, spd * 0.7)) u.order = 'hold'; // 移動中も届く敵には自動で攻撃する
@@ -502,7 +510,7 @@
     r.battle = b ? { id: b.id, foe: b.foe, t: Math.floor(b.t), routed: b.routed,
       names: Object.fromEntries(b.pids.map((x) => [x, (w.players[x] || {}).name])),
       ter: b.ter || [], units: b.units.filter((u) => alive(u) && (u.side === 'A' || (b.visA || []).includes(u.id)))
-        .map((u) => [u.id, u.side, u.owner, u.type, u.n, r1(u.x), r1(u.y), u.order, Math.round(visRange(b, u)), Math.round(u.mor), r1(u.f), u.type === 'hero' ? Math.ceil(u.hp) : undefined]) } : null;
+        .map((u) => [u.id, u.side, u.owner, u.type, u.n, r1(u.x), r1(u.y), u.order, Math.round(visRange(b, u)), Math.round(u.mor), Math.round(u.f * 100) / 100, u.type === 'hero' ? Math.ceil(u.hp) : undefined]) } : null;
     return r;
   };
   SIM.FIELD = FIELD;

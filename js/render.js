@@ -193,7 +193,9 @@
       const d = disp['u' + bt.id + '_' + u[0]] || { x: u[5], y: u[6] };
       const g = fc.createRadialGradient(sx(d.x), sy(d.y), 0, sx(d.x), sy(d.y), u[8] * L.sc);
       g.addColorStop(0.8, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-      fc.fillStyle = g; fc.beginPath(); fc.arc(sx(d.x), sy(d.y), u[8] * L.sc, 0, 7); fc.fill();
+      const fa = u[10] || 0, HALF = Math.PI / 3; // 0.33.0 扇形の視界＋まわり12mの気配
+      fc.fillStyle = g; fc.beginPath(); fc.moveTo(sx(d.x), sy(d.y)); fc.arc(sx(d.x), sy(d.y), u[8] * L.sc, fa - HALF, fa + HALF); fc.closePath(); fc.fill();
+      fc.fillStyle = 'rgba(0,0,0,.7)'; fc.beginPath(); fc.arc(sx(d.x), sy(d.y), 14 * L.sc, 0, 7); fc.fill();
     }
     ctx.drawImage(fogCv, 0, 0);
     ctx.strokeStyle = '#4b5530'; ctx.lineWidth = 2; ctx.strokeRect(sx(0), sy(0), F.w * L.sc, F.h * L.sc);
