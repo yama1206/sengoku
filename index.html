@@ -84,6 +84,7 @@
   </div>
   <div class="menu hidden" id="joinPanel">
     <input id="codeInput" maxlength="5" placeholder="部屋コード（5文字）" style="text-transform:uppercase;letter-spacing:.3em;text-align:center">
+    <div id="codeKeys" style="display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin:6px 0"></div>
     <div class="row"><button id="btnJoinBack">戻る</button><button id="btnJoinGo">参加</button></div>
   </div>
   <div id="titleMsg"></div>
@@ -117,7 +118,7 @@
     <div id="charBody"></div>
   </div>
   <div class="hud hidden" id="battle"><div class="bh"><b id="battleTitle"></b><span id="battleInfo"></span></div><div id="battleBody"></div></div>
-  <div class="hud" id="help">左クリック：移動／拠点の情報　右クリック：拠点へ移動　WASD：歩く　ドラッグ：地図を動かす　ホイール：拡大　Tab：近くの拠点　E：拠点に入る　F：追従　Esc：メニュー　P：人物　｜　🎮 左スティック：歩く　右：視点　X：近くの拠点　A：向かう／拠点に入る　B：取消　LB/RB：拡大　START：メニュー（人物・部隊もここ）　拠点内LB/RB：タブ切替　｜　戦闘中 Z：全軍突撃　V：全軍回り込み　X：全軍待機　C：全軍後退　部隊をクリック→地面をクリックで移動</div>
+  <div class="hud" id="help">左クリック：移動／拠点の情報　右クリック：拠点へ移動　WASD：歩く　ドラッグ：地図を動かす　ホイール：拡大　Tab：近くの拠点　E：拠点に入る　F：追従　Esc：メニュー　P：人物　｜　🎮 左スティック：歩く　右：視点　X：近くの拠点　右スティックで動かすと照準→A：そこへ移動／拠点を選ぶ　A：向かう／拠点に入る　B：取消　LB/RB：拡大　十字←→：時間の速さ　BACK：人物　START：メニュー　拠点内LB/RB：タブ切替　｜　戦闘中 Z：全軍突撃　V：全軍回り込み　X：全軍待機　C：全軍後退　部隊をクリック→地面をクリックで移動　🎮 LB/RB：部隊を選ぶ　右スティック：移動先　X：そこへ移動</div>
   <div id="gameMenu" class="hidden">
     <div class="menu">
       <button id="mClose">ゲームに戻る</button>

@@ -2,6 +2,7 @@
 (function () {
   const NET = SGK.NET = {};
   const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  NET.CODE_CHARS = CODE_CHARS;
   NET.makeCode = () => Array.from({ length: 5 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
 
   // ホスト：h = { onHello(conn, msg) -> pid|null, onCmd(pid, cmd), onLeave(pid), onReady(code), onError(text) }

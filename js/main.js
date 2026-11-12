@@ -63,6 +63,13 @@
   $('btnImport').onclick = () => $('fileInput').click();
   $('fileInput').onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) SGK.SAVE.importFile(f).then((w) => startHost(w, 'セーブファイルから再開しました')).catch((err) => titleMsg(err.message)); };
   $('btnJoin').onclick = () => { $('joinPanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); $('codeInput').focus(); };
+  // 部屋コードの文字ボタン（コントローラーでも入力できる）
+  $('codeKeys').innerHTML = [...SGK.NET.CODE_CHARS].map((c) => `<button id="ck-${c}" data-ck="${c}">${c}</button>`).join('') + '<button id="ck-del" data-ck="del" style="grid-column:span 2">消す</button>';
+  $('codeKeys').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return; const ci = $('codeInput');
+    ci.value = b.dataset.ck === 'del' ? ci.value.slice(0, -1) : (ci.value + b.dataset.ck).slice(0, 5).toUpperCase();
+    if (ci.value.length === 5 && b.dataset.ck !== 'del') setFocus($('joinPanel'), $('btnJoinGo'));
+  });
   $('btnJoinBack').onclick = () => { $('joinPanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); };
   $('btnJoinGo').onclick = () => { const c = $('codeInput').value.trim(); if (c.length < 5) return titleMsg('部屋コード（5文字）を入れてください'); startClient(c); };
 
@@ -464,6 +471,33 @@
 
   // ---------- コントローラー（Xbox配置：A決定 B戻る X近くの拠点 Y追従 LB/RB拡大縮小 START メニュー／左スティック移動 右スティック視点） ----------
   const padPrev = {}; let navHold = 0, lastNav = 0;
+  // 戦闘中のコントローラー：LB/RB で自分の部隊を選ぶ、右スティックで移動先、X でそこへ移動
+  function padBattle(down, rx, ry, dt) {
+    const BT = G.priv && G.priv.battle; if (!BT) return;
+    const mine = BT.units.filter((u) => u[2] === G.myPid && u[7] !== 'rout');
+    if (!mine.length) return;
+    if (down(4) || down(5) || G.selUnit == null || !mine.some((u) => u[0] === G.selUnit)) {
+      const i = mine.findIndex((u) => u[0] === G.selUnit), d = down(4) ? -1 : down(5) ? 1 : 0;
+      const u = mine[(Math.max(0, i) + d + mine.length) % mine.length];
+      if (u[0] !== G.selUnit || d) { G.selUnit = u[0]; battleHtml = ''; if (G.bcur) G.bcur = [u[5], u[6]]; }
+    }
+    const F = SIM.FIELD;
+    if (rx || ry) {
+      if (!G.bcur) { const u = mine.find((x) => x[0] === G.selUnit); G.bcur = [u[5], u[6]]; }
+      G.bcur[0] = Math.max(0, Math.min(F.w, G.bcur[0] + rx * dt * F.w * 0.5));
+      G.bcur[1] = Math.max(0, Math.min(F.h, G.bcur[1] + ry * dt * F.w * 0.5));
+    }
+    if (down(2) && G.bcur && G.selUnit != null) { command({ type: 'order', unit: G.selUnit, order: 'move', x: G.bcur[0], y: G.bcur[1] }); toast('そこへ移動します', 800); }
+  }
+  // 照準の十字
+  function drawCross(x, y, col) {
+    ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = 4;
+    for (let k = 0; k < 2; k++) {
+      ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.moveTo(x - 16, y); ctx.lineTo(x - 5, y); ctx.moveTo(x + 5, y); ctx.lineTo(x + 16, y);
+      ctx.moveTo(x, y - 16); ctx.lineTo(x, y - 5); ctx.moveTo(x, y + 5); ctx.lineTo(x, y + 16); ctx.stroke();
+      ctx.strokeStyle = col; ctx.lineWidth = 2;
+    }
+  }
   function pollPad(dt) {
     const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
     const gp = pads[0]; if (!gp) return [0, 0];
@@ -482,14 +516,24 @@
       const inBattle = activeMenu() === $('battle');
       if (down(1) && !inBattle) { if (G.mode === 'title') $('btnJoinBack').click(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); }
       if (activeMenu() === $('town')) { if (down(4)) cycleTab(-1); if (down(5)) cycleTab(1); }
-      else if (activeMenu() === $('char')) { if (down(4)) cycleCTab(-1); if (down(5)) cycleCTab(1); }
+      else if (activeMenu() === $('char')) { if (down(4)) cycleCTab(-1); if (down(5)) cycleCTab(1); if (down(8)) openChar(false); }
+      else if (inBattle) padBattle(down, rx, ry, dt);
       if (down(9) && G.mode !== 'title') toggleMenu(inBattle);
     } else if (G.mode === 'host' || G.mode === 'client') {
       move = [lx, ly];
-      if (rx || ry) { R.cam.follow = false; R.cam.x += rx * dt * 600 / R.cam.scale; R.cam.y += ry * dt * 600 / R.cam.scale; }
+      if (rx || ry) { R.cam.follow = false; G.mapCur = true; R.cam.x += rx * dt * 600 / R.cam.scale; R.cam.y += ry * dt * 600 / R.cam.scale; }
+      if (R.cam.follow) G.mapCur = false;
       if (btn(4)) R.zoom(1 - dt * 1.5); if (btn(5)) R.zoom(1 + dt * 1.5);
-      if (down(0)) { if (G.selected) $('infoGo').click(); else openTown(true); }
-      if (down(1)) { if (G.selected) selectSettlement(null); else command({ type: 'stop' }); }
+      if (down(0)) {
+        if (G.selected) $('infoGo').click();
+        else if (G.mapCur) { // 照準の位置：拠点なら選ぶ、地面ならそこへ移動
+          const [sx, sy] = R.toScreen(R.cam.x, R.cam.y), hit = R.hitSettlement(G.view, sx, sy);
+          if (hit) selectSettlement(hit); else moveTo(R.cam.x, R.cam.y);
+        } else openTown(true);
+      }
+      if (down(1)) { if (G.selected) selectSettlement(null); else if (G.mapCur) { R.cam.follow = true; G.mapCur = false; } else command({ type: 'stop' }); }
+      if (down(8)) openChar(true);
+      if (G.mode === 'host' && (down(14) || down(15))) { const S = [0, 1, 2, 4], i = S.indexOf(G.speed); G.speed = S[Math.max(0, Math.min(3, i + (down(15) ? 1 : -1)))]; toast(G.speed ? `時間の速さ ×${G.speed}` : '時間を止めました', 900); }
       if (down(2)) cycleNear();
       if (down(3)) $('mFollow').click();
       if (down(9)) toggleMenu(true);
@@ -534,7 +578,12 @@
           if (!d) G.disp[key] = { x: u[5], y: u[6] }; else { d.x += (u[5] - d.x) * k; d.y += (u[6] - d.y) * k; }
         }
         R.drawBattle(ctx, BT, G.disp, G.myPid, G.selUnit); renderBattle(BT);
-      } else R.draw(ctx, G.view, G.disp, G.myPid, G.selected, marks);
+        if (G.bcur) { const L = R.battleLayout(SIM.FIELD); drawCross(L.ox + G.bcur[0] * L.sc, L.oy + G.bcur[1] * L.sc, '#f2c14e'); }
+      } else {
+        G.bcur = null;
+        R.draw(ctx, G.view, G.disp, G.myPid, G.selected, marks);
+        if (G.mapCur && !R.cam.follow) { const [sx, sy] = R.toScreen(R.cam.x, R.cam.y); drawCross(sx, sy, '#fff'); }
+      }
       $('townBtn').classList.toggle('hidden', !(P && P.here) || !!BT);
       // 拠点に着いたら自動で拠点画面を開く
       const hereId = P && P.here && !BT ? P.here.id : null;
