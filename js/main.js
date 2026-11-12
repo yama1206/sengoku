@@ -793,7 +793,7 @@
       if (!$('town').classList.contains('hidden')) renderTown();
       if (!$('char').classList.contains('hidden')) renderChar();
       if (P) {
-        $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　荷 ${SIM.cargo(P.me)}/${P.me.cap}　名声 ${P.me.fame}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}` + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
+        $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　荷 ${SIM.cargo(P.me)}/${P.me.cap}　名声 ${P.me.fame}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
           + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品'}・${dayLeft(q.deadline)}）</div>`).join('');
       }
       // HUD

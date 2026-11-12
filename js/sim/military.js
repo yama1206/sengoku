@@ -336,9 +336,16 @@
     if (Object.values(w.npcs).filter((n) => n.kind === 'bandit').length < MAX_BANDITS && rnd(w) < 0.6) spawnBandit(w);
   }
 
+  // 兵種の割合で行軍の速さが少し変わる：騎馬が多いほど速く（最大+10%）、鉄砲が多いほど遅く（最大-10%）
+  SIM.mixSpeed = (tr) => {
+    const n = SIM.troopCount(tr || {}); if (!n) return 1;
+    let cav = 0, gun = 0;
+    for (const k in tr) { const t = TR[k]; if (!t) continue; if (t.cav) cav += tr[k]; else if (/^teppo/.test(k)) gun += tr[k]; }
+    return 1 + 0.1 * (cav - gun) / n;
+  };
   SIM.systems.push(
     function militaryDay(w) { const d = Math.floor(w.time.min / 1440); while (w.mday < d) { w.mday++; daily(w); } },
-    function partySpeed(w) { for (const p of Object.values(w.players)) p.speed = CFG.WALK_KM_PER_DAY - (SIM.troopCount(p.troops) ? 4 : 0) + SIM.speedBonus(p); },
+    function partySpeed(w) { for (const p of Object.values(w.players)) p.speed = (CFG.WALK_KM_PER_DAY - (SIM.troopCount(p.troops) ? 4 : 0) + SIM.speedBonus(p)) * SIM.mixSpeed(p.troops); },
     banditTick,
     function battles(w, dtMin) { const sec = dtMin / CFG.MIN_PER_SEC; for (const b of Object.values(w.battles)) stepBattle(w, b, sec); },
   );
@@ -394,7 +401,7 @@
   SIM.privateState = function (w, pid) {
     const r = basePriv(w, pid); if (!r) return r;
     const p = w.players[pid];
-    Object.assign(r.me, { troops: p.troops, troopCap: SIM.troopCap(p), wage: SIM.wage(p.troops, p), costMod: SIM.costMod(p) });
+    Object.assign(r.me, { speed: Math.round(p.speed || 0), troops: p.troops, troopCap: SIM.troopCap(p), wage: SIM.wage(p.troops, p), costMod: SIM.costMod(p) });
     if (r.here) { const s = SIM.settlement(w, r.here.id); r.here.recruit = Object.keys(POOL[s.type]).map((k) => [k, Math.floor(s.pool[k] || 0)]); }
     const b = p.battle && w.battles[p.battle];
     r.battle = b ? { id: b.id, foe: b.foe, t: Math.floor(b.t), routed: b.routed,
