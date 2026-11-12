@@ -188,7 +188,7 @@
         p.tx != null && p.path ? p.path.map(([x, y]) => [r(x), r(y)]) : null]),
       n: Object.values(w.npcs).filter(vis).map((n) => [n.id, n.kind, n.faction, r(n.x), r(n.y), n.size || 0, n.battle ? 1 : n.fight ? 2 : 0,
         n.dest || null, n.cargo ? [n.cargo.item, n.cargo.qty] : null, n.kind === 'bandit' || n.kind === 'patrol' || n.kind === 'army' || n.kind === 'bushou' || n.kind === 'ronin' ? n.army || null : null, n.home || null, n.tx == null ? n.at || null : null,
-        SIM.npcName ? SIM.npcName(w, n) : null, n.kind === 'bushou' ? n.purpose : n.kind === 'ronin' ? [n.need, n.fee] : null]),
+        SIM.npcName ? SIM.npcName(w, n) : null, n.kind === 'bushou' ? n.purpose : n.kind === 'ronin' ? [n.need, n.fee] : null, SIM.npcLead ? SIM.npcLead(w, n) : null]),
     };
   };
   SIM.staticState = (w) => ({ settlements: w.settlements, factions: w.factions, people: w.people, scenario: w.scenario });

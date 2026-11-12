@@ -251,6 +251,7 @@
       const t = scale(x.gar || {}, AR.musterRate); if (SIM.troopCount(t) < 4) continue;
       for (const k in t) { x.gar[k] -= t[k]; if (x.gar[k] <= 0) delete x.gar[k]; }
       troops = addTr(troops, t); gens.push(w.people[x.lord].name); from.push(x.id);
+      const v = (x.vass || []).map((id) => w.people[id]).find((q) => q && !q.dead); if (v) gens.push(v.name); // 0.34.0 家臣も加わる
     }
     if (!gens.length) return SIM.say(p.id, `近く（${AR.musterKm}km以内）に兵を出せる武将の城がありません`);
     p.allies = { troops, gens, from, until: w.time.min + AR.musterDays * 1440 };

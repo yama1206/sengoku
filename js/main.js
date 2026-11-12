@@ -266,7 +266,7 @@
         t: d.t, sr: d.sr, settlements: withOwners(d.ns && d.ns.length ? s.settlements.filter((x) => !d.ns.some((n) => n.id === x.id)).concat(d.ns) : s.settlements, d.ow),
         factions: d.pf && Object.keys(d.pf).length ? Object.assign({}, s.factions, d.pf) : s.factions, people: s.people, wars: d.wars || [],
         players: d.p.map(([id, name, x, y, at, tx, ty, status, path]) => ({ id, name, x, y, at, tx, ty, status, path })),
-        npcs: d.n.map(([id, kind, faction, x, y, size, battle, dest, cargo, army, home, at, pname, extra]) => ({ id, kind, faction, x, y, size, battle, dest, at, cargo: cargo && { item: cargo[0], qty: cargo[1] }, army, home, pname, extra })),
+        npcs: d.n.map(([id, kind, faction, x, y, size, battle, dest, cargo, army, home, at, pname, extra, lead]) => ({ id, kind, faction, x, y, size, battle, dest, at, cargo: cargo && { item: cargo[0], qty: cargo[1] }, army, home, pname, lead, extra })),
       };
     }
     return G.view;
@@ -294,6 +294,9 @@
       const cs = castleStat(s), m = G.priv && G.priv.me, W = m && m.war, R = m && m.rank, at = G.view.wars || [];
       const lordN = cs.lordName;
       $('infoBody').innerHTML += `<br>守備兵 約${cs.gar}人${lordN && cs.loyal != null ? `　${lordN}の忠誠 ${cs.loyal}` : ''}`;
+      { const V = m && m.vass && m.vass[s.id], fmt = ([nm, t, b]) => `${nm}<span class="muted">（統${t}・武${b}）</span>`; // 0.34.0 城の武将
+        if (V) $('infoBody').innerHTML += `${V.lord ? `<br>城主：${fmt(V.lord)}` : ''}<br>家臣：${V.vass.length ? V.vass.map(fmt).join('・') : 'なし'}`;
+        else $('infoBody').innerHTML += '<br><span class="muted">（40km以内に近づくと家臣の武将が分かります）</span>'; }
       if (cs.bs) $('infoBody').innerHTML += `<br><b style="color:#e06050">${cs.bs.by}に包囲されている（総攻めまであと${cs.bs.days}日）</b>`;
       const mine = R && R.clan, war = mine && s.owner !== mine && at.includes(mine < s.owner ? `${mine}|${s.owner}` : `${s.owner}|${mine}`);
       if (war) $('infoBody').innerHTML += '　<b style="color:#e06050">交戦中</b>';
@@ -354,10 +357,11 @@
     const R0 = G.priv && G.priv.me && G.priv.me.rank, myC = R0 && R0.clan, wars0 = G.view.wars || [];
     const atWar = myC && u.faction && wars0.includes(myC < u.faction ? `${myC}|${u.faction}` : `${u.faction}|${myC}`);
     const atk = atWar && !u.battle && Number(km) <= 2 ? { label: '攻めかかる', cmd: { type: 'attackArmy', id: u.id } } : null;
+    const leadTxt = u.lead && u.lead.length ? '<br>' + (u.kind === 'army' ? '武将' : '大将') + '：' + u.lead.map(([nm, t, b]) => `${nm}<span class="muted">（統率${t}・武勇${b}）</span>`).join('・') : '';
     const warNote = atWar ? '<br><b style="color:#ff6a4a">戦をしている家の武将です</b>（こちらと互角以上なら攻めかかってきます）' : '';
-    if (u.kind === 'bushou') return { name: `${u.pname || '武将'}（${f ? f.name : ''}）`, body: `勢力：${fn}<br>${u.extra || ''}　${where}<br>供回り：${ar}${warNote}<br><span class="muted">${talk ? '話しかけると顔をつなげる（その家に名声2で仕官できる）。うわさも聞ける' : '1.5km以内まで近づくと話しかけられる'}</span>`, go: '追いかける', act: atk || (atWar ? null : talk) };
+    if (u.kind === 'bushou') return { name: `${u.pname || '武将'}（${f ? f.name : ''}）`, body: `勢力：${fn}<br>${u.extra || ''}　${where}<br>供回り：${ar}${leadTxt}${warNote}<br><span class="muted">${talk ? '話しかけると顔をつなげる（その家に名声2で仕官できる）。うわさも聞ける' : '1.5km以内まで近づくと話しかけられる'}</span>`, go: '追いかける', act: atk || (atWar ? null : talk) };
     if (u.kind === 'ronin') { const [need, fee] = u.extra || [0, 0]; return { name: `浪人 ${u.pname || ''}`, body: `${where}<br>手勢：${ar}<br>家臣になる条件：名声${need}・支度金${SIM.money(fee)}<br><span class="muted">主を持たない武将。家臣にすると手勢が加わり、率いる人数が増える（家臣は3人まで）${talk ? '' : '。1.5km以内まで近づくと話しかけられる'}</span>`, go: '追いかける', act: talk ? { label: '家臣に誘う', cmd: talk.cmd } : null }; }
-    if (u.kind === 'patrol') return { name: `${f ? f.name : ''} 武将 ${u.pname || ''}の隊 ${u.size || ''}人`, act: u.battle ? null : atk || (atWar ? null : talk), body: `${u.battle === 2 ? '<b style="color:#ff6a4a">野盗と交戦中</b>（野盗に近づくと加勢できる）<br>' : u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}<br>${where}${u.home ? `<br>本拠：${sName(u.home)}` : ''}<br>兵：${ar}${warNote}<br><span class="muted">武将が兵を率いて自勢力の拠点のあいだを回り、近くの野盗を退治する。話しかけると顔をつなげる。</span>`, go: '追いかける' };
+    if (u.kind === 'patrol') return { name: `${u.pname ? u.pname + '隊' : '武将の隊'} ${u.size || ''}人`, act: u.battle ? null : atk || (atWar ? null : talk), body: `${u.battle === 2 ? '<b style="color:#ff6a4a">野盗と交戦中</b>（野盗に近づくと加勢できる）<br>' : u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}<br>${where}${u.home ? `<br>本拠：${sName(u.home)}` : ''}<br>兵：${ar}${leadTxt}${warNote}<br><span class="muted">城の家臣の武将が交代で兵を率いて、自勢力の拠点のあいだを回り、近くの野盗を退治する。武勇が高いと兵の攻撃が、統率が高いと士気が上がる。話しかけると顔をつなげる。</span>`, go: '追いかける' };
     if (u.kind === 'army') {
       const t = G.mode === 'host' ? SIM.armyText(G.world, G.world.npcs[u.id]) : ((G.dyn && G.dyn.ar) || {})[u.id];
       const R = G.priv && G.priv.me && G.priv.me.rank, mine = R && R.clan, wars = G.view.wars || [];
