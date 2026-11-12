@@ -460,8 +460,13 @@
       for (const k in tr) { tr[k] = Math.floor(tr[k] * 0.7); if (!tr[k]) delete tr[k]; }
       p.troops = tr; p.battle = null;
       b.units = b.units.filter((u) => u.owner !== p.id); b.pids = b.pids.filter((x) => x !== p.id);
-      SIM.say(p.id, `退却しました。${lossText(before, tr)}`);
-      const n = w.npcs[b.npc]; if (n) n.calm = w.time.min + 6 * 60;
+      const n = w.npcs[b.npc];
+      let lostTxt = '';
+      if (n && n.kind === 'bandit') { // 野盗から逃げるときは荷を捨てて逃げる：所持金の15%を奪われる
+        const lost = Math.floor(p.money * 0.15); if (lost > 0) { p.money -= lost; n.loot += lost; lostTxt = `、${SIM.money(lost)}を奪われました`; }
+      }
+      SIM.say(p.id, `退却しました。${lossText(before, tr)}${lostTxt}`);
+      if (n) n.calm = w.time.min + 6 * 60;
       if (!b.pids.length) finish(w, b, 'escape');
     },
   });
