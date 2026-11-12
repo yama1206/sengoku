@@ -561,7 +561,36 @@
   });
 
   // ---------- ゲーム内メニュー ----------
-  function toggleMenu(open) { const m = $('gameMenu'); const o = open ?? m.classList.contains('hidden'); m.classList.toggle('hidden', !o); if (o) setFocus(m, currentFocus(m)); }
+  function toggleMenu(open) {
+    const m = $('gameMenu'); const o = open ?? m.classList.contains('hidden');
+    if (o !== !m.classList.contains('hidden')) SGK.AUDIO.sfx(o ? 'open' : 'close');
+    m.classList.toggle('hidden', !o); $('mMain').classList.remove('hidden'); $('mSet').classList.add('hidden');
+    if (o) setFocus(m, currentFocus(m));
+  }
+  // B・Esc：設定を開いていればメニューへ戻る、そうでなければ閉じる
+  function menuBack() { if (!$('mSet').classList.contains('hidden')) { $('mSet').classList.add('hidden'); $('mMain').classList.remove('hidden'); setFocus($('gameMenu'), $('mSettings')); } else toggleMenu(false); }
+  // ---------- 設定（音・表示／操作説明：地図／操作説明：戦闘） ----------
+  const PADS = {
+    xbox: { name: 'Xbox系', k: { A: 'A', B: 'B', X: 'X', Y: 'Y', LB: 'LB', RB: 'RB', L3: 'L3（左スティック押し込み）', BACK: 'BACK', START: 'START' } },
+    ps: { name: 'PS系', k: { A: '×', B: '○', X: '□', Y: '△', LB: 'L1', RB: 'R1', L3: 'L3（左スティック押し込み）', BACK: 'SHARE/Create', START: 'OPTIONS' } },
+    switch: { name: 'Switch', k: { A: 'B', B: 'A', X: 'Y', Y: 'X', LB: 'L', RB: 'R', L3: '左スティック押し込み', BACK: '－', START: '＋' } },
+  };
+  let padStyle = 'xbox'; try { padStyle = localStorage.getItem('sgk-pad') || 'xbox'; } catch (e) {}
+  if (!PADS[padStyle]) padStyle = 'xbox';
+  function applyPad() { const P = PADS[padStyle]; $('mPad').textContent = `コントローラー表示：${P.name}`; document.querySelectorAll('.pk').forEach((e) => (e.textContent = P.k[e.dataset.k] || e.dataset.k)); }
+  $('mPad').onclick = () => { const ks = Object.keys(PADS); padStyle = ks[(ks.indexOf(padStyle) + 1) % ks.length]; try { localStorage.setItem('sgk-pad', padStyle); } catch (e) {} applyPad(); };
+  function setTab(id) {
+    [['stSound', 'spSound'], ['stMap', 'spMap'], ['stBattle', 'spBattle']].forEach(([b, p]) => { $(b).classList.toggle('on', b === id); $(p).classList.toggle('hidden', b !== id); });
+  }
+  ['stSound', 'stMap', 'stBattle'].forEach((id) => ($(id).onclick = () => setTab(id)));
+  $('mSettings').onclick = () => { $('mMain').classList.add('hidden'); $('mSet').classList.remove('hidden'); setTab(G.priv && G.priv.battle ? 'stBattle' : 'stMap'); setFocus($('gameMenu'), $(G.priv && G.priv.battle ? 'stBattle' : 'stMap')); };
+  $('stBack').onclick = menuBack;
+  $('mBgm').textContent = SGK.AUDIO.label('bgm'); $('mSfx').textContent = SGK.AUDIO.label('sfx');
+  $('mBgm').onclick = () => { $('mBgm').textContent = SGK.AUDIO.cycle('bgm'); };
+  $('mSfx').onclick = () => { $('mSfx').textContent = SGK.AUDIO.cycle('sfx'); SGK.AUDIO.sfx('coin'); };
+  applyPad();
+  // ボタンを押したときの音（売り買いは小銭の音）
+  document.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b || b.id === 'mSfx') return; SGK.AUDIO.sfx(b.dataset.act === 'buy' || b.dataset.act === 'sell' ? 'coin' : 'click'); }, true);
   $('menuBtn').onclick = () => toggleMenu(true);
   $('mClose').onclick = () => toggleMenu(false);
   $('mSave').onclick = () => { toast(SGK.SAVE.save(G.world) ? 'セーブしました' : 'セーブに失敗しました'); };
@@ -622,7 +651,7 @@
         if (k === 'Escape') { toggleMenu(true); return; }
         const o = { z: 'charge', x: 'hold', c: 'retreat', v: 'flank' }[k.toLowerCase()]; if (o) { command({ type: 'order', unit: 'all', order: o }); return; }
       }
-      if (k === 'Escape') { if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); return; }
+      if (k === 'Escape') { if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else menuBack(); return; }
       if (activeMenu() === $('char') && (k === 'q' || k === 'e')) { cycleCTab(k === 'q' ? -1 : 1); return; }
       if (activeMenu() === $('char') && (k === 'p' || k === 'P')) { openChar(false); return; }
       if (activeMenu() === $('town') && (k === 'q' || k === 'e')) { cycleTab(k === 'q' ? -1 : 1); return; }
@@ -695,7 +724,7 @@
       else navHold = 0;
       if (down(0)) pressMenu();
       const inBattle = activeMenu() === $('battle');
-      if (down(1) && !inBattle) { if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); }
+      if (down(1) && !inBattle) { if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else menuBack(); }
       if (activeMenu() === $('town')) { if (down(4)) cycleTab(-1); if (down(5)) cycleTab(1); }
       else if (activeMenu() === $('char')) { if (down(4)) cycleCTab(-1); if (down(5)) cycleCTab(1); if (down(8)) openChar(false); }
       else if (inBattle) padBattle(down, lx + rx, ly + ry, dt);
@@ -736,6 +765,10 @@
       if (G.mode === 'host' && !infoOpen && (down(14) || down(15))) { const S = [0, 1, 2, 4], i = S.indexOf(G.speed); G.speed = S[Math.max(0, Math.min(3, i + (down(15) ? 1 : -1)))]; toast(G.speed ? `時間の速さ ×${G.speed}` : '時間を止めました', 900); }
       if (down(2)) cycleNear();
       if (down(3)) $('mFollow').click();
+      if (down(10)) { // L3：カーソルを自分の場所へ戻す（地図も自分に合わせて追従）
+        const m = me(), d = m && (G.disp[m.id] || m);
+        if (d) { R.cam.x = d.x; R.cam.y = d.y; R.cam.follow = true; G.pcurOn = true; G.pcur = [W / 2, H / 2]; }
+      }
       if (down(9)) toggleMenu(true);
     }
     gp.buttons.forEach((b, i) => (padPrev[i] = b.pressed));
@@ -747,12 +780,13 @@
   function frame(now) {
     const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
     const padMove = pollPad(dt);
+    if (G.mode === 'title') SGK.AUDIO.scene('title');
     if ((G.mode === 'host' || G.mode === 'client') && buildView()) {
       if (G.mode === 'host') { G.priv = SIM.privateState(G.world, G.myPid); SIM.drain(G.myPid).forEach((t) => toast(t, 4000)); }
       // WASDで直接移動
       const BT = G.priv && G.priv.battle;
-      if (BT && $('battle').classList.contains('hidden')) { $('battle').classList.remove('hidden'); openTown(false); openChar(false); selectSettlement(null); battleHtml = ''; }
-      if (!BT && !$('battle').classList.contains('hidden')) { $('battle').classList.add('hidden'); battleHtml = ''; }
+      if (BT && $('battle').classList.contains('hidden')) { SGK.AUDIO.sfx('battleStart'); $('battle').classList.remove('hidden'); openTown(false); openChar(false); selectSettlement(null); battleHtml = ''; }
+      if (!BT && !$('battle').classList.contains('hidden')) { SGK.AUDIO.sfx('battleEnd'); $('battle').classList.add('hidden'); battleHtml = ''; }
       let mx = BT ? 0 : padMove[0] + (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0);
       let my = BT ? 0 : padMove[1] + (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0);
       const m = me(); dirSendAcc += dt;
@@ -788,7 +822,9 @@
       $('townBtn').classList.toggle('hidden', !(P && P.here) || !!BT);
       // 拠点に着いたら自動で拠点画面を開く
       const hereId = P && P.here && !BT ? P.here.id : null;
-      if (hereId && hereId !== G.lastHere && $('char').classList.contains('hidden') && $('gameMenu').classList.contains('hidden')) openTown(true);
+      if (hereId && hereId !== G.lastHere && $('char').classList.contains('hidden') && $('gameMenu').classList.contains('hidden')) { SGK.AUDIO.sfx('arrive'); openTown(true); }
+      // BGM：戦闘・拠点の中・昼・夜で曲を変える
+      SGK.AUDIO.scene(BT ? 'battle' : !$('town').classList.contains('hidden') ? 'town' : SIM.daylight(G.view.t) < 0.5 ? 'night' : 'day');
       G.lastHere = hereId;
       if (!$('town').classList.contains('hidden')) renderTown();
       if (!$('char').classList.contains('hidden')) renderChar();

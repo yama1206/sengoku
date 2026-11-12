@@ -36,10 +36,13 @@
   #info { bottom:56px; left:50%; transform:translateX(-50%); min-width:260px; }
   #infoName { font-family:"Hiragino Mincho ProN","Yu Mincho",serif; font-size:20px; color:var(--gold); }
   #infoBody { margin:4px 0 8px; font-size:14px; line-height:1.6; }
-  #help { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 18px; max-width:min(560px,94vw); max-height:86vh; overflow:auto; font-size:13px; line-height:1.6; }
-  #help b { font-family:"Hiragino Mincho ProN","Yu Mincho",serif; font-size:18px; color:var(--gold); }
-  #help h4 { margin:10px 0 2px; color:var(--gold); font-size:14px; }
-  #help p { margin:0; }
+  #mSet { width:min(480px,94vw); max-height:88vh; overflow:auto; }
+  .setTabs { display:flex; gap:6px; flex-wrap:wrap; }
+  .setTabs button { flex:1; }
+  .setPane { font-size:13px; line-height:1.6; }
+  .setPane h4 { margin:8px 0 2px; color:var(--gold); font-size:14px; }
+  .setPane p { margin:0; }
+  .pk { color:var(--gold); font-weight:bold; }
   #gameMenu { position:absolute; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap; overflow:auto; }
   #gameMenu .menu { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
   #toasts { position:absolute; top:80px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:6px; pointer-events:none; }
@@ -129,17 +132,31 @@
   </div>
   <div class="hud hidden" id="battle"><div class="bh"><b id="battleTitle"></b><span id="battleInfo"></span></div><div id="battleBody"></div></div>
   <div id="gameMenu" class="hidden">
-    <div id="help">
-      <b>操作説明</b>
-      <h4>地図（キーボード・マウス）</h4>
-      <p>左クリック：移動／拠点の情報　右クリック：拠点へ移動　WASD：歩く　ドラッグ：地図を動かす　ホイール：拡大<br>Tab：近くの拠点　E：拠点に入る　F：追従　Esc：メニュー　P：人物</p>
-      <h4>地図（コントローラー）</h4>
-      <p>左スティック：カーソル　A：クリック（地面→移動／拠点→選ぶ・もう一度で向かう）　B：取消・カーソルを消す<br>右スティック：視点　LB/RB：拡大　X：近くの拠点　十字←→：時間の速さ<br>情報ウインドウ表示中：十字キーでボタンを選ぶ→A　BACK：人物　START：メニュー　拠点内LB/RB：タブ切替</p>
-      <h4>戦闘中</h4>
-      <p>Z：全軍突撃　V：全軍回り込み　X：全軍待機　C：全軍後退　部隊をクリック→地面をクリックで移動<br>🎮 LB/RB：部隊を選ぶ　左スティック：移動先　X：そこへ移動　十字キー：ボタン選択</p>
+    <div class="menu hidden" id="mSet">
+      <div class="setTabs"><button id="stSound">音・表示</button><button id="stMap">操作説明：地図</button><button id="stBattle">操作説明：戦闘</button></div>
+      <div class="setPane" id="spSound">
+        <div class="row" style="gap:8px"><button id="mBgm"></button><button id="mSfx"></button></div>
+        <p class="muted">押すたびに 切→小→中→大 と変わります</p>
+        <button id="mPad" style="margin-top:8px"></button>
+        <p class="muted">操作説明のボタン名を、お使いのコントローラーに合わせます（設定はこの端末に記憶されます）</p>
+      </div>
+      <div class="setPane hidden" id="spMap">
+        <h4>キーボード・マウス</h4>
+        <p>左クリック：移動／拠点の情報<br>右クリック：拠点へ移動<br>WASD：歩く<br>ドラッグ：地図を動かす　ホイール：拡大<br>Tab：近くの拠点　E：拠点に入る　F：追従<br>Esc：メニュー　P：人物</p>
+        <h4>コントローラー</h4>
+        <p>左スティック：カーソル<br><span class="pk" data-k="A">A</span>：クリック（地面→移動／拠点→選ぶ・もう一度で向かう）<br><span class="pk" data-k="B">B</span>：取消・カーソルを消す<br><span class="pk" data-k="L3">L3</span>：カーソルを自分の場所へ<br>右スティック：視点　<span class="pk" data-k="LB">LB</span>/<span class="pk" data-k="RB">RB</span>：拡大<br><span class="pk" data-k="X">X</span>：近くの拠点　<span class="pk" data-k="Y">Y</span>：追従<br>十字←→：時間の速さ<br>情報ウインドウ表示中：十字キーでボタンを選ぶ→<span class="pk" data-k="A">A</span><br><span class="pk" data-k="BACK">BACK</span>：人物　<span class="pk" data-k="START">START</span>：メニュー<br>拠点内 <span class="pk" data-k="LB">LB</span>/<span class="pk" data-k="RB">RB</span>：タブ切替</p>
+      </div>
+      <div class="setPane hidden" id="spBattle">
+        <h4>キーボード・マウス</h4>
+        <p>Z：全軍突撃　V：全軍回り込み<br>X：全軍待機　C：全軍後退<br>部隊をクリック→地面をクリックで移動</p>
+        <h4>コントローラー</h4>
+        <p><span class="pk" data-k="LB">LB</span>/<span class="pk" data-k="RB">RB</span>：部隊を選ぶ<br>左スティック：移動先<br><span class="pk" data-k="X">X</span>：そこへ移動<br>十字キー：ボタン選択→<span class="pk" data-k="A">A</span><br><span class="pk" data-k="START">START</span>：メニュー</p>
+      </div>
+      <button id="stBack">戻る</button>
     </div>
-    <div class="menu">
+    <div class="menu" id="mMain">
       <button id="mClose">ゲームに戻る</button>
+      <button id="mSettings">設定（音・操作説明）</button>
       <button id="mChar">人物・部隊</button>
       <button id="mFollow">自分を追いかける（切替）</button>
       <button id="mYear" class="yearBtn"></button>
@@ -166,7 +183,7 @@
 <script>
   // 更新が確実に反映されるよう、毎回最新のファイルを読み込む
   (function () {
-    const files = ['js/config.js', 'js/data/world1560.js', 'js/data/items.js', 'js/sim/world.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/sim/castle.js', 'js/sim/daimyo.js', 'js/sim/siege.js', 'js/sim/army.js', 'js/save.js', 'js/net/net.js', 'js/render.js', 'js/main.js'];
+    const files = ['js/config.js', 'js/data/world1560.js', 'js/data/items.js', 'js/sim/world.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/sim/castle.js', 'js/sim/daimyo.js', 'js/sim/siege.js', 'js/sim/army.js', 'js/save.js', 'js/net/net.js', 'js/render.js', 'js/audio.js', 'js/main.js'];
     const v = Date.now();
     (function next(i) { if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '?v=' + v; s.onload = () => next(i + 1); document.body.appendChild(s); })(0);
   })();
