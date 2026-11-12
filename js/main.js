@@ -478,6 +478,11 @@
       } else {
         const lord = lordName(hs);
         html += `<div class="card" style="display:block">城主：${h.holder ? `<b>${h.holder}</b>（プレイヤー）` : lord || '（不明）'}<br><span class="muted">${me.castle ? `あなたが治めている城：${(me.castles || []).map((c) => c.name).join('・')}` : '部将から「城主」に昇進すると、主家の城を一つ任されます。部将以上は野外に新しく城を築くこともできます（人物画面の「身分」）'}</span></div>`;
+        const R = me.rank; // 0.29.1 城の画面からも仕官できるように
+        if (R && !R.clan && R.canServe) {
+          const need = R.serveNeed != null ? R.serveNeed : SIM.RANKS[1].fame, ok = me.fame >= need;
+          html += `<div class="card"><div><b>仕官</b>　${R.factionHere}の${R.lordHere}様に仕える<br><span class="muted">名声${need}以上（いま${me.fame}）。仕えると俸禄がもらえ、主家の依頼や戦で功績が積めます${ok ? '' : '。この家の武将や隊長に話しかけて顔をつなぐと名声2で仕官できます'}</span></div><button id="tw-serve" data-act="serve" ${ok ? '' : 'disabled'}>仕官する</button></div>`;
+        } else if (R && !R.clan) html += `<div class="muted">この城では仕官できません（城主のいる城で仕官できます）</div>`;
       }
     } else {
       html += `<div class="card"><div>ここの人に話を聞く<br><span class="muted">相場の噂などが聞けます</span></div><button id="tk" data-act="talk">話しかける</button></div>`;
