@@ -1,9 +1,10 @@
 // 通信（PeerJS・部屋コード方式。ホストが世界を計算し、参加者は命令を送って結果を受け取るだけ）
 (function () {
   const NET = SGK.NET = {};
-  const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const CODE_CHARS = '0123456789';
+  NET.CODE_LEN = 6;
   NET.CODE_CHARS = CODE_CHARS;
-  NET.makeCode = () => Array.from({ length: 5 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
+  NET.makeCode = () => Array.from({ length: NET.CODE_LEN }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
 
   // ホスト：h = { onHello(conn, msg) -> pid|null, onCmd(pid, cmd), onLeave(pid), onReady(code), onError(text) }
   NET.host = function (h) {
@@ -39,7 +40,7 @@
     let conn, done = false;
     const end = (why) => { if (done) return; done = true; h.onBye(why); try { peer.destroy(); } catch (e) {} };
     peer.on('open', () => {
-      conn = peer.connect(SGK.CFG.PEER_PREFIX + code.trim().toUpperCase(), { reliable: true });
+      conn = peer.connect(SGK.CFG.PEER_PREFIX + code.replace(/\D/g, ''), { reliable: true });
       conn.on('open', () => conn.send({ t: 'hello', token, name, ver: SGK.VERSION }));
       conn.on('data', (m) => {
         if (m.t === 'welcome') h.onWelcome(m);

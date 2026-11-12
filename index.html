@@ -96,8 +96,8 @@
     <div class="row"><button id="btnNameBack">戻る</button><button id="btnNameMore">ほかの候補</button></div>
   </div>
   <div class="menu hidden" id="joinPanel">
-    <input id="codeInput" maxlength="5" placeholder="部屋コード（5文字）" style="text-transform:uppercase;letter-spacing:.3em;text-align:center">
-    <div id="codeKeys" style="display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin:6px 0"></div>
+    <input id="codeInput" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="部屋コード（数字6けた）" style="letter-spacing:.3em;text-align:center">
+    <div id="codeKeys" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:6px 0"></div>
     <div class="row"><button id="btnJoinBack">戻る</button><button id="btnJoinGo">参加</button></div>
   </div>
   <div id="titleMsg"></div>

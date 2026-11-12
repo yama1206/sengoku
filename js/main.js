@@ -75,11 +75,13 @@
   $('fileInput').onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) SGK.SAVE.importFile(f).then((w) => startHost(w, 'セーブファイルから再開しました')).catch((err) => titleMsg(err.message)); };
   $('btnJoin').onclick = () => { $('joinPanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); $('codeInput').focus(); };
   // 部屋コードの文字ボタン（コントローラーでも入力できる）
-  $('codeKeys').innerHTML = [...SGK.NET.CODE_CHARS].map((c) => `<button id="ck-${c}" data-ck="${c}">${c}</button>`).join('') + '<button id="ck-del" data-ck="del" style="grid-column:span 2">消す</button>';
+  const CL = SGK.NET.CODE_LEN;
+  $('codeKeys').innerHTML = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', '0'].map((c) => `<button id="ck-${c}" data-ck="${c}">${c === 'del' ? '消す' : c}</button>`).join('');
+  $('codeInput').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, CL); });
   $('codeKeys').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return; const ci = $('codeInput');
-    ci.value = b.dataset.ck === 'del' ? ci.value.slice(0, -1) : (ci.value + b.dataset.ck).slice(0, 5).toUpperCase();
-    if (ci.value.length === 5 && b.dataset.ck !== 'del') setFocus($('joinPanel'), $('btnJoinGo'));
+    ci.value = b.dataset.ck === 'del' ? ci.value.slice(0, -1) : (ci.value + b.dataset.ck).slice(0, CL);
+    if (ci.value.length === CL && b.dataset.ck !== 'del') setFocus($('joinPanel'), $('btnJoinGo'));
   });
   function titleBack() { $('joinPanel').classList.add('hidden'); $('namePanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); setFocus($('titleMenu'), currentFocus($('titleMenu'))); }
   $('btnJoinBack').onclick = titleBack;
@@ -98,7 +100,7 @@
     const b = e.target.closest('button'); if (!b) return;
     $('nameInput').value = b.dataset.nm; localStorage.setItem('sgk_name', b.dataset.nm); titleBack(); titleMsg(`名前を「${b.dataset.nm}」にしました`);
   });
-  $('btnJoinGo').onclick = () => { const c = $('codeInput').value.trim(); if (c.length < 5) return titleMsg('部屋コード（5文字）を入れてください'); startClient(c); };
+  $('btnJoinGo').onclick = () => { const c = $('codeInput').value.replace(/\D/g, ''); if (c.length < CL) return titleMsg(`部屋コード（数字${CL}けた）を入れてください`); startClient(c); };
 
   // ---------- ホスト ----------
   const timerWorker = new Worker(URL.createObjectURL(new Blob(['let iv;onmessage=e=>{clearInterval(iv);if(e.data>0)iv=setInterval(()=>postMessage(0),e.data)}'], { type: 'text/javascript' })));
