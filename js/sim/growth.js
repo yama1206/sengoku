@@ -79,7 +79,7 @@
 
   // ---- 成長が効くところ（military.js・economy.js の差し込み口を上書き） ----
   const baseCap = SIM.troopCap;
-  SIM.troopCap = (p) => Math.min(200, baseCap(p) + (p.attrs.tou - 3) * 2 + Math.floor(lvOf(p, 'shiki') / 5) + fx(p, 'troopCap'));
+  SIM.troopCap = (p) => Math.ceil(Math.min(200, baseCap(p) + (p.attrs.tou - 3) * 2 + Math.floor(lvOf(p, 'shiki') / 5) + fx(p, 'troopCap')));
   const baseWage = SIM.wage;
   SIM.wage = (tr, p) => Math.round(baseWage(tr) * (p ? 1 + fx(p, 'wage') : 1));
   SIM.costMod = (p) => Math.max(0.5, 1 - (p.attrs.mi - 3) * 0.03 - lvOf(p, 'kosho') * 0.002);

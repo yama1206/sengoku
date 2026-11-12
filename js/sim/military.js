@@ -31,7 +31,7 @@
   const MAX_BANDITS = 200; // 地図の広さに合わせて（全国）
 
   SIM.troopCount = (tr) => Object.values(tr || {}).reduce((a, b) => a + b, 0);
-  SIM.troopCap = (p) => Math.min(120, 10 + p.fame * 3);
+  SIM.troopCap = (p) => Math.min(120, Math.ceil(10 + p.fame * 3));
   SIM.wage = (tr) => Object.entries(tr || {}).reduce((a, [k, n]) => a + (TR[k].wage || 0) * n, 0);
   // 成長要素（growth.js）が上書きする差し込み口
   SIM.unitMods = () => ({ am: 1, da: 0, ra: 0, hm: 1 });

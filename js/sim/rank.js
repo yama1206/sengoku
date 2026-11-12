@@ -48,7 +48,7 @@
 
   // ---- 身分が効くところ ----
   const baseCap = SIM.troopCap;
-  SIM.troopCap = (p) => Math.min(250, baseCap(p) + RANKS[p.rank || 0].cap);
+  SIM.troopCap = (p) => Math.ceil(Math.min(250, baseCap(p) + RANKS[p.rank || 0].cap)); // 小数は切り上げ
   // 募兵：主家の城では組頭以上が2割引、侍大将以上は騎馬の名声条件なし
   const baseRecruit = SIM.commands.recruit;
   if (baseRecruit) SIM.commands.recruit = (w, p, c) => {
