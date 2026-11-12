@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>天下への道（仮題）</title>
+<style>
+  :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:#14110d; color:var(--ink); font-family:"Hiragino Sans","Yu Gothic UI",sans-serif; overflow:hidden; }
+  .hidden { display:none !important; }
+  button { font:inherit; color:var(--ink); background:#2b241a; border:1px solid var(--line); padding:10px 16px; border-radius:6px; cursor:pointer; }
+  button:hover, button.focus { background:#4a3c24; border-color:var(--gold); color:#fff; outline:2px solid var(--gold); }
+  button:disabled { opacity:.4; cursor:default; outline:none; }
+  input { font:inherit; padding:9px 12px; border-radius:6px; border:1px solid var(--line); background:#1d1913; color:var(--ink); width:100%; }
+  #title { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+    background:radial-gradient(ellipse at center,#3a2f1f 0%,#14110d 70%); padding:16px; }
+  #title h1 { font-family:"Hiragino Mincho ProN","Yu Mincho",serif; font-size:clamp(34px,7vw,64px); letter-spacing:.2em; margin:0; color:var(--gold); text-shadow:0 3px 0 #000; }
+  #title .sub { opacity:.75; margin-top:-6px; }
+  #ver { position:fixed; top:12px; right:12px; display:flex; gap:8px; align-items:center; font-size:13px; }
+  #ver button { padding:4px 10px; font-size:13px; }
+  .menu { display:flex; flex-direction:column; gap:10px; width:min(320px,90vw); }
+  .row { display:flex; gap:10px; }
+  .row > * { flex:1; }
+  #titleMsg { min-height:1.4em; color:#ffb4a2; text-align:center; }
+  #game { position:fixed; inset:0; }
+  #map { position:absolute; inset:0; width:100%; height:100%; touch-action:none; }
+  .hud { position:absolute; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 12px; }
+  #hudL { top:10px; left:10px; }
+  #date { font-family:"Hiragino Mincho ProN","Yu Mincho",serif; font-size:18px; color:var(--gold); }
+  #status { font-size:13px; margin-top:2px; }
+  #hudR { top:10px; right:10px; display:flex; flex-direction:column; align-items:flex-end; gap:6px; font-size:13px; }
+  #hudR .row { gap:4px; }
+  #hudR button { padding:4px 9px; font-size:13px; }
+  button.on { background:#6b5428; border-color:var(--gold); }
+  #info { bottom:56px; left:50%; transform:translateX(-50%); min-width:260px; }
+  #infoName { font-family:"Hiragino Mincho ProN","Yu Mincho",serif; font-size:20px; color:var(--gold); }
+  #infoBody { margin:4px 0 8px; font-size:14px; line-height:1.6; }
+  #help { bottom:10px; left:10px; font-size:12px; opacity:.85; padding:5px 10px; }
+  #gameMenu { position:absolute; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; }
+  #gameMenu .menu { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  #toasts { position:absolute; top:80px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:6px; pointer-events:none; }
+  .toast { background:var(--panel); border:1px solid var(--gold); border-radius:6px; padding:6px 14px; font-size:14px; }
+  @media (max-width:700px) { #help { display:none; } #date { font-size:15px; } }
+</style>
+</head>
+<body>
+<section id="title">
+  <div id="ver"><span id="verLabel"></span><button id="updateBtn">更新</button></div>
+  <h1>天下への道</h1>
+  <div class="sub">（仮題）第0段階 試作版</div>
+  <div class="menu" style="margin-top:8px">
+    <input id="nameInput" maxlength="12" placeholder="名前（空なら「浪人」）">
+  </div>
+  <div class="menu" id="titleMenu">
+    <button id="btnNew">新しいワールドを作る（ホスト）</button>
+    <button id="btnContinue">続きから（ホスト）</button>
+    <button id="btnJoin">部屋に参加する</button>
+    <button id="btnImport">セーブファイルを読み込む</button>
+  </div>
+  <div class="menu hidden" id="joinPanel">
+    <input id="codeInput" maxlength="5" placeholder="部屋コード（5文字）" style="text-transform:uppercase;letter-spacing:.3em;text-align:center">
+    <div class="row"><button id="btnJoinBack">戻る</button><button id="btnJoinGo">参加</button></div>
+  </div>
+  <div id="titleMsg"></div>
+  <input type="file" id="fileInput" accept=".json,application/json" class="hidden">
+</section>
+
+<section id="game" class="hidden">
+  <canvas id="map"></canvas>
+  <div class="hud" id="hudL"><div id="date"></div><div id="status"></div></div>
+  <div id="hudR">
+    <div class="hud" id="roomInfo"></div>
+    <div class="row">
+      <span class="row hostOnly"><button data-speed="0">停止</button><button data-speed="1">×1</button><button data-speed="2">×2</button><button data-speed="4">×4</button></span>
+      <button id="menuBtn">メニュー</button>
+    </div>
+  </div>
+  <div class="hud hidden" id="info">
+    <div id="infoName"></div><div id="infoBody"></div>
+    <div class="row"><button id="infoClose">閉じる</button><button id="infoGo">ここへ向かう</button></div>
+  </div>
+  <div class="hud" id="help">左クリック：移動／拠点の情報　右クリック：拠点へ移動　WASD：歩く　ドラッグ：地図を動かす　ホイール：拡大　Tab：近くの拠点　F：追従　Esc：メニュー　｜　🎮 左スティック：歩く　右：視点　X：近くの拠点　A：向かう　B：取消　LB/RB：拡大　START：メニュー</div>
+  <div id="gameMenu" class="hidden">
+    <div class="menu">
+      <button id="mClose">ゲームに戻る</button>
+      <button id="mFollow">自分を追いかける（切替）</button>
+      <button id="mSave" class="hostOnly">セーブ</button>
+      <button id="mExport" class="hostOnly">セーブをファイルに書き出す</button>
+      <button id="mTitle">タイトルへ戻る</button>
+    </div>
+  </div>
+  <div id="toasts"></div>
+</section>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+  // 更新が確実に反映されるよう、毎回最新のファイルを読み込む
+  (function () {
+    const files = ['js/config.js', 'js/data/world1560.js', 'js/sim/world.js', 'js/save.js', 'js/net/net.js', 'js/render.js', 'js/main.js'];
+    const v = Date.now();
+    (function next(i) { if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '?v=' + v; s.onload = () => next(i + 1); document.body.appendChild(s); })(0);
+  })();
+</script>
+</body>
+</html>
