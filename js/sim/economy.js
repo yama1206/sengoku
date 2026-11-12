@@ -34,8 +34,8 @@
 
   function target(s, k) { return (I()[k].cons * s.size + (s.prod[k] || 0)) * 12 + 4; }
   SIM.price = (s, k) => { const b = I()[k].base; return Math.max(b * 0.4, Math.min(b * 3, b * Math.sqrt(target(s, k) / (s.stock[k] + 1)))); };
-  SIM.buyPrice = (s, k) => Math.ceil(SIM.price(s, k) * 1.1);
-  SIM.sellPrice = (s, k) => Math.floor(SIM.price(s, k) * 0.9);
+  SIM.buyPrice = (s, k, p) => Math.ceil(SIM.price(s, k) * 1.1 * (p && SIM.tradeMod ? SIM.tradeMod(p, 'buy') : 1));
+  SIM.sellPrice = (s, k, p) => Math.floor(SIM.price(s, k) * 0.9 * (p && SIM.tradeMod ? SIM.tradeMod(p, 'sell') : 1));
 
   // ---- 依頼の作成 ----
   function giverOf(w, s) { return s.type === 'castle' && s.lord ? (w.people[s.lord] || {}).name + '様' : s.type === 'town' ? '町の商家' : '村の名主'; }
@@ -115,7 +115,7 @@
   Object.assign(SIM.commands, {
     buy(w, p, c) {
       const s = needTown(w, p), it = I()[c.item]; if (!s || !it) return;
-      const unit = SIM.buyPrice(s, c.item);
+      const unit = SIM.buyPrice(s, c.item, p);
       const q = Math.min(Math.max(1, +c.qty || 1), Math.floor(s.stock[c.item]), CAP - SIM.cargo(p), Math.floor(p.money / unit));
       if (q <= 0) return SIM.say(p.id, s.stock[c.item] < 1 ? '在庫がありません' : SIM.cargo(p) >= CAP ? 'これ以上は持てません' : 'お金が足りません');
       p.money -= unit * q; s.stock[c.item] -= q; p.inv[c.item] = (p.inv[c.item] || 0) + q;
@@ -125,7 +125,7 @@
       const s = needTown(w, p), it = I()[c.item]; if (!s || !it) return;
       const q = Math.min(Math.max(1, +c.qty || 1), p.inv[c.item] || 0);
       if (q <= 0) return SIM.say(p.id, '持っていません');
-      const unit = SIM.sellPrice(s, c.item);
+      const unit = SIM.sellPrice(s, c.item, p);
       p.money += unit * q; s.stock[c.item] += q; p.inv[c.item] -= q; if (!p.inv[c.item]) delete p.inv[c.item];
       SIM.say(p.id, `${it.name}を${q}${it.unit}売りました（${SIM.money(unit * q)}）`);
     },
@@ -180,7 +180,7 @@
     const s = here(w, p);
     return {
       me: { money: p.money, inv: p.inv, quests: p.quests, fame: p.fame, busy: p.busy, cap: CAP },
-      here: s ? { id: s.id, market: Object.keys(I()).map((k) => [k, SIM.buyPrice(s, k), SIM.sellPrice(s, k), Math.floor(s.stock[k])]), jobs: Object.values(w.jobs).filter((j) => j.from === s.id) } : null,
+      here: s ? { id: s.id, market: Object.keys(I()).map((k) => [k, SIM.buyPrice(s, k, p), SIM.sellPrice(s, k, p), Math.floor(s.stock[k])]), jobs: Object.values(w.jobs).filter((j) => j.from === s.id) } : null,
     };
   };
 })();

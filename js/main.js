@@ -23,6 +23,7 @@
   function activeMenu() {
     if (G.mode === 'title') return $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
     if (!$('gameMenu').classList.contains('hidden')) return $('gameMenu');
+    if (!$('char').classList.contains('hidden')) return $('char');
     if (!$('town').classList.contains('hidden')) return $('town');
     if (!$('battle').classList.contains('hidden')) return $('battle');
     return null;
@@ -132,7 +133,7 @@
     if (G.mode === 'host') { SGK.SAVE.save(G.world); timerWorker.postMessage(0); }
     if (G.net) G.net.close();
     Object.assign(G, { mode: 'title', world: null, net: null, dyn: null, view: null, centered: false, roomCode: null });
-    $('gameMenu').classList.add('hidden'); $('info').classList.add('hidden'); $('town').classList.add('hidden'); $('battle').classList.add('hidden'); G.priv = null;
+    $('gameMenu').classList.add('hidden'); $('info').classList.add('hidden'); $('town').classList.add('hidden'); $('battle').classList.add('hidden'); $('char').classList.add('hidden'); G.priv = null;
     $('btnContinue').disabled = !SGK.SAVE.has();
     show('title');
   }
@@ -228,6 +229,7 @@
       } else if (s.type === 'village') {
         html += `<div class="card"><div><b>薪拾い</b><br><span class="muted">6時間　薪を3〜5束（荷に空きが必要）</span></div><button id="wg" data-act="work" data-kind="gather">始める</button></div>`;
       } else {
+        html += `<div class="card"><div><b>調練</b><br><span class="muted">8時間　率いている兵が経験を積む（調練の技能も伸びる）</span></div><button id="wd" data-act="work" data-kind="drill">始める</button></div>`;
         html += `<div class="card"><div><b>人足仕事</b><br><span class="muted">8時間　荷運びなどの日雇い仕事で賃金をもらう</span></div><button id="wl" data-act="work" data-kind="labor">始める</button></div>`;
       }
       html += '<div class="muted">仕事中は移動できません。</div>';
@@ -237,7 +239,7 @@
       html += '<div class="muted">この拠点で雇える兵</div>';
       for (const [k, avail] of h.recruit) {
         const t = TR[k];
-        html += `<div class="card"><div><b>${t.name}</b>　<span class="muted">${avail}人</span><br><span class="muted">1人 ${SIM.money(t.cost)}　給金 ${t.wage}文/日${t.fame ? `　名声${t.fame}以上` : ''}</span></div><div class="row">`
+        html += `<div class="card"><div><b>${t.name}</b>　<span class="muted">${avail}人</span><br><span class="muted">1人 ${SIM.money(Math.round(t.cost * (me.costMod || 1)))}　給金 ${t.wage}文/日${t.fame ? `　名声${t.fame}以上` : ''}</span></div><div class="row">`
           + `<button id="r1-${k}" data-act="recruit" data-kind="${k}" data-qty="1" ${avail ? '' : 'disabled'}>雇う1</button><button id="r5-${k}" data-act="recruit" data-kind="${k}" data-qty="5" ${avail ? '' : 'disabled'}>雇う5</button></div></div>`;
       }
       html += '<div class="muted" style="margin-top:10px">率いている兵</div>';
@@ -265,6 +267,72 @@
   $('townClose').onclick = () => openTown(false);
   $('townBtn').onclick = () => openTown(true);
   function cycleTab(d) { const tabs = ['market', 'jobs', 'work', 'army', 'talk']; setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
+
+  // ---------- 人物（能力・技能・特技・部隊の昇格） ----------
+  let charTab = 'stat', charHtml = '';
+  function openChar(open) {
+    const c = $('char');
+    if (open === false || !G.priv) { c.classList.add('hidden'); return; }
+    if (G.priv.battle) return toast('戦闘中は開けません', 1500);
+    openTown(false); toggleMenu(false); c.classList.remove('hidden'); charHtml = ''; renderChar(); setFocus(c, currentFocus(c));
+  }
+  function setCTab(t) { charTab = t; charHtml = ''; renderChar(); setFocus($('char'), $('ctab-' + t)); }
+  function cycleCTab(d) { const t = ['stat', 'perk', 'army']; setCTab(t[(t.indexOf(charTab) + d + t.length) % t.length]); }
+  function renderChar() {
+    const P = G.priv; if (!P || !P.me.char || P.battle) return openChar(false);
+    const me = P.me, C = me.char, TR = SIM.TROOPS, m = G.view && G.view.players.find((x) => x.id === G.myPid);
+    $('charName').textContent = `${m ? m.name : ''}　格${C.level}　名声${C.fame}`;
+    document.querySelectorAll('#char [data-ctab]').forEach((b) => b.classList.toggle('on', b.dataset.ctab === charTab));
+    let html = '';
+    if (charTab === 'stat') {
+      html += `<div class="muted" style="margin-bottom:6px">能力値（上げられる点：${C.points}）　技能は使うほど伸び、元の能力値が高いほど伸びやすくなります</div>`;
+      for (const a in SIM.ATTRS) html += `<div class="card"><div><b>${SIM.ATTRS[a]}</b>　${C.attrs[a]}<span class="muted">/10</span></div><button id="at-${a}" data-cact="addAttr" data-attr="${a}" ${C.points > 0 && C.attrs[a] < 10 ? '' : 'disabled'}>＋1</button></div>`;
+      html += '<div class="muted" style="margin:10px 0 4px">技能</div>';
+      for (const k in SIM.SKILLS) {
+        const sk = SIM.SKILLS[k], [lv, xp] = C.skills[k] || [0, 0], pct = lv >= 100 ? 100 : Math.floor((xp / SIM.skillNeed(lv)) * 100);
+        html += `<div class="card" style="display:block"><b>${sk.name}</b> ${lv}　<span class="muted">（${SIM.ATTRS[sk.attr]}）${sk.desc}</span><div class="bar"><i style="width:${pct}%"></i></div></div>`;
+      }
+    } else if (charTab === 'perk') {
+      html += '<div class="muted" style="margin-bottom:6px">技能が25・50になると、2つのうち1つを選べます</div>';
+      for (const k in SIM.SKILLS) for (const lv of [25, 50]) {
+        const opts = SIM.PERKS.filter((x) => x.skill === k && x.lv === lv), have = opts.find((x) => C.perks.includes(x.id));
+        const reach = (C.skills[k] || [0])[0] >= lv;
+        html += `<div class="muted" style="margin-top:6px">${SIM.SKILLS[k].name} ${lv}${reach ? '' : '（未到達）'}</div>`;
+        for (const x of opts) html += `<div class="card perk ${have === x ? 'have' : ''}"><div><b>${x.name}</b><br><span class="muted">${x.desc}</span></div>`
+          + (have === x ? '<span>習得</span>' : `<button id="pk-${x.id}" data-cact="pickPerk" data-id="${x.id}" ${reach && !have ? '' : 'disabled'}>選ぶ</button>`) + '</div>';
+      }
+    } else {
+      html += `<div class="muted" style="margin-bottom:6px">兵 ${SIM.troopCount(me.troops)}/${me.troopCap}　所持金 ${SIM.money(me.money)}　給金 ${SIM.money(me.wage)}/日<br>戦や調練で兵が経験を積むと、上の兵種へ昇格できます（どこでもできます）</div>`;
+      if (!SIM.troopCount(me.troops)) html += '<div class="muted">まだ兵がいません。拠点の「募兵」で雇えます</div>';
+      for (const k in me.troops) {
+        const t = TR[k], n = me.troops[k], need = SIM.upNeed(t.tier), xp = Math.floor(C.txp[k] || 0), ready = t.up ? Math.min(n, Math.floor(xp / need)) : 0;
+        html += `<div class="card" style="display:block"><b>${t.name}</b> ${n}人　<span class="muted">格${t.tier}　攻${t.atk} 守${t.def} 体${t.hp}${t.ranged ? '　射程' + t.range + 'm' : ''}</span>`;
+        if (!t.up) html += '<div class="muted">最上位の兵種です</div>';
+        else {
+          html += `<div class="muted">経験 ${xp}（1人あたり${need}）　昇格できる人数 ${ready}</div>`;
+          for (const to of t.up) {
+            const u = TR[to], cost = SIM.upCost({ perks: C.perks }, to), lock = u.fame && C.fame < u.fame;
+            html += `<div class="row" style="margin-top:4px;align-items:center"><span>→ ${u.name}　<span class="muted">攻${u.atk} 守${u.def} 体${u.hp}　1人 ${SIM.money(cost)}${lock ? `　名声${u.fame}以上` : ''}</span></span>`
+              + `<button id="up1-${k}-${to}" data-cact="upgrade" data-from="${k}" data-to="${to}" data-qty="1" ${ready && !lock ? '' : 'disabled'}>1人</button>`
+              + `<button id="upa-${k}-${to}" data-cact="upgrade" data-from="${k}" data-to="${to}" data-qty="999" ${ready && !lock ? '' : 'disabled'}>全員</button></div>`;
+          }
+        }
+        html += '</div>';
+      }
+    }
+    if (html !== charHtml) { charHtml = html; $('charBody').innerHTML = html; const c = $('char'), f = currentFocus(c); if (f) setFocus(c, f); }
+  }
+  $('charBody').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-cact]'); if (!b) return;
+    const c = { type: b.dataset.cact };
+    for (const k of ['attr', 'id', 'from', 'to']) if (b.dataset[k]) c[k] = b.dataset[k];
+    if (b.dataset.qty) c.qty = +b.dataset.qty;
+    command(c);
+  });
+  document.querySelectorAll('#char [data-ctab]').forEach((b) => (b.onclick = () => setCTab(b.dataset.ctab)));
+  $('charClose').onclick = () => openChar(false);
+  $('charBtn').onclick = () => openChar(true);
+  $('mChar').onclick = () => openChar(true);
 
   // ---------- 戦闘の操作パネル ----------
   let battleHtml = '';
@@ -340,7 +408,9 @@
         if (k === 'Escape') { toggleMenu(true); return; }
         const o = { z: 'charge', x: 'hold', c: 'retreat' }[k.toLowerCase()]; if (o) { command({ type: 'order', unit: 'all', order: o }); return; }
       }
-      if (k === 'Escape') { if (G.mode === 'title') $('btnJoinBack').click(); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); return; }
+      if (k === 'Escape') { if (G.mode === 'title') $('btnJoinBack').click(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); return; }
+      if (activeMenu() === $('char') && (k === 'q' || k === 'e')) { cycleCTab(k === 'q' ? -1 : 1); return; }
+      if (activeMenu() === $('char') && (k === 'p' || k === 'P')) { openChar(false); return; }
       if (activeMenu() === $('town') && (k === 'q' || k === 'e')) { cycleTab(k === 'q' ? -1 : 1); return; }
     }
     if (G.mode !== 'host' && G.mode !== 'client') return;
@@ -349,6 +419,7 @@
     else if (k === 'f' || k === 'F') $('mFollow').click();
     else if (k === 'Tab') { e.preventDefault(); cycleNear(); }
     else if (k === 'e' || k === 'E') openTown(true);
+    else if (k === 'p' || k === 'P') openChar(true);
     else if (k === 'Enter' && G.selected) $('infoGo').click();
     else if (k === '+' || k === '=') R.zoom(1.2); else if (k === '-') R.zoom(1 / 1.2);
     else if (G.mode === 'host' && '1234'.includes(k)) G.speed = [0, 1, 2, 4][+k - 1];
@@ -382,8 +453,9 @@
       else navHold = 0;
       if (down(0)) pressMenu();
       const inBattle = activeMenu() === $('battle');
-      if (down(1) && !inBattle) { if (G.mode === 'title') $('btnJoinBack').click(); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); }
+      if (down(1) && !inBattle) { if (G.mode === 'title') $('btnJoinBack').click(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else toggleMenu(false); }
       if (activeMenu() === $('town')) { if (down(4)) cycleTab(-1); if (down(5)) cycleTab(1); }
+      else if (activeMenu() === $('char')) { if (down(4)) cycleCTab(-1); if (down(5)) cycleCTab(1); }
       if (down(9) && G.mode !== 'title') toggleMenu(inBattle);
     } else if (G.mode === 'host' || G.mode === 'client') {
       move = [lx, ly];
@@ -408,7 +480,7 @@
       if (G.mode === 'host') { G.priv = SIM.privateState(G.world, G.myPid); SIM.drain(G.myPid).forEach((t) => toast(t, 4000)); }
       // WASD・左スティックで直接移動
       const BT = G.priv && G.priv.battle;
-      if (BT && $('battle').classList.contains('hidden')) { $('battle').classList.remove('hidden'); openTown(false); selectSettlement(null); battleHtml = ''; }
+      if (BT && $('battle').classList.contains('hidden')) { $('battle').classList.remove('hidden'); openTown(false); openChar(false); selectSettlement(null); battleHtml = ''; }
       if (!BT && !$('battle').classList.contains('hidden')) { $('battle').classList.add('hidden'); battleHtml = ''; }
       let mx = BT ? 0 : padMove[0] + (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0);
       let my = BT ? 0 : padMove[1] + (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0);
@@ -438,6 +510,7 @@
       } else R.draw(ctx, G.view, G.disp, G.myPid, G.selected, marks);
       $('townBtn').classList.toggle('hidden', !(P && P.here) || !!BT);
       if (!$('town').classList.contains('hidden')) renderTown();
+      if (!$('char').classList.contains('hidden')) renderChar();
       if (P) {
         $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　荷 ${SIM.cargo(P.me)}/${P.me.cap}　名声 ${P.me.fame}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}` + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
           + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品'}・${dayLeft(q.deadline)}）</div>`).join('');

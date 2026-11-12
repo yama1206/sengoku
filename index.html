@@ -53,6 +53,11 @@
   .grid .h { opacity:.65; font-size:12px; }
   .card { border:1px solid #4a3d27; border-radius:6px; padding:7px 9px; margin-bottom:6px; font-size:13px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
   .muted { opacity:.65; font-size:12px; }
+  #char { top:50%; left:50%; transform:translate(-50%,-50%); width:min(600px,96vw); max-height:88vh; overflow:auto; padding:12px 14px; }
+  #char button { padding:5px 9px; font-size:13px; }
+  #char .tabs button.on { background:#6b5428; }
+  .bar { height:5px; background:#3a3020; border-radius:3px; margin-top:3px; } .bar i { display:block; height:100%; background:var(--gold); border-radius:3px; }
+  .perk.have { border-color:var(--gold); }
   #battle { bottom:10px; left:50%; transform:translateX(-50%); width:min(640px,98vw); padding:8px 12px; }
   #battle .bh { display:flex; justify-content:space-between; font-size:14px; margin-bottom:6px; }
   #battle .bh b { font-family:"Hiragino Mincho ProN","Yu Mincho",serif; color:var(--gold); font-size:17px; }
@@ -66,7 +71,7 @@
 <section id="title">
   <div id="ver"><span id="verLabel"></span><button id="updateBtn">更新</button></div>
   <h1>天下への道</h1>
-  <div class="sub">（仮題）第3段階 試作版</div>
+  <div class="sub">（仮題）第4段階 試作版</div>
   <div class="menu" style="margin-top:8px">
     <input id="nameInput" maxlength="12" placeholder="名前（空なら「浪人」）">
   </div>
@@ -92,6 +97,7 @@
     <div class="row">
       <span class="row hostOnly"><button data-speed="0">停止</button><button data-speed="1">×1</button><button data-speed="2">×2</button><button data-speed="4">×4</button></span>
       <button id="townBtn" class="hidden">拠点に入る</button>
+      <button id="charBtn">人物</button>
       <button id="menuBtn">メニュー</button>
     </div>
   </div>
@@ -104,11 +110,17 @@
     <div class="row tabs"><button id="tab-market" data-tab="market">市場</button><button id="tab-jobs" data-tab="jobs">依頼</button><button id="tab-work" data-tab="work">仕事</button><button id="tab-army" data-tab="army">募兵</button><button id="tab-talk" data-tab="talk">話す</button></div>
     <div id="townBody"></div>
   </div>
+  <div class="hud hidden" id="char">
+    <div class="townHead"><span id="charName"></span><button id="charClose">閉じる</button></div>
+    <div class="row tabs"><button id="ctab-stat" data-ctab="stat">能力・技能</button><button id="ctab-perk" data-ctab="perk">特技</button><button id="ctab-army" data-ctab="army">部隊・昇格</button></div>
+    <div id="charBody"></div>
+  </div>
   <div class="hud hidden" id="battle"><div class="bh"><b id="battleTitle"></b><span id="battleInfo"></span></div><div id="battleBody"></div></div>
-  <div class="hud" id="help">左クリック：移動／拠点の情報　右クリック：拠点へ移動　WASD：歩く　ドラッグ：地図を動かす　ホイール：拡大　Tab：近くの拠点　E：拠点に入る　F：追従　Esc：メニュー　｜　🎮 左スティック：歩く　右：視点　X：近くの拠点　A：向かう／拠点に入る　B：取消　LB/RB：拡大　START：メニュー　拠点内LB/RB：タブ切替　｜　戦闘中 Z：全軍突撃　X：全軍待機　C：全軍後退</div>
+  <div class="hud" id="help">左クリック：移動／拠点の情報　右クリック：拠点へ移動　WASD：歩く　ドラッグ：地図を動かす　ホイール：拡大　Tab：近くの拠点　E：拠点に入る　F：追従　Esc：メニュー　P：人物　｜　🎮 左スティック：歩く　右：視点　X：近くの拠点　A：向かう／拠点に入る　B：取消　LB/RB：拡大　START：メニュー（人物・部隊もここ）　拠点内LB/RB：タブ切替　｜　戦闘中 Z：全軍突撃　X：全軍待機　C：全軍後退</div>
   <div id="gameMenu" class="hidden">
     <div class="menu">
       <button id="mClose">ゲームに戻る</button>
+      <button id="mChar">人物・部隊</button>
       <button id="mFollow">自分を追いかける（切替）</button>
       <button id="mSave" class="hostOnly">セーブ</button>
       <button id="mExport" class="hostOnly">セーブをファイルに書き出す</button>
@@ -122,7 +134,7 @@
 <script>
   // 更新が確実に反映されるよう、毎回最新のファイルを読み込む
   (function () {
-    const files = ['js/config.js', 'js/data/world1560.js', 'js/data/items.js', 'js/sim/world.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/save.js', 'js/net/net.js', 'js/render.js', 'js/main.js'];
+    const files = ['js/config.js', 'js/data/world1560.js', 'js/data/items.js', 'js/sim/world.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/save.js', 'js/net/net.js', 'js/render.js', 'js/main.js'];
     const v = Date.now();
     (function next(i) { if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '?v=' + v; s.onload = () => next(i + 1); document.body.appendChild(s); })(0);
   })();
