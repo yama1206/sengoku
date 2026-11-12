@@ -207,11 +207,13 @@
   }
   function hostTick() {
     const now = performance.now(); const dt = Math.min(5, (now - lastTick) / 1000); lastTick = now;
-    SIM.step(G.world, dt * CFG.MIN_PER_SEC * G.speed);
+    G.inBattle = Object.keys(G.world.battles || {}).length > 0; // 0.32.0 誰かが戦闘中は時間を等倍に
+    G.effSpeed = G.inBattle && G.speed > 1 ? 1 : G.speed;
+    SIM.step(G.world, dt * CFG.MIN_PER_SEC * G.effSpeed);
     netAcc += dt * 1000;
     if (netAcc >= CFG.NET_SEND_MS) {
       netAcc = 0;
-      if (G.net) { G.net.each((pid) => ({ t: 'state', s: SIM.dynamicState(G.world, pid), sp: G.speed, priv: SIM.privateState(G.world, pid), msgs: SIM.drain(pid) })); }
+      if (G.net) { G.net.each((pid) => ({ t: 'state', s: SIM.dynamicState(G.world, pid), sp: G.speed, priv: SIM.privateState(G.world, pid), msgs: SIM.drain(pid), bt: G.inBattle })); }
       for (const pid in SIM.out) if (pid !== G.myPid) delete SIM.out[pid]; // 接続していない人宛ては捨てる
     }
     saveAcc += dt;
@@ -234,7 +236,7 @@
     G.mode = 'connecting';
     G.net = SGK.NET.join(code, token, myName(), {
       onWelcome: (m) => { SGK.NET.addFriend(m.hostCode || code, m.hostName); G.mode = 'client'; G.myPid = m.pid; G.stat = m.static; G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
-      onState: (m) => { G.dyn = m.s; G.speed = m.sp; G.priv = m.priv; (m.msgs || []).forEach((t) => toast(t, 4000)); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } },
+      onState: (m) => { G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; G.priv = m.priv; (m.msgs || []).forEach((t) => toast(t, 4000)); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } },
       onBye: (why) => { backToTitle(); titleMsg(why); },
       onError: (t) => titleMsg(t),
     });
@@ -965,7 +967,7 @@
           + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品'}・${dayLeft(q.deadline)}）</div>`).join('');
       }
       // HUD
-      $('date').textContent = SIM.formatDate(G.view.t) + (G.speed === 0 ? '（停止中）' : G.speed > 1 ? `（×${G.speed}）` : '');
+      $('date').textContent = SIM.formatDate(G.view.t) + (G.speed === 0 ? '（停止中）' : G.speed > 1 ? (G.inBattle ? '（戦闘中のため×1）' : `（×${G.speed}）`) : '');
       if (m) {
         const at = m.at && G.view.settlements.find((s) => s.id === m.at);
         $('status').textContent = `${m.name}（${m.status || '浪人'}）　${BT ? '戦闘中' : at ? at.name + 'に滞在中' : m.tx != null ? `移動中（${SIM.terrainAt(m.x, m.y)}）` : `野外（${SIM.terrainAt(m.x, m.y)}）`}`;

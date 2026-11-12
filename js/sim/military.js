@@ -207,14 +207,16 @@
   function turnTo(u, a, rate) { let d = a - u.f; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; u.f += Math.max(-rate, Math.min(rate, d)); }
 
   // ---- 戦闘の開始 ----
+  const BATTLE_PACE = 0.5, UNIT_HP = 2; // 0.32.0 戦場の進み方は半分の速さ・兵の体力は2倍（本人はそのまま）
   function addUnits(w, b, side, owner, army) {
     const list = Object.entries(army).filter(([, n]) => n > 0);
     const fx = side === 'A' ? 1 : -1, base = side === 'A' ? FIELD.ax : FIELD.bx;
     const mo = owner ? SIM.moraleBase(w, owner) : (army.bandit || army.banditBow) ? 75 : 55; // 野盗は少々の損害では崩れない
     list.forEach(([type, n], i) => {
       const t = TR[type], m = owner ? SIM.unitMods(w, owner, type) : { am: 1, da: 0, ra: 0, hm: 1 };
+      const hx = type === 'hero' ? 1 : UNIT_HP;
       const wound = type === 'hero' && owner && w.players[owner] ? Math.max(0.05, w.players[owner].hpFrac == null ? 1 : w.players[owner].hpFrac) : 1; // 本人の傷は戦に持ち越す
-      b.units.push({ id: b.next++, side, owner, type, n, n0: n, hp: n * t.hp * m.hm * wound, mh: t.hp * m.hm, am: m.am, da: m.da, ra: m.ra,
+      b.units.push({ id: b.next++, side, owner, type, n, n0: n, hp: n * t.hp * hx * m.hm * wound, mh: t.hp * hx * m.hm, am: m.am, da: m.da, ra: m.ra,
         x: base - fx * (t.ranged ? 8 : type === 'hero' ? 4 : 0), y: FIELD.h / 2 + (i - (list.length - 1) / 2) * 14 + (side === 'A' ? (b.pids.length - 1) * 6 : 0),
         f: side === 'A' ? 0 : Math.PI, mor: type === 'hero' ? 100 : mo, mo, order: side === 'A' ? 'hold' : !t.ranged && i % 2 ? 'flank' : 'charge' }); // 敵の近接は半分が回り込む
     });
@@ -329,7 +331,7 @@
     const bFight = b.units.some((u) => u.side === 'B' && alive(u) && u.order !== 'rout' && u.order !== 'retreat');
     if (!bLive || !bFight) finish(w, b, 'win'); // 0.30.2 敵が全部退き始めたらその時点で勝ち
     else if (!aLive) finish(w, b, b.units.some((u) => u.side === 'A' && u.gone && u.hp > 0) ? 'escape' : 'lose');
-    else if (b.t > 420) autoResolve(w, b); // 長引いたら自動で決着
+    else if (b.t > 900) autoResolve(w, b); // 長引いたら自動で決着
   }
 
   function autoResolve(w, b) {
@@ -434,7 +436,7 @@
     banditTick,
     healTick,
     patrolTick,
-    function battles(w, dtMin) { const sec = dtMin / CFG.MIN_PER_SEC; for (const b of Object.values(w.battles)) stepBattle(w, b, sec); },
+    function battles(w, dtMin) { const sec = (dtMin / CFG.MIN_PER_SEC) * BATTLE_PACE; for (const b of Object.values(w.battles)) stepBattle(w, b, sec); },
   );
 
   // ---- コマンド ----
