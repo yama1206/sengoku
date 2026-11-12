@@ -636,16 +636,8 @@
     const sum = (side) => bt.units.filter((u) => u[1] === side).reduce((a, u) => a + (u[3] === 'hero' ? 1 : u[4]), 0);
     $('battleTitle').textContent = `${bt.foe}との戦い`;
     $('battleInfo').textContent = `味方 ${sum('A')}　敵 ${sum('B')}${bt.routed ? '（敗走中）' : ''}　${bt.t}秒`;
-    let html = '';
-    for (const u of bt.units) {
-      if (u[2] !== G.myPid) continue;
-      const [id, , , type, n, , , order, , mor] = u, T = TR[type];
-      html += `<div class="bu ${G.selUnit === id ? 'sel' : ''}"><span class="nm">${type === 'hero' ? '本人' : T.name + (T.cls ? '〔' + SIM.CLS_NAME[T.cls] + '〕' : '') + ' ' + n + '人'}　<span class="muted">${ORDN[order]}${type === 'hero' ? '' : '　士気' + mor}</span></span>`
-        + `<button id="bs-${id}" data-sel="${id}">${G.selUnit === id ? '選択中' : '選ぶ'}</button></div>`;
-    }
-    html += `<div class="bu"><span class="nm"><b>全軍</b></span>` + ['charge', 'hold', 'retreat'].map((o) => `<button id="bo-all-${o}" data-unit="all" data-order="${o}">${ORDN[o]}</button>`).join('') + '</div>';
-    html += `<div class="muted" style="margin-top:4px">自分の部隊をクリックで選び、行き先をクリックで移動（敵をクリックすればそこへ向かう）。敵が届く所に入ると自動で攻撃します。ドラッグで見回し、ホイールで拡大。槍は正面からの騎馬に強く、弓は接近戦に弱い。側面・背後からが有利</div>`;
-    html += `<div class="row" style="margin-top:6px"><button id="bAuto" data-bact="battleAuto">自動で決着（スキップ）</button><button id="bFlee" data-bact="battleFlee">退却する（兵の3割を失う${bt.foe === '野盗' ? '・所持金の15%を奪われる' : ''}）</button></div>`;
+    let html = ''; // 部隊の一覧は出さない（地図の上でクリックして選ぶ）
+    html += `<div class="row" style="margin-top:4px"><button id="bAuto" data-bact="battleAuto">自動で決着（スキップ）</button><button id="bFlee" data-bact="battleFlee">退却する（兵の3割を失う${bt.foe === '野盗' ? '・所持金の15%を奪われる' : ''}）</button></div>`;
     if (html !== battleHtml) { battleHtml = html; $('battleBody').innerHTML = html; const b = $('battle'), f = currentFocus(b); if (f) setFocus(b, f); }
   }
   $('battleBody').addEventListener('click', (e) => {

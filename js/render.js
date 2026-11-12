@@ -148,7 +148,7 @@
   // 戦場のカメラ：bcam.x/y が画面の中心（m）、z が拡大率（1 = 横300m・縦200mが入る大きさ）
   R.bcam = { x: 350, y: 230, z: 1 };
   R.battleLayout = (F) => {
-    const top = 70, bottom = 210, vh = Math.max(120, H - top - bottom), c = R.bcam;
+    const top = 70, bottom = 70, vh = Math.max(120, H - top - bottom), c = R.bcam;
     c.z = Math.max(0.35, Math.min(3, c.z));
     const sc = Math.max(0.6, Math.min((W - 20) / 300, vh / 200) * c.z);
     const hw = W / 2 / sc, hh = vh / 2 / sc; // 画面に入る半分の幅（m）
