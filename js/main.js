@@ -636,6 +636,7 @@
   $('charClose').onclick = () => openChar(false);
   $('charBtn').onclick = () => openChar(true);
   $('mChar').onclick = () => openChar(true);
+  $('townChar').onclick = () => openChar(true); // 0.29.2 拠点の画面からも人物を開ける
 
   // ---------- 戦闘の操作パネル ----------
   let battleHtml = '';
