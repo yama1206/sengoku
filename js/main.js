@@ -406,7 +406,7 @@
     document.querySelectorAll('#town [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === townTab));
     let html = '';
     if (townTab === 'market') {
-      html += `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　荷 ${SIM.cargo(me)}/${me.cap}</div><div class="grid">`;
+      html += `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　荷 ${SIM.cargo(me)}/${me.cap}　米 ${(me.inv && me.inv.rice) || 0}/${me.riceCap}俵（別枠）</div><div class="grid">`;
       html += '<span class="h">品</span><span class="h">買値</span><span class="h">売値</span><span class="h">在庫</span><span class="h">所持</span><span></span><span></span><span></span><span></span>';
       for (const [k, buy, sell, stock] of h.market) {
         const it = IT[k], have = me.inv[k] || 0;
@@ -949,7 +949,7 @@
           const html = `体力 <span style="display:inline-block;width:110px;height:9px;background:rgba(0,0,0,.55);border:1px solid #0008;vertical-align:middle"><span style="display:block;height:100%;width:${(r * 100).toFixed(0)}%;background:${r > 0.5 ? '#6fbf73' : r > 0.25 ? '#e0c060' : '#e07a6a'}"></span></span> ${hp}/${max}${!BT2 && r < 1 ? `<span class="muted">（${P.here ? '休んで回復中' : '拠点で休むと治る'}）</span>` : ''}`;
           if ($('hpBar').innerHTML !== html) $('hpBar').innerHTML = html;
         }
-        $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　荷 ${SIM.cargo(P.me)}/${P.me.cap}　名声 ${P.me.fame}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.riceNeed ? `<br>士気 <b style="color:${P.me.morale < 35 ? '#e07a6a' : P.me.morale < 60 ? '#e0c060' : '#6fbf73'}">${P.me.morale}</b>　兵糧 米${(P.me.inv && P.me.inv.rice) || 0}俵（1日${P.me.riceNeed}俵・${P.me.hungry ? '<b style="color:#e07a6a">米が足りません</b>' : '約' + P.me.riceDays + '日分'}）` : '') + (P.me.follow ? `<br>追跡中：${P.me.follow}` : '') + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
+        $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　荷 ${SIM.cargo(P.me)}/${P.me.cap}　名声 ${P.me.fame}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.riceNeed ? `<br>士気 <b style="color:${P.me.morale < 35 ? '#e07a6a' : P.me.morale < 60 ? '#e0c060' : '#6fbf73'}">${P.me.morale}</b>　兵糧 米${(P.me.inv && P.me.inv.rice) || 0}/${P.me.riceCap}俵（1日${P.me.riceNeed}俵・${P.me.hungry ? '<b style="color:#e07a6a">米が足りません</b>' : '約' + P.me.riceDays + '日分'}）` : '') + (P.me.follow ? `<br>追跡中：${P.me.follow}` : '') + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
           + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品'}・${dayLeft(q.deadline)}）</div>`).join('');
       }
       // HUD

@@ -13,7 +13,10 @@
   // 持ち物の平均買値（p.cost[品] = 1つあたりの文）。買うたびに加重平均、手放して0になったら消す
   function addCost(p, k, q, unit) { p.cost = p.cost || {}; const have = p.inv[k] || 0, old = p.cost[k] != null ? p.cost[k] : unit; p.cost[k] = (old * have + unit * q) / (have + q); }
   function dropCost(p, k) { if (!p.inv[k] && p.cost) delete p.cost[k]; }
-  SIM.cargo = (p) => Object.values(p.inv).reduce((a, b) => a + b, 0);
+  SIM.cargo = (p) => Object.entries(p.inv).reduce((a, [k, b]) => a + (k === 'rice' ? 0 : b), 0); // 0.29.0 米は別枠
+  SIM.riceCap = (p) => 30 + Math.ceil((SIM.riceNeed ? SIM.riceNeed(p) : 0) * 30); // 米の枠：30俵＋兵30日分
+  SIM.room = (p, k) => k === 'rice' ? SIM.riceCap(p) - ((p.inv && p.inv.rice) || 0) : CAP - SIM.cargo(p);
+  const fullMsg = (k) => k === 'rice' ? '米はこれ以上持てません' : 'これ以上は持てません';
   const pick = (w, arr) => arr[Math.floor(SIM.rand(w) * arr.length)];
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
@@ -182,8 +185,8 @@
       const s = needTown(w, p), it = I()[c.item]; if (!s || !it) return;
       if (SIM.noBuy(w, s).has(c.item)) return SIM.say(p.id, `${it.name}はこの拠点で調達の依頼が出ているので、ここでは買えません`);
       const unit = SIM.buyPrice(s, c.item, p);
-      const q = Math.min(Math.max(1, +c.qty || 1), Math.floor(s.stock[c.item]), CAP - SIM.cargo(p), Math.floor(p.money / unit));
-      if (q <= 0) return SIM.say(p.id, s.stock[c.item] < 1 ? '在庫がありません' : SIM.cargo(p) >= CAP ? 'これ以上は持てません' : 'お金が足りません');
+      const q = Math.min(Math.max(1, +c.qty || 1), Math.floor(s.stock[c.item]), SIM.room(p, c.item), Math.floor(p.money / unit));
+      if (q <= 0) return SIM.say(p.id, s.stock[c.item] < 1 ? '在庫がありません' : SIM.room(p, c.item) <= 0 ? fullMsg(c.item) : 'お金が足りません');
       p.money -= unit * q; s.stock[c.item] -= q; addCost(p, c.item, q, unit); p.inv[c.item] = (p.inv[c.item] || 0) + q;
       SIM.say(p.id, `${it.name}を${q}${it.unit}買いました（${SIM.money(unit * q)}）`);
     },
@@ -230,8 +233,8 @@
       if (!n || n.kind !== 'merchant' || !n.cargo || p.battle || p.busy) return;
       if (dist(n, p) > 1.5) return SIM.say(p.id, '行商人にもっと近づいてください');
       const it = I()[n.cargo.item], unit = SIM.cargoPrice(n.cargo.item, p);
-      const q = Math.min(5, n.cargo.qty, CAP - SIM.cargo(p), Math.floor(p.money / unit));
-      if (q <= 0) return SIM.say(p.id, SIM.cargo(p) >= CAP ? '荷がいっぱいです' : 'お金が足りません');
+      const q = Math.min(5, n.cargo.qty, SIM.room(p, n.cargo.item), Math.floor(p.money / unit));
+      if (q <= 0) return SIM.say(p.id, SIM.room(p, n.cargo.item) <= 0 ? fullMsg(n.cargo.item) : 'お金が足りません');
       p.money -= q * unit; addCost(p, n.cargo.item, q, unit); p.inv[n.cargo.item] = (p.inv[n.cargo.item] || 0) + q; n.cargo.qty -= q; if (n.cargo.qty <= 0) n.cargo = null;
       SIM.say(p.id, `行商人から${it.name}を${q}${it.unit}買いました（${SIM.money(q * unit)}）`);
     },
@@ -255,7 +258,7 @@
     const p = w.players[pid]; if (!p) return null;
     const s = here(w, p);
     return {
-      me: { money: p.money, inv: p.inv, cost: p.cost || {}, quests: p.quests, fame: Math.round(p.fame * 10) / 10, busy: p.busy, cap: CAP },
+      me: { money: p.money, inv: p.inv, cost: p.cost || {}, quests: p.quests, fame: Math.round(p.fame * 10) / 10, busy: p.busy, cap: CAP, riceCap: SIM.riceCap(p) },
       here: s ? { id: s.id, noBuy: [...SIM.noBuy(w, s)], market: Object.keys(I()).map((k) => [k, SIM.buyPrice(s, k, p), SIM.sellPrice(s, k, p), Math.floor(s.stock[k])]), jobs: Object.values(w.jobs).filter((j) => j.from === s.id) } : null,
     };
   };
