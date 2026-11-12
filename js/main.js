@@ -301,7 +301,7 @@
       if (sg) $('infoBody').innerHTML += `<br>${sg.ready ? '総攻めの支度が整っています' : `包囲中：総攻めまであと${sg.days}日`}`;
       if (sg && sg.ready && near) act = { label: '総攻めをかける', cmd: { type: 'assault', id: s.id } };
       else if (sg) act = { label: '包囲を解く', cmd: { type: 'liftSiege' } };
-      else if (war && W.canSiege && near && !(W.siege)) act = { label: `城を包囲する（${W.ar ? W.ar.siegeDays : 3}日後に総攻め）`, cmd: { type: 'siege', id: s.id } };
+      else if (war && W.canSiege && near && !(W.siege)) act = { label: `城を包囲する（${W.ar ? W.ar.siegeDays : 5}日後に総攻め）`, cmd: { type: 'siege', id: s.id } };
       else if (W && W.canPersuade && cs.lord && s.owner !== mine && mp && mp.at === s.id) act = { label: `調略する（${SIM.money(W.persuadeCost)}・成功率${W.chance != null ? W.chance : '?'}%）`, cmd: { type: 'persuade' } };
       else if (R && R.daimyo && s.owner === mine && cs.lord && mp && mp.at === s.id) act = { label: `褒美を与える（${SIM.money(W.rewardCost)}）`, cmd: { type: 'reward' } };
       G.infoCmd = act ? act.cmd : null; $('infoAct').classList.toggle('hidden', !act); if (act) $('infoAct').textContent = act.label;
@@ -596,7 +596,7 @@
         if (me.war) {
           const fn = (k) => (G.view.factions[k] || {}).name || k;
           const W = me.war;
-          html += `<div class="muted" style="margin-top:10px">戦の相手：${W.enemies.length ? W.enemies.map(fn).join('・') : 'なし'}${W.canSiege ? `　（敵の城の${W.nearKm}km以内で、城を選んで「城を包囲する」。${W.ar ? W.ar.siegeDays : 3}日後に総攻め）` : ''}</div>`;
+          html += `<div class="muted" style="margin-top:10px">戦の相手：${W.enemies.length ? W.enemies.map(fn).join('・') : 'なし'}${W.canSiege ? `　（敵の城の${W.nearKm}km以内で、城を選んで「城を包囲する」。${W.ar ? W.ar.siegeDays : 5}日後に総攻め）` : ''}</div>`;
           if (W.siege) html += `<div class="muted" style="color:#e8c060">${W.siege.name}を包囲中：${W.siege.ready ? '総攻めの支度が整っています（城を選んで「総攻めをかける」）' : `総攻めまであと${W.siege.days}日。敵の援軍に注意`}</div>`;
           for (const c of W.camps) html += `<div class="muted" style="color:#e06050">${c.att}の軍勢${c.n}人が${c.to}${c.siege ? `を包囲中（総攻めまであと${c.days}日）` : `へ進軍中（あと${c.days}日ほど）`}。城に入れば守りに加われます。軍勢に攻めかかって追い払うこともできます</div>`;
           if (W.canMuster) {

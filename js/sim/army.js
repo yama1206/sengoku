@@ -10,7 +10,7 @@
   const scale = (tr, r) => { const o = {}; for (const k in tr) { const v = Math.round(tr[k] * r); if (v > 0) o[k] = v; } return o; };
   const addTr = (a, b) => { const o = Object.assign({}, a); for (const k in b) o[k] = (o[k] || 0) + b[k]; return o; };
   // 数値はすべて仮（ここで調整）
-  const AR = { siegeDays: 3, speed: 25, reliefKm: 50, fightKm: 2, liftKm: 3, musterRank: 3, musterKm: 40, musterDays: 30, musterCD: 20, musterRate: 0.4 };
+  const AR = { siegeDays: 5, speed: 25, reliefKm: 50, fightKm: 2, liftKm: 3, musterRank: 3, musterKm: 40, musterDays: 30, musterCD: 20, musterRate: 0.4 };
   SIM.ARMY = AR;
   const MEI = ['政', '長', '信', '義', '勝', '秀', '忠', '家', '重', '貞', '元', '光', '直', '康', '盛', '成', '房', '綱'];
 
