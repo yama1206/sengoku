@@ -213,7 +213,8 @@
     const mo = owner ? SIM.moraleBase(w, owner) : (army.bandit || army.banditBow) ? 75 : 55; // 野盗は少々の損害では崩れない
     list.forEach(([type, n], i) => {
       const t = TR[type], m = owner ? SIM.unitMods(w, owner, type) : { am: 1, da: 0, ra: 0, hm: 1 };
-      b.units.push({ id: b.next++, side, owner, type, n, n0: n, hp: n * t.hp * m.hm, mh: t.hp * m.hm, am: m.am, da: m.da, ra: m.ra,
+      const wound = type === 'hero' && owner && w.players[owner] ? Math.max(0.05, w.players[owner].hpFrac == null ? 1 : w.players[owner].hpFrac) : 1; // 本人の傷は戦に持ち越す
+      b.units.push({ id: b.next++, side, owner, type, n, n0: n, hp: n * t.hp * m.hm * wound, mh: t.hp * m.hm, am: m.am, da: m.da, ra: m.ra,
         x: base - fx * (t.ranged ? 8 : type === 'hero' ? 4 : 0), y: FIELD.h / 2 + (i - (list.length - 1) / 2) * 14 + (side === 'A' ? (b.pids.length - 1) * 6 : 0),
         f: side === 'A' ? 0 : Math.PI, mor: type === 'hero' ? 100 : mo, mo, order: side === 'A' ? 'hold' : !t.ranged && i % 2 ? 'flank' : 'charge' }); // 敵の近接は半分が回り込む
     });
@@ -355,6 +356,19 @@
     const l = SIM.troopCount(before) - SIM.troopCount(after);
     return l > 0 ? `兵${l}人を失いました` : '兵の損失はありません';
   }
+  // ---- 本人の傷：戦いのあとも残り、拠点で休むと治る（1日で全快。野外ではゆっくり） ----
+  function setWound(b, p, res) {
+    const h = b.units.find((u) => u.owner === p.id && u.type === 'hero'); if (!h) return;
+    p.hpFrac = h.hp > 0 ? Math.min(1, h.hp / h.mh) : 0.15; // 倒れても手当てを受けて少しは戻る
+    if (p.hpFrac < 0.15) p.hpFrac = 0.15;
+  }
+  function healTick(w, dt) {
+    for (const p of Object.values(w.players)) {
+      if (p.hpFrac == null || p.hpFrac >= 1 || p.battle) continue;
+      const inTown = p.at && p.tx == null;
+      p.hpFrac = Math.min(1, p.hpFrac + (dt / 1440) * (inTown ? 1 : 0.15));
+    }
+  }
   function nearestSettlement(w, p) { return w.settlements.reduce((a, s) => (dist(s, p) < dist(a, p) ? s : a)); }
   function finish(w, b, res) {
     const n = w.npcs[b.npc];
@@ -371,6 +385,7 @@
         const s = nearestSettlement(w, p); p.x = s.x; p.y = s.y; p.at = s.id; p.tx = p.ty = null;
         SIM.say(pid, `敗北…… ${SIM.money(lost)}を奪われ、気がつくと${s.name}で手当てを受けていました。${lt}`);
       } else SIM.say(pid, `戦場から退きました。${lt}`);
+      setWound(b, p, res);
       SIM.onBattleEnd(w, b, p, res, after);
     }
     const pa = b.ally && w.npcs[b.ally];
@@ -417,6 +432,7 @@
     function militaryDay(w) { const d = Math.floor(w.time.min / 1440); while (w.mday < d) { w.mday++; daily(w); } },
     function partySpeed(w) { for (const p of Object.values(w.players)) p.speed = (CFG.WALK_KM_PER_DAY + SIM.speedBonus(p)) * SIM.sizeSpeed(SIM.troopCount(p.troops)) * SIM.mixSpeed(p.troops); },
     banditTick,
+    healTick,
     patrolTick,
     function battles(w, dtMin) { const sec = dtMin / CFG.MIN_PER_SEC; for (const b of Object.values(w.battles)) stepBattle(w, b, sec); },
   );
@@ -458,6 +474,7 @@
       const b = w.battles[p.battle]; if (!b) return;
       const before = b.start[p.id] || {}, tr = surviving(w, b, p.id);
       for (const k in tr) { tr[k] = Math.floor(tr[k] * 0.7); if (!tr[k]) delete tr[k]; }
+      setWound(b, p, 'escape');
       p.troops = tr; p.battle = null;
       b.units = b.units.filter((u) => u.owner !== p.id); b.pids = b.pids.filter((x) => x !== p.id);
       const n = w.npcs[b.npc];
@@ -477,7 +494,7 @@
   SIM.privateState = function (w, pid) {
     const r = basePriv(w, pid); if (!r) return r;
     const p = w.players[pid];
-    Object.assign(r.me, { hpMax: Math.round(TR.hero.hp * (SIM.unitMods(w, pid, 'hero').hm || 1)), follow: SIM.followName(w, p), speed: Math.round(p.speed || 0), troops: p.troops, troopCap: SIM.troopCap(p), wage: SIM.wage(p.troops, p), costMod: SIM.costMod(p) });
+    Object.assign(r.me, { hpFrac: p.hpFrac == null ? 1 : Math.round(p.hpFrac * 1000) / 1000, hpMax: Math.round(TR.hero.hp * (SIM.unitMods(w, pid, 'hero').hm || 1)), follow: SIM.followName(w, p), speed: Math.round(p.speed || 0), troops: p.troops, troopCap: SIM.troopCap(p), wage: SIM.wage(p.troops, p), costMod: SIM.costMod(p) });
     if (r.here) { const s = SIM.settlement(w, r.here.id); r.here.recruit = Object.keys(POOL[s.type]).map((k) => [k, Math.floor(s.pool[k] || 0)]); }
     const b = p.battle && w.battles[p.battle];
     r.battle = b ? { id: b.id, foe: b.foe, t: Math.floor(b.t), routed: b.routed,

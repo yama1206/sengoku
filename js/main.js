@@ -935,10 +935,10 @@
       if (!$('town').classList.contains('hidden')) renderTown();
       if (!$('char').classList.contains('hidden')) renderChar();
       if (P) {
-        { // 本人の体力（戦闘中は減っていく。戦闘の外ではいつも満タン）
+        { // 本人の体力（傷は戦のあとも残り、拠点で休むと治る）
           const max = P.me.hpMax || 35, BT2 = P.battle, h = BT2 && BT2.units.find((u) => u[2] === G.myPid && u[3] === 'hero');
-          const hp = BT2 ? (h ? Math.max(0, h[11] != null ? h[11] : max) : 0) : max, r = Math.max(0, Math.min(1, hp / max));
-          const html = `体力 <span style="display:inline-block;width:110px;height:9px;background:rgba(0,0,0,.55);border:1px solid #0008;vertical-align:middle"><span style="display:block;height:100%;width:${(r * 100).toFixed(0)}%;background:${r > 0.5 ? '#6fbf73' : r > 0.25 ? '#e0c060' : '#e07a6a'}"></span></span> ${hp}/${max}`;
+          const hp = BT2 ? (h ? Math.max(0, h[11] != null ? h[11] : max) : 0) : Math.round(max * (P.me.hpFrac == null ? 1 : P.me.hpFrac)), r = Math.max(0, Math.min(1, hp / max));
+          const html = `体力 <span style="display:inline-block;width:110px;height:9px;background:rgba(0,0,0,.55);border:1px solid #0008;vertical-align:middle"><span style="display:block;height:100%;width:${(r * 100).toFixed(0)}%;background:${r > 0.5 ? '#6fbf73' : r > 0.25 ? '#e0c060' : '#e07a6a'}"></span></span> ${hp}/${max}${!BT2 && r < 1 ? `<span class="muted">（${P.here ? '休んで回復中' : '拠点で休むと治る'}）</span>` : ''}`;
           if ($('hpBar').innerHTML !== html) $('hpBar').innerHTML = html;
         }
         $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　荷 ${SIM.cargo(P.me)}/${P.me.cap}　名声 ${P.me.fame}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.riceNeed ? `<br>士気 <b style="color:${P.me.morale < 35 ? '#e07a6a' : P.me.morale < 60 ? '#e0c060' : '#6fbf73'}">${P.me.morale}</b>　兵糧 米${(P.me.inv && P.me.inv.rice) || 0}俵（1日${P.me.riceNeed}俵・${P.me.hungry ? '<b style="color:#e07a6a">米が足りません</b>' : '約' + P.me.riceDays + '日分'}）` : '') + (P.me.follow ? `<br>追跡中：${P.me.follow}` : '') + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
