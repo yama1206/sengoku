@@ -10,7 +10,11 @@
     { name: '侍大将', merit: 200, fame: 20, cap: 30, stipend: 1800, desc: '主家の城で騎馬を名声に関係なく雇える' },
     { name: '部将', merit: 500, fame: 35, cap: 50, stipend: 3500, desc: '大軍を率いる重臣' },
     { name: '城主', merit: 900, fame: 50, cap: 70, stipend: 2000, desc: '主家から城を一つ任される。内政・築城で城を育て、毎月の年貢を受け取る' },
+    { name: '家老', merit: 1500, fame: 70, cap: 90, stipend: 3000, castles: 2, desc: '城を2つまで任される（加増）。主家の城で兵を3割安く雇える' },
+    { name: '国主', merit: 2500, fame: 90, cap: 120, stipend: 4500, castles: 4, desc: '一国を預かる重臣。城を4つまで任され、年貢が1割増える' },
+    { name: '大名', merit: 0, fame: 60, cap: 150, stipend: 0, castles: 99, indep: true, desc: '城主以上が独立してなる。自分の家を興し、治める城はすべて自分の領地。ほかのプレイヤーを家臣に迎えられる' },
   ];
+  SIM.castleLimit = (p) => (p.rank >= 5 ? RANKS[p.rank].castles || 1 : 0);
   const fName = (w, p) => (w.factions[p.clan] || {}).name || '';
   const setStatus = (w, p) => { p.status = p.clan ? `${fName(w, p)} ${RANKS[p.rank].name}` : '浪人'; };
   const here = (w, p) => (p.at && p.tx == null ? SIM.settlement(w, p.at) : null);
@@ -50,7 +54,7 @@
   if (baseRecruit) SIM.commands.recruit = (w, p, c) => {
     const s = ownCastle(w, p), T = SIM.TROOPS[c.kind];
     const oldCost = SIM.costMod, oldFame = T && T.fame;
-    if (s && p.rank >= 2) SIM.costMod = (q) => oldCost(q) * 0.8;
+    if (s && p.rank >= 2) SIM.costMod = (q) => oldCost(q) * (p.rank >= 6 ? 0.7 : 0.8);
     if (s && p.rank >= 3 && T) T.fame = 0;
     try { baseRecruit(w, p, c); } finally { SIM.costMod = oldCost; if (T) T.fame = oldFame; }
   };
@@ -95,17 +99,21 @@
   Object.assign(SIM.commands, {
     serve(w, p) { // 仕官
       const s = here(w, p);
-      if (!s || s.type !== 'castle' || !s.lord || !w.factions[s.owner]) return SIM.say(p.id, '城主のいる城でないと仕官できません');
+      const lordP = s && SIM.lordPlayer && SIM.lordPlayer(w, s);
+      if (!s || s.type !== 'castle' || !(s.lord || lordP) || !w.factions[s.owner]) return SIM.say(p.id, '城主のいる城でないと仕官できません');
       if (p.clan) return SIM.say(p.id, `すでに${fName(w, p)}に仕えています`);
       if (p.battle || p.busy) return;
+      if (lordP && lordP.id === p.id) return;
       if (p.fame < RANKS[1].fame) return SIM.say(p.id, `仕官するには名声${RANKS[1].fame}が必要です（いま${p.fame}）`);
       if (p.leftClan === s.owner) return SIM.say(p.id, `${w.factions[s.owner].name}は、出奔した者を二度とは迎えてくれないようです`);
       p.clan = s.owner; p.rank = 1; p.merit = 0; p.promoteHint = 0; setStatus(w, p);
-      SIM.say(p.id, `${(w.people[s.lord] || {}).name}様に目通りし、${fName(w, p)}の足軽として召し抱えられました！`);
+      if (lordP) SIM.say(lordP.id, `${p.name}が家臣として仕えました`);
+      SIM.say(p.id, `${lordP ? lordP.name : (w.people[s.lord] || {}).name}様に目通りし、${fName(w, p)}の足軽として召し抱えられました！`);
     },
     promote(w, p) { // 昇進を願い出る
       if (!ownCastle(w, p)) return SIM.say(p.id, '主家の城でないと願い出られません');
-      const nx = RANKS[p.rank + 1]; if (!nx) return SIM.say(p.id, 'これ以上の身分は今後の段階で');
+      const nx = RANKS[p.rank + 1]; if (!nx) return;
+      if (nx.indep) return SIM.say(p.id, '国主より上は、主家から独立して大名になるしかありません（人物画面の「身分」）');
       if (p.merit < nx.merit) return SIM.say(p.id, `功績が足りません（${p.merit}/${nx.merit}）`);
       if (p.fame < nx.fame) return SIM.say(p.id, `名声が足りません（${p.fame}/${nx.fame}）`);
       if (p.rank + 1 === 5) { // 城主：主家の城を一つ任される
@@ -114,10 +122,12 @@
         SIM.say(p.id, `${s.name}を任されました！ 城の「城」の画面で内政・築城ができます`);
       }
       p.rank++; p.promoteHint = 0; setStatus(w, p);
+      if (p.rank >= 6) { const s2 = SIM.grantCastle(w, p); if (s2) SIM.say(p.id, `加増として${s2.name}も任されました`); }
       SIM.say(p.id, `${nx.name}に取り立てられました！ 率いる人数が増え、俸禄は月${SIM.money(nx.stipend)}になります`);
     },
     leaveClan(w, p) { // 出奔
       if (!p.clan || p.battle) return;
+      if (RANKS[p.rank].indep) return SIM.say(p.id, '大名は出奔できません');
       const f = fName(w, p);
       SIM.releaseCastle(w, p);
       p.leftClan = p.clan; p.clan = null; p.rank = 0; p.merit = 0; p.fame = Math.max(0, p.fame - 3); setStatus(w, p);
@@ -131,8 +141,8 @@
     const r = basePriv(w, pid); if (!r) return r;
     const p = w.players[pid], s = here(w, p);
     r.me.rank = { clan: p.clan, clanName: fName(w, p), rank: p.rank, merit: p.merit, left: p.leftClan || null,
-      canServe: !!(s && s.type === 'castle' && s.lord && !p.clan), atOwn: !!ownCastle(w, p),
-      lordHere: s && s.lord ? (w.people[s.lord] || {}).name : null, factionHere: s ? (w.factions[s.owner] || {}).name : null };
+      canServe: !!(s && s.type === 'castle' && (s.lord || (SIM.lordPlayer && SIM.lordPlayer(w, s) && SIM.lordPlayer(w, s).id !== p.id)) && !p.clan), atOwn: !!ownCastle(w, p),
+      lordHere: s && s.lord ? (w.people[s.lord] || {}).name : s && SIM.lordPlayer && SIM.lordPlayer(w, s) ? SIM.lordPlayer(w, s).name : null, factionHere: s ? (w.factions[s.owner] || {}).name : null };
     r.me.troopCap = SIM.troopCap(p);
     return r;
   };
