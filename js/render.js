@@ -56,6 +56,13 @@
     ctx.strokeStyle = '#7d9fae'; ctx.lineCap = ctx.lineJoin = 'round';
     ctx.lineWidth = Math.max(2, cam.scale * 0.35);
     for (const r of T.rivers) { path(ctx, r.pts); ctx.stroke(); }
+    // 昼夜：夕方・明け方は橙、夜は藍色に沈める
+    const day = SGK.SIM.daylight ? SGK.SIM.daylight(view.t || 0) : 1, night = 1 - day;
+    if (night > 0) {
+      const tw = Math.sin(Math.PI * day); // 薄明のとき 1
+      ctx.fillStyle = `rgba(${Math.round(20 + 150 * tw)},${Math.round(28 + 50 * tw)},${Math.round(70 - 30 * tw)},${(0.55 * night + 0.12 * tw).toFixed(3)})`;
+      ctx.fillRect(0, 0, W, H);
+    }
     // 自分の目的地の線
     const me = view.players.find((p) => p.id === myPid);
     if (me && me.tx != null) {
@@ -88,7 +95,7 @@
     if (meV && view.sr) {
       const d = disp[meV.id] || meV, [cx, cy] = R.toScreen(d.x, d.y), rr = view.sr * cam.scale;
       const gr = ctx.createRadialGradient(cx, cy, rr * 0.85, cx, cy, rr * 1.05);
-      gr.addColorStop(0, 'rgba(20,16,10,0)'); gr.addColorStop(1, 'rgba(20,16,10,.38)');
+      gr.addColorStop(0, 'rgba(10,12,24,0)'); gr.addColorStop(1, `rgba(10,12,24,${(0.38 + 0.35 * night).toFixed(3)})`);
       ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
       ctx.strokeStyle = 'rgba(255,240,200,.35)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 6]);
       ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 7); ctx.stroke(); ctx.setLineDash([]);

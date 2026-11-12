@@ -142,7 +142,7 @@
 
   // 地図の視界：自分の周りだけ他の部隊（NPC・他プレイヤー）が見える
   SIM.sightRadius = function (w, p) {
-    let r = SGK.CFG.SIGHT_KM;
+    let r = SGK.CFG.SIGHT_KM * (0.5 + 0.5 * SIM.daylight(w.time.min)); // 夜は視界が半分
     if (p.at && p.tx == null) { const s = SIM.settlement(w, p.at); if (s && s.type === 'castle') r *= 1.5; }
     else if (SIM.speedAt && SIM.terrainAt(p.x, p.y) === '山地') r *= 0.6;
     return r;
@@ -180,6 +180,12 @@
     const eraY = year - st.eraStartYear + 1;
     const wa = `${st.era}${eraY === 1 ? '元' : eraY}年`;
     const ys = SIM.yearFmt === 'ad' ? `${year}年` : SIM.yearFmt === 'both' ? `${wa}（${year}年）` : wa;
-    return `${ys} ${month}月${day}日 ${SHI[Math.floor(((hour + 1) % 24) / 2)]}の刻`;
+    return `${ys} ${month}月${day}日 ${SHI[Math.floor(((hour + 1) % 24) / 2)]}の刻（${String(hour).padStart(2, '0')}:${String(mod % 60).padStart(2, '0')}）`;
+  };
+  // 明るさ（1＝昼、0＝夜）。5〜7時に明けて、17〜19時に暮れる
+  SIM.daylight = function (min) {
+    const h = ((((SGK.DATA.start.minute + min) % 1440) + 1440) % 1440) / 60;
+    const s = (x) => Math.max(0, Math.min(1, x)), e = (x) => x * x * (3 - 2 * x);
+    return e(s((h - 5) / 2)) * (1 - e(s((h - 17) / 2)));
   };
 })();
