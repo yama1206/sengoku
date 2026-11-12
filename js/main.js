@@ -644,7 +644,7 @@
     const s = list[nearIdx++ % list.length]; selectSettlement(s); R.cam.follow = false; R.cam.x = s.x; R.cam.y = s.y;
   }
 
-  // ---------- コントローラー（Xbox配置：A決定 B戻る X近くの拠点 Y追従 LB/RB拡大縮小 START メニュー／左スティック移動 右スティック視点） ----------
+  // ---------- コントローラー（Xbox配置：A決定 B戻る X近くの拠点 Y追従 LB/RB拡大縮小 START メニュー／左スティック カーソル 右スティック視点） ----------
   const padPrev = {}; let navHold = 0, lastNav = 0;
   // 戦闘中のコントローラー：LB/RB で自分の部隊を選ぶ、右スティックで移動先、X でそこへ移動
   function padBattle(down, rx, ry, dt) {
@@ -695,18 +695,29 @@
       else if (inBattle) padBattle(down, rx, ry, dt);
       if (down(9) && G.mode !== 'title') toggleMenu(inBattle);
     } else if (G.mode === 'host' || G.mode === 'client') {
-      move = [lx, ly];
-      if (rx || ry) { R.cam.follow = false; G.mapCur = true; R.cam.x += rx * dt * 600 / R.cam.scale; R.cam.y += ry * dt * 600 / R.cam.scale; }
-      if (R.cam.follow) G.mapCur = false;
-      if (btn(4)) R.zoom(1 - dt * 1.5); if (btn(5)) R.zoom(1 + dt * 1.5);
-      if (down(0)) {
-        if (G.selected) $('infoGo').click();
-        else if (G.mapCur) { // 照準の位置：拠点なら選ぶ、地面ならそこへ移動
-          const [sx, sy] = R.toScreen(R.cam.x, R.cam.y), uh = unitHit(sx, sy), hit = R.hitSettlement(G.view, sx, sy);
-          if (uh) selectUnit(uh); else if (hit) selectSettlement(hit); else moveTo(R.cam.x, R.cam.y);
-        } else openTown(true);
+      // 左スティック：画面のカーソルを動かす（端まで行くと地図が動く）。右スティック：視点
+      const W = cv.clientWidth, H = cv.clientHeight;
+      if (lx || ly) {
+        if (!G.pcurOn) { G.pcurOn = true; G.pcur = [W / 2, H / 2]; }
+        const sp = 650 * dt;
+        G.pcur[0] = Math.max(0, Math.min(W, G.pcur[0] + lx * Math.abs(lx) * sp * 1.3));
+        G.pcur[1] = Math.max(0, Math.min(H, G.pcur[1] + ly * Math.abs(ly) * sp * 1.3));
+        const E = 40, ex = G.pcur[0] < E && lx < 0 ? lx : G.pcur[0] > W - E && lx > 0 ? lx : 0, ey = G.pcur[1] < E && ly < 0 ? ly : G.pcur[1] > H - E && ly > 0 ? ly : 0;
+        if (ex || ey) { R.cam.follow = false; R.cam.x += ex * dt * 600 / R.cam.scale; R.cam.y += ey * dt * 600 / R.cam.scale; }
       }
-      if (down(1)) { if (G.selected) selectSettlement(null); else if (G.mapCur) { R.cam.follow = true; G.mapCur = false; } else command({ type: 'stop' }); }
+      if (rx || ry) { R.cam.follow = false; R.cam.x += rx * dt * 600 / R.cam.scale; R.cam.y += ry * dt * 600 / R.cam.scale; }
+      if (btn(4)) R.zoom(1 - dt * 1.5, G.pcurOn ? G.pcur[0] : undefined, G.pcurOn ? G.pcur[1] : undefined);
+      if (btn(5)) R.zoom(1 + dt * 1.5, G.pcurOn ? G.pcur[0] : undefined, G.pcurOn ? G.pcur[1] : undefined);
+      if (down(0)) {
+        if (G.pcurOn) { // カーソルの位置をクリック：部隊なら情報、拠点なら選ぶ（選んだ拠点をもう一度で向かう）、地面ならそこへ移動
+          const [sx, sy] = G.pcur, uh = unitHit(sx, sy), hit = R.hitSettlement(G.view, sx, sy);
+          if (uh) selectUnit(uh);
+          else if (hit) { if (G.selKind !== 'u' && G.selected === hit.id) $('infoGo').click(); else selectSettlement(hit); }
+          else { const [wx, wy] = R.toWorld(sx, sy); if (G.selected) selectSettlement(null); moveTo(wx, wy); }
+        } else if (G.selected) $('infoGo').click();
+        else openTown(true);
+      }
+      if (down(1)) { if (G.selected) selectSettlement(null); else if (G.pcurOn || !R.cam.follow) { G.pcurOn = false; R.cam.follow = true; } else command({ type: 'stop' }); }
       if (down(8)) openChar(true);
       if (G.mode === 'host' && (down(14) || down(15))) { const S = [0, 1, 2, 4], i = S.indexOf(G.speed); G.speed = S[Math.max(0, Math.min(3, i + (down(15) ? 1 : -1)))]; toast(G.speed ? `時間の速さ ×${G.speed}` : '時間を止めました', 900); }
       if (down(2)) cycleNear();
@@ -724,7 +735,7 @@
     const padMove = pollPad(dt);
     if ((G.mode === 'host' || G.mode === 'client') && buildView()) {
       if (G.mode === 'host') { G.priv = SIM.privateState(G.world, G.myPid); SIM.drain(G.myPid).forEach((t) => toast(t, 4000)); }
-      // WASD・左スティックで直接移動
+      // WASDで直接移動
       const BT = G.priv && G.priv.battle;
       if (BT && $('battle').classList.contains('hidden')) { $('battle').classList.remove('hidden'); openTown(false); openChar(false); selectSettlement(null); battleHtml = ''; }
       if (!BT && !$('battle').classList.contains('hidden')) { $('battle').classList.add('hidden'); battleHtml = ''; }
@@ -757,7 +768,7 @@
       } else {
         G.bcur = null;
         R.draw(ctx, G.view, G.disp, G.myPid, G.selected, marks);
-        if (G.mapCur && !R.cam.follow) { const [sx, sy] = R.toScreen(R.cam.x, R.cam.y); drawCross(sx, sy, '#fff'); }
+        if (G.pcurOn) drawCross(G.pcur[0], G.pcur[1], '#fff');
       }
       if (G.selKind === 'u' && !BT) refreshUnitInfo();
       $('townBtn').classList.toggle('hidden', !(P && P.here) || !!BT);
