@@ -106,13 +106,11 @@
     }
   }
 
-  // ---- 三すくみ・視界・地形（数値はすべて仮・ここで調整） ----
+  // ---- 兵種の区分・視界・地形（数値はすべて仮・ここで調整） ----
   const CLS = { nohei: 'spear', yari: 'spear', nagayari: 'spear', yarigashira: 'spear', bandit: 'spear',
     yumi: 'bow', teppo: 'bow', teppogashira: 'bow', banditBow: 'bow', kiba: 'cav', horo: 'cav' };
   for (const k in CLS) TR[k].cls = CLS[k];
-  const BEATS = SIM.BEATS = { spear: 'cav', cav: 'bow', bow: 'spear' }; // 槍＞騎馬＞弓＞槍
   SIM.CLS_NAME = { spear: '槍', cav: '騎馬', bow: '弓' };
-  const ADV_ATK = 1.3, ADV_TAKEN = 1.2; // 有利な相手へ与えるダメージ×1.3、不利な相手から受けるダメージ×1.2（同時にかかる）
   const VIS = { base: 50, cav: 65, hero: 60, hill: 30, forestHide: 22, reveal: 2 }; // 視界（m）。林の中の敵は22mまで近づかないと見えない。撃つと2秒見える
   const ROUT = 15; // 士気がこれ以下で潰走
   SIM.moraleBase = SIM.moraleBase || (() => 65);
@@ -218,7 +216,6 @@
       const te = terAt(b, e), T2 = TR[e.type];
       const per = Math.max(0.25, t.atk * (u.am || 1) - (T2.def + (e.da || 0)) * 0.5);
       let mul = 1;
-      if (t.cls && BEATS[t.cls] === T2.cls) mul *= ADV_ATK * ADV_TAKEN; // 三すくみ
       const dirA = angDiff(e.f, Math.atan2(u.y - e.y, u.x - e.x)), dir = dirA < Math.PI / 3 ? 'front' : dirA < (Math.PI * 2) / 3 ? 'side' : 'rear';
       if (!t.ranged) { if (dir === 'side') mul *= t.cav ? 1.4 : 1.25; if (dir === 'rear') mul *= t.cav ? 1.8 : 1.5; } else if (dir !== 'front') mul *= 1.15;
       if (t.cav && T2.cls === 'spear' && dir === 'front') mul *= 0.7; // 槍衾への正面突撃

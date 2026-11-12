@@ -365,7 +365,7 @@
         + ['charge', 'flank', 'hold', 'retreat'].map((o) => `<button id="bo-${id}-${o}" data-unit="${id}" data-order="${o}" ${order === 'rout' ? 'disabled' : ''}>${ORDN[o]}</button>`).join('') + '</div>';
     }
     html += `<div class="bu"><span class="nm"><b>全軍</b></span>` + ['charge', 'flank', 'hold', 'retreat'].map((o) => `<button id="bo-all-${o}" data-unit="all" data-order="${o}">${ORDN[o]}</button>`).join('') + '</div>';
-    html += `<div class="muted" style="margin-top:4px">部隊を「選ぶ」かクリックして、戦場をクリックするとそこへ移動。三すくみ：槍＞騎馬＞弓＞槍。側面・背後から攻めると有利（騎馬は特に）</div>`;
+    html += `<div class="muted" style="margin-top:4px">部隊を「選ぶ」かクリックして、戦場をクリックするとそこへ移動。槍は正面からの騎馬に強く、弓は接近戦に弱い。側面・背後から攻めると有利（騎馬は特に）</div>`;
     html += `<div class="row" style="margin-top:6px"><button id="bAuto" data-bact="battleAuto">自動で決着（スキップ）</button><button id="bFlee" data-bact="battleFlee">退却する（兵の3割を失う）</button></div>`;
     if (html !== battleHtml) { battleHtml = html; $('battleBody').innerHTML = html; const b = $('battle'), f = currentFocus(b); if (f) setFocus(b, f); }
   }
