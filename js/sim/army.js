@@ -114,7 +114,7 @@
   function newBattle(w, n, extra) {
     const id = 'b' + w.nextId++;
     const b = w.battles[id] = Object.assign({ id, npc: n.id, war: 1, foe: armyName(w, n), foeN: n.size, loot: n.loot, pids: [], units: [], next: 1, t: 0, start: {}, routed: false, hd: {}, rd: {},
-      ter: M.genTerrain(w), lk: { A: null, B: { x: 28, y: SIM.FIELD.h / 2 } }, visA: [] }, extra);
+      ter: M.genTerrain(w), lk: { A: null, B: { x: SIM.FIELD.ax, y: SIM.FIELD.h / 2 } }, visA: [] }, extra);
     n.battle = id; return b;
   }
   function join(w, b, q, msg) {
@@ -136,7 +136,7 @@
   }
   function defenseBattle(w, n, s, defs) { // 防衛戦：城の丘で迎え撃つ
     const b = newBattle(w, n, { defend: s.id, loot: 800 + n.size * 20 });
-    b.ter.push({ k: 'h', x: 30, y: SIM.FIELD.h / 2, r: 34 }); // 城のある丘（こちら側）
+    b.ter.push({ k: 'h', x: SIM.FIELD.ax + 2, y: SIM.FIELD.h / 2, r: 34 }); // 城のある丘（こちら側）
     for (const q of defs) join(w, b, q, `${s.name}に${b.foe}${n.size}人が総攻めをかけてきました！ 城兵とともに丘の上で迎え撃ちます`);
     const wall = Math.floor((s.dev && s.dev.wall) || 0), k = b.units.length;
     M.addUnits(w, b, 'A', null, s.gar || {});

@@ -27,7 +27,7 @@
     town: { nohei: [1, 8], yari: [1, 8], yumi: [0.5, 6] },
     castle: { yari: [1, 10], yumi: [0.5, 6], kiba: [0.25, 3] },
   };
-  const FIELD = { w: 300, h: 200 };
+  const FIELD = { w: 700, h: 460, ax: 200, bx: 500 }; // 戦場（m）。ax/bx：味方・敵の初めの位置
   const MAX_BANDITS = 200; // 地図の広さに合わせて（全国）
 
   SIM.troopCount = (tr) => Object.values(tr || {}).reduce((a, b) => a + b, 0);
@@ -96,6 +96,7 @@
     const now = w.time.min, B = SGK.DATA.bounds;
     for (const n of Object.values(w.npcs)) {
       if (n.kind !== 'bandit' || n.battle) continue;
+      n.speed = 28 * SIM.sizeSpeed(n.size || 0); // 大勢の野盗団ほど遅い
       if (n.fight) { // 巡回兵と交戦中：近づいたプレイヤーは加勢になる
         for (const p of Object.values(w.players)) if (inField(p) && dist(n, p) < 0.6) { startBattle(w, n, p); break; }
         continue;
@@ -169,10 +170,10 @@
   SIM.moraleBase = SIM.moraleBase || (() => 65);
 
   function genTerrain(w) {
-    const ter = [], nf = 4 + Math.floor(rnd(w) * 4), nh = 2 + Math.floor(rnd(w) * 2);
+    const ter = [], nf = 16 + Math.floor(rnd(w) * 12), nh = 6 + Math.floor(rnd(w) * 5);
     for (let i = 0; i < nf + nh; i++) {
       const hill = i >= nf;
-      ter.push({ k: hill ? 'h' : 'f', x: Math.round(55 + rnd(w) * (FIELD.w - 110)), y: Math.round(15 + rnd(w) * (FIELD.h - 30)), r: Math.round(hill ? 22 + rnd(w) * 14 : 11 + rnd(w) * 15) });
+      ter.push({ k: hill ? 'h' : 'f', x: Math.round(30 + rnd(w) * (FIELD.w - 60)), y: Math.round(15 + rnd(w) * (FIELD.h - 30)), r: Math.round(hill ? 22 + rnd(w) * 14 : 11 + rnd(w) * 15) });
     }
     return ter;
   }
@@ -203,7 +204,7 @@
   // ---- 戦闘の開始 ----
   function addUnits(w, b, side, owner, army) {
     const list = Object.entries(army).filter(([, n]) => n > 0);
-    const fx = side === 'A' ? 1 : -1, base = side === 'A' ? 28 : FIELD.w - 28;
+    const fx = side === 'A' ? 1 : -1, base = side === 'A' ? FIELD.ax : FIELD.bx;
     const mo = owner ? SIM.moraleBase(w, owner) : (army.bandit || army.banditBow) ? 75 : 55; // 野盗は少々の損害では崩れない
     list.forEach(([type, n], i) => {
       const t = TR[type], m = owner ? SIM.unitMods(w, owner, type) : { am: 1, da: 0, ra: 0, hm: 1 };
@@ -215,7 +216,7 @@
   function startBattle(w, n, p) {
     const id = 'b' + w.nextId++;
     const b = w.battles[id] = { id, npc: n.id, foe: '野盗', foeN: n.size, loot: n.loot, pids: [], units: [], next: 1, t: 0, start: {}, routed: false, hd: {}, rd: {},
-      ter: genTerrain(w), lk: { A: null, B: { x: 28, y: FIELD.h / 2 } }, visA: [] };
+      ter: genTerrain(w), lk: { A: null, B: { x: FIELD.ax, y: FIELD.h / 2 } }, visA: [] };
     n.battle = id; n.tx = n.ty = null;
     const joiners = Object.values(w.players).filter((q) => q === p || (inField(q) && dist(q, n) < 1.5));
     for (const q of joiners) {
@@ -248,7 +249,7 @@
       const spd = t.spd * (t.cav && tu.f ? 0.5 : 1) * (tu.h ? 0.85 : 1);
       if (u.order === 'retreat' || u.order === 'rout') {
         const ex = u.side === 'A' ? -4 : FIELD.w + 4; u.x += Math.sign(ex - u.x) * spd * (u.order === 'rout' ? 1.1 : 1) * dt; u.f = u.side === 'A' ? Math.PI : 0;
-        if ((u.side === 'A' && u.x < 1) || (u.side === 'B' && u.x > FIELD.w - 1)) u.gone = true;
+        if ((u.side === 'A' && u.x < FIELD.ax - 120) || (u.side === 'B' && u.x > FIELD.bx + 120) || u.x < 1 || u.x > FIELD.w - 1) u.gone = true; // 120m 退けば戦場を離れる
         continue;
       }
       let e = null, ed = Infinity;
@@ -289,6 +290,7 @@
       if (dir !== 'front') hit.set(e, Math.max(hit.get(e) || 0, dir === 'rear' ? 2 : 1));
       if (t.ranged) u.shot = b.t;
       if (u.owner) { const key = u.type === 'hero' ? 'hd' : t.ranged ? 'rd' : null; if (key) { b[key] = b[key] || {}; b[key][u.owner] = (b[key][u.owner] || 0) + d; } }
+      if (u.order === 'move' && goTo(u, u.mx, u.my, spd * 0.7)) u.order = 'hold'; // 移動中も届く敵には自動で攻撃する
     }
     // 味方同士が重ならないように押し合う
     for (let i = 0; i < us.length; i++) for (let j = i + 1; j < us.length; j++) {

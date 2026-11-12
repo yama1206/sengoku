@@ -145,7 +145,17 @@
   };
 
   // ---- 戦場（リアルタイム戦闘） ----
-  R.battleLayout = (F) => { const top = 70, bottom = 210; const sc = Math.max(2, Math.min((W - 20) / F.w, (H - top - bottom) / F.h)); return { sc, ox: (W - F.w * sc) / 2, oy: top + Math.max(0, (H - top - bottom - F.h * sc) / 2) }; };
+  // 戦場のカメラ：bcam.x/y が画面の中心（m）、z が拡大率（1 = 横300m・縦200mが入る大きさ）
+  R.bcam = { x: 350, y: 230, z: 1 };
+  R.battleLayout = (F) => {
+    const top = 70, bottom = 210, vh = Math.max(120, H - top - bottom), c = R.bcam;
+    c.z = Math.max(0.35, Math.min(3, c.z));
+    const sc = Math.max(0.6, Math.min((W - 20) / 300, vh / 200) * c.z);
+    const hw = W / 2 / sc, hh = vh / 2 / sc; // 画面に入る半分の幅（m）
+    c.x = F.w <= hw * 2 ? F.w / 2 : Math.max(hw - 20, Math.min(F.w - hw + 20, c.x));
+    c.y = F.h <= hh * 2 ? F.h / 2 : Math.max(hh - 20, Math.min(F.h - hh + 20, c.y));
+    return { sc, ox: W / 2 - c.x * sc, oy: top + vh / 2 - c.y * sc };
+  };
   const ORD = { charge: '突', hold: '待', retreat: '退', flank: '回', move: '移', rout: '潰走' };
   let fogCv = null;
   R.drawBattle = function (ctx, bt, disp, myPid, selUnit) {

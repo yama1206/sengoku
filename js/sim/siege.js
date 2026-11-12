@@ -105,8 +105,8 @@
     if (!SIM.troopCount(p.troops)) return SIM.say(p.id, '兵がいないと城は攻められません');
     const id = 'b' + w.nextId++, gar = Object.assign({}, s.gar);
     const b = w.battles[id] = { id, npc: null, siege: s.id, war: 1, foe: `${s.name}の守備兵`, foeN: SIM.troopCount(gar), loot: 1500 + SIM.troopCount(gar) * 40,
-      pids: [], units: [], next: 1, t: 0, start: {}, routed: false, hd: {}, rd: {}, ter: M.genTerrain(w), lk: { A: null, B: { x: 28, y: SIM.FIELD.h / 2 } }, visA: [] };
-    b.ter.push({ k: 'h', x: SIM.FIELD.w - 30, y: SIM.FIELD.h / 2, r: 34 }); // 城のある丘
+      pids: [], units: [], next: 1, t: 0, start: {}, routed: false, hd: {}, rd: {}, ter: M.genTerrain(w), lk: { A: null, B: { x: SIM.FIELD.ax, y: SIM.FIELD.h / 2 } }, visA: [] };
+    b.ter.push({ k: 'h', x: SIM.FIELD.bx - 2, y: SIM.FIELD.h / 2, r: 34 }); // 城のある丘
     const joiners = Object.values(w.players).filter((q) => q === p || (q.clan === p.clan && M.inField(q) && !q.busy && dist(q, p) < 1.5));
     for (const q of joiners) {
       b.pids.push(q.id); q.battle = id; q.tx = q.ty = null; q.dest = null; q.at = null; b.start[q.id] = Object.assign({}, q.troops);

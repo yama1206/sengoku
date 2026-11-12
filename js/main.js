@@ -581,11 +581,10 @@
       if (u[2] !== G.myPid) continue;
       const [id, , , type, n, , , order, , mor] = u, T = TR[type];
       html += `<div class="bu ${G.selUnit === id ? 'sel' : ''}"><span class="nm">${type === 'hero' ? '本人' : T.name + (T.cls ? '〔' + SIM.CLS_NAME[T.cls] + '〕' : '') + ' ' + n + '人'}　<span class="muted">${ORDN[order]}${type === 'hero' ? '' : '　士気' + mor}</span></span>`
-        + `<button id="bs-${id}" data-sel="${id}">選ぶ</button>`
-        + ['charge', 'flank', 'hold', 'retreat'].map((o) => `<button id="bo-${id}-${o}" data-unit="${id}" data-order="${o}" ${order === 'rout' ? 'disabled' : ''}>${ORDN[o]}</button>`).join('') + '</div>';
+        + `<button id="bs-${id}" data-sel="${id}">${G.selUnit === id ? '選択中' : '選ぶ'}</button></div>`;
     }
-    html += `<div class="bu"><span class="nm"><b>全軍</b></span>` + ['charge', 'flank', 'hold', 'retreat'].map((o) => `<button id="bo-all-${o}" data-unit="all" data-order="${o}">${ORDN[o]}</button>`).join('') + '</div>';
-    html += `<div class="muted" style="margin-top:4px">部隊を「選ぶ」かクリックして、戦場をクリックするとそこへ移動。槍は正面からの騎馬に強く、弓は接近戦に弱い。側面・背後から攻めると有利（騎馬は特に）</div>`;
+    html += `<div class="bu"><span class="nm"><b>全軍</b></span>` + ['charge', 'hold', 'retreat'].map((o) => `<button id="bo-all-${o}" data-unit="all" data-order="${o}">${ORDN[o]}</button>`).join('') + '</div>';
+    html += `<div class="muted" style="margin-top:4px">自分の部隊をクリックで選び、行き先をクリックで移動（敵をクリックすればそこへ向かう）。敵が届く所に入ると自動で攻撃します。ドラッグで見回し、ホイールで拡大。槍は正面からの騎馬に強く、弓は接近戦に弱い。側面・背後からが有利</div>`;
     html += `<div class="row" style="margin-top:6px"><button id="bAuto" data-bact="battleAuto">自動で決着（スキップ）</button><button id="bFlee" data-bact="battleFlee">退却する（兵の3割を失う）</button></div>`;
     if (html !== battleHtml) { battleHtml = html; $('battleBody').innerHTML = html; const b = $('battle'), f = currentFocus(b); if (f) setFocus(b, f); }
   }
@@ -647,11 +646,11 @@
     if (ptrs.size === 2) {
       p.x = e.offsetX; p.y = e.offsetY;
       const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y);
-      if (pinchD) R.zoom(d / pinchD, (a.x + b.x) / 2, (a.y + b.y) / 2); pinchD = d; dragMoved = true; return;
+      if (pinchD) { if (G.priv && G.priv.battle) R.bcam.z *= d / pinchD; else R.zoom(d / pinchD, (a.x + b.x) / 2, (a.y + b.y) / 2); } pinchD = d; dragMoved = true; return;
     }
     const dx = e.offsetX - p.x, dy = e.offsetY - p.y; p.x = e.offsetX; p.y = e.offsetY;
     if (Math.hypot(p.x - p.sx, p.y - p.sy) > 6) { dragMoved = true; R.cam.follow = false; }
-    if (dragMoved) { R.cam.x -= dx / R.cam.scale; R.cam.y -= dy / R.cam.scale; }
+    if (dragMoved) { if (G.priv && G.priv.battle) { const L = R.battleLayout(SIM.FIELD); R.bcam.x -= dx / L.sc; R.bcam.y -= dy / L.sc; } else { R.cam.x -= dx / R.cam.scale; R.cam.y -= dy / R.cam.scale; } }
   });
   cv.addEventListener('pointerup', (e) => {
     const p = ptrs.get(e.pointerId); ptrs.delete(e.pointerId);
@@ -659,8 +658,8 @@
     const BT = G.priv && G.priv.battle;
     if (BT) { // 戦闘中：自分の部隊をクリックで選択、地面をクリックで選んだ部隊を移動
       const [fx, fy] = R.battleToField(e.offsetX, e.offsetY), L = R.battleLayout(SIM.FIELD);
-      const mine = BT.units.filter((u) => u[2] === G.myPid).map((u) => [u, Math.hypot(u[5] - fx, u[6] - fy)]).sort((a, b) => a[1] - b[1])[0];
-      if (mine && mine[1] * L.sc < 18 && p.btn !== 2) { G.selUnit = mine[0][0]; battleHtml = ''; return; }
+      const mine = BT.units.filter((u) => u[2] === G.myPid && u[7] !== 'rout').map((u) => [u, Math.hypot(u[5] - fx, u[6] - fy)]).sort((a, b) => a[1] - b[1])[0];
+      if (mine && mine[1] * L.sc < Math.max(22, (0.6 + Math.sqrt(mine[0][4]) * 0.7) * L.sc + 10) && p.btn !== 2) { G.selUnit = mine[0][0]; battleHtml = ''; return; }
       if (G.selUnit != null) command({ type: 'order', unit: G.selUnit, order: 'move', x: fx, y: fy });
       return;
     }
@@ -672,7 +671,7 @@
     else if (hit) selectSettlement(hit);   // 左クリック・タップ：拠点なら情報
     else moveTo(wx, wy);                   // 地面なら移動
   });
-  cv.addEventListener('wheel', (e) => { e.preventDefault(); R.zoom(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.offsetX, e.offsetY); }, { passive: false });
+  cv.addEventListener('wheel', (e) => { e.preventDefault(); if (G.priv && G.priv.battle) { const L = R.battleLayout(SIM.FIELD), fx = (e.offsetX - L.ox) / L.sc, fy = (e.offsetY - L.oy) / L.sc, k = e.deltaY < 0 ? 1.15 : 1 / 1.15; R.bcam.z *= k; R.bcam.x = fx + (R.bcam.x - fx) / k; R.bcam.y = fy + (R.bcam.y - fy) / k; return; } R.zoom(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.offsetX, e.offsetY); }, { passive: false });
 
   // ---------- キーボード ----------
   const keys = new Set();
@@ -729,8 +728,8 @@
     const F = SIM.FIELD;
     if (rx || ry) {
       if (!G.bcur) { const u = mine.find((x) => x[0] === G.selUnit); G.bcur = [u[5], u[6]]; }
-      G.bcur[0] = Math.max(0, Math.min(F.w, G.bcur[0] + rx * dt * F.w * 0.5));
-      G.bcur[1] = Math.max(0, Math.min(F.h, G.bcur[1] + ry * dt * F.w * 0.5));
+      G.bcur[0] = Math.max(0, Math.min(F.w, G.bcur[0] + rx * dt * 150 / R.bcam.z));
+      G.bcur[1] = Math.max(0, Math.min(F.h, G.bcur[1] + ry * dt * 150 / R.bcam.z));
     }
     if (down(2) && G.bcur && G.selUnit != null) { command({ type: 'order', unit: G.selUnit, order: 'move', x: G.bcur[0], y: G.bcur[1] }); toast('そこへ移動します', 800); }
   }
@@ -847,6 +846,12 @@
           const key = 'u' + BT.id + '_' + u[0], d = G.disp[key];
           if (!d) G.disp[key] = { x: u[5], y: u[6] }; else { d.x += (u[5] - d.x) * k; d.y += (u[6] - d.y) * k; }
         }
+        if (G.bcamFor !== BT.id) { // 新しい戦闘：自分の部隊が真ん中に来るように
+          G.bcamFor = BT.id; const my = BT.units.filter((u) => u[2] === G.myPid);
+          if (my.length) { R.bcam.x = my.reduce((a, u) => a + u[5], 0) / my.length + 90; R.bcam.y = my.reduce((a, u) => a + u[6], 0) / my.length; } R.bcam.z = 1;
+          const h = my.find((u) => u[3] === 'hero'); G.selUnit = h ? h[0] : my[0] && my[0][0];
+        }
+        if (G.bcur) { R.bcam.x += (G.bcur[0] - R.bcam.x) * Math.min(1, k * 0.5); R.bcam.y += (G.bcur[1] - R.bcam.y) * Math.min(1, k * 0.5); }
         R.drawBattle(ctx, BT, G.disp, G.myPid, G.selUnit); renderBattle(BT);
         if (G.bcur) { const L = R.battleLayout(SIM.FIELD); drawCross(L.ox + G.bcur[0] * L.sc, L.oy + G.bcur[1] * L.sc, '#f2c14e'); }
       } else {
