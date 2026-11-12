@@ -326,8 +326,8 @@
     const bn = b.units.filter((u) => u.side === 'B' && alive(u)).reduce((a, u) => a + u.n, 0);
     if (!b.routed && bn < b.foeN * 0.2) { b.routed = true; b.units.forEach((u) => { if (u.side === 'B') u.order = 'rout'; }); b.pids.forEach((pid) => SIM.say(pid, `${b.foe}が逃げ出しました！`)); }
     const aLive = b.units.some((u) => u.side === 'A' && alive(u)), bLive = b.units.some((u) => u.side === 'B' && alive(u));
-    const bFight = b.units.some((u) => u.side === 'B' && alive(u) && u.order !== 'rout');
-    if (!bLive || (!bFight && b.routed)) finish(w, b, 'win');
+    const bFight = b.units.some((u) => u.side === 'B' && alive(u) && u.order !== 'rout' && u.order !== 'retreat');
+    if (!bLive || !bFight) finish(w, b, 'win'); // 0.30.2 敵が全部退き始めたらその時点で勝ち
     else if (!aLive) finish(w, b, b.units.some((u) => u.side === 'A' && u.gone && u.hp > 0) ? 'escape' : 'lose');
     else if (b.t > 420) autoResolve(w, b); // 長引いたら自動で決着
   }
