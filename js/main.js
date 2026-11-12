@@ -159,7 +159,7 @@
       G.view = {
         t: d.t, sr: d.sr, settlements: s.settlements, factions: s.factions, people: s.people,
         players: d.p.map(([id, name, x, y, at, tx, ty, status, path]) => ({ id, name, x, y, at, tx, ty, status, path })),
-        npcs: d.n.map(([id, kind, faction, x, y, size, battle]) => ({ id, kind, faction, x, y, size, battle })),
+        npcs: d.n.map(([id, kind, faction, x, y, size, battle, dest, cargo, army, home, at]) => ({ id, kind, faction, x, y, size, battle, dest, at, cargo: cargo && { item: cargo[0], qty: cargo[1] }, army, home })),
       };
     }
     return G.view;
@@ -176,7 +176,7 @@
 
   // ---------- 拠点の情報 ----------
   function selectSettlement(s) {
-    G.selected = s ? s.id : null;
+    G.selected = s ? s.id : null; G.selKind = s ? 's' : null; $('infoGo').textContent = 'ここへ向かう';
     if (!s) { $('info').classList.add('hidden'); return; }
     const f = G.view.factions[s.owner], lord = s.lord ? (G.view.people[s.lord] || {}).name : null;
     const kind = { castle: '城', town: '町', village: '村' }[s.type];
@@ -184,7 +184,51 @@
     $('infoBody').innerHTML = `${kind}　勢力：<b style="color:${f ? f.color : '#ccc'}">${f ? f.name : 'なし'}</b><br>城主・代官：${lord || '（不明）'}`;
     $('info').classList.remove('hidden');
   }
-  $('infoGo').onclick = () => { const s = G.view.settlements.find((x) => x.id === G.selected); if (s) moveTo(s.x, s.y, s.id); };
+  $('infoGo').onclick = () => {
+    if (G.selKind === 'u') { const u = findUnit(G.selected); if (u) moveTo(u.x, u.y); return; }
+    const s = G.view.settlements.find((x) => x.id === G.selected); if (s) moveTo(s.x, s.y, s.id);
+  };
+
+  // ---------- 部隊（CPU・他プレイヤー）の情報 ----------
+  const findUnit = (id) => G.view && (G.view.npcs.find((n) => n.id === id) || G.view.players.find((p) => p.id === id));
+  function unitHit(sx, sy) {
+    let best = null, bd = 13;
+    for (const e of [...G.view.npcs, ...G.view.players]) {
+      if (e.id === G.myPid) continue;
+      const d0 = G.disp[e.id] || e, [x, y] = R.toScreen(d0.x, d0.y), d = Math.hypot(x - sx, y - sy);
+      if (d < bd) { bd = d; best = e; }
+    }
+    return best;
+  }
+  function unitInfo(u) {
+    const f = u.faction && G.view.factions[u.faction], fn = f ? `<b style="color:${f.color}">${f.name}</b>` : '';
+    const m = me(), km = m ? Math.hypot(u.x - m.x, u.y - m.y).toFixed(1) : '?';
+    const where = `${u.at ? sName(u.at) + 'に滞在中' : u.dest ? sName(u.dest) + 'へ向かっている' : '野外'}　（ここから ${km}km・${SIM.terrainAt(u.x, u.y)}）`;
+    if (u.kind === 'merchant') {
+      const it = u.cargo && SGK.DATA.items[u.cargo.item];
+      return { name: '行商人', body: `${where}<br>荷：${it ? `${it.name} ${u.cargo.qty}${it.unit}` : 'なし'}<br><span class="muted">町から町へ品物を運んでいる。運んだ先では品物が安くなる。</span>`, go: '近づく' };
+    }
+    if (u.kind === 'patrol') return { name: `${f ? f.name : ''}の巡回兵`, body: `勢力：${fn}<br>${where}${u.home ? `<br>本拠：${sName(u.home)}` : ''}<br><span class="muted">自勢力の拠点のあいだを見回っている。</span>`, go: '近づく' };
+    if (u.kind === 'bandit') {
+      const TR = SIM.TROOPS, ar = u.army ? Object.entries(u.army).filter(([, n]) => n > 0).map(([k, n]) => `${(TR[k] || {}).name || k} ${n}人`).join('・') : `${u.size}人`;
+      return { name: `野盗 ${u.size}人`, body: `${u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}${where}<br>手勢：${ar}<br><span class="muted">近づくと襲ってくる。倒すと金品が手に入る。</span>`, go: '攻めかかる' };
+    }
+    // 他のプレイヤー
+    return { name: u.name, body: `プレイヤー（${u.status || '浪人'}）<br>${where}`, go: '近づく' };
+  }
+  function selectUnit(u) {
+    if (!u) return selectSettlement(null);
+    G.selected = u.id; G.selKind = 'u'; G.infoHtml = '';
+    refreshUnitInfo();
+    $('info').classList.remove('hidden');
+  }
+  function refreshUnitInfo() {
+    const u = findUnit(G.selected);
+    if (!u) { selectSettlement(null); toast('見失いました', 1200); return; }
+    const i = unitInfo(u), html = `${i.name}|${i.body}|${i.go}`;
+    if (html === G.infoHtml) return; G.infoHtml = html;
+    $('infoName').textContent = i.name; $('infoBody').innerHTML = i.body; $('infoGo').textContent = i.go;
+  }
   $('infoClose').onclick = () => selectSettlement(null);
 
   // ---------- 拠点の中（市場・依頼・仕事・話す） ----------
@@ -423,6 +467,8 @@
     }
     const hit = R.hitSettlement(G.view, e.offsetX, e.offsetY);
     const [wx, wy] = R.toWorld(e.offsetX, e.offsetY);
+    const uh = p.btn !== 2 && unitHit(e.offsetX, e.offsetY);
+    if (uh) { selectUnit(uh); return; } // 部隊をクリック・タップ：情報
     if (p.btn === 2) { hit ? moveTo(hit.x, hit.y, hit.id) : moveTo(wx, wy); } // 右クリック：すぐ移動
     else if (hit) selectSettlement(hit);   // 左クリック・タップ：拠点なら情報
     else moveTo(wx, wy);                   // 地面なら移動
@@ -527,8 +573,8 @@
       if (down(0)) {
         if (G.selected) $('infoGo').click();
         else if (G.mapCur) { // 照準の位置：拠点なら選ぶ、地面ならそこへ移動
-          const [sx, sy] = R.toScreen(R.cam.x, R.cam.y), hit = R.hitSettlement(G.view, sx, sy);
-          if (hit) selectSettlement(hit); else moveTo(R.cam.x, R.cam.y);
+          const [sx, sy] = R.toScreen(R.cam.x, R.cam.y), uh = unitHit(sx, sy), hit = R.hitSettlement(G.view, sx, sy);
+          if (uh) selectUnit(uh); else if (hit) selectSettlement(hit); else moveTo(R.cam.x, R.cam.y);
         } else openTown(true);
       }
       if (down(1)) { if (G.selected) selectSettlement(null); else if (G.mapCur) { R.cam.follow = true; G.mapCur = false; } else command({ type: 'stop' }); }
@@ -584,6 +630,7 @@
         R.draw(ctx, G.view, G.disp, G.myPid, G.selected, marks);
         if (G.mapCur && !R.cam.follow) { const [sx, sy] = R.toScreen(R.cam.x, R.cam.y); drawCross(sx, sy, '#fff'); }
       }
+      if (G.selKind === 'u' && !BT) refreshUnitInfo();
       $('townBtn').classList.toggle('hidden', !(P && P.here) || !!BT);
       // 拠点に着いたら自動で拠点画面を開く
       const hereId = P && P.here && !BT ? P.here.id : null;
