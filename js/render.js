@@ -8,7 +8,7 @@
   R.toWorld = (sx, sy) => [(sx - W / 2) / cam.scale + cam.x, (sy - H / 2) / cam.scale + cam.y];
   R.zoom = (f, sx = W / 2, sy = H / 2) => {
     const [wx, wy] = R.toWorld(sx, sy);
-    cam.scale = Math.max(4, Math.min(60, cam.scale * f));
+    cam.scale = Math.max(2, Math.min(60, cam.scale * f));
     const [nx, ny] = R.toWorld(sx, sy); cam.x += wx - nx; cam.y += wy - ny;
   };
   R.hitSettlement = (view, sx, sy) => {

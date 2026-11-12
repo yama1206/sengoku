@@ -17,6 +17,7 @@
   // ---- 足りない項目を補う（新規ワールド・古いセーブの両方に使う） ----
   SIM.ensure = function (w) {
     w.schema = SGK.SAVE_SCHEMA;
+    syncMap(w);
     if (w.day == null) w.day = Math.floor(w.time.min / 1440);
     w.jobs = w.jobs || {};
     for (const s of w.settlements) {
@@ -30,6 +31,24 @@
     if (!Object.keys(w.jobs).length) w.settlements.forEach((s) => { genJob(w, s); genJob(w, s); });
     return w;
   };
+  // 地図の範囲が変わったとき：座標をずらし、新しい勢力・人物・拠点を足す（拠点の位置は常にデータに合わせる）
+  function syncMap(w) {
+    const D = SGK.DATA, O = D.mapOrigin, o = w.mapOrigin || { lon: 136.55, lat: 35.5 };
+    if (o.lon !== O.lon || o.lat !== O.lat) {
+      const dx = (o.lon - O.lon) * 91, dy = (O.lat - o.lat) * 111;
+      for (const e of [...Object.values(w.players), ...Object.values(w.npcs)]) {
+        for (const [a, b] of [['x', 'y'], ['tx', 'ty'], ['lx', 'ly'], ['hx', 'hy']]) if (e[a] != null) { e[a] += dx; e[b] += dy; }
+      }
+    }
+    w.mapOrigin = { lon: O.lon, lat: O.lat }; w.scenario = D.scenario;
+    for (const k in D.factions) if (!w.factions[k]) w.factions[k] = JSON.parse(JSON.stringify(D.factions[k]));
+    for (const k in D.people) if (!w.people[k]) w.people[k] = JSON.parse(JSON.stringify(D.people[k]));
+    for (const d of D.settlements) {
+      let s = w.settlements.find((x) => x.id === d.id);
+      if (!s) { s = JSON.parse(JSON.stringify(d)); w.settlements.push(s); SIM.spawnNpc(w, s.type === 'castle' ? 'patrol' : 'merchant', s.type === 'castle' ? s.owner : null, s); }
+      s.x = d.x; s.y = d.y;
+    }
+  }
   SIM.ensurePlayer = (p) => { if (p.money == null) p.money = 3000; p.inv = p.inv || {}; p.quests = p.quests || []; if (p.fame == null) p.fame = 0; if (p.busy === undefined) p.busy = null; };
 
   function target(s, k) { return (I()[k].cons * s.size + (s.prod[k] || 0)) * 12 + 4; }

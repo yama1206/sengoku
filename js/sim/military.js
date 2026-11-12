@@ -28,7 +28,7 @@
     castle: { yari: [1, 10], yumi: [0.5, 6], kiba: [0.25, 3] },
   };
   const FIELD = { w: 120, h: 80 };
-  const MAX_BANDITS = 4;
+  const MAX_BANDITS = 14; // 地図の広さに合わせて
 
   SIM.troopCount = (tr) => Object.values(tr || {}).reduce((a, b) => a + b, 0);
   SIM.troopCap = (p) => Math.min(120, 10 + p.fame * 3);
@@ -55,7 +55,7 @@
       for (const k in POOL[s.type]) if (s.pool[k] == null) s.pool[k] = Math.floor(POOL[s.type][k][1] / 2);
     }
     for (const p of Object.values(w.players)) if (p.battle && !w.battles[p.battle]) p.battle = null;
-    if (!Object.values(w.npcs).some((n) => n.kind === 'bandit')) for (let i = 0; i < 3; i++) spawnBandit(w);
+    if (!Object.values(w.npcs).some((n) => n.kind === 'bandit')) for (let i = 0; i < 10; i++) spawnBandit(w);
     return w;
   };
 

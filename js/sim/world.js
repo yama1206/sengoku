@@ -29,7 +29,7 @@
       time: { min: 0 },
       factions: clone(D.factions), people: clone(D.people),
       settlements: clone(D.settlements),
-      players: {}, tokens: {}, npcs: {},
+      players: {}, tokens: {}, npcs: {}, mapOrigin: Object.assign({}, D.mapOrigin),
     };
     const towns = w.settlements.filter((s) => s.type !== 'castle');
     const castles = w.settlements.filter((s) => s.type === 'castle');
