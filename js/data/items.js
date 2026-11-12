@@ -1,7 +1,7 @@
 // 商品と各拠点の生産（1日あたり）。値段の単位は文（1000文 = 1貫）。数値はすべて仮
 (function () {
   SGK.DATA.items = {
-    rice: { name: '米', unit: '俵', base: 120, cons: 2 },
+    rice: { name: '米', unit: '俵', base: 12, cons: 2 },
     salt: { name: '塩', unit: '俵', base: 400, cons: 1 },
     cotton: { name: '木綿', unit: '反', base: 300, cons: 1 },
     sake: { name: '酒', unit: '樽', base: 500, cons: 1 },
