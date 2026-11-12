@@ -26,6 +26,7 @@
     if (!$('char').classList.contains('hidden')) return $('char');
     if (!$('town').classList.contains('hidden')) return $('town');
     if (!$('battle').classList.contains('hidden')) return $('battle');
+    if (!$('captive').classList.contains('hidden')) return $('captive');
     return null;
   }
   function menuButtons(m) { return [...m.querySelectorAll('button')].filter((b) => !b.disabled && b.offsetParent); }
@@ -667,6 +668,18 @@
     else if (b.dataset.bact) command({ type: b.dataset.bact });
   });
 
+  // ---------- 捕らえた武将（0.35.0：逃がすか斬るかを選ぶ） ----------
+  let captiveHtml = '';
+  function renderCaptive(list) {
+    const el = $('captive'), on = list && list.length && !(G.priv && G.priv.battle);
+    el.classList.toggle('hidden', !on); if (!on) { captiveHtml = ''; return; }
+    const html = list.map(([id, nm, fn, t, b]) => `<div class="cp"><span>${fn}の${nm}<span class="muted">（統${t}・武${b}）</span></span><button id="cr_${id}" data-cap="releaseCaptive" data-id="${id}">逃がす</button><button id="ck_${id}" data-cap="killCaptive" data-id="${id}">斬る</button></div>`).join('');
+    if (html !== captiveHtml) { captiveHtml = html; $('captiveBody').innerHTML = html; }
+  }
+  $('captiveBody').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (b && b.dataset.cap) command({ type: b.dataset.cap, id: b.dataset.id });
+  });
+
   // ---------- ゲーム内メニュー ----------
   function toggleMenu(open) {
     const m = $('gameMenu'); const o = open ?? m.classList.contains('hidden');
@@ -967,6 +980,7 @@
         }
         { const wb = P.me.warBoard || [], el = $('warBoard'), h = wb.length ? '<b>戦況</b>' + wb.map((x) => `<div style="color:${x.atk ? '#e0c060' : '#ff6a4a'}">${x.atk ? '⚔' : '⚠'} ${x.text}</div>`).join('') : '';
           el.classList.toggle('hidden', !h || !!(G.priv && G.priv.battle)); if (el.dataset.h !== h) { el.innerHTML = h; el.dataset.h = h; } }
+        renderCaptive(P.me.captives);
         $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　荷 ${SIM.cargo(P.me)}/${P.me.cap}　名声 ${P.me.fame}${P.me.rank && P.me.rank.clan ? `　功績 ${P.me.rank.merit}${(() => { const n = SIM.RANKS[P.me.rank.rank + 1]; return n && !n.indep ? '/' + n.merit : ''; })()}` : ''}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.wage ? `<br>兵の給金 ${SIM.money(P.me.wage)}/日${P.me.money < P.me.wage ? '　<b style="color:#e07a6a">払えません</b>' : '（約' + Math.floor(P.me.money / P.me.wage) + '日分）'}` : '') + (P.me.riceNeed ? `<br>士気 <b style="color:${P.me.morale < 35 ? '#e07a6a' : P.me.morale < 60 ? '#e0c060' : '#6fbf73'}">${P.me.morale}</b>　兵糧 米${(P.me.inv && P.me.inv.rice) || 0}/${P.me.riceCap}俵（1日${P.me.riceNeed}俵・${P.me.hungry ? '<b style="color:#e07a6a">米が足りません</b>' : '約' + P.me.riceDays + '日分'}）` : '') + (P.me.follow ? `<br>追跡中：${P.me.follow}` : '') + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
           + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品'}・${dayLeft(q.deadline)}）</div>`).join('');
       }

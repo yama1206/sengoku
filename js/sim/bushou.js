@@ -115,7 +115,7 @@
   const want = (w, s) => (isMain(w, s) ? 4 : 2 + (s.id.length % 2));
   SIM.genStats = (w, pr, lord) => { if (pr.tou == null) { const b = lord ? 50 : 35; pr.tou = b + Math.floor(rnd(w) * 40); pr.bu = b + Math.floor(rnd(w) * 40); } return pr; };
   const cpuCastle = (w, s) => s.type === 'castle' && !s.site && s.owner && w.factions[s.owner] && !w.factions[s.owner].dead && !s.holder;
-  const live = (w, id) => w.people[id] && !w.people[id].dead;
+  const live = (w, id) => w.people[id] && !w.people[id].dead && !w.people[id].captive; // 捕らわれている武将は動けない
   function newVassal(w, s) { const id = newPerson(w, s.owner, { role: 'vassal', castle: s.id, loyal: 50 + Math.floor(rnd(w) * 30) }); SIM.genStats(w, w.people[id]); s.vass.push(id); return id; }
   function ensureVassals(w) {
     for (const pr of Object.values(w.people)) SIM.genStats(w, pr, true);
@@ -126,7 +126,7 @@
       s.vass = s.vass.filter((id) => live(w, id) && !lords.has(id));
     }
     for (const n of Object.values(w.npcs)) if (n.kind === 'patrol' && n.person && live(w, n.person)) { // もとからいる隊の大将は、その城の家臣にする
-      const h = SIM.settlement(w, n.home); if (h && h.vass && !h.vass.includes(n.person) && !lords.has(n.person)) { h.vass.push(n.person); w.people[n.person].castle = h.id; }
+      const h = SIM.settlement(w, n.home); if (h && h.vass && live(w, n.person) && !h.vass.includes(n.person) && !lords.has(n.person)) { h.vass.push(n.person); w.people[n.person].castle = h.id; }
     }
   }
   const leading = (w) => { const b = new Set(); for (const n of Object.values(w.npcs)) { if (n.person) b.add(n.person); for (const g of n.gens || []) b.add(g); } return b; };
@@ -180,19 +180,47 @@
     const tou = Math.max(...L.map((p) => p.tou)), bu = Math.max(...L.map((p) => p.bu));
     for (const u of b.units.slice(k)) { u.am = (u.am || 1) * (1 + (bu - 55) / 200); u.mor = u.mo = Math.max(30, Math.min(95, u.mor + (tou - 55) / 3)); }
   };
-  // 打ち破った隊の武将は、ときどき討ち取られる（家臣だけ。城主は落ち延びる）
+  // 0.35.0 打ち破った隊の武将は、ときどき捕縛される（家臣だけ。城主は落ち延びる）。逃がすか切るかはプレイヤーが選ぶ
+  const CAP_RATE = 0.35;
+  const fNm = (w, fid) => (w.factions[fid] || {}).name || '';
   const baseEnd = SIM.onBattleEnd;
   SIM.onBattleEnd = (w, b, p, res, after) => {
     baseEnd(w, b, p, res, after);
-    if (res !== 'win' || b.genDone) return; b.genDone = 1;
-    const n = w.npcs[b.npc]; if (!n) return;
-    const lords = new Set(w.settlements.filter((x) => x.lord).map((x) => x.lord));
-    for (const id of [...(n.gens || []), ...(n.person ? [n.person] : [])]) {
-      const pr = w.people[id]; if (!pr || pr.dead || lords.has(id) || rnd(w) > 0.35) continue;
-      pr.dead = true; for (const s of w.settlements) if (s.vass) s.vass = s.vass.filter((x) => x !== id);
-      for (const pid of b.pids) SIM.say(pid, `${(w.factions[pr.faction] || {}).name || ''}の${pr.name}を討ち取りました！`);
+    if (res === 'win' && !b.genDone) { b.genDone = 1;
+      const n = w.npcs[b.npc]; if (!n) return;
+      const lords = new Set(w.settlements.filter((x) => x.lord).map((x) => x.lord));
+      for (const id of [...(n.gens || []), ...(n.person ? [n.person] : [])]) {
+        const pr = w.people[id]; if (!pr || pr.dead || pr.captive || lords.has(id) || rnd(w) > CAP_RATE) continue;
+        pr.captive = p.id; for (const s of w.settlements) if (s.vass) s.vass = s.vass.filter((x) => x !== id);
+        p.captives = p.captives || []; p.captives.push(id);
+        for (const pid of b.pids) SIM.say(pid, `${fNm(w, pr.faction)}の${pr.name}を捕らえました！`);
+      }
+    } else if (res === 'lose' && p && p.retainers && p.retainers.length) { // 負けたとき：CPUは捕らえた家臣を逃がす
+      for (const id of p.retainers) {
+        const pr = w.people[id]; if (!pr || rnd(w) > CAP_RATE) continue;
+        SIM.say(p.id, `家臣の${pr.name}が敵に捕らえられましたが、解き放たれて戻ってきました`);
+      }
     }
   };
+  function freeCaptive(w, pr) { // 逃がした武将は元の城（なければ自家の近くの城）へ戻る
+    pr.captive = null;
+    let h = SIM.settlement(w, pr.castle);
+    if (!h || h.owner !== pr.faction || !h.vass) {
+      let best = null, bd = Infinity;
+      for (const s of w.settlements) if (s.type === 'castle' && s.owner === pr.faction && s.vass) { const d = h ? dist(s, h) : 0; if (d < bd) { bd = d; best = s; } }
+      h = best;
+    }
+    if (h) { h.vass.push(pr.id); pr.castle = h.id; }
+  }
+  const captiveCmd = (kill) => (w, p, c) => {
+    const i = (p.captives || []).indexOf(c.id); if (i < 0) return;
+    p.captives.splice(i, 1);
+    const pr = w.people[c.id]; if (!pr || pr.dead) return;
+    if (kill) { pr.dead = true; pr.captive = null; SIM.say(p.id, `${fNm(w, pr.faction)}の${pr.name}を斬りました`); }
+    else { freeCaptive(w, pr); p.fame = (p.fame || 0) + 1; SIM.say(p.id, `${fNm(w, pr.faction)}の${pr.name}を逃がしました（名声+1）`); }
+  };
+  SIM.commands.releaseCaptive = captiveCmd(false);
+  SIM.commands.killCaptive = captiveCmd(true);
   // 近くの城の家臣の一覧（参加者の画面用）
   const basePriv2 = SIM.privateState;
   SIM.privateState = function (w, pid) {
@@ -203,6 +231,7 @@
       v[s.id] = { lord: lord ? [lord.name, lord.tou, lord.bu] : null, vass: (s.vass || []).filter((id) => live(w, id)).map((id) => { const q = w.people[id]; return [q.name, q.tou, q.bu]; }) };
     }
     r.me.vass = v;
+    r.me.captives = (p.captives || []).map((id) => { const q = w.people[id]; return q ? [id, q.name, fNm(w, q.faction), q.tou, q.bu] : null; }).filter(Boolean);
     return r;
   };
 })();
