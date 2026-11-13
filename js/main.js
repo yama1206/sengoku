@@ -26,7 +26,7 @@
   // ---------- メニュー操作（キー・コントローラー：押した方向へ移動／決定してもカーソル位置は保つ） ----------
   const focusMem = {};
   function activeMenu() {
-    if (G.mode === 'title') return !$('createPanel').classList.contains('hidden') ? $('createPanel') : !$('slotPanel').classList.contains('hidden') ? $('slotPanel') : !$('friendPanel').classList.contains('hidden') ? $('friendPanel') : !$('namePanel').classList.contains('hidden') ? $('namePanel') : $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
+    if (G.mode === 'title') return !$('mapPanel').classList.contains('hidden') ? $('mapPanel') : !$('createPanel').classList.contains('hidden') ? $('createPanel') : !$('slotPanel').classList.contains('hidden') ? $('slotPanel') : !$('friendPanel').classList.contains('hidden') ? $('friendPanel') : !$('namePanel').classList.contains('hidden') ? $('namePanel') : $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
     if (!$('gameMenu').classList.contains('hidden')) return $('gameMenu');
     if (!$('char').classList.contains('hidden')) return $('char');
     if (!$('town').classList.contains('hidden')) return $('town');
@@ -54,6 +54,7 @@
       if (score < bs2) { bs2 = score; best = b; }
     }
     setFocus(m, best || cur);
+    if (best && m.onNav) m.onNav(best);
     return true;
   }
   function pressMenu() { const m = activeMenu(); if (!m) return false; const b = currentFocus(m); if (b) { setFocus(m, b); b.click(); } return true; }
@@ -215,12 +216,74 @@
     for (const k of ATK) h += `<div class="row" style="align-items:center;gap:6px;margin:3px 0"><span style="width:4em">${SIM.ATTRS[k]}</span><button id="ca-${k}-m" data-cr="at" data-k="${k}" data-md="-1">◀</button><span style="min-width:3em;text-align:center">${prof.attrs[k]}</span><button id="ca-${k}-p" data-cr="at" data-k="${k}" data-md="1">▶</button></div>`;
     h += `<div style="margin-top:8px"><b>成長の型</b></div><div class="row" style="align-items:center;gap:6px"><button id="cg-m" data-cr="gr" data-md="-1">◀</button><span style="min-width:6em;text-align:center">${g.name}</span><button id="cg-p" data-cr="gr" data-md="1">▶</button></div><div class="muted">${g.desc}</div>`;
     const si = Math.max(0, START.findIndex((t) => t.id === prof.start)), st = START[si], nl = nearLord(st);
-    h += `<div style="margin-top:8px"><b>開始地点</b>　<span class="muted">${si + 1}/${START.length}（東から西の順）</span></div><div class="row" style="align-items:center;gap:6px"><button id="cs-mm" data-cr="st" data-md="-5">◀◀</button><button id="cs-m" data-cr="st" data-md="-1">◀</button><span style="min-width:5em;text-align:center">${st.name}</span><button id="cs-p" data-cr="st" data-md="1">▶</button><button id="cs-pp" data-cr="st" data-md="5">▶▶</button><button id="cs-r" data-cr="sr">おまかせ</button></div><div class="muted">${nl ? `近くの大名：${nl}` : ''}</div>`;
+    h += `<div style="margin-top:8px"><b>開始地点</b>　<span class="muted">${si + 1}/${START.length}（東から西の順）</span></div><div class="row" style="align-items:center;gap:6px"><button id="cs-mm" data-cr="st" data-md="-5">◀◀</button><button id="cs-m" data-cr="st" data-md="-1">◀</button><span style="min-width:5em;text-align:center">${st.name}</span><button id="cs-p" data-cr="st" data-md="1">▶</button><button id="cs-pp" data-cr="st" data-md="5">▶▶</button><button id="cs-r" data-cr="sr">おまかせ</button></div><div class="row"><button id="cs-map" data-cr="map">地図から選ぶ</button></div><div class="muted">${nl ? `近くの大名：${nl}` : ''}</div>`;
     h += `<div style="margin-top:8px"><b>家紋</b></div>` + monEditorHtml(prof.mon, 'crMon');
     h += `<div class="row" style="margin-top:8px"><button id="cr-back" data-cr="back">戻る</button><button id="cr-ok" data-cr="ok">この人物で決める</button></div>`;
     $('createBody').innerHTML = h; drawMonPrev('crMon', prof.mon);
     const pn = $('createPanel'); setFocus(pn, currentFocus(pn));
   }
+
+  // ---------- 0.55.0 開始地点を地図から選ぶ ----------
+  const SM = { sc: 1, x: 0, y: 0, W: 0, H: 0, built: false };
+  const smFit = () => Math.min(SM.W / SGK.DATA.bounds.w, SM.H / SGK.DATA.bounds.h) * 0.95;
+  const smTS = (x, y) => [(x - SM.x) * SM.sc + SM.W / 2, (y - SM.y) * SM.sc + SM.H / 2];
+  function smSize() {
+    const cv = $('smCv'), d = window.devicePixelRatio || 1; SM.W = cv.clientWidth; SM.H = cv.clientHeight;
+    cv.width = SM.W * d; cv.height = SM.H * d; cv.getContext('2d').setTransform(d, 0, 0, d, 0, 0);
+  }
+  function smClamp() { const B = SGK.DATA.bounds; SM.sc = Math.max(smFit(), Math.min(12, SM.sc)); SM.x = Math.max(0, Math.min(B.w, SM.x)); SM.y = Math.max(0, Math.min(B.h, SM.y)); }
+  function smOpen() {
+    $('createPanel').classList.add('hidden'); $('mapPanel').classList.remove('hidden'); smSize();
+    if (!SM.built) { $('smLayer').innerHTML = START.map((t) => `<button class="smT" id="sm-${t.id}" data-sm="${t.id}"><span>${t.name}</span></button>`).join(''); SM.built = true; }
+    const st = START.find((t) => t.id === prof.start) || START[0];
+    SM.sc = smFit() * 3; SM.x = st.x; SM.y = st.y; smDraw(); setFocus($('mapPanel'), $('sm-' + st.id));
+  }
+  function smClose() { $('mapPanel').classList.add('hidden'); $('createPanel').classList.remove('hidden'); renderCreate(); setFocus($('createPanel'), $('cs-map')); }
+  function smZoom(f, sx = SM.W / 2, sy = SM.H / 2) {
+    const wx = (sx - SM.W / 2) / SM.sc + SM.x, wy = (sy - SM.H / 2) / SM.sc + SM.y;
+    SM.sc *= f; smClamp(); SM.x = wx - (sx - SM.W / 2) / SM.sc; SM.y = wy - (sy - SM.H / 2) / SM.sc; smClamp(); smDraw();
+  }
+  function smDraw() {
+    const ctx = $('smCv').getContext('2d'), T = SGK.DATA.terrain, B = SGK.DATA.bounds, D = SGK.DATA;
+    const poly = (pts) => { ctx.beginPath(); pts.forEach(([x, y], i) => { const [a, b] = smTS(x, y); i ? ctx.lineTo(a, b) : ctx.moveTo(a, b); }); };
+    ctx.fillStyle = '#7d9fae'; ctx.fillRect(0, 0, SM.W, SM.H);
+    ctx.fillStyle = '#d8cda6'; for (const l of T.lands || []) { poly(l.pts); ctx.closePath(); ctx.fill(); }
+    ctx.fillStyle = '#7d9fae'; for (const q of T.seas) { poly(q); ctx.closePath(); ctx.fill(); }
+    ctx.fillStyle = 'rgba(120,128,82,.4)'; for (const m of T.mountains || []) { poly(m.pts); ctx.closePath(); ctx.fill(); }
+    ctx.strokeStyle = 'rgba(122,84,38,.7)'; ctx.lineWidth = 1; for (const r of T.roads || []) if ((r.rank || 2) < 3) { poly(r.pts); ctx.stroke(); }
+    // 城：大名の色（大名のいない城は灰色）
+    const cs = Math.max(4, Math.min(9, SM.sc * 4));
+    for (const s of D.settlements) if (s.type === 'castle') {
+      const [a, b] = smTS(s.x, s.y); if (a < -10 || b < -10 || a > SM.W + 10 || b > SM.H + 10) continue;
+      const f = s.owner && D.factions[s.owner]; ctx.fillStyle = f ? f.color : '#888'; ctx.strokeStyle = '#1a1712'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(a, b - cs); ctx.lineTo(a + cs * 0.8, b + cs * 0.6); ctx.lineTo(a - cs * 0.8, b + cs * 0.6); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    for (const t of START) { const e = $('sm-' + t.id), [a, b] = smTS(t.x, t.y); e.style.left = a + 'px'; e.style.top = b + 'px'; e.classList.toggle('sel', t.id === prof.start); }
+    $('smLayer').classList.toggle('names', SM.sc >= smFit() * 2.2);
+    const st = START.find((t) => t.id === prof.start), nl = st && nearLord(st);
+    $('smInfo').innerHTML = `<b>${st ? st.name : ''}</b>${nl ? `　<span class="muted">近くの大名：${nl}</span>` : ''}<div class="muted" style="font-size:12px">町（□）を選んで「この町に決める」。▲は城（色は大名）。ドラッグで移動・ホイール／ピンチ／LB・RBで拡大縮小</div>`;
+  }
+  $('mapPanel').onNav = (b) => { // コントローラー・キーで選んだ町が端に寄ったら地図を動かす
+    const t = b.dataset.sm && START.find((x) => x.id === b.dataset.sm); if (!t) return;
+    const [a, c] = smTS(t.x, t.y); if (a < SM.W * 0.2 || a > SM.W * 0.8 || c < SM.H * 0.2 || c > SM.H * 0.8) { SM.x = t.x; SM.y = t.y; smClamp(); smDraw(); }
+  };
+  $('smLayer').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b || smDrag.moved) return; prof.start = b.dataset.sm; setFocus($('mapPanel'), b); smDraw(); });
+  $('smIn').onclick = () => smZoom(1.5); $('smOut').onclick = () => smZoom(1 / 1.5);
+  $('smRnd').onclick = () => { const t = START[Math.floor(Math.random() * START.length)]; prof.start = t.id; SM.x = t.x; SM.y = t.y; smClamp(); smDraw(); };
+  $('smOk').onclick = smClose;
+  const smDrag = { pts: new Map(), moved: false, d0: 0 };
+  $('smBox').addEventListener('pointerdown', (e) => { smDrag.pts.set(e.pointerId, [e.clientX, e.clientY]); if (smDrag.pts.size === 1) smDrag.moved = false; if (smDrag.pts.size === 2) { const [p, q] = [...smDrag.pts.values()]; smDrag.d0 = Math.hypot(p[0] - q[0], p[1] - q[1]); } });
+  $('smBox').addEventListener('pointermove', (e) => {
+    const o = smDrag.pts.get(e.pointerId); if (!o) return;
+    const dx = e.clientX - o[0], dy = e.clientY - o[1];
+    if (smDrag.pts.size === 1) { if (!smDrag.moved && Math.hypot(dx, dy) < 6) return; smDrag.moved = true; SM.x -= dx / SM.sc; SM.y -= dy / SM.sc; smClamp(); smDraw(); }
+    smDrag.pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (smDrag.pts.size === 2) { smDrag.moved = true; const [p, q] = [...smDrag.pts.values()], d = Math.hypot(p[0] - q[0], p[1] - q[1]), r = $('smBox').getBoundingClientRect(); if (smDrag.d0) smZoom(d / smDrag.d0, (p[0] + q[0]) / 2 - r.left, (p[1] + q[1]) / 2 - r.top); smDrag.d0 = d; }
+  });
+  const smUp = (e) => { smDrag.pts.delete(e.pointerId); if (smDrag.pts.size < 2) smDrag.d0 = 0; setTimeout(() => { if (!smDrag.pts.size) smDrag.moved = false; }, 0); };
+  $('smBox').addEventListener('pointerup', smUp); $('smBox').addEventListener('pointercancel', smUp);
+  $('smBox').addEventListener('wheel', (e) => { e.preventDefault(); const r = $('smBox').getBoundingClientRect(); smZoom(e.deltaY < 0 ? 1.2 : 1 / 1.2, e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+  window.addEventListener('resize', () => { if (!$('mapPanel').classList.contains('hidden')) { smSize(); smClamp(); smDraw(); } });
   function pickNames() { const pk = (a) => a[Math.floor(Math.random() * a.length)], set = new Set(); while (set.size < 6) set.add(pk(SEI) + pk(MEI)); crNames = [...set]; }
   $('btnName').onclick = () => { prof = loadProf(); pickNames(); $('createPanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); renderCreate(); setFocus($('createPanel'), $('cr-ok')); };
   $('createBody').addEventListener('click', (e) => {
@@ -231,6 +294,7 @@
     else if (b.dataset.cr === 'more') pickNames();
     else if (b.dataset.cr === 'at') { const k = b.dataset.k, v = prof.attrs[k] + dir; if (v >= C.base && v <= C.max && (dir < 0 || crLeft() > 0)) prof.attrs[k] = v; }
     else if (b.dataset.cr === 'st') { const n = START.length, i = START.findIndex((t) => t.id === prof.start); prof.start = START[(((i + dir) % n) + n) % n].id; }
+    else if (b.dataset.cr === 'map') { smOpen(); return; }
     else if (b.dataset.cr === 'sr') prof.start = START[Math.floor(Math.random() * START.length)].id;
     else if (b.dataset.cr === 'gr') prof.grow = GK[(GK.indexOf(prof.grow) + dir + GK.length) % GK.length];
     else if (b.dataset.cr === 'back') { $('createPanel').classList.add('hidden'); titleBack(); return; }
@@ -246,7 +310,7 @@
     while (set.size < 12) set.add(pk(SEI) + pk(MEI));
     $('nameKeys').innerHTML = [...set].map((n, i) => `<button id="nk-${i}" data-nm="${n}">${n}</button>`).join('');
   }
-  $('btnName').onclick = () => { fillNames(); $('namePanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); setFocus($('namePanel'), $('nk-0')); };
+  const openNamePanel = () => { fillNames(); $('namePanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); setFocus($('namePanel'), $('nk-0')); };
   $('btnNameMore').onclick = () => { fillNames(); setFocus($('namePanel'), $('btnNameMore')); };
   $('btnNameBack').onclick = titleBack;
   $('nameKeys').addEventListener('click', (e) => {
@@ -977,7 +1041,8 @@
         if (k === 'Escape') { toggleMenu(true); return; }
         const o = { z: 'charge', x: 'hold', c: 'retreat', v: 'flank' }[k.toLowerCase()]; if (o) { command({ type: 'order', unit: 'all', order: o }); return; }
       }
-      if (k === 'Escape') { if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else menuBack(); return; }
+      if (k === 'Escape') { if (activeMenu() === $('mapPanel')) smClose(); else if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else menuBack(); return; }
+      if (activeMenu() === $('mapPanel') && (k === '+' || k === '=' || k === '-')) { smZoom(k === '-' ? 1 / 1.5 : 1.5); return; }
       if (activeMenu() === $('char') && (k === 'q' || k === 'e')) { cycleCTab(k === 'q' ? -1 : 1); return; }
       if (activeMenu() === $('char') && (k === 'p' || k === 'P')) { openChar(false); return; }
       if (activeMenu() === $('town') && (k === 'q' || k === 'e')) { cycleTab(k === 'q' ? -1 : 1); return; }
@@ -1063,7 +1128,8 @@
         else navHold = 0;
         if (down(0)) pressMenu();
       }
-      if (down(1) && !inBattle) { if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else menuBack(); }
+      if (down(1) && !inBattle) { if (activeMenu() === $('mapPanel')) smClose(); else if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else menuBack(); }
+      if (activeMenu() === $('mapPanel')) { if (down(4)) smZoom(1 / 1.5); if (down(5)) smZoom(1.5); }
       if (activeMenu() === $('town')) { if (down(4)) cycleTab(-1); if (down(5)) cycleTab(1); }
       else if (activeMenu() === $('char')) { if (down(4)) cycleCTab(-1); if (down(5)) cycleCTab(1); if (down(8)) openChar(false); }
       if (!inBattle && ry) { // 右スティック：開いている画面をスクロール
