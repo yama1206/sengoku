@@ -419,7 +419,7 @@
   $('infoAct').onclick = () => { if (typeof G.infoCmd === 'function') G.infoCmd(); else if (G.infoCmd) command(G.infoCmd); };
   $('infoGo').onclick = () => {
     if (G.selKind === 'u') { const u = findUnit(G.selected); if (u) command({ type: 'follow', id: u.id }); return; }
-    const s = G.view.settlements.find((x) => x.id === G.selected); if (s) moveTo(s.x, s.y, s.id);
+    const s = G.view.settlements.find((x) => x.id === G.selected); if (s) { moveTo(s.x, s.y, s.id); selectSettlement(null); } // 0.54.4 向かうと閉じる
   };
 
   // ---------- 部隊（CPU・他プレイヤー）の情報 ----------
