@@ -1237,7 +1237,7 @@
   function pollPad(dt) {
     // 0.63.1 PCで別の機器（仮想コントローラーなど）が先に並ぶと使えなくなるので、最後に触ったコントローラーを使う（なければ標準配置のもの）
     const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter((p) => p && p.connected !== false) : [];
-    for (const p of pads) if (p.buttons.some((b) => b && b.pressed) || p.axes.some((v) => Math.abs(v) > 0.5 && Math.abs(v) < 1.01)) { if (G.padIdx !== p.index) { G.padIdx = p.index; for (const k in padPrev) padPrev[k] = true; } break; }
+    for (const p of pads) if (p.buttons.some((b) => b && b.pressed)) { if (G.padIdx !== p.index) { G.padIdx = p.index; for (const k in padPrev) padPrev[k] = true; } break; }
     const gp = pads.find((p) => p.index === G.padIdx) || pads.find((p) => p.mapping === 'standard') || pads[0]; if (!gp) return [0, 0];
     const btn = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed);
     const down = (i) => btn(i) && !padPrev[i];
