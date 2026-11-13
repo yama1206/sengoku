@@ -446,21 +446,37 @@
     const atk = atWar && !u.battle && Number(km) <= 2 ? { label: '攻めかかる', cmd: { type: 'attackArmy', id: u.id } } : null;
     const leadTxt = u.lead && u.lead.length ? '<br>' + (u.kind === 'army' ? '武将' : '大将') + '：' + u.lead.map(([nm, t, b]) => `${nm}<span class="muted">（統率${t}・武勇${b}）</span>`).join('・') : '';
     const warNote = atWar ? '<br><b style="color:#ff6a4a">戦をしている家の武将です</b>（こちらと互角以上なら攻めかかってきます）' : '';
-    if (u.kind === 'bushou') return { name: `${u.pname || '武将'}（${f ? f.name : ''}）`, body: `勢力：${fn}<br>${u.extra || ''}　${where}<br>供回り：${ar}${leadTxt}${warNote}<br><span class="muted">${talk ? '話しかけると顔をつなげる（その家に名声2で仕官できる）。うわさも聞ける' : '1.5km以内まで近づくと話しかけられる'}</span>`, go: '追いかける', act: atk || (atWar ? null : talk) };
+    // 0.54.0 取引（1.5km以内・戦をしていない家の、武将が率いる隊）
+    const T0 = !atWar && !u.battle && Number(km) <= 1.5 && G.priv && G.priv.me && G.priv.me.tr && G.priv.me.tr[u.id];
+    const trade = T0 ? `<div class="trade"><span class="muted">取引（好感${T0.fav}）</span><br>`
+      + `<button id="tr-rice" data-tr="rice" ${T0.rice ? '' : 'disabled'}>米を売る（1俵${T0.rp}文）</button>`
+      + (u.kind !== 'army' ? `<button id="tr-troop" data-tr="troop" ${T0.troop ? '' : 'disabled'}>兵を譲ってもらう</button>` : '')
+      + `<button id="tr-gift" data-tr="gift" ${T0.gift && T0.fav < 5 ? '' : 'disabled'}>進物を贈る（1貫）</button></div>` : '';
+    if (u.kind === 'bushou') return { name: `${u.pname || '武将'}（${f ? f.name : ''}）`, body: `勢力：${fn}<br>${u.extra || ''}　${where}<br>供回り：${ar}${leadTxt}${warNote}<br><span class="muted">${talk ? '話しかけると顔をつなげる（その家に名声2で仕官できる）。うわさも聞ける' : '1.5km以内まで近づくと話しかけられる'}</span>${trade}`, go: '追いかける', act: atk || (atWar ? null : talk) };
     if (u.kind === 'ronin') { const [need, fee] = u.extra || [0, 0]; return { name: `浪人 ${u.pname || ''}`, body: `${where}<br>手勢：${ar}<br>家臣になる条件：名声${need}・支度金${SIM.money(fee)}<br><span class="muted">主を持たない武将。家臣にすると手勢が加わり、率いる人数が増える（家臣は3人まで）${talk ? '' : '。1.5km以内まで近づくと話しかけられる'}</span>`, go: '追いかける', act: talk ? { label: '家臣に誘う', cmd: talk.cmd } : null }; }
-    if (u.kind === 'patrol') return { name: `${u.pname ? u.pname + '隊' : '武将の隊'} ${u.size || ''}人`, act: u.battle ? null : atk || (atWar ? null : talk), body: `${u.battle === 2 ? '<b style="color:#ff6a4a">野盗と交戦中</b>（野盗に近づくと加勢できる）<br>' : u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}<br>${where}${u.home ? `<br>本拠：${sName(u.home)}` : ''}<br>兵：${ar}${leadTxt}${warNote}<br><span class="muted">城の家臣の武将が交代で兵を率いて、自勢力の拠点のあいだを回り、近くの野盗を退治する。武勇が高いと兵の攻撃が、統率が高いと士気が上がる。話しかけると顔をつなげる。</span>`, go: '追いかける' };
+    if (u.kind === 'patrol') return { name: `${u.pname ? u.pname + '隊' : '武将の隊'} ${u.size || ''}人`, act: u.battle ? null : atk || (atWar ? null : talk), body: `${u.battle === 2 ? '<b style="color:#ff6a4a">野盗と交戦中</b>（野盗に近づくと加勢できる）<br>' : u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}<br>${where}${u.home ? `<br>本拠：${sName(u.home)}` : ''}<br>兵：${ar}${leadTxt}${warNote}<br><span class="muted">城の家臣の武将が交代で兵を率いて、自勢力の拠点のあいだを回り、近くの野盗を退治する。武勇が高いと兵の攻撃が、統率が高いと士気が上がる。話しかけると顔をつなげる。</span>${trade}`, go: '追いかける' };
     if (u.kind === 'army') {
       const t = G.mode === 'host' ? SIM.armyText(G.world, G.world.npcs[u.id]) : ((G.dyn && G.dyn.ar) || {})[u.id];
       const R = G.priv && G.priv.me && G.priv.me.rank, mine = R && R.clan, wars = G.view.wars || [];
       const war = mine && u.faction && wars.includes(mine < u.faction ? `${mine}|${u.faction}` : `${u.faction}|${mine}`);
       const act = war && !u.battle && Number(km) <= ((G.priv.me.war && G.priv.me.war.ar) ? G.priv.me.war.ar.fightKm : 2) ? { label: '攻めかかる', cmd: { type: 'attackArmy', id: u.id } } : null;
-      return { name: `${t ? t.name : '軍勢'} ${u.size}人`, body: `${u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}${war ? '　<b style="color:#e06050">交戦中</b>' : ''}<br>${t ? t.text : ''}<br>兵：${ar}<br><span class="muted">${war ? `敵の軍勢。${(G.priv.me.war && G.priv.me.war.ar ? G.priv.me.war.ar.fightKm : 2)}km以内まで近づくと攻めかかれます。打ち破れば包囲が解けます` : '武将たちが率いる軍勢'}</span>`, go: '追いかける', act };
+      return { name: `${t ? t.name : '軍勢'} ${u.size}人`, body: `${u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}${war ? '　<b style="color:#e06050">交戦中</b>' : ''}<br>${t ? t.text : ''}<br>兵：${ar}<br><span class="muted">${war ? `敵の軍勢。${(G.priv.me.war && G.priv.me.war.ar ? G.priv.me.war.ar.fightKm : 2)}km以内まで近づくと攻めかかれます。打ち破れば包囲が解けます` : '武将たちが率いる軍勢'}</span>${war ? '' : trade}`, go: '追いかける', act };
     }
     if (u.kind === 'bandit') {
       return { name: `野盗 ${u.size}人`, body: `${u.battle === 2 ? '<b style="color:#ff6a4a">巡回兵と交戦中</b>（近づくと加勢できる）<br>' : u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}${where}<br>手勢：${ar}<br><span class="muted">近づくと襲ってくる。倒すと金品が手に入る。</span>`, go: u.battle === 2 ? '加勢する' : '攻めかかる' };
     }
-    // 他のプレイヤー
-    return { name: u.name, body: `プレイヤー（${u.status || '浪人'}）<br>${where}`, go: '追いかける' };
+    // 他のプレイヤー（0.54.0 1.5km以内なら取引）
+    const M = G.priv && G.priv.me; let ptr = '';
+    if (M) {
+      const offs = (M.offIn || []).filter((o) => o.from === u.id);
+      for (const o of offs) { const it = SGK.DATA.items[o.item]; ptr += `<div class="trade"><b>申し出</b>：${it.name}${o.qty}${it.unit}を${SIM.money(o.price)}で<br><button id="po-ok-${o.id}" data-tr="ok" data-oid="${o.id}" ${M.money < o.price ? 'disabled' : ''}>買う</button><button id="po-ng-${o.id}" data-tr="ng" data-oid="${o.id}">断る</button></div>`; }
+      if (Number(km) <= 1.5) {
+        ptr += `<div class="trade"><span class="muted">渡す</span><br><button id="pg-m1" data-tr="pm" data-qty="1000" ${M.money >= 1000 ? '' : 'disabled'}>1貫</button><button id="pg-m10" data-tr="pm" data-qty="10000" ${M.money >= 10000 ? '' : 'disabled'}>10貫</button><button id="pg-tr" data-tr="pt">兵5人</button></div>`;
+        const inv = Object.entries(M.inv || {}).filter(([, n]) => n > 0);
+        if (inv.length) ptr += `<div class="trade"><span class="muted">荷（渡す／相場で売りに出す／2割引きで売りに出す）${(M.offOut || []).includes(u.id) ? '　申し出中' : ''}</span>` + inv.map(([k, n]) => { const it = SGK.DATA.items[k], q = Math.min(n, 10); return `<br>${it.name}${n}${it.unit}　<button id="pi-${k}" data-tr="pi" data-item="${k}" data-qty="${q}">${q}渡す</button><button id="ps-${k}" data-tr="ps" data-item="${k}" data-qty="${q}" data-mul="1">${q}を${SIM.money(it.base * q)}</button><button id="pd-${k}" data-tr="ps" data-item="${k}" data-qty="${q}" data-mul="0.8">${q}を${SIM.money(Math.round(it.base * q * 0.8 / 10) * 10)}</button>`; }).join('') + '</div>';
+      } else ptr += '<br><span class="muted">1.5km以内まで近づくと取引できます</span>';
+    }
+    return { name: u.name, body: `プレイヤー（${u.status || '浪人'}）<br>${where}${ptr}`, go: '追いかける' };
   }
   function selectUnit(u) {
     if (!u) return selectSettlement(null);
@@ -477,6 +493,17 @@
     G.infoCmd = i.act ? i.act.cmd : null; $('infoAct').classList.toggle('hidden', !i.act); if (i.act) $('infoAct').textContent = i.act.label;
   }
   $('infoClose').onclick = () => selectSettlement(null);
+  // 0.54.0 取引のボタン（武将・プレイヤー）
+  $('infoBody').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-tr]'); if (!b || !G.selected) return; const d = b.dataset, id = G.selected;
+    if (['rice', 'troop', 'gift'].includes(d.tr)) command({ type: 'npcTrade', id, kind: d.tr });
+    else if (d.tr === 'ok' || d.tr === 'ng') command({ type: 'pOfferAns', id: d.oid, ok: d.tr === 'ok' });
+    else if (d.tr === 'pm') command({ type: 'pGive', to: id, what: 'money', qty: +d.qty });
+    else if (d.tr === 'pt') command({ type: 'pGive', to: id, what: 'troop' });
+    else if (d.tr === 'pi') command({ type: 'pGive', to: id, what: 'item', item: d.item, qty: +d.qty });
+    else if (d.tr === 'ps') command({ type: 'pOffer', to: id, item: d.item, qty: +d.qty, mul: +d.mul });
+    G.infoHtml = '';
+  });
 
   // ---------- 拠点の中（市場・依頼・仕事・話す） ----------
   const IT = SGK.DATA.items;
