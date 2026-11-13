@@ -96,7 +96,7 @@
     const now = w.time.min, B = SGK.DATA.bounds;
     for (const n of Object.values(w.npcs)) {
       if (n.kind !== 'bandit' || n.battle) continue;
-      n.speed = 28 * SIM.sizeSpeed(n.size || 0); // 大勢の野盗団ほど遅い
+      n.speed = 28 * SIM.sizeSpeed(n.size || 0) * (n.army ? SIM.mixSpeed(n.army) : 1); // 大勢の野盗団ほど遅い
       if (n.fight) { // 巡回兵と交戦中：近づいたプレイヤーは加勢になる
         for (const p of Object.values(w.players)) if (inField(p) && dist(n, p) < 0.6) { startBattle(w, n, p); break; }
         continue;
@@ -460,13 +460,20 @@
     const n = SIM.troopCount(tr || {}); if (!n) return 1;
     let cav = 0, gun = 0;
     for (const k in tr) { const t = TR[k]; if (!t) continue; if (t.cav) cav += tr[k]; else if (/^teppo/.test(k)) gun += tr[k]; }
-    return 1 + 0.1 * (cav - gun) / n;
+    return 1 + 0.3 * cav / n - 0.1 * gun / n; // 0.60.1 騎馬が多いほどはっきり速い（全員騎馬で+30%）
   };
   // 兵の人数で行軍の速さが変わる：少人数ならほぼそのまま、大軍ほど遅い（最大-40%）
   SIM.sizeSpeed = (n) => (n ? 1 - Math.min(0.4, 0.04 + Math.sqrt(n) * 0.03) : 1);
   SIM.systems.push(
     function militaryDay(w) { const d = Math.floor(w.time.min / 1440); while (w.mday < d) { w.mday++; daily(w); } },
     function partySpeed(w) { for (const p of Object.values(w.players)) p.speed = (CFG.WALK_KM_PER_DAY + SIM.speedBonus(p)) * SIM.sizeSpeed(SIM.troopCount(p.troops)) * SIM.mixSpeed(p.troops); },
+    // 0.60.1 武将・巡回隊・浪人もプレイヤーと同じ式（人数と騎馬の割合）で速さを決める。以前は人数に関係なく35km/日だった
+    function npcSpeed(w) {
+      for (const n of Object.values(w.npcs)) {
+        if (!['patrol', 'bushou', 'ronin'].includes(n.kind) || !n.army) continue;
+        n.speed = CFG.WALK_KM_PER_DAY * SIM.sizeSpeed(SIM.troopCount(n.army)) * SIM.mixSpeed(n.army);
+      }
+    },
     banditTick,
     healTick,
     patrolTick,
