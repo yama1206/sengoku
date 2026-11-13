@@ -165,6 +165,7 @@
       else {
         const fr = frameOf(n.faction); // 巡回の武将：所属の家紋
         SGK.KAMON.badge(ctx, n.faction, view.factions[n.faction], x, y, 13, 'ci', fr[0], Math.min(fr[1], 2.5));
+        if (n.pname && cam.scale >= 3) { const t = n.pname + '隊'; ctx.font = 'bold 11px sans-serif'; ctx.textBaseline = 'top'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)'; ctx.strokeText(t, x, y + 8); ctx.fillStyle = '#2a2118'; ctx.fillText(t, x, y + 8); } // 0.53.5 見回りの隊にも大将の名前
       }
     }
     // プレイヤー
