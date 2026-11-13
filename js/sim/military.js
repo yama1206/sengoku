@@ -422,11 +422,17 @@
       const army = {}; for (const u of b.units) if (u.ally === pa.id && u.hp > 0) army[u.type] = (army[u.type] || 0) + u.n;
       pa.army = army; pa.size = SIM.troopCount(army); pa.battle = null; pa.fight = null;
     }
+    for (const hid of b.helpers || []) { // 0.57.0 いっしょに攻めかかってきた隊：それぞれの生き残りを戻す
+      const h = w.npcs[hid]; if (!h) continue;
+      const army = {}; for (const u of b.units) if (u.hlp === hid && u.hp > 0) army[u.type] = (army[u.type] || 0) + u.n;
+      if (!SIM.troopCount(army)) delete w.npcs[hid];
+      else { h.army = army; h.size = SIM.troopCount(army); h.battle = null; h.calm = w.time.min + 8 * 60; }
+    }
     if (n) n.fight = null;
     if (n) {
       if (res === 'win') delete w.npcs[n.id];
       else {
-        const army = {}; for (const u of b.units) if (u.side === 'B' && u.hp > 0) army[u.type] = (army[u.type] || 0) + u.n;
+        const army = {}; for (const u of b.units) if (u.side === 'B' && u.hp > 0 && !u.hlp) army[u.type] = (army[u.type] || 0) + u.n;
         if (!SIM.troopCount(army)) delete w.npcs[n.id];
         else { n.army = army; n.size = SIM.troopCount(army); n.battle = null; n.calm = w.time.min + 8 * 60; if (res === 'lose') n.loot += 200; }
       }

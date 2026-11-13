@@ -172,6 +172,17 @@
     const qs = Object.values(w.players).filter((q) => q === p || (q.clan && q.clan === p.clan && !q.battle && dist(q, p) <= AR.fightKm));
     for (const q of qs) join(w, b, q, q === p ? msg : `${p.name}とともに${b.foe}（${n.size}人）と戦います！`);
     M.addUnits(w, b, 'B', null, n.army);
+    // 0.57.0 いっしょに攻めかかってきた同じ家の隊も加わる
+    const hs = (n.with || []).map((id) => w.npcs[id]).filter((h) => h && !h.battle && dist(h, n) < PACK.joinKm);
+    for (const h of hs) {
+      const k = b.units.length, main = b.npc; b.npc = h.id; M.addUnits(w, b, 'B', null, h.army); b.npc = main; // 武将の能力はその隊の武将のもの
+      for (const u of b.units.slice(k)) { u.hlp = h.id; u.x += 30; }
+      h.battle = b.id; h.hunt = null; h.pack = h.packOf = null; h.tx = h.ty = null; h.path = null;
+      if (h.loot == null) h.loot = Math.round((200 + h.size * 30) / 10) * 10;
+      b.helpers = b.helpers || []; b.helpers.push(h.id); b.foeN += h.size; b.loot += h.loot; h.loot = 0;
+    }
+    if (hs.length) { b.foe += `ほか${hs.length}隊`; for (const pid of b.pids) SIM.say(pid, `${hs.map((h) => armyName(w, h)).join('・')}も加わってきました！（敵は計${b.foeN}人）`); }
+    n.with = null;
   }
   function defenseBattle(w, n, s, defs) { // 防衛戦：城の丘で迎え撃つ
     const b = newBattle(w, n, { defend: s.id, loot: 800 + n.size * 20 });
@@ -423,10 +434,22 @@
   const HUNT = { km: 4, hitKm: 0.4, ratio: 1, fleeRatio: 0.8, rest: 12 * 60 }; // ratio：互角以上なら近づく／fleeRatio：これより弱いと逃げる
   const heroPow = () => SIM.TROOPS.hero.hp * SIM.TROOPS.hero.atk;
   const isGen = (n) => (n.kind === 'patrol' || n.kind === 'bushou') && n.faction && n.army && !n.battle && !n.fight;
+  const need = (p) => (M.power(p.troops) + heroPow()) * HUNT.ratio;
+  const foeOf = (w, n, p) => p.clan && SIM.atWar(w, n.faction, p.clan) && M.inField(p) && !p.battle;
   function huntable(w, n, p) {
-    return p.clan && SIM.atWar(w, n.faction, p.clan) && M.inField(p) && !p.battle && dist(n, p) < HUNT.km
-      && M.power(n.army) >= (M.power(p.troops) + heroPow()) * HUNT.ratio;
+    return foeOf(w, n, p) && dist(n, p) < HUNT.km && M.power(n.army) >= need(p);
   }
+  // ---- 0.57.0 1隊では負けそうでも、近くの同じ家の隊と合わせて勝てそうなら、いっしょに攻めかかる ----
+  const PACK = { km: 3, joinKm: 3 };
+  const free = (w, m) => isGen(m) && !m.hunt && !m.flee && (m.calm || 0) <= w.time.min;
+  function packFor(w, n, p) { // 足りる分だけ近い順に仲間を集める（足りなければ null）
+    let pw = M.power(n.army); const nd = need(p), out = [];
+    const cand = Object.values(w.npcs).filter((m) => m !== n && m.faction === n.faction && free(w, m) && dist(m, n) < PACK.km).sort((a, c) => dist(a, n) - dist(c, n));
+    for (const m of cand) { out.push(m); pw += M.power(m.army); if (pw >= nd) return out; }
+    return null;
+  }
+  const packPow = (w, L) => M.power(L.army) + (L.pack || []).reduce((a, id) => a + (w.npcs[id] ? M.power(w.npcs[id].army) : 0), 0);
+  function disband(w, L) { for (const id of L.pack || []) { const m = w.npcs[id]; if (m && m.packOf === L.id) { m.packOf = null; if (m.hunt) giveUp(w, m); } } L.pack = null; }
   function giveUp(w, n) {
     n.hunt = null; n.calm = w.time.min + HUNT.rest; n.tx = n.ty = null; n.path = null; n.dest = null;
     if (n.kind === 'bushou') n.wait = 0; // 用事に戻る（家へ帰る）
@@ -434,7 +457,7 @@
   }
   // ---- 0.54.8 勝てそうにない相手からは逃げる：戦をしている家のプレイヤーが近づき、こちらが明らかに弱いとき ----
   const FLEE = { km: 3, safeKm: 5, far: 4 };
-  const scary = (w, n, p) => p.clan && SIM.atWar(w, n.faction, p.clan) && M.inField(p) && !p.battle && M.power(n.army) < (M.power(p.troops) + heroPow()) * HUNT.fleeRatio;
+  const scary = (w, n, p) => foeOf(w, n, p) && M.power(n.army) < (M.power(p.troops) + heroPow()) * HUNT.fleeRatio && !(dist(n, p) < HUNT.km && free(w, n) && packFor(w, n, p)); // 0.57.0 仲間と合わせて勝てるなら逃げない
   function fleeFrom(w, n, p) {
     const d = dist(n, p) || 1, B = SGK.DATA.bounds;
     for (const a of [0, 0.6, -0.6, 1.2, -1.2]) { // まっすぐ逃げられないとき（海）は斜めへ
@@ -463,15 +486,34 @@
     for (const n of Object.values(w.npcs)) {
       if (!isGen(n)) continue;
       let p = n.hunt && w.players[n.hunt];
-      if (n.hunt && (!p || !huntable(w, n, p))) { giveUp(w, n); continue; }
+      if (n.packOf) { // いっしょに攻める仲間：まとめ役の隊が続けている間だけ
+        const L = w.npcs[n.packOf];
+        if (!L || L.hunt !== n.hunt || !(L.pack || []).includes(n.id)) { n.packOf = null; giveUp(w, n); continue; }
+      } else if (n.pack) { // まとめ役：仲間と合わせた強さで続けるか決める
+        n.pack = n.pack.filter((id) => { const m = w.npcs[id]; return m && m.packOf === n.id && !m.battle; });
+        if (!p || !foeOf(w, n, p) || dist(n, p) > HUNT.km + 1 || packPow(w, n) < need(p) * 0.9) { disband(w, n); giveUp(w, n); continue; }
+        if (!n.pack.length) n.pack = null;
+      } else if (n.hunt && (!p || !huntable(w, n, p))) { giveUp(w, n); continue; }
       if (!p) {
-        if ((n.calm || 0) > w.time.min || (n.size || 0) < 6) continue;
+        if ((n.calm || 0) > w.time.min || (n.size || 0) < 6 || n.flee) continue;
         p = ps.filter((q) => huntable(w, n, q)).sort((a, b) => dist(a, n) - dist(b, n))[0];
-        if (!p) continue;
-        n.hunt = p.id; SIM.say(p.id, `${armyName(w, n)}（${fName(w, n.faction)}・${n.size}人）がこちらへ向かってきます！`);
+        if (p) { n.hunt = p.id; SIM.say(p.id, `${armyName(w, n)}（${fName(w, n.faction)}・${n.size}人）がこちらへ向かってきます！`); }
+        else { // 1隊では足りない：近くの仲間と合わせて足りるなら、いっしょに攻めかかる
+          for (const q of ps) {
+            if (!foeOf(w, n, q) || dist(n, q) >= HUNT.km) continue;
+            const pk = packFor(w, n, q); if (!pk) continue;
+            p = q; n.hunt = q.id; n.pack = pk.map((m) => m.id);
+            for (const m of pk) { m.packOf = n.id; m.hunt = q.id; m.flee = null; m.dest = null; }
+            SIM.say(q.id, `${[n, ...pk].map((m) => armyName(w, m)).join('・')}（${fName(w, n.faction)}・計${[n, ...pk].reduce((a, m) => a + m.size, 0)}人）がいっしょにこちらへ向かってきます！`);
+            break;
+          }
+          if (!p) continue;
+        }
       }
       n.tx = p.x; n.ty = p.y; n.path = null; n.dest = null; n.at = null;
       if (dist(n, p) < HUNT.hitKm) {
+        const L = n.packOf ? w.npcs[n.packOf] : n.pack ? n : null; // 先に着いた隊が戦を始め、仲間も加わる
+        if (L) { n.with = [L.id, ...(L.pack || [])].filter((id) => id !== n.id); L.pack = null; for (const id of n.with) { const m = w.npcs[id]; if (m) m.packOf = null; } n.packOf = null; }
         n.hunt = null; if (n.loot == null) n.loot = Math.round((200 + n.size * 30) / 10) * 10;
         if (p.busy) p.busy = null;
         fieldBattle(w, n, p, `${armyName(w, n)}（${fName(w, n.faction)}・${n.size}人）に攻めかかられました！`);
