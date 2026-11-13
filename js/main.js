@@ -297,7 +297,7 @@
     if (G.mode === 'host') {
       const online = G.net ? G.net.pids() : [];
       const names = [G.world.players[G.myPid].name, ...online.map((p) => (G.world.players[p] || {}).name)].join('・');
-      $('roomInfo').textContent = (G.roomCode ? `部屋コード ${G.roomCode}` : '部屋を準備中…') + `　${online.length + 1}/${CFG.MAX_PLAYERS}人（${names}）`;
+      $('roomInfo').innerHTML = (G.roomCode ? `部屋コード <b>${G.roomCode}</b>` : '部屋を準備中…') + `<br><span class="muted">${online.length + 1}/${CFG.MAX_PLAYERS}人（${names}）</span>`;
     } else if (G.mode === 'client') $('roomInfo').textContent = '参加中';
   }
   function hostUI(on) { document.querySelectorAll('.hostOnly').forEach((e) => e.classList.toggle('hidden', !on)); }
