@@ -100,9 +100,9 @@
       const [x, y] = R.toScreen(s.x, s.y);
       const fr = frameOf(s.owner), zk = Math.max(0.45, Math.min(1, cam.scale / 4)); // 引いたときは印を小さく
       if (cam.scale < 1.5 && s.type === 'village') continue;
-      if (s.type === 'castle') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 20 * zk, 'sq', fr[0], fr[1]);
-      else if (s.type === 'town') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 16 * zk, 'ci', fr[0], fr[1]);
-      else SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 11, 'ci', fr[0], Math.min(fr[1], 2));
+      if (s.type === 'castle') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 18 * zk, 'shiro', fr[0], fr[1]); // 0.54.7 城は天守の形・町や村は四角（部隊は丸）
+      else if (s.type === 'town') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 15 * zk, 'sq', fr[0], fr[1]);
+      else SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 10, 'sq', fr[0], Math.min(fr[1], 2));
       if (SGK.SIM.minato && SGK.SIM.minato(s) && cam.scale >= 1.5) { // 0.53.0 湊の錨
         const ax = x + 13 * zk, ay = y - 11 * zk, big = SGK.SIM.minato(s) === 2;
         ctx.fillStyle = big ? '#f2c14e' : '#bfe3f2'; ctx.strokeStyle = '#1d3a52'; ctx.lineWidth = 1.2;

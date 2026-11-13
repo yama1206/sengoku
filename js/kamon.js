@@ -153,6 +153,22 @@
   // 紋の印を描く：shape は 'sq'（城）か 'ci'（町・村・部隊）。frame は枠の色
   K.badge = function (ctx, fid, f, x, y, size, shape, frame, lw) {
     const h = size / 2;
+    if (shape === 'shiro') { // 0.54.7 城：石垣の上に家紋の壁、二重の屋根（天守の形）
+      const fr = frame || '#2a2118', l = lw || 1.5;
+      ctx.lineJoin = 'round';
+      ctx.fillStyle = '#8d8a80'; ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 1.2; // 石垣
+      ctx.beginPath(); ctx.moveTo(x - h * 0.95, y + h); ctx.lineTo(x + h * 0.95, y + h); ctx.lineTo(x + h * 1.25, y + h * 1.45); ctx.lineTo(x - h * 1.25, y + h * 1.45); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = PAPER; ctx.strokeStyle = fr; ctx.lineWidth = l; // 壁と家紋
+      ctx.beginPath(); ctx.rect(x - h, y - h, size, size); ctx.fill();
+      if (fid) ctx.drawImage(K.image(fid, f), x - h * 0.9, y - h * 0.9, h * 1.8, h * 1.8);
+      ctx.stroke();
+      const roof = (yb, w, ht) => { ctx.beginPath(); ctx.moveTo(x - w, yb); ctx.quadraticCurveTo(x - w * 0.55, yb - ht * 0.25, x - w * 0.45, yb - ht); ctx.lineTo(x + w * 0.45, yb - ht); ctx.quadraticCurveTo(x + w * 0.55, yb - ht * 0.25, x + w, yb); ctx.closePath(); ctx.fill(); ctx.stroke(); };
+      ctx.fillStyle = '#3a3f4a'; ctx.strokeStyle = '#1a1612'; ctx.lineWidth = 1.2; // 屋根
+      roof(y - h, h * 1.35, h * 0.45);
+      ctx.fillStyle = PAPER; ctx.fillRect(x - h * 0.4, y - h * 1.75, h * 0.8, h * 0.32); ctx.strokeRect(x - h * 0.4, y - h * 1.75, h * 0.8, h * 0.32);
+      ctx.fillStyle = '#3a3f4a'; roof(y - h * 1.72, h * 0.75, h * 0.38);
+      return;
+    }
     ctx.fillStyle = PAPER; ctx.strokeStyle = frame || '#2a2118'; ctx.lineWidth = lw || 1.5;
     ctx.beginPath(); if (shape === 'sq') ctx.rect(x - h, y - h, size, size); else ctx.arc(x, y, h, 0, Math.PI * 2);
     ctx.fill();
