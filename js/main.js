@@ -916,8 +916,21 @@
   // 0.59.0 移動先を決めたあと、向く方向を決める（G.fpick = 移動先。次に押した所の方を向く）
   function moveFace(unit, x, y, face) { command({ type: 'order', unit, order: 'move', x, y }); if (face != null) command({ type: 'order', unit, order: 'face', f: face }); }
   function pickFace(fx, fy) { const P = G.fpick; G.fpick = null; if (!P) return false; if (Math.hypot(fx - P.x, fy - P.y) < 2) { toast('向きはそのままにしました', 800); return true; } command({ type: 'order', unit: P.unit, order: 'face', f: Math.atan2(fy - P.y, fx - P.x) }); toast('その方向を向かせます', 800); return true; }
-  function actOrder(o, x, y) { const c = { type: 'order', unit: G.selUnit == null ? 'all' : G.selUnit, order: o }; if (o === 'move') { c.x = x; c.y = y; } command(c); }
-  function actSel(d) { const AB = actB(); if (!AB) return; const l = [null, ...AB.units.filter((u) => u.idx && u.hp > 0 && !u.gone).sort((a, b) => a.idx - b.idx).map((u) => u.id)]; const i = Math.max(0, l.indexOf(G.selUnit)); G.selUnit = l[(i + d + l.length) % l.length]; battleHtml = ''; }
+  function actOrder(o, x, y) { if (G.selUnit == null) { toast('先に部隊を選んでください（右スティックのカーソルを隊に合わせてA・LB/RB・数字キー）', 1500); return; } const c = { type: 'order', unit: G.selUnit, order: o }; if (o === 'move') { c.x = x; c.y = y; } command(c); }
+  function actSel(d) { const AB = actB(); if (!AB) return; const l = [null, 'all', ...AB.units.filter((u) => u.idx && u.hp > 0 && !u.gone).sort((a, b) => a.idx - b.idx).map((u) => u.id)]; const i = Math.max(0, l.indexOf(G.selUnit)); G.selUnit = l[(i + d + l.length) % l.length]; battleHtml = ''; }
+  // 0.61.0 カーソルの所の自分の隊を選ぶ（何もなければ選択をやめる）／選んだ隊をそこへ動かす
+  function actPick(sx, sy) {
+    const AB = actB(); if (!AB) return; const [x, y] = R.actToWorld(sx, sy);
+    let best = null, bd = 3;
+    for (const s of AB.act.s) { if (s.hp <= 0 || s.gone || s.hero) continue; const u = AB.act.byG[s.g]; if (!u || !u.idx) continue; const d = Math.hypot(s.x - x, s.y - y); if (d < bd) { bd = d; best = u; } }
+    if (best) { G.selUnit = best.id; SGK.AUDIO.sfx('click'); } else if (G.selUnit != null) { G.selUnit = null; toast('選択をやめました', 700); }
+    battleHtml = '';
+  }
+  function actMoveTo(D, E) {
+    if (G.selUnit == null) { toast('先に部隊を選んでください', 1000); return; }
+    const [x, y] = R.actToWorld(D[0], D[1]), [x2, y2] = R.actToWorld(E[0], E[1]), dr = Math.hypot(E[0] - D[0], E[1] - D[1]) > 14;
+    moveFace(G.selUnit, x, y, dr ? Math.atan2(y2 - y, x2 - x) : null); toast(dr ? 'そこへ向かわせ、その方向を向かせます' : 'そこへ向かわせます', 800);
+  }
   const ORDN = { charge: '突撃', hold: '待機', retreat: '後退', flank: '回り込み', move: '移動中', rout: '潰走中', follow: '随行' };
   function renderBattle(bt) {
     const TR = SIM.TROOPS;
@@ -930,7 +943,8 @@
     const AB = actB(), ob = (unit) => ['charge', 'hold', 'retreat', 'flank', ...(AB ? ['follow'] : [])].map((o) => `<button id="bo-${unit}-${o}" data-unit="${unit}" data-order="${o}">${ORDN[o]}</button>`).join('');
     if (su && su[3] !== 'hero') html += `<div class="bu"><span class="nm">${su[15] ? '本人＋' : ''}${TR[su[3]].short || TR[su[3]].name} ${su[4]}人<span class="muted">［${ORDN[su[7]] || ''}］</span></span>${ob(su[0])}</div>`;
     else if (!AB) html += `<div class="bu"><span class="nm muted">隊をタップして選び、地面をタップで移動</span></div>`;
-    html += `<div class="bu"><span class="nm">全軍</span>${ob('all')}</div>`;
+    if (!AB || G.selUnit === 'all') html += `<div class="bu"><span class="nm">全軍</span>${ob('all')}</div>`; // 0.61.0 自分で戦うときは、隊を選んだときだけ指図が出る
+    else if (!su) html += `<div class="bu"><span class="nm muted">隊を選ぶと指図できます（カーソルを隊に合わせてA／LB・RB／数字キー）</span></div>`;
     if (bt.lead) html += `<div class="bu"><span class="nm">大将：${bt.lead === 2 ? '武将の隊も指図している' : '自分の隊だけ指図している'}</span><button id="bLead" data-lead="${bt.lead === 2 ? 0 : 1}">${bt.lead === 2 ? '自分の隊だけにする' : '武将の隊も指図する'}</button></div>`; // 0.50.0
     if (!AB && soloHost() && SIM.actCan(G.world, G.world.battles[bt.id])) html += `<div class="row" style="margin-top:4px"><button id="bAct" data-act="1">自分で戦う（試作）</button></div>`;
     html += `<div class="row" style="margin-top:4px"><button id="bAuto" data-bact="battleAuto">自動で決着（スキップ）</button><button id="bFlee" data-bact="battleFlee">退却する（兵の3割を失う${bt.foe === '野盗' ? '・所持金の15%を奪われる' : ''}）</button></div>`;
@@ -1026,13 +1040,13 @@
     else if (e.button === 2) G.actRD = [e.offsetX, e.offsetY]; // 右ボタン：押した所へ移動。押したまま引っぱると、離した方向を向く
   }, true);
   window.addEventListener('pointermove', (e) => {
-    if (!actB()) return; if (e.target === cv) { if (e.pointerType === 'touch') { if (G.actTouch) G.actTouch = [e.offsetX, e.offsetY]; } else { G.mouseXY = [e.offsetX, e.offsetY]; G.padUsed = false; } e.stopPropagation(); }
+    if (!actB()) return; if (e.target === cv) { if (e.pointerType === 'touch') { if (G.actTouch) G.actTouch = [e.offsetX, e.offsetY]; } else { G.mouseXY = [e.offsetX, e.offsetY]; G.vcur = G.mouseXY; G.vcurOn = false; G.padUsed = false; } e.stopPropagation(); }
   }, true);
   const actUp = (e) => {
     if (!actB()) return; G.actAtk = false; G.actTouch = null; if (e.target === cv) e.stopPropagation();
     const D = G.actRD; G.actRD = null;
     if (D && e.button === 2) { const [x, y] = R.actToWorld(D[0], D[1]), [x2, y2] = R.actToWorld(e.offsetX, e.offsetY), dr = Math.hypot(e.offsetX - D[0], e.offsetY - D[1]) > 14;
-      const unit = G.selUnit == null ? 'all' : G.selUnit; moveFace(unit, x, y, dr ? Math.atan2(y2 - y, x2 - x) : null); toast(dr ? 'そこへ向かわせ、その方向を向かせます' : 'そこへ向かわせます', 800); }
+      if (G.selUnit == null) { toast('先に部隊を選んでください', 1000); return; } const unit = G.selUnit; moveFace(unit, x, y, dr ? Math.atan2(y2 - y, x2 - x) : null); toast(dr ? 'そこへ向かわせ、その方向を向かせます' : 'そこへ向かわせます', 800); }
   };
   window.addEventListener('pointerup', actUp, true); window.addEventListener('pointercancel', actUp, true);
   cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.offsetX, y: e.offsetY, sx: e.offsetX, sy: e.offsetY, btn: e.button }); dragMoved = false; pinchD = 0; });
@@ -1087,7 +1101,7 @@
       if ('wasd'.includes(kl) && kl.length === 1) { keys.add(kl); G.padUsed = false; return; }
       if (k === ' ') { e.preventDefault(); G.actDash = true; return; }
       if (o) { actOrder(o); return; }
-      if (/^[1-9]$/.test(k)) { const AB = actB(), u = AB.units.find((x) => x.idx === +k); G.selUnit = k === '1' ? null : u ? u.id : G.selUnit; battleHtml = ''; return; }
+      if (/^[1-9]$/.test(k)) { const AB = actB(), u = AB.units.find((x) => x.idx === +k); G.selUnit = k === '1' ? (G.selUnit === 'all' ? null : 'all') : u ? (G.selUnit === u.id ? null : u.id) : G.selUnit; battleHtml = ''; return; }
       if (k === 'Escape') { toggleMenu(true); return; }
       if (k === 'Tab') { e.preventDefault(); actSel(1); return; }
     }
@@ -1184,9 +1198,16 @@
         if (G.bpick && !bb.includes(G.bpick)) G.bpick = null;
         if (down(0) && G.bpick) { const b = G.bpick; G.bpick = null; setFocus($('battle'), null); b.click(); }
         else if (actB()) { // 0.56.0 アクション戦闘：左スティック移動・右スティック狙い・RT/A攻撃・Bかわす・LB/RB隊を選ぶ・X突撃・Y随行・十字↑待機↓後退
-          G.padMv = [lx, ly]; const am = Math.hypot(rx, ry);
-          G.padAim = am > 0.3 ? Math.atan2(ry, rx) : null; if (am > 0.3 || lx || ly) G.padUsed = true;
-          G.padAtk = btn(7) || btn(0); if (down(1)) G.actDash = true;
+          // 0.61.0 右スティックはマウスのようにカーソルを動かす（狙いもカーソルの方）。Aでカーソルの隊を選ぶ、LTでそこへ動かす（押したまま動かすと向き）
+          G.padMv = [lx, ly]; G.padAim = null; G.padUsed = false;
+          const W0 = cv.clientWidth, H0 = cv.clientHeight; if (!G.vcur) G.vcur = [W0 / 2 + 80, H0 / 2];
+          const am = Math.hypot(rx, ry);
+          if (am > 0) { const sp = 1100 * Math.pow(am, 1.6) * dt; G.vcur = [Math.max(0, Math.min(W0, G.vcur[0] + rx / am * sp * Math.min(1, am))), Math.max(0, Math.min(H0, G.vcur[1] + ry / am * sp * Math.min(1, am)))]; G.vcurOn = true; }
+          if (G.vcurOn) G.mouseXY = G.vcur;
+          G.padAtk = btn(7); if (down(1)) G.actDash = true;
+          if (down(0)) { G.vcurOn = true; G.mouseXY = G.vcur; actPick(G.vcur[0], G.vcur[1]); }
+          if (down(6)) { G.vcurOn = true; G.padRD = G.vcur.slice(); }
+          if (G.padRD && !btn(6)) { const D = G.padRD; G.padRD = null; actMoveTo(D, G.vcur); }
           if (down(4)) actSel(-1); if (down(5)) actSel(1);
           if (down(2)) actOrder('charge'); if (down(3)) actOrder('follow'); if (down(12)) actOrder('hold'); if (down(13)) actOrder('retreat');
           if (btn(10)) bZoom(1 - dt * 1.5); if (btn(11)) bZoom(1 + dt * 1.5); // スティック押し込み：L3縮小・R3拡大
@@ -1306,7 +1327,7 @@
         const AB = actB();
         if (AB) {
           if ($('gameMenu').classList.contains('hidden')) SIM.actStep(G.world, AB, dt, actInput(AB));
-          R.drawAction(ctx, AB, G.myPid, G.selUnit, dt); renderBattle(BT);
+          R.actCur = G.vcurOn && G.vcur ? { p: G.vcur, d: G.padRD } : null; R.drawAction(ctx, AB, G.myPid, G.selUnit, dt); renderBattle(BT);
         } else { R.drawBattle(ctx, BT, G.disp, G.myPid, G.selUnit); renderBattle(BT); }
         if (G.bcur && !AB) { const L = R.battleLayout(SIM.FIELD); drawCross(L.ox + G.bcur[0] * L.sc, L.oy + G.bcur[1] * L.sc, '#f2c14e'); }
         { // 0.59.0 向きを決める矢印

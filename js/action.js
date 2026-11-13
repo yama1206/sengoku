@@ -5,13 +5,13 @@
     MAXMEN: 360,     // 戦場に出す兵の上限（多いときは1人が何人分かを受け持つ）
     SQUEEZE: 0.55,   // 両軍の初めの間合いを縮める
     SPD: 1.5,        // 移動の速さの倍率
-    HERO_HP: 4,      // 本人の体力の倍率（直接戦うので）
-    DASH: { t: 0.22, cd: 1.1, mul: 3.2 },
+    HERO_HP: 2.5,    // 本人の体力の倍率（直接戦うので）0.61.0 4→2.5
+    DASH: { t: 0.2, cd: 1.6, mul: 3 },
     WEP: { // 本人の武器：reach 届く距離、arc 振りの幅（片側）、cd 間隔、dmg 威力の倍率、shot 飛び道具
-      tachi: { name: '刀', reach: 2.8, arc: 1.05, cd: 0.45, dmg: 5, max: 4 },
-      yari: { name: '槍', reach: 3.8, arc: 0.55, cd: 0.6, dmg: 5.5, max: 3 },
-      yumi: { name: '弓', shot: 45, cd: 0.8, dmg: 5, spd: 45 },
-      teppo: { name: '鉄砲', shot: 60, cd: 2.4, dmg: 14, spd: 140 },
+      tachi: { name: '刀', reach: 2.6, arc: 0.95, cd: 0.55, dmg: 2.4, max: 3 }, // 0.61.0 弱めた（以前は dmg5・max4）
+      yari: { name: '槍', reach: 3.6, arc: 0.5, cd: 0.7, dmg: 2.7, max: 2 },
+      yumi: { name: '弓', shot: 45, cd: 1, dmg: 3, spd: 45 },
+      teppo: { name: '鉄砲', shot: 60, cd: 3, dmg: 9, spd: 140 },
     },
     ENGAGE: 12,      // 待機中の兵が自分から向かっていく距離
     SOLDIER_R: 0.5,
@@ -109,7 +109,7 @@
       hero.cd -= dt; hero.dcd -= dt; hero.dash -= dt;
       let mx = inp.mx || 0, my = inp.my || 0; const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }
       if (inp.dash && hero.dcd <= 0 && (mx || my)) { hero.dash = ACT.DASH.t; hero.dcd = ACT.DASH.cd; hero.dx = mx; hero.dy = my; }
-      const sp = TR.hero.spd * ACT.SPD * 1.3;
+      const sp = TR.hero.spd * ACT.SPD * 1.1;
       if (hero.dash > 0) { hero.x += hero.dx * sp * ACT.DASH.mul * dt; hero.y += hero.dy * sp * ACT.DASH.mul * dt; }
       else { hero.x += mx * sp * dt; hero.y += my * sp * dt; }
       if (inp.aim != null) hero.f = inp.aim; else if (mx || my) hero.f = Math.atan2(my, mx);
@@ -241,7 +241,7 @@
       if (u && u.order === 'rout') col = s.side === 'B' ? '#d88a7f' : '#9db3c7';
       if (s.pc) col = '#e8b923';
       if (s.fl) col = '#fff';
-      ctx.fillStyle = col; ctx.strokeStyle = own && u.id === selG ? '#ffe680' : 'rgba(0,0,0,.6)'; ctx.lineWidth = own && u.id === selG ? 2 : 1;
+      const isSel = own && !s.hero && (u.id === selG || selG === 'all'); ctx.fillStyle = col; ctx.strokeStyle = isSel ? '#ffe680' : 'rgba(0,0,0,.6)'; ctx.lineWidth = isSel ? 2 : 1;
       ctx.beginPath(); ctx.arc(a, c, r, 0, 7); ctx.fill(); ctx.stroke();
       // 向き（槍・弓の印）
       const f = s.f || 0, L = s.hero ? 1.6 : s.type && TR[s.type].ranged ? 0.8 : 1.3;
@@ -268,14 +268,25 @@
       const [a, c] = S(q.x / q.n, q.y / q.n - 4);
       const own = u.owner === myPid, t = `${own && u.idx ? u.idx + ' ' : ''}${u.gname ? u.gname + '隊・' : ''}${TR[u.type].short || TR[u.type].name} ${u.n}${own || u.side === 'A' ? '［' + (ON[u.order] || '') + '］' : ''}`;
       ctx.fillStyle = 'rgba(0,0,0,.55)'; const tw = ctx.measureText(t).width + 8; ctx.fillRect(a - tw / 2, c - 9, tw, 15);
-      ctx.fillStyle = u.side === 'B' ? '#ffb4a8' : own && u.id === selG ? '#ffe680' : '#dfe9f5'; ctx.fillText(t, a, c + 2);
+      ctx.fillStyle = u.side === 'B' ? '#ffb4a8' : own && (u.id === selG || selG === 'all') ? '#ffe680' : '#dfe9f5'; ctx.fillText(t, a, c + 2);
     }
     // 照準
     if (hero && live(hero)) { const [a, c] = S(hero.x + Math.cos(hero.f) * 6, hero.y + Math.sin(hero.f) * 6); ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(a, c, 5, 0, 7); ctx.stroke(); }
+    // 0.61.0 コントローラーのカーソル（右スティック）
+    const C = R.actCur;
+    if (C) {
+      const [a, c] = C.p;
+      if (C.d) { ctx.strokeStyle = 'rgba(255,230,128,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(C.d[0], C.d[1]); ctx.lineTo(a, c); ctx.stroke(); ctx.beginPath(); ctx.arc(C.d[0], C.d[1], 6, 0, 7); ctx.stroke(); }
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(a, c); ctx.lineTo(a + 12, c + 4); ctx.lineTo(a + 4, c + 12); ctx.closePath(); ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.fill();
+    }
     // 操作の案内
-    const hx = W - 478, hy = 8; ctx.textAlign = 'left'; ctx.font = '12px sans-serif'; ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(hx, hy, 470, 56); ctx.fillStyle = '#f4ead0';
-    ctx.fillText(`${A.wep ? A.wep.name : ''}｜移動 WASD・左スティック　狙う マウス・右スティック　攻撃 左クリック・RT/A`, hx + 6, hy + 16);
-    ctx.fillText('かわす Space・B　隊を選ぶ 1〜9（1=全軍）・LB/RB　右クリック：選んだ隊をそこへ', hx + 6, hy + 32);
-    ctx.fillText('指図：Z突撃 X待機 C後退 V回り込み F随行（X突撃 Y随行 十字↑待機 ↓後退）', hx + 6, hy + 48);
+    const sel0 = sel != null, hx = W - 498, hy = 8; ctx.textAlign = 'left'; ctx.font = '12px sans-serif'; ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(hx, hy, 490, sel0 ? 72 : 56); ctx.fillStyle = '#f4ead0';
+    ctx.fillText(`${A.wep ? A.wep.name : ''}｜移動 WASD・左スティック　カーソル マウス・右スティック　攻撃 左クリック・RT`, hx + 6, hy + 16);
+    ctx.fillText('かわす Space・B　隊を選ぶ：カーソルを合わせてA・LB/RB・1〜9（1=全軍）', hx + 6, hy + 32);
+    if (sel0) {
+      ctx.fillText('選んだ隊をそこへ：右クリック・LT（押したまま動かすと向き）　Aで何もない所：選択をやめる', hx + 6, hy + 48);
+      ctx.fillText('指図：Z突撃 X待機 C後退 V回り込み F随行（X突撃 Y随行 十字↑待機 ↓後退）', hx + 6, hy + 64);
+    } else ctx.fillText('隊を選ぶと、移動や指図ができます', hx + 6, hy + 48);
   };
 })();
