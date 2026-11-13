@@ -66,6 +66,9 @@
     for (let i = 0; i < Math.min(3, MAX_RONIN - rn); i++) if (rnd(w) < 0.6) spawnRonin(w);
   });
   void lastDay;
+  // 0.47.1 始めた直後から見回りの隊にも大将を付ける（前は次の日まで「武将の隊」のままだった）
+  const baseEnsureB = SIM.ensure;
+  SIM.ensure = (w) => { baseEnsureB(w); ensureLeaders(w); return w; };
 
   // ---- 話しかける ----
   function rumor(w, p) { // 近くで高く売れる品のうわさ
