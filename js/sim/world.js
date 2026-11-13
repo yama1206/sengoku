@@ -47,6 +47,28 @@
 
   SIM.settlement = (w, id) => w.settlements.find((s) => s.id === id);
 
+  // 拠点から出ている道（格の高い道を優先）を km だけ進んだ点
+  function roadSpot(w, s, km) {
+    const roads = ((SGK.DATA.terrain || {}).roads || []).slice().sort((a, b) => (a.rank || 2) - (b.rank || 2));
+    const cand = [];
+    for (const r of roads) {
+      const P = r.pts;
+      for (let i = 0; i < P.length; i++) {
+        if (Math.hypot(P[i][0] - s.x, P[i][1] - s.y) > 0.3) continue;
+        for (const d of [-1, 1]) {
+          let left = km;
+          for (let j = i + d; j >= 0 && j < P.length; j += d) {
+            const a = P[j - d], b = P[j], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+            if (L >= left) { cand.push([r.rank || 2, a[0] + ((b[0] - a[0]) * left) / L, a[1] + ((b[1] - a[1]) * left) / L]); break; }
+            left -= L;
+          }
+        }
+      }
+    }
+    if (!cand.length) return null;
+    const best = Math.min(...cand.map((c) => c[0])), cs = cand.filter((c) => c[0] === best), c = cs[Math.floor(SIM.rand(w) * cs.length)];
+    return [c[1], c[2]];
+  }
   SIM.addPlayer = function (w, token, name, prof) {
     if (w.tokens[token]) {
       const p = w.players[w.tokens[token]];
@@ -57,8 +79,9 @@
     const ps = prof && typeof prof.start === 'string' && SIM.settlement(w, prof.start); // 0.39.0 開始地点（町だけ）
     const st = ps && ps.type === 'town' ? ps : SIM.settlement(w, SGK.DATA.startSettlement);
     const id = 'p' + w.nextId++;
-    w.players[id] = { id, name: name || '浪人', x: st.x + (SIM.rand(w) - 0.5), y: st.y + (SIM.rand(w) - 0.5),
-      tx: null, ty: null, dest: null, at: st.id, speed: SGK.CFG.WALK_KM_PER_DAY, status: '浪人' };
+    const sp = roadSpot(w, st, 2); // 0.48.0 町のそばの街道の上から始める
+    w.players[id] = { id, name: name || '浪人', x: sp ? sp[0] : st.x, y: sp ? sp[1] : st.y,
+      tx: null, ty: null, dest: null, at: sp ? null : st.id, speed: SGK.CFG.WALK_KM_PER_DAY, status: '浪人' };
     SIM.ensurePlayer(w.players[id]);
     if (prof && SIM.applyProfile) SIM.applyProfile(w.players[id], prof); // 0.38.0 はじめに作った人物
     w.tokens[token] = id;
