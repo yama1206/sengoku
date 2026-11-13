@@ -69,6 +69,13 @@
   // 0.47.1 始めた直後から見回りの隊にも大将を付ける（前は次の日まで「武将の隊」のままだった）
   const baseEnsureB = SIM.ensure;
   SIM.ensure = (w) => { baseEnsureB(w); ensureLeaders(w); return w; };
+  // 0.53.3 城から新しく出てきた見回りの隊（討たれた後・落城の後）にも、その場で大将を付ける（前は次の日まで「武将の隊」だった）
+  const baseSpawnB = SIM.spawnNpc;
+  SIM.spawnNpc = function (w, kind, faction, at) {
+    const n = baseSpawnB.apply(this, arguments);
+    if (n && kind === 'patrol' && w.vday != null) ensureLeaders(w); // 世界を作っている最中は SIM.ensure に任せる
+    return n;
+  };
 
   // ---- 話しかける ----
   function rumor(w, p) { // 近くで高く売れる品のうわさ
