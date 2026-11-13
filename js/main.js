@@ -326,7 +326,7 @@
 
   function startHost(world, msg) {
     G.mode = 'host'; G.world = world; G.speed = 1; G.disp = {}; G.selected = null;
-    G.myPid = SIM.addPlayer(world, token, myName(), myProf());
+    G.myPid = SIM.addPlayer(world, token, myName(), myProf()); SIM.localPid = G.myPid;
     G.stat = SIM.staticState(world);
     show('game'); hostUI(true); toast(msg);
     centerOnMe();
@@ -344,7 +344,7 @@
           return pid;
         },
         onCmd: (pid, cmd) => SIM.applyCommand(G.world, pid, cmd),
-        onLeave: (pid) => { const p = G.world.players[pid]; if (p) toast(`${p.name} が退出しました`); updateRoom(); },
+        onLeave: (pid) => { for (const b of Object.values(G.world.battles || {})) if (b.act) { delete b.act.inp[pid]; } const p = G.world.players[pid]; if (p) toast(`${p.name} が退出しました`); updateRoom(); },
       });
     } else { toast('通信ライブラリを読み込めませんでした（一人で遊べます）', 5000); }
     updateRoom();
@@ -355,6 +355,16 @@
     G.effSpeed = G.inBattle && G.speed > 1 ? 1 : G.speed;
     { const on = new Set([G.myPid, ...(G.net ? G.net.pids() : [])]); for (const id in G.world.players) G.world.players[id].off = !on.has(id); } // 0.61.1 いま接続していない人（前のマルチプレイの参加者）は地図に出さない
     SIM.step(G.world, dt * CFG.MIN_PER_SEC * G.effSpeed);
+    // 0.62.0 ホストが入っていない「自分で戦う」の戦闘は、ここで進めて、その人へ様子を送る
+    for (const b of Object.values(G.world.battles || {})) {
+      if (!b.act || b.pids.includes(G.myPid)) continue;
+      let left = Math.min(dt, 0.5); while (left > 0 && G.world.battles[b.id]) { const st = Math.min(0.05, left); SIM.actStep(G.world, b, st); left -= st; }
+    }
+    if (G.net) for (const pid of G.net.pids()) {
+      const p = G.world.players[pid], b = p && p.battle && G.world.battles[p.battle]; if (!b || !b.act) continue;
+      b.act.sn = b.act.sn || {}; const n = b.act.sn[pid] = (b.act.sn[pid] || 0) + 1;
+      G.net.sendTo(pid, { t: 'act', a: SIM.actSnap(b, n % 10 === 1) });
+    }
     { // 0.54.5 1人のとき：拠点に着いたら時間を止め、次に動き出すと元の速さに戻す
       const m = G.world.players[G.myPid], at = m && m.at, solo = !G.net || !G.net.pids().length;
       if (solo && at && at !== G.lastAt && G.speed > 0 && !m.battle) { G.autoPause = G.speed; G.speed = 0; toast(`${(SIM.settlement(G.world, at) || {}).name || '拠点'}に着いたので時間を止めました（動き出すと再開）`, 2500); }
@@ -387,7 +397,8 @@
     G.mode = 'connecting';
     myProf();
     G.net = SGK.NET.join(code, token, myName(), {
-      onWelcome: (m) => { SGK.NET.addFriend(m.hostCode || code, m.hostName); G.mode = 'client'; G.myPid = m.pid; G.stat = m.static; G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
+      onWelcome: (m) => { SGK.NET.addFriend(m.hostCode || code, m.hostName); G.mode = 'client'; G.myPid = m.pid; SIM.localPid = m.pid; G.actView = null; G.stat = m.static; G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
+      onAct: (m) => { const BT = G.priv && G.priv.battle; if (BT && BT.id === m.a.id) G.actView = SIM.actApply(G.actView, m.a); },
       onState: (m) => { G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; G.priv = m.priv; (m.msgs || []).forEach((t) => toast(t, 4000)); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } },
       onBye: (why) => { backToTitle(); titleMsg(why); },
       onError: (t) => titleMsg(t),
@@ -913,17 +924,20 @@
   let battleHtml = '';
   // 0.56.0 アクション戦闘（試作）：1人で遊んでいるホストだけ
   const soloHost = () => G.mode === 'host' && (!G.net || !G.net.pids().length);
-  const actB = () => { const BT = G.priv && G.priv.battle, b = BT && G.mode === 'host' && G.world.battles[BT.id]; return b && b.act ? b : null; };
+  const actB = () => { // 0.62.0 参加者は、ホストから届いた戦場の様子（G.actView）を使う
+    const BT = G.priv && G.priv.battle; if (!BT) return null;
+    if (G.mode === 'client') return G.actView && G.actView.id === BT.id ? G.actView : null;
+    const b = G.mode === 'host' && G.world.battles[BT.id]; return b && b.act ? b : null; };
   // 0.59.0 移動先を決めたあと、向く方向を決める（G.fpick = 移動先。次に押した所の方を向く）
   function moveFace(unit, x, y, face) { command({ type: 'order', unit, order: 'move', x, y }); if (face != null) command({ type: 'order', unit, order: 'face', f: face }); }
   function pickFace(fx, fy) { const P = G.fpick; G.fpick = null; if (!P) return false; if (Math.hypot(fx - P.x, fy - P.y) < 2) { toast('向きはそのままにしました', 800); return true; } command({ type: 'order', unit: P.unit, order: 'face', f: Math.atan2(fy - P.y, fx - P.x) }); toast('その方向を向かせます', 800); return true; }
   function actOrder(o, x, y) { if (G.selUnit == null) { toast('先に部隊を選んでください（右スティックのカーソルを隊に合わせてA・LB/RB・数字キー）', 1500); return; } const c = { type: 'order', unit: G.selUnit, order: o }; if (o === 'move') { c.x = x; c.y = y; } command(c); }
-  function actSel(d) { const AB = actB(); if (!AB) return; const l = [null, 'all', ...AB.units.filter((u) => u.idx && u.hp > 0 && !u.gone).sort((a, b) => a.idx - b.idx).map((u) => u.id)]; const i = Math.max(0, l.indexOf(G.selUnit)); G.selUnit = l[(i + d + l.length) % l.length]; battleHtml = ''; }
+  function actSel(d) { const AB = actB(); if (!AB) return; const l = [null, 'all', ...AB.units.filter((u) => u.idx && (u.owner === G.myPid || u.cmd === G.myPid) && u.hp > 0 && !u.gone).sort((a, b) => a.idx - b.idx).map((u) => u.id)]; const i = Math.max(0, l.indexOf(G.selUnit)); G.selUnit = l[(i + d + l.length) % l.length]; battleHtml = ''; }
   // 0.61.0 カーソルの所の自分の隊を選ぶ（何もなければ選択をやめる）／選んだ隊をそこへ動かす
   function actPick(sx, sy) {
     const AB = actB(); if (!AB) return; const [x, y] = R.actToWorld(sx, sy);
     let best = null, bd = 3;
-    for (const s of AB.act.s) { if (s.hp <= 0 || s.gone || s.hero) continue; const u = AB.act.byG[s.g]; if (!u || !u.idx) continue; const d = Math.hypot(s.x - x, s.y - y); if (d < bd) { bd = d; best = u; } }
+    for (const s of AB.act.s) { if (s.hp <= 0 || s.gone || s.hero) continue; const u = AB.act.byG[s.g]; if (!u || !u.idx || (u.owner !== G.myPid && u.cmd !== G.myPid)) continue; const d = Math.hypot(s.x - x, s.y - y); if (d < bd) { bd = d; best = u; } }
     if (best) { G.selUnit = best.id; SGK.AUDIO.sfx('click'); } else if (G.selUnit != null) { G.selUnit = null; toast('選択をやめました', 700); }
     battleHtml = '';
   }
@@ -947,13 +961,14 @@
     if (!AB || G.selUnit === 'all') html += `<div class="bu"><span class="nm">全軍</span>${ob('all')}</div>`; // 0.61.0 自分で戦うときは、隊を選んだときだけ指図が出る
     else if (!su) html += `<div class="bu"><span class="nm muted">隊を選ぶと指図できます（カーソルを隊に合わせてA／LB・RB／数字キー）</span></div>`;
     if (bt.lead) html += `<div class="bu"><span class="nm">大将：${bt.lead === 2 ? '武将の隊も指図している' : '自分の隊だけ指図している'}</span><button id="bLead" data-lead="${bt.lead === 2 ? 0 : 1}">${bt.lead === 2 ? '自分の隊だけにする' : '武将の隊も指図する'}</button></div>`; // 0.50.0
-    if (!AB && soloHost() && SIM.actCan(G.world, G.world.battles[bt.id])) html += `<div class="row" style="margin-top:4px"><button id="bAct" data-act="1">自分で戦う（試作）</button></div>`;
+    if (!AB && bt.canAct) html += `<div class="row" style="margin-top:4px"><button id="bAct" data-act="1">自分で戦う</button></div>`;
+    else if (!AB && bt.act) html += `<div class="bu"><span class="nm muted">戦場の様子を受け取っています…</span></div>`;
     html += `<div class="row" style="margin-top:4px"><button id="bAuto" data-bact="battleAuto">自動で決着（スキップ）</button><button id="bFlee" data-bact="battleFlee">退却する（兵の3割を失う${bt.foe === '野盗' ? '・所持金の15%を奪われる' : ''}）</button></div>`;
     if (html !== battleHtml) { battleHtml = html; $('battleBody').innerHTML = html; G.bpick = null; setFocus($('battle'), null); }
   }
   $('battleBody').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.act) { const wb = G.priv && G.priv.battle && G.world.battles[G.priv.battle.id]; if (wb && SIM.actCan(G.world, wb)) { SIM.actStart(G.world, wb, G.myPid); G.selUnit = null; battleHtml = ''; b.blur(); } }
+    if (b.dataset.act) { command({ type: 'actStart' }); G.selUnit = null; battleHtml = ''; b.blur(); }
     else if (b.dataset.sel) { G.selUnit = +b.dataset.sel; battleHtml = ''; }
     else if (b.dataset.order) command({ type: 'order', unit: b.dataset.unit, order: b.dataset.order });
     else if (b.dataset.bact) command({ type: b.dataset.bact });
@@ -1102,7 +1117,7 @@
       if ('wasd'.includes(kl) && kl.length === 1) { keys.add(kl); G.padUsed = false; return; }
       if (k === ' ') { e.preventDefault(); G.actDash = true; return; }
       if (o) { actOrder(o); return; }
-      if (/^[1-9]$/.test(k)) { const AB = actB(), u = AB.units.find((x) => x.idx === +k); G.selUnit = k === '1' ? (G.selUnit === 'all' ? null : 'all') : u ? (G.selUnit === u.id ? null : u.id) : G.selUnit; battleHtml = ''; return; }
+      if (/^[1-9]$/.test(k)) { const AB = actB(), u = AB.units.find((x) => x.idx === +k && (x.owner === G.myPid || x.cmd === G.myPid)); G.selUnit = k === '1' ? (G.selUnit === 'all' ? null : 'all') : u ? (G.selUnit === u.id ? null : u.id) : G.selUnit; battleHtml = ''; return; }
       if (k === 'Escape') { toggleMenu(true); return; }
       if (k === 'Tab') { e.preventDefault(); actSel(1); return; }
     }
@@ -1276,7 +1291,7 @@
   // ---------- 毎フレーム ----------
   let lastFrame = performance.now(), dirSendAcc = 0, wasDirMoving = false;
   function actInput(AB) {
-    const h = AB.act.s.find((s) => s.pc), pm = G.padMv || [0, 0];
+    const h = AB.act.s.find((s) => s.pc === G.myPid), pm = G.padMv || [0, 0];
     const inp = { mx: pm[0] + (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0), my: pm[1] + (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0), atk: !!(G.actAtk || G.padAtk), dash: !!G.actDash, aim: null };
     G.actDash = false;
     if (h && G.actTouch) { const [x, y] = R.actToWorld(G.actTouch[0], G.actTouch[1]), d = Math.hypot(x - h.x, y - h.y); inp.aim = Math.atan2(y - h.y, x - h.x); if (d > 3.5) { inp.mx = (x - h.x) / d; inp.my = (y - h.y) / d; } inp.atk = d < 6; }
@@ -1327,7 +1342,13 @@
         if (G.bcur) { R.bcam.x += (G.bcur[0] - R.bcam.x) * Math.min(1, k * 0.5); R.bcam.y += (G.bcur[1] - R.bcam.y) * Math.min(1, k * 0.5); }
         const AB = actB();
         if (AB) {
-          if ($('gameMenu').classList.contains('hidden')) SIM.actStep(G.world, AB, dt, actInput(AB));
+          const menuOpen = !$('gameMenu').classList.contains('hidden'), inp = menuOpen ? { mx: 0, my: 0, atk: false, dash: false, aim: null } : actInput(AB);
+          if (G.mode === 'host') { AB.act.inp[G.myPid] = inp; if (inp.dash) AB.act.dq[G.myPid] = true; if (!(menuOpen && soloHost())) SIM.actStep(G.world, AB, dt); }
+          else { // 0.62.0 参加者：入力をホストへ送り（かわすはすぐ）、自分の本人は手もとで先に動かす
+            G.actSendAcc = (G.actSendAcc || 0) + dt; const key = `${inp.mx.toFixed(2)},${inp.my.toFixed(2)},${inp.aim == null ? '' : inp.aim.toFixed(2)},${inp.atk}`;
+            if (inp.dash || (key !== G.actLastKey && G.actSendAcc > 0.05) || G.actSendAcc > 0.5) { G.actSendAcc = 0; G.actLastKey = key; command(Object.assign({ type: 'actIn' }, inp)); }
+            SIM.actSmooth(AB, dt, G.myPid, inp);
+          }
           R.actCur = G.vcurOn && G.vcur ? { p: G.vcur, d: G.padRD } : null; R.drawAction(ctx, AB, G.myPid, G.selUnit, dt); renderBattle(BT);
         } else { R.drawBattle(ctx, BT, G.disp, G.myPid, G.selUnit); renderBattle(BT); }
         if (G.bcur && !AB) { const L = R.battleLayout(SIM.FIELD); drawCross(L.ox + G.bcur[0] * L.sc, L.oy + G.bcur[1] * L.sc, '#f2c14e'); }

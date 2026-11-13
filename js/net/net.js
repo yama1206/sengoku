@@ -68,6 +68,7 @@
     open();
     return {
       each(fn) { for (const [c, pid] of conns) if (c.open) c.send(fn(pid)); },
+      sendTo(pid, msg) { for (const [c, p] of conns) if (p === pid && c.open) c.send(msg); },
       broadcast(msg) { for (const c of conns.keys()) if (c.open) c.send(msg); },
       count: () => conns.size,
       pids: () => [...conns.values()],
@@ -86,6 +87,7 @@
       conn.on('data', (m) => {
         if (m.t === 'welcome') h.onWelcome(m);
         else if (m.t === 'state') h.onState(m);
+        else if (m.t === 'act') { if (h.onAct) h.onAct(m); }
         else if (m.t === 'bye') end(m.reason);
       });
       conn.on('close', () => end('ホストとの接続が切れました'));

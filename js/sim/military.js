@@ -541,7 +541,7 @@
     Object.assign(r.me, { hpFrac: p.hpFrac == null ? 1 : Math.round(p.hpFrac * 1000) / 1000, hpMax: Math.round(TR.hero.hp * (SIM.unitMods(w, pid, 'hero').hm || 1)), follow: SIM.followName(w, p), speed: Math.round(p.speed || 0), troops: p.troops, troopCap: SIM.troopCap(p), wage: SIM.wage(p.troops, p), costMod: SIM.costMod(p) });
     if (r.here) { const s = SIM.settlement(w, r.here.id); r.here.recruit = Object.keys(POOL[s.type]).map((k) => [k, Math.floor(s.pool[k] || 0)]); }
     const b = p.battle && w.battles[p.battle];
-    r.battle = b ? { id: b.id, foe: b.foe, t: Math.floor(b.t), routed: b.routed, lead: b.lead === pid ? (b.leadAll ? 2 : 1) : 0,
+    r.battle = b ? { id: b.id, foe: b.foe, t: Math.floor(b.t), routed: b.routed, act: b.act ? 1 : 0, canAct: SIM.actCan && SIM.actCan(w, b) ? 1 : 0, lead: b.lead === pid ? (b.leadAll ? 2 : 1) : 0,
       names: Object.fromEntries(b.pids.map((x) => [x, (w.players[x] || {}).name])),
       ter: b.ter || [], ck: b.ck || null, units: b.units.filter((u) => alive(u) && (u.side === 'A' || (b.visA || []).includes(u.id)))
         .map((u) => [u.id, u.side, u.owner || u.cmd || null, u.type, u.n, r1(u.x), r1(u.y), u.order, Math.round(visRange(b, u)), Math.round(u.mor), Math.round(u.f * 100) / 100, u.type === 'hero' ? Math.ceil(u.hp) : undefined, r1(reachOf(b, u)), u.gname || undefined, u.att != null ? u.att : undefined, u.lead ? 1 : undefined]) } : null;
