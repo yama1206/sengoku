@@ -310,7 +310,7 @@
       if (tu.h && !te.h) mul *= 1.15; // 高所から
       if (b.cside) { // 0.37.0 城攻め：城の中の守り手は討たれにくい。堀や斜面にいる攻め手は狙われやすい
         const kf = b.kf == null ? 1 : b.kf; // 0.40.0 改築が進んでいない城は守り手の有利が小さい
-        if (te.k && e.side === b.cside) mul *= 1 - (b.ck === 'yama' ? 0.5 : 0.38) * kf;
+        if (te.k && e.side === b.cside) mul *= 1 - ({ yama: 0.5, mizu: 0.44 }[b.ck] || 0.38) * kf;
         if (u.side !== b.cside && (tu.m || tu.s)) mul *= 0.8;
         if (e.side !== b.cside && (te.m || te.s)) mul *= 1 + 0.25 * kf;
       }
@@ -362,7 +362,7 @@
 
   function autoResolve(w, b) {
     const pw = (side) => b.units.filter((u) => u.side === side && alive(u)).reduce((a, u) => a + u.hp * TR[u.type].atk, 0);
-    const cm = b.cside ? 1 + (b.ck === 'yama' ? 0.8 : 0.45) * (b.kf == null ? 1 : b.kf) : 1; // 0.37.0 城の守り手は自動決着でも有利
+    const cm = b.cside ? 1 + ({ yama: 0.8, mizu: 0.6 }[b.ck] || 0.45) * (b.kf == null ? 1 : b.kf) : 1; // 0.37.0 城の守り手は自動決着でも有利
     const rA = pw('A') * SIM.autoBonus(w, b) * (b.cside === 'A' ? cm : 1) * (0.75 + rnd(w) * 0.5), rB = pw('B') * (b.cside === 'B' ? cm : 1) * (0.75 + rnd(w) * 0.5);
     const win = rA >= rB, loss = Math.min(0.9, (win ? rB / rA : rA / rB) * 0.6);
     for (const u of b.units) {

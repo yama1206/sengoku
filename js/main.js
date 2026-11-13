@@ -369,7 +369,7 @@
     if (s.type === 'castle') {
       const cs = castleStat(s), m = G.priv && G.priv.me, W = m && m.war, R = m && m.rank, at = G.view.wars || [];
       const lordN = cs.lordName;
-      $('infoBody').innerHTML += `<br>${SIM.castleKind(s) === 'yama' ? '山城（守りが堅い）' : '平城'}　守備兵 約${cs.gar}人${lordN && cs.loyal != null ? `　${lordN}の忠誠 ${cs.loyal}` : ''}`;
+      $('infoBody').innerHTML += `<br>${{ yama: '山城（守りが堅い）', mizu: '水城（水堀が広い）' }[SIM.castleKind(s)] || '平城'}　守備兵 約${cs.gar}人${lordN && cs.loyal != null ? `　${lordN}の忠誠 ${cs.loyal}` : ''}`;
       { const V = m && m.vass && m.vass[s.id], fmt = ([nm, t, b]) => `${nm}<span class="muted">（統${t}・武${b}）</span>`; // 0.34.0 城の武将
         if (V) $('infoBody').innerHTML += `${V.lord ? `<br>城主：${fmt(V.lord)}` : ''}<br>家臣：${V.vass.length ? V.vass.map(fmt).join('・') : 'なし'}`;
         else $('infoBody').innerHTML += '<br><span class="muted">（40km以内に近づくと家臣の武将が分かります）</span>'; }
@@ -614,7 +614,7 @@
     const F = me.fushin; if (!F) return '';
     let h = `<div class="muted" style="margin-top:10px"><b>普請</b>　城の構え：${F.kaiName}（${F.kai}/5段階・守りの効き ${Math.round(F.kf * 100)}%）</div>`;
     if (F.work) return h + `<div class="card" style="display:block">${F.work.label}の最中です（あと${F.work.left}日）</div>`;
-    if (F.next) h += `<div class="card"><div><b>改築</b>：${F.next.name}<br><span class="muted">${SIM.money(F.next.cost)}・${F.next.days}日。城を守る戦で有利になる（守りの効き ${Math.round(F.next.kf * 100)}%）</span></div><button id="fk" data-act="fushin" data-kind="kai" ${me.money >= F.next.cost ? '' : 'disabled'}>改築する</button></div>`;
+    if (F.next) h += `<div class="card"><div><b>改築</b>：${F.next.name}<br><span class="muted">${SIM.money(F.next.cost)}・${F.next.days}日。城を守る戦で有利になる（守りの効き ${Math.round(F.next.kf * 100)}%）${SIM.kaiMapText && SIM.kaiMapText(F.kai + 1) ? '・' + SIM.kaiMapText(F.kai + 1) : ''}</span></div><button id="fk" data-act="fushin" data-kind="kai" ${me.money >= F.next.cost ? '' : 'disabled'}>改築する</button></div>`;
     else h += '<div class="muted">これ以上の改築はできません</div>';
     const RN = ['', '大街道', '街道', '脇道'];
     for (const g of F.widen) h += `<div class="card"><div><b>道を広げる</b>：${g.name}へ（${RN[g.rank]}→${RN[g.rank - 1]}・約${g.len}km）<br><span class="muted">${SIM.money(g.cost)}・${g.days}日</span></div><button id="fw-${g.to}" data-act="fushin" data-kind="widen" data-id="${g.to}" ${me.money >= g.cost ? '' : 'disabled'}>広げる</button></div>`;
@@ -786,7 +786,7 @@
   function renderBattle(bt) {
     const TR = SIM.TROOPS;
     const sum = (side) => bt.units.filter((u) => u[1] === side).reduce((a, u) => a + (u[3] === 'hero' ? 1 : u[4]), 0);
-    $('battleTitle').textContent = `${bt.foe}との戦い${bt.ck ? (bt.ck === 'yama' ? '（山城）' : '（平城）') : ''}`;
+    $('battleTitle').textContent = `${bt.foe}との戦い${bt.ck ? '（' + SIM.ckName(bt.ck) + '）' : ''}`;
     $('battleInfo').textContent = `味方 ${sum('A')}　敵 ${sum('B')}${bt.routed ? '（敗走中）' : ''}　${bt.t}秒`;
     let html = ''; // 部隊の一覧は出さない（地図の上でクリックして選ぶ）
     // 0.46.0 タップでも指図できるように：選んだ隊と全軍への指図ボタン

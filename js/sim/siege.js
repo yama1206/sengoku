@@ -25,7 +25,7 @@
 
   // 0.42.0 CPUの戦の人数（数値はここで調整）
   const SIEGE_N = SIM.SIEGE_N = {
-    gar: 70, garHome: 120, garWall: 8, // 守備兵の上限（ふつうの城・大名の居城・城壁1段ごと）
+    gar: 70, garHome: 120, garWall: 8, garInv: 8, // 守備兵の上限（ふつうの城・大名の居城・城壁1段ごと・0.51.0 規模1つごと）
     take: 0.5,                          // 近くの城（3つまで）から出す守備兵の割合
     levyPer: 20, levyMax: 120,          // 陣触れ：持っている城1つにつき農兵20人（最大120）
     min: 30,                            // 0.44.0 これより少ない人数では攻めない
@@ -46,11 +46,11 @@
     if (f.kou == null) { const h = [...fid].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) % 997, 7); f.kou = KOU.fixed[fid] || [2, 3, 3, 3, 4][h % 5]; }
     return f.kou;
   };
-  const defPow = (s) => SIM.garrison(s) * (1 + 0.5 * (SIM.kaiF ? SIM.kaiF(s) : 0.5)) * (SIM.castleKind && SIM.castleKind(s) === 'yama' ? 1.15 : 1); // 守備兵×城の堅さ
+  const defPow = (s) => SIM.garrison(s) * (1 + 0.5 * (SIM.kaiF ? SIM.kaiF(s) : 0.5)) * (SIM.castleKind && ({ yama: 1.15, mizu: 1.08 }[SIM.castleKind(s)] || 1)); // 守備兵×城の堅さ（0.51.0 水城）
   // ---- 守備兵 ----
   function garMax(w, s) {
     const f = w.factions[s.owner], home = f && w.people[f.leader] && s.lord === f.leader;
-    return Math.round((home ? SIEGE_N.garHome : SIEGE_N.gar) + Math.floor((s.dev && s.dev.wall) || 0) * SIEGE_N.garWall);
+    return Math.round((home ? SIEGE_N.garHome : SIEGE_N.gar) + Math.floor((s.dev && s.dev.wall) || 0) * SIEGE_N.garWall + (s.inv || 0) * SIEGE_N.garInv);
   }
   function garOf(n) { // 兵数から守備兵の内訳を作る
     const t = { yari: Math.round(n * 0.55), yumi: Math.round(n * 0.25), teppo: Math.round(n * 0.1) };
@@ -86,6 +86,7 @@
     const ho = s.holder && w.players[s.holder];
     if (ho && ho.clan !== to) SIM.say(ho.id, `${s.name}を失いました……`);
     s.owner = to; s.holder = null;
+    if (!opt.lordJoins && (s.inv || 0) > 0) { s.inv--; s.invPts = 0; SIM.say && Object.keys(s.invBy || {}).forEach((pid) => SIM.say(pid, `${s.name}は戦で荒れ、規模が「${SIM.INVEST ? SIM.INVEST.names[s.inv] : s.inv}」に下がりました`)); } // 0.51.0 落城で規模が1つ下がる
     const lord = s.lord && w.people[s.lord];
     let joined = false;
     if (lord) {
@@ -134,7 +135,7 @@
     for (const q of joiners) {
       b.pids.push(q.id); q.battle = id; q.tx = q.ty = null; q.dest = null; q.at = null; b.start[q.id] = Object.assign({}, q.troops);
       SIM.addPlayerSide(w, b, q);
-      SIM.say(q.id, `${s.name}に総攻めをかけます！ 守備兵およそ${b.foeN}人。${SIM.castleKind(s) === 'yama' ? '山城です。城兵は険しい斜面の上の曲輪で' : '平城です。城兵は堀に囲まれた曲輪で'}待ち構えています`);
+      SIM.say(q.id, `${s.name}に総攻めをかけます！ 守備兵およそ${b.foeN}人。${({ yama: '山城です。城兵は険しい斜面の上の曲輪で', mizu: '水城です。城兵は広い水堀に囲まれた曲輪で' }[SIM.castleKind(s)] || '平城です。城兵は堀に囲まれた曲輪で')}待ち構えています`);
     }
     M.addUnits(w, b, 'B', null, gar);
     const wall = Math.floor((s.dev && s.dev.wall) || 0), fb = SIM.factionBuff(w.factions, s.owner);
@@ -238,7 +239,7 @@
     if (p.money < SIEGE.peaceCost) return SIM.say(p.id, `お金が足りません（${SIM.money(SIEGE.peaceCost)}）`);
     p.money -= SIEGE.peaceCost;
     const mine = castles(w, p.clan).length, theirs = castles(w, c.id).length;
-    if (rnd(w) < Math.min(0.85, 0.35 + p.fame / 400 + (mine - theirs) * 0.05)) { setWar(w, p.clan, c.id, false); news(w, `${f.name}と${fName(w, c.id)}が和睦しました`); }
+    if (rnd(w) < Math.min(0.85, 0.35 + p.fame / 400 + (mine - theirs) * 0.05 - (p.infamy || 0) * 0.05)) { setWar(w, p.clan, c.id, false); news(w, `${f.name}と${fName(w, c.id)}が和睦しました`); }
     else SIM.say(p.id, `${fName(w, c.id)}は和睦に応じませんでした`);
   };
 
@@ -282,7 +283,7 @@
     const wall = Math.floor((s.dev && s.dev.wall) || 0);
     const defs = Object.values(w.players).filter((p) => p.at === s.id && p.tx == null && !p.battle && p.clan === s.owner);
     const aPow = M.power(c.army) * (0.75 + rnd(w) * 0.5);
-    const kf = SIM.kaiF ? SIM.kaiF(s) : 1, ck = 1 + (SIM.castleKind(s) === 'yama' ? 0.35 : 0.1) * kf; // 0.37.0 山城ほど守りやすい／0.40.0 改築の段階で変わる
+    const kf = SIM.kaiF ? SIM.kaiF(s) : 1, ck = 1 + ({ yama: 0.35, mizu: 0.25 }[SIM.castleKind(s)] || 0.1) * kf; // 0.37.0 山城ほど守りやすい／0.40.0 改築の段階で変わる
     let dPow = M.power(s.gar) * (1 + 0.25 * kf + wall * 0.12) * ck;
     for (const p of defs) dPow += (M.power(p.troops) + TR.hero.hp * TR.hero.atk) * (1 + 0.3 * kf + wall * 0.1) * ck;
     dPow *= 0.75 + rnd(w) * 0.5;
@@ -325,7 +326,7 @@
       }
       if (!best) continue;
       // 手薄な城（兵が上限の4割未満）はすぐ狙う。そうでなければときどき
-      if (rnd(w) > Math.min(0.95, (best.weak < N.weakFrac ? N.weakRate : N.rate) * KOU.rate[K])) continue;
+      if (rnd(w) > Math.min(0.95, (best.weak < N.weakFrac ? N.weakRate : N.rate) * KOU.rate[K] * (SIM.infamyMul ? SIM.infamyMul(w, def) : 1))) continue;
       const { src, tgt } = best, need = Math.max(N.min, Math.ceil(best.guard * KOU.ratio[K]));
       // 近くの城（3つまで）から兵を集め、足りなければ陣触れで農兵を足す
       const near = mine.slice().sort((a2, b2) => dist(a2, tgt) - dist(b2, tgt)).slice(0, 3);
