@@ -12,6 +12,11 @@
   const myName = () => { const n = $('nameInput').value.trim().slice(0, 12) || '浪人'; localStorage.setItem('sgk_name', n); return n; };
 
   // ---------- 共通UI ----------
+  // 0.53.4 画面（index.html）だけ古いまま残っていたら、自動で読み直す（JSは毎回新しいので、バージョン表示だけ新しくなってしまう）
+  { const mv = document.querySelector('meta[name="sgk-ver"]'), hv = mv ? mv.content : '';
+    if (hv !== SGK.VERSION) { let n = 0; try { n = +sessionStorage.getItem('sgkReload') || 0; sessionStorage.setItem('sgkReload', n + 1); } catch (e) { n = 9; }
+      if (n < 2) { location.replace(location.pathname + '?v=' + Date.now()); return; } }
+    else try { sessionStorage.removeItem('sgkReload'); } catch (e) {} }
   $('verLabel').textContent = 'ver ' + SGK.VERSION;
   $('updateBtn').onclick = () => { location.href = location.pathname + '?v=' + Date.now(); };
   function toast(text, ms = 3000) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = text; $('toasts').appendChild(t); setTimeout(() => t.remove(), ms); }
