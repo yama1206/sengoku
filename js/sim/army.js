@@ -47,7 +47,7 @@
   function setGoal(n, x, y, dest) { n.tx = x; n.ty = y; n.dest = dest || null; n.path = SIM.findPath(n.x, n.y, x, y); }
   // 行軍の速さ：プレイヤーと同じく人数（大軍ほど遅い）と兵種の割合で決まる
   SIM.armySpeed = (n) => SGK.CFG.WALK_KM_PER_DAY * SIM.sizeSpeed(n.size || 0) * SIM.mixSpeed(n.army);
-  function armyName(w, n) { const g = (n.gens && w.people[n.gens[0]]) || (n.person && w.people[n.person]); return g ? `${g.name}の軍勢` : `${fName(w, n.faction)}の軍勢`; }
+  function armyName(w, n) { const g = (n.gens && w.people[n.gens[0]]) || (n.person && w.people[n.person]); const t = n.kind === 'patrol' ? '隊' : n.kind === 'bushou' ? 'の一行' : 'の軍勢'; return g ? `${g.name}${t}` : `${fName(w, n.faction)}${t === '隊' ? 'の隊' : t}`; }
   SIM.launchArmy = (w, o) => {
     const id = 'a' + w.nextId++, size = SIM.troopCount(o.army);
     const n = w.npcs[id] = { id, kind: 'army', faction: o.faction, x: o.from.x, y: o.from.y, tx: null, ty: null, dest: null, at: null, home: o.from.id,
@@ -420,7 +420,7 @@
     SIM.ensure(w);
   };
   // ---- 0.30.0 武将の隊：戦をしている家のプレイヤーが近くにいて、こちらが互角以上なら攻めかかる ----
-  const HUNT = { km: 4, hitKm: 0.4, ratio: 0.8, rest: 12 * 60 };
+  const HUNT = { km: 4, hitKm: 0.4, ratio: 1, fleeRatio: 0.8, rest: 12 * 60 }; // ratio：互角以上なら近づく／fleeRatio：これより弱いと逃げる
   const heroPow = () => SIM.TROOPS.hero.hp * SIM.TROOPS.hero.atk;
   const isGen = (n) => (n.kind === 'patrol' || n.kind === 'bushou') && n.faction && n.army && !n.battle && !n.fight;
   function huntable(w, n, p) {
@@ -432,6 +432,32 @@
     if (n.kind === 'bushou') n.wait = 0; // 用事に戻る（家へ帰る）
     else n.wait = 60;
   }
+  // ---- 0.54.8 勝てそうにない相手からは逃げる：戦をしている家のプレイヤーが近づき、こちらが明らかに弱いとき ----
+  const FLEE = { km: 3, safeKm: 5, far: 4 };
+  const scary = (w, n, p) => p.clan && SIM.atWar(w, n.faction, p.clan) && M.inField(p) && !p.battle && M.power(n.army) < (M.power(p.troops) + heroPow()) * HUNT.fleeRatio;
+  function fleeFrom(w, n, p) {
+    const d = dist(n, p) || 1, B = SGK.DATA.bounds;
+    for (const a of [0, 0.6, -0.6, 1.2, -1.2]) { // まっすぐ逃げられないとき（海）は斜めへ
+      const ux = (n.x - p.x) / d, uy = (n.y - p.y) / d, c = Math.cos(a), s = Math.sin(a);
+      const x = Math.max(0, Math.min(B.w, n.x + (ux * c - uy * s) * FLEE.far)), y = Math.max(0, Math.min(B.h, n.y + (ux * s + uy * c) * FLEE.far));
+      if (!SIM.isSea(x, y)) { n.tx = x; n.ty = y; n.path = null; n.at = null; return; }
+    }
+  }
+  SIM.systems.push(function generalFlee(w) {
+    const ps = Object.values(w.players);
+    for (const n of Object.values(w.npcs)) {
+      if (!isGen(n) || n.hunt) { if (n.flee && (n.battle || n.fight)) n.flee = null; continue; }
+      const p = ps.filter((q) => scary(w, n, q) && dist(n, q) < (n.flee === q.id ? FLEE.safeKm : FLEE.km)).sort((a, b) => dist(a, n) - dist(b, n))[0];
+      if (p) {
+        if (!n.flee) { n.fleeDest = n.dest || null; n.dest = null; SIM.say(p.id, `${armyName(w, n)}（${fName(w, n.faction)}・${n.size}人）がこちらを見て逃げ出しました`); }
+        n.flee = p.id; fleeFrom(w, n, p);
+      } else if (n.flee) { // 逃げ切ったら元の用事に戻る
+        n.flee = null; n.tx = n.ty = null; n.path = null;
+        const s = n.fleeDest && SIM.settlement(w, n.fleeDest); n.fleeDest = null;
+        if (s) { n.tx = s.x; n.ty = s.y; n.dest = s.id; n.path = SIM.findPath(n.x, n.y, s.x, s.y); } else n.wait = 30;
+      }
+    }
+  });
   SIM.systems.push(function generalHunt(w) {
     const ps = Object.values(w.players);
     for (const n of Object.values(w.npcs)) {

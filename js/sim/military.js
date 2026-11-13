@@ -109,7 +109,7 @@
       if (n.calm < now) for (const p of Object.values(w.players)) { const d = dist(n, p); if (inField(p) && d < td) { td = d; tgt = p; } }
       n.tgt = tgt ? tgt.id : null;
       if (tgt) {
-        if (playerPower(tgt) > power(n.army) * 2) { // 強い相手からは逃げる
+        if (playerPower(tgt) > power(n.army) * 1.25) { // 勝てそうにない相手からは逃げる（0.54.8 2倍→1.25倍）
           const d = td || 1; n.tx = Math.max(0, Math.min(B.w, n.x + ((n.x - tgt.x) / d) * 3)); n.ty = Math.max(0, Math.min(B.h, n.y + ((n.y - tgt.y) / d) * 3));
         } else { n.tx = tgt.x; n.ty = tgt.y; }
         moveTo(n, dt);
@@ -139,7 +139,7 @@
   function patrolTick(w, dt) {
     const bandits = Object.values(w.npcs).filter((n) => n.kind === 'bandit' && !n.battle);
     for (const pa of Object.values(w.npcs)) {
-      if (pa.kind !== 'patrol' || pa.battle || !pa.army || pa.hunt) continue;
+      if (pa.kind !== 'patrol' || pa.battle || !pa.army || pa.hunt || pa.flee) continue;
       if (pa.fight) {
         const bd = w.npcs[pa.fight];
         if (!bd || bd.fight !== pa.id) { pa.fight = null; continue; }
