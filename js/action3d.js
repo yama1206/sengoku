@@ -166,7 +166,8 @@
       C.setHex(s.fl ? 0xffffff : col);
       const ride = cav ? 0.95 : 0;
       if (cav) { O.position.set(s.x, gy + bob * 0.5, s.y); O.rotation.set(0, -f, 0); O.scale.set(1, 1, 1); O.updateMatrix(); put('horse', O.matrix); put('hneck', O.matrix); put('hlegs', O.matrix); }
-      O.position.set(s.x, gy + ride + bob, s.y); O.rotation.set(0, -f, 0); O.scale.set(sc, sc, sc); O.updateMatrix();
+      const jh = s.jp > 0 ? Math.sin(Math.PI * (1 - s.jp / 0.55)) * 1.1 : 0; // 0.64.0 ジャンプ
+      O.position.set(s.x, gy + ride + bob + jh, s.y); O.rotation.set(0, -f, 0); O.scale.set(sc, sc, sc); O.updateMatrix();
       put('body', O.matrix, C); if (!cav) put('legs', O.matrix); put('head', O.matrix);
       const hatC = s.side === 'B' ? 0x3a1a14 : 0x1c2230; put('hat', O.matrix, C.setHex(s.hero ? 0x2a2a2a : hatC));
       put('flag', O.matrix, C.setHex(s.side === 'B' ? 0xc8402f : own ? 0xf2f2f2 : 0x6fa7d8)); put('pole', O.matrix);

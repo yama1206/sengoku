@@ -643,11 +643,14 @@
       if (E && (h.shop || []).length) {
         const cur = (sl) => (E[sl] && EQ[sl][E[sl]]) ? EQ[sl][E[sl]].name : 'なし';
         const wk = E.wep && EQ.wep[E.wep] ? EQ.wep[E.wep].kind : null;
-        html += `<div class="muted" style="margin-top:10px">武具　いまの装備：武器 ${cur('wep')}${wk ? `（${EQ.groupName[wk]}に入る）` : ''}・防具 ${cur('arm')}・馬 ${cur('horse')}</div>`;
+        html += `<div class="muted" style="margin-top:10px">武具　いまの装備：武器 ${cur('wep')}${wk ? `（${EQ.groupName[wk]}に入る）` : ''}・副武器 ${E.wep2 ? EQ.wep[E.wep2].name : 'なし'}・防具 ${cur('arm')}・馬 ${cur('horse')}</div>`;
+        if (E.wep2) html += `<div class="row" style="margin:4px 0"><button id="eqSwap" data-act="swapWep">主の武器と副武器を入れ替える</button></div>`;
         for (const [sl, id] of h.shop) {
           const e = EQ[sl][id], have = E[sl] === id, old = E[sl] && EQ[sl][E[sl]], back = old ? Math.floor(old.cost * EQ.sell) : 0;
           const eff = sl === 'wep' ? `${EQ.kindName[e.kind]}・${EQ.groupName[e.kind]}に入る${e.am ? `・本人の攻撃+${Math.round(e.am * 100)}%` : ''}` : sl === 'arm' ? `守り+${e.da}・体力+${Math.round(e.hm * 100)}%` : `1日の移動+${e.km}km`;
-          html += `<div class="card"><div><b>${e.name}</b>　<span class="muted">${EQ.slotName[sl]}　${SIM.money(e.cost)}${back && !have ? `（下取り${SIM.money(back)}）` : ''}<br>${eff}</span></div><button id="eq-${id}" data-act="buyEquip" data-kind="${sl}" data-id="${id}" ${have || me.money + back < e.cost ? 'disabled' : ''}>${have ? '装備中' : '買う'}</button></div>`;
+          const own2 = sl === 'wep' && E.wep2 === id, o2 = sl === 'wep' && E.wep2 && EQ.wep[E.wep2], back2 = o2 ? Math.floor(o2.cost * EQ.sell) : 0;
+          const b2 = sl === 'wep' ? `<button id="eq2-${id}" data-act="buyEquip" data-kind="wep2" data-id="${id}" ${have || own2 || me.money + back2 < e.cost ? 'disabled' : ''}>${own2 ? '副で装備中' : '副武器に買う'}</button>` : '';
+          html += `<div class="card"><div><b>${e.name}</b>　<span class="muted">${EQ.slotName[sl]}　${SIM.money(e.cost)}${back && !have ? `（下取り${SIM.money(back)}）` : ''}<br>${eff}</span></div><div class="row"><button id="eq-${id}" data-act="buyEquip" data-kind="${sl}" data-id="${id}" ${have || own2 || me.money + back < e.cost ? 'disabled' : ''}>${have ? '装備中' : sl === 'wep' ? '主に買う' : '買う'}</button>${b2}</div></div>`;
         }
       }
     } else if (townTab === 'jobs') {
@@ -930,8 +933,8 @@
     const b = G.mode === 'host' && G.world.battles[BT.id]; return b && b.act ? b : null; };
   // 0.63.0 3D表示の自分で戦う（マウント＆ブレイド2風の操作）
   const ML = () => !!(R.act3dOn && actB());
-  const ORDM = { root: [['F1', '移動'], ['F2', '向き']], move: [['F1', 'ここへ移動'], ['F2', 'ついて来い'], ['F3', '突撃'], ['F4', '回り込み'], ['F5', '後退'], ['F6', '停止'], ['F7', '退却']], face: [['F1', 'この方向を向け'], ['F2', '敵の方を向け']] };
-  const ORDK = { move: ['move', 'follow', 'charge', 'flank', 'back', 'hold', 'retreat'], face: ['faceHere', 'faceFoe'] };
+  const ORDM = { root: [['F1', '移動'], ['F2', '向き']], move: [['F1', 'ここへ移動'], ['F2', 'ついて来い'], ['F3', '突撃'], ['F4', '回り込み'], ['F5', '後退'], ['F6', '停止'], ['F7', '退却'], ['F8', 'AIに任せる']], face: [['F1', 'この方向を向け'], ['F2', '敵の方を向け']] };
+  const ORDK = { move: ['move', 'follow', 'charge', 'flank', 'back', 'hold', 'retreat', 'ai'], face: ['faceHere', 'faceFoe'] };
   function ordMenu(m) { R.ordMenu = m; R.ordItems = m ? ORDM[m] : null; }
   function myUnits3(AB) { return AB.units.filter((u) => u.idx && (u.owner === G.myPid || u.cmd === G.myPid) && u.hp > 0 && !u.gone && u.order !== 'rout'); }
   function cen3(AB, f) { let x = 0, y = 0, n = 0; for (const s of AB.act.s) if (s.hp > 0 && !s.gone && f(s)) { x += s.x; y += s.y; n++; } return n ? { x: x / n, y: y / n } : null; }
@@ -939,7 +942,7 @@
     const AB = actB(); if (!AB) return; ordMenu(null);
     const all = G.selUnit == null || G.selUnit === 'all', L = myUnits3(AB).filter((u) => all || u.id === G.selUnit);
     if (!L.length) { toast('指図できる隊がありません', 1000); return; }
-    if (!['move', 'back', 'faceHere', 'faceFoe'].includes(kind)) { command({ type: 'order', unit: all ? 'all' : G.selUnit, order: kind }); toast({ follow: 'ついて来い！', charge: '突撃！', flank: '回り込め！', hold: 'その場で止まれ！', retreat: '退却！' }[kind] || '', 900); return; }
+    if (!['move', 'back', 'faceHere', 'faceFoe'].includes(kind)) { command({ type: 'order', unit: all ? 'all' : G.selUnit, order: kind }); toast({ follow: 'ついて来い！', charge: '突撃！', flank: '回り込め！', hold: 'その場で止まれ！', retreat: '退却！', ai: '各自の判断で戦え！（AIに任せる）' }[kind] || '', 900); return; }
     const cs = L.map((u) => [u, cen3(AB, (s) => s.g === u.id)]).filter((a) => a[1]); if (!cs.length) return;
     const mx = cs.reduce((a, c) => a + c[1].x, 0) / cs.length, my = cs.reduce((a, c) => a + c[1].y, 0) / cs.length;
     const [px, py] = R.act3d.toWorld(cv.clientWidth / 2, cv.clientHeight / 2), foe = cen3(AB, (s) => s.side === 'B') || { x: mx + 100, y: my };
@@ -1147,6 +1150,8 @@
       if (fm) { e.preventDefault(); const n = +fm[1]; if (!R.ordMenu) { if (n === 1) ordMenu('move'); else if (n === 2) ordMenu('face'); else toast('隊形などの指図はまだありません', 1000); } else if (R.ordMenu === 'root') { if (n === 1) ordMenu('move'); else if (n === 2) ordMenu('face'); } else { const o = ORDK[R.ordMenu][n - 1]; if (o) ord3(o); } return; }
       if ('wasd'.includes(kl) && kl.length === 1) { keys.add(kl); G.padUsed = false; return; }
       if (k === ' ') { e.preventDefault(); G.actDash = true; return; }
+      if (kl === 'q') { G.actSw = true; return; } // 0.64.0 武器の持ち替え
+      if (kl === 'e') { G.actJmp = true; return; } // 0.64.0 ジャンプ
       if (/^[0-9]$/.test(k)) { sel3(+k); if (!R.ordMenu) ordMenu('root'); return; }
       if (k === 'Escape' || k === 'Backspace') { if (R.ordMenu) { ordMenu(null); return; } if (k === 'Escape') { toggleMenu(true); return; } }
       if (k === 'Tab') { e.preventDefault(); actSel(1); return; }
@@ -1252,15 +1257,24 @@
       const inBattle = activeMenu() === $('battle');
       if (inBattle) { // 戦闘：十字キーの左右で下のボタン（自動で決着・退却）を選び、もう一度押すと選択をやめる。ボタン選択中だけ ×/A で押す
         const bb = menuButtons($('battle'));
-        if (down(14) || down(15)) { const i = bb.indexOf(G.bpick), d = down(15) ? 1 : -1, j = i + d; G.bpick = j >= 0 && j < bb.length && i !== -1 ? bb[j] : i === -1 ? bb[d > 0 ? 0 : bb.length - 1] : null; setFocus($('battle'), G.bpick || null); }
+        if (!ML() && (down(14) || down(15))) { const i = bb.indexOf(G.bpick), d = down(15) ? 1 : -1, j = i + d; G.bpick = j >= 0 && j < bb.length && i !== -1 ? bb[j] : i === -1 ? bb[d > 0 ? 0 : bb.length - 1] : null; setFocus($('battle'), G.bpick || null); }
         if (G.bpick && !bb.includes(G.bpick)) G.bpick = null;
         if (down(0) && G.bpick) { const b = G.bpick; G.bpick = null; setFocus($('battle'), null); b.click(); }
-        else if (ML()) { // 0.63.0 3D：左スティック移動（視点の向き基準）・右スティック視点・RT攻撃・LT防御・A回避・Bそこへ移動・LB/RB隊・X突撃・Y随行・十字↑停止↓退却
+        else if (ML()) { // 0.64.0 りょうさんの配置：R1攻撃 L1防御 L2ホイールで隊選び R2そこへ移動 十字↑突撃↓停止→照準の方を向く←AI任せ ✕ジャンプ ○回避 △武器持ち替え □随行
           G.padMv = [lx, ly]; G.padAim = null; G.padUsed = true; G.vcurOn = false;
-          const c = R.acam; c.yaw = (c.yaw || 0) + rx * 2.6 * dt; c.pitch = Math.max(-0.5, Math.min(1.2, (c.pitch || 0) + ry * 1.6 * dt));
-          G.padAtk = btn(7); G.padBlk = btn(6); if (down(0)) G.actDash = true; if (down(1)) ord3('move');
-          if (down(4)) actSel(-1); if (down(5)) actSel(1);
-          if (down(2)) ord3('charge'); if (down(3)) ord3('follow'); if (down(12)) ord3('hold'); if (down(13)) ord3('retreat');
+          const wh = btn(6), AB0 = actB();
+          if (wh && AB0) { // L2を押している間：右スティックで隊を選ぶ。離すと決定
+            const TRs = SIM.TROOPS, L = [['all', '全軍'], ...myUnits3(AB0).sort((a, b) => a.idx - b.idx).map((u) => [u.id, `${u.idx - 1} ${TRs[u.type].short || TRs[u.type].name}${u.n}`])];
+            if (!R.wheel) R.wheel = { L, i: Math.max(0, L.findIndex((x) => x[0] === G.selUnit)) };
+            R.wheel.L = L; if (R.wheel.i >= L.length) R.wheel.i = 0;
+            if (Math.hypot(rx, ry) > 0.5) { const a = (Math.atan2(rx, -ry) + Math.PI * 2) % (Math.PI * 2); R.wheel.i = Math.round(a / (Math.PI * 2 / L.length)) % L.length; }
+          } else {
+            if (R.wheel) { const it = R.wheel.L[R.wheel.i]; R.wheel = null; if (it) { G.selUnit = it[0]; battleHtml = ''; toast(`${it[1]}を選びました`, 800); } }
+            const c = R.acam; c.yaw = (c.yaw || 0) + rx * 2.6 * dt; c.pitch = Math.max(-0.5, Math.min(1.2, (c.pitch || 0) + ry * 1.6 * dt));
+          }
+          G.padAtk = btn(5); G.padBlk = btn(4);
+          if (down(0)) G.actJmp = true; if (down(1)) G.actDash = true; if (down(3)) G.actSw = true; if (down(2)) ord3('follow');
+          if (down(7)) ord3('move'); if (down(12)) ord3('charge'); if (down(13)) ord3('hold'); if (down(15)) ord3('faceHere'); if (down(14)) ord3('ai');
           if (btn(10)) bZoom(1 - dt * 1.5); if (btn(11)) bZoom(1 + dt * 1.5);
         } else if (actB()) { // 0.56.0 アクション戦闘：左スティック移動・右スティック狙い・RT/A攻撃・Bかわす・LB/RB隊を選ぶ・X突撃・Y随行・十字↑待機↓後退
           // 0.61.0 右スティックはマウスのようにカーソルを動かす（狙いもカーソルの方）。Aでカーソルの隊を選ぶ、LTでそこへ動かす（押したまま動かすと向き）
@@ -1343,7 +1357,7 @@
     const h = AB.act.s.find((s) => s.pc === G.myPid), pm = G.padMv || [0, 0];
     const inp = { mx: pm[0] + (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0), my: pm[1] + (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0), atk: !!(G.actAtk || G.padAtk), dash: !!G.actDash, aim: null };
     G.actDash = false;
-    if (ML()) { const y = R.acam.yaw || 0, f = -inp.my, r = inp.mx; inp.mx = Math.cos(y) * f - Math.sin(y) * r; inp.my = Math.sin(y) * f + Math.cos(y) * r; inp.aim = y; inp.blk = !!(G.actBlk || G.padBlk); return inp; }
+    if (ML()) { const y = R.acam.yaw || 0, f = -inp.my, r = inp.mx; inp.mx = Math.cos(y) * f - Math.sin(y) * r; inp.my = Math.sin(y) * f + Math.cos(y) * r; inp.aim = y; inp.blk = !!(G.actBlk || G.padBlk); inp.sw = !!G.actSw; inp.jmp = !!G.actJmp; G.actSw = G.actJmp = false; return inp; }
     if (h && G.actTouch) { const [x, y] = R.actToWorld(G.actTouch[0], G.actTouch[1]), d = Math.hypot(x - h.x, y - h.y); inp.aim = Math.atan2(y - h.y, x - h.x); if (d > 3.5) { inp.mx = (x - h.x) / d; inp.my = (y - h.y) / d; } inp.atk = d < 6; }
     else if (G.padAim != null) inp.aim = G.padAim;
     else if (h && G.mouseXY && !G.padUsed) { const [x, y] = R.actToWorld(G.mouseXY[0], G.mouseXY[1]); inp.aim = Math.atan2(y - h.y, x - h.x); }
@@ -1396,10 +1410,10 @@
         if (document.pointerLockElement === cv && (!ML() || !$('gameMenu').classList.contains('hidden'))) document.exitPointerLock();
         if (AB) {
           const menuOpen = !$('gameMenu').classList.contains('hidden'), inp = menuOpen ? { mx: 0, my: 0, atk: false, dash: false, aim: null } : actInput(AB);
-          if (G.mode === 'host') { AB.act.inp[G.myPid] = inp; if (inp.dash) AB.act.dq[G.myPid] = true; if (!(menuOpen && soloHost())) SIM.actStep(G.world, AB, dt); }
+          if (G.mode === 'host') { AB.act.inp[G.myPid] = inp; if (inp.dash) AB.act.dq[G.myPid] = true; if (inp.sw) (AB.act.wq = AB.act.wq || {})[G.myPid] = true; if (inp.jmp) (AB.act.jq = AB.act.jq || {})[G.myPid] = true; if (!(menuOpen && soloHost())) SIM.actStep(G.world, AB, dt); }
           else { // 0.62.0 参加者：入力をホストへ送り（かわすはすぐ）、自分の本人は手もとで先に動かす
             G.actSendAcc = (G.actSendAcc || 0) + dt; const key = `${inp.mx.toFixed(2)},${inp.my.toFixed(2)},${inp.aim == null ? '' : inp.aim.toFixed(2)},${inp.atk},${inp.blk}`;
-            if (inp.dash || (key !== G.actLastKey && G.actSendAcc > 0.05) || G.actSendAcc > 0.5) { G.actSendAcc = 0; G.actLastKey = key; command(Object.assign({ type: 'actIn' }, inp)); }
+            if (inp.dash || inp.sw || inp.jmp || (key !== G.actLastKey && G.actSendAcc > 0.05) || G.actSendAcc > 0.5) { G.actSendAcc = 0; G.actLastKey = key; command(Object.assign({ type: 'actIn' }, inp)); }
             SIM.actSmooth(AB, dt, G.myPid, inp);
           }
           R.actCur = G.vcurOn && G.vcur ? { p: G.vcur, d: G.padRD } : null; R.drawAction(ctx, AB, G.myPid, G.selUnit, dt, BT.ter); renderBattle(BT);

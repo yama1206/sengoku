@@ -28,7 +28,7 @@
       horse2: { name: '駿馬', cost: 6000, km: 7 },
       horse3: { name: '名馬', cost: 18000, km: 10, castle: true },
     },
-    slotName: { wep: '武器', arm: '防具', horse: '馬' },
+    slotName: { wep: '武器', wep2: '副武器', arm: '防具', horse: '馬' },
     kindName: { yari: '槍', tachi: '太刀', yumi: '弓', teppo: '鉄砲' },
     // 武器ごとに入る隊（左ほど優先。そのうち人数の多い隊に入る）
     group: { yari: ['yarigashira', 'nagayari', 'yari', 'nohei'], tachi: ['horo', 'kiba'], yumi: ['yumi'], teppo: ['teppogashira', 'teppo'] },
@@ -36,9 +36,11 @@
     lead: { am: 1.1, mo: 5 }, // 本人のいる隊：攻撃+10%・士気+5（兵種の相性は覆らない程度）
     sell: 0.5,                // 買い替えたとき、前の装備は半値で引き取り
   };
-  const eqOf = (p) => { p.equip = p.equip || { wep: 'yari1', arm: null, horse: null }; return p.equip; };
+  EQ.wep2 = EQ.wep; // 0.64.0 副武器（戦場へ2つ持ち込み、△・Qで持ち替える）
+  const eqOf = (p) => { p.equip = p.equip || { wep: 'yari1', arm: null, horse: null }; if (p.equip.wep2 === undefined) p.equip.wep2 = null; return p.equip; };
   const item = (slot, id) => id && EQ[slot][id];
   SIM.heroKind = (p) => { const e = item('wep', eqOf(p).wep); return e ? e.kind : null; };
+  SIM.heroKind2 = (p) => { const e = item('wep', eqOf(p).wep2); return e ? e.kind : null; };
 
   const baseEP = SIM.ensurePlayer;
   SIM.ensurePlayer = (p) => { baseEP(p); eqOf(p); };
@@ -72,19 +74,21 @@
     return out;
   }
   SIM.commands.buyEquip = (w, p, c) => {
-    const s = here(w, p), ok = shopList(s).some(([sl, id]) => sl === c.kind && id === c.id); if (!ok) return;
-    const e = EQ[c.kind][c.id], eq = eqOf(p); if (eq[c.kind] === c.id) return SIM.say(p.id, 'もう持っています');
+    const s = here(w, p), ok = shopList(s).some(([sl, id]) => sl === (c.kind === 'wep2' ? 'wep' : c.kind) && id === c.id); if (!ok) return;
+    const e = EQ[c.kind][c.id], eq = eqOf(p); if (eq[c.kind] === c.id || (c.kind.startsWith('wep') && (eq.wep === c.id || eq.wep2 === c.id))) return SIM.say(p.id, 'もう持っています');
     const old = item(c.kind, eq[c.kind]), back = old ? Math.floor(old.cost * EQ.sell) : 0;
     if (p.money + back < e.cost) return SIM.say(p.id, `お金が足りません（${SIM.money(e.cost)}）`);
     p.money += back - e.cost; eq[c.kind] = c.id;
     SIM.say(p.id, `${e.name}を手に入れました${old ? `（${old.name}は${SIM.money(back)}で引き取ってもらいました）` : ''}`);
   };
 
+  SIM.commands.swapWep = (w, p) => { const e = eqOf(p); if (p.battle || !e.wep2) return; [e.wep, e.wep2] = [e.wep2, e.wep]; SIM.say(p.id, `主の武器を${item('wep', e.wep).name}にしました`); };
+
   const basePriv = SIM.privateState;
   SIM.privateState = (w, pid) => {
     const r = basePriv(w, pid), p = w.players[pid]; if (!r || !p) return r;
     const e = eqOf(p);
-    r.me.equip = { wep: e.wep, arm: e.arm, horse: e.horse };
+    r.me.equip = { wep: e.wep, wep2: e.wep2, arm: e.arm, horse: e.horse };
     if (r.here) r.here.shop = shopList(SIM.settlement(w, r.here.id)).map(([sl, id]) => [sl, id]);
     return r;
   };
