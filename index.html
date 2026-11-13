@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="0.54.5">
+<meta name="sgk-ver" content="0.54.6">
 <title>戦国出世</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -90,10 +90,10 @@
   body.touch .touchOnly { display:flex !important; }
   button { touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
   body.touch button { min-height:36px; }
-  body.touch #menuBtn { position:fixed; left:10px; bottom:10px; padding:10px 18px; font-size:15px; z-index:5; } /* スマホはメニューを左下に */
-  body.touch #warBoard { bottom:64px; }
-  body.touch #battle { bottom:62px; }
-  body.touch #info { bottom:62px; }
+  #hudR #menuBtn, #menuBtn { position:fixed; left:10px; bottom:10px; padding:10px 18px; font-size:15px; z-index:5; } /* 0.54.6 PCもメニューは左下に */
+  #warBoard { bottom:64px; }
+  #battle { bottom:62px; }
+  #info { bottom:62px; }
   body.touch button:hover:not(.focus) { background:#2b241a; border-color:var(--line); color:var(--ink); outline:none; }
   @media (max-width:560px) {
     #hudL { padding:5px 8px; max-width:46vw; } #quests { max-width:46vw; font-size:11px; } #status { font-size:12px; }
