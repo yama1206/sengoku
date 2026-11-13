@@ -369,8 +369,9 @@
     $('infoBody').innerHTML = `${kind}${s.site ? `（普請中 ${Math.floor(s.site.prog * 100)}%）` : ''}　勢力：<b style="color:${f ? f.color : '#ccc'}">${f ? f.name : 'なし'}</b>${(() => { const fb = SIM.factionBuff(G.view.factions, s.owner); return fb ? `<span class="muted">（得意：${fb.name}・${fb.text}）</span>` : ''; })()}<br>城主・代官：${ho ? `<b>${ho}</b>（プレイヤー）` : lord || '（不明）'}`;
     { const ry = SIM.ryoOf && SIM.ryoOf(s.id), rc = ry && G.view.settlements.find((x) => x.id === ry); // 0.52.0 城と村・町のつながり
       { const pop = (G.mode === 'client' ? G.pp && G.pp[s.id] : ((G.world && G.world.settlements.find((x) => x.id === s.id)) || {}).pop); if (pop) $('infoBody').innerHTML += `<br>人口 約${(Math.round(pop / 10) * 10).toLocaleString()}人`; }
+      if (SIM.minato && SIM.minato(s)) $('infoBody').innerHTML += `<br>⚓ ${SIM.minatoName(s)}（年貢×${SIM.minatoMul(s)}）`;
       if (rc) $('infoBody').innerHTML += `<br>${rc.name}の領内`;
-      if (s.type === 'castle') { const ls = G.view.settlements.filter((v) => SIM.ryoOf(v.id) === s.id); if (ls.length) $('infoBody').innerHTML += `<br>領内：${ls.map((v) => v.name + (v.owner !== s.owner ? '（他家）' : '')).join('・')}`; const ms = SIM.minesOf(s); if (ms.length) $('infoBody').innerHTML += `<br>鉱山：${ms.map((m) => m.name + `（月+${SIM.money(SIM.KUNI.mineInc[m.k])}）`).join('・')}`; } }
+      if (s.type === 'castle') { const ls = G.view.settlements.filter((v) => SIM.ryoOf(v.id) === s.id); if (ls.length) $('infoBody').innerHTML += `<br>領内：${ls.map((v) => v.name + (SIM.minato(v) ? '⚓' : '') + (v.owner !== s.owner ? '（他家）' : '')).join('・')}`; const ms = SIM.minesOf(s); if (ms.length) $('infoBody').innerHTML += `<br>鉱山：${ms.map((m) => m.name + `（月+${SIM.money(SIM.KUNI.mineInc[m.k])}）`).join('・')}`; } }
     if (s.type === 'castle') {
       const cs = castleStat(s), m = G.priv && G.priv.me, W = m && m.war, R = m && m.rank, at = G.view.wars || [];
       const lordN = cs.lordName;

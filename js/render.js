@@ -103,6 +103,14 @@
       if (s.type === 'castle') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 20 * zk, 'sq', fr[0], fr[1]);
       else if (s.type === 'town') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 16 * zk, 'ci', fr[0], fr[1]);
       else SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 11, 'ci', fr[0], Math.min(fr[1], 2));
+      if (SGK.SIM.minato && SGK.SIM.minato(s) && cam.scale >= 1.5) { // 0.53.0 湊の錨
+        const ax = x + 13 * zk, ay = y - 11 * zk, big = SGK.SIM.minato(s) === 2;
+        ctx.fillStyle = big ? '#f2c14e' : '#bfe3f2'; ctx.strokeStyle = '#1d3a52'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(ax, ay, 7, 0, 7); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = '#1d3a52'; ctx.lineWidth = 1.4; ctx.beginPath();
+        ctx.moveTo(ax, ay - 4); ctx.lineTo(ax, ay + 4); ctx.moveTo(ax - 3, ay - 2); ctx.lineTo(ax + 3, ay - 2);
+        ctx.moveTo(ax - 4, ay + 1); ctx.quadraticCurveTo(ax - 3, ay + 5, ax, ay + 4); ctx.quadraticCurveTo(ax + 3, ay + 5, ax + 4, ay + 1); ctx.stroke();
+      }
       if (marks && marks.has(s.id)) { ctx.fillStyle = '#f2c14e'; ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y - 24); ctx.lineTo(x + 6, y - 17); ctx.lineTo(x, y - 10); ctx.lineTo(x - 6, y - 17); ctx.closePath(); ctx.fill(); ctx.stroke(); }
       if (s.id === selectedId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 17, 0, 7); ctx.stroke(); }
       if (s.site) { ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 2; ctx.setLineDash([3, 3]); ctx.strokeRect(x - 13, y - 13, 26, 26); ctx.setLineDash([]); }

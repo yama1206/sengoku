@@ -1,4 +1,5 @@
 // 0.51.0 国の移り変わり：CPUの大名も投資する・水城・改築で攻城マップの曲輪や堀が増える・悪名でCPUの扱いが変わる
+// 0.53.0 湊（湊町・大湊）：年貢が多めに入る
 // （落城で規模が下がるのは siege.js の capture）
 (function () {
   const SIM = SGK.SIM;
@@ -131,7 +132,7 @@
       for (const n of Object.values(w.npcs)) if (n.home === v.id && n.faction === from) n.faction = to;
     }
   };
-  const landInc = (p, v) => Math.round((KN.landInc[v.type] * (SIM.popF ? SIM.popF(v) : 1) * (SIM.prodMul ? SIM.prodMul(v) : 1) * (1 + (((p.attrs && p.attrs.sei) || 3) - 3) * 0.03)) / 10) * 10;
+  const landInc = (p, v) => Math.round((KN.landInc[v.type] * SIM.minatoMul(v) * (SIM.popF ? SIM.popF(v) : 1) * (SIM.prodMul ? SIM.prodMul(v) : 1) * (1 + (((p.attrs && p.attrs.sei) || 3) - 3) * 0.03)) / 10) * 10;
   SIM.landsIncome = (w, p, c) => SIM.landsOf(w, c).reduce((a, v) => a + landInc(p, v), 0);
   function landsMonth(w) {
     for (const c of w.settlements) {
@@ -190,6 +191,19 @@
   SIM.ensure = (w) => { baseEnsure(w); for (const s of w.settlements) if (s.pop == null && !s.site) s.pop = SIM.popBase(s); return w; };
   const baseDyn = SIM.dynamicState;
   SIM.dynamicState = (w, pid) => { const d = baseDyn(w, pid); if (Math.floor(w.time.min / 15) % 40 === 0 || !w._ppSent) { w._ppSent = 1; d.pp = Object.fromEntries(w.settlements.filter((s) => s.pop).map((s) => [s.id, s.pop])); } return d; };
+
+  // ---- 0.53.0 湊：海や川の船着き場のある町。領内の年貢・町を治めたときの年貢が多めに入る ----
+  KN.minatoMul = { 1: 1.5, 2: 2 }; // 1=湊町 2=大湊（南蛮・明との商いでにぎわう）
+  SGK.DATA.minato = {
+    sakai: 2, hakata: 2, hyogo: 2, bonotsu: 2,
+    tsushima: 1, atsuta: 1, nagashima: 1, ano: 1, ujiyamada: 1, tsuruga: 1, obama: 1, mikuni: 1, naoetsu: 1, niigata: 1, kashiwazaki: 1,
+    sakata: 1, ishinomaki: 1, shiogama: 1, hojozu: 1, miyazu: 1, kizuki: 1, akamagaseki: 1, onomichi: 1, tomo: 1, utazu: 1, yanai: 1,
+    hofu: 1, shikama: 1, usuki: 1, shibushi: 1, shingu: 1, shimoda: 1, kanagawa_m: 1, shinagawa: 1, kawajiri: 1,
+  };
+  SIM.minato = (s) => (s && SGK.DATA.minato[s.id]) || 0;
+  SIM.minatoMul = (s) => KN.minatoMul[SIM.minato(s)] || 1;
+  SIM.minatoName = (s) => ['', '湊町', '大湊'][SIM.minato(s)] || '';
+  { const t0 = SIM.tax; SIM.tax = (p, s) => (SIM.minato(s) ? Math.round((t0(p, s) * SIM.minatoMul(s)) / 10) * 10 : t0(p, s)); }
 
   SIM.systems.push(function kuniTick(w) {
     const d = Math.floor(w.time.min / 1440);
