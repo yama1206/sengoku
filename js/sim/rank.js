@@ -7,7 +7,7 @@
     { name: '浪人', merit: 0, fame: 0, cap: 0, stipend: 0, desc: 'どこにも仕えていない' },
     { name: '足軽', merit: 0, fame: 5, cap: 3, stipend: 300, desc: '仕官したばかり。主家の依頼や戦で功績を積む' },
     { name: '足軽組頭', merit: 60, fame: 10, cap: 8, stipend: 800, desc: '主家の城で兵を2割安く雇える' },
-    { name: '侍大将', merit: 200, fame: 20, cap: 15, stipend: 1800, desc: '城攻め（包囲・総攻め）ができる。兵の給金が1割安くなる。主家の城で騎馬を名声に関係なく雇える' },
+    { name: '侍大将', merit: 200, fame: 20, cap: 15, stipend: 1800, desc: '城攻め（攻城戦準備・総攻め）ができる。兵の給金が1割安くなる。主家の城で騎馬を名声に関係なく雇える' },
     { name: '部将', merit: 500, fame: 35, cap: 25, stipend: 3500, desc: '大軍を率いる重臣' },
     { name: '城主', merit: 900, fame: 50, cap: 35, stipend: 2000, desc: '主家から城を一つ任される。内政・築城で城を育て、毎月の年貢を受け取る' },
     { name: '家老', merit: 1500, fame: 70, cap: 45, stipend: 3000, castles: 2, desc: '城を2つまで任される（加増）。主家の城で兵を3割安く雇える' },

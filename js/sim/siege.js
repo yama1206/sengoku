@@ -120,7 +120,7 @@
   }
 
   // ---- 攻城戦（プレイヤーが攻める） ----
-  SIM._assault = (w, p, c) => { // 総攻め（包囲を終えてから。army.js の assault から呼ぶ）
+  SIM._assault = (w, p, c) => { // 総攻め（攻城戦準備を終えてから。army.js の assault から呼ぶ）
     const s = SIM.settlement(w, c.id);
     if (!s || s.type !== 'castle' || s.site || p.battle || p.busy) return;
     const f = w.factions[p.clan];
@@ -247,7 +247,7 @@
   // ---- 毎月：守備兵の補充・忠誠の変化・寝返り・CPUの出陣・戦と和睦 ----
   function monthly(w) {
     for (const s of w.settlements) if (s.type === 'castle' && !s.site) {
-      if (SIM.besieged && SIM.besieged(w, s.id)) continue; // 包囲されている城は補充できない
+      if (SIM.besieged && SIM.besieged(w, s.id)) continue; // 攻城戦の準備をされている城は補充できない
       const mx = garMax(w, s), n = SIM.garrison(s);
       if (n < mx) s.gar = garOf(Math.min(mx, n + Math.max(2, Math.round(mx * 0.15))));
     }

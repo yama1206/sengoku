@@ -54,7 +54,7 @@
     SIM.say(p.id, `${s.name}を直轄にしました${pr ? `（${pr.name}は${back ? '家臣に戻りました' : 'その城の家臣になりました'}）` : ''}`);
   };
 
-  // ---- CPU軍勢の兵糧：道のりと包囲の日数ぶん持って出る。尽きると兵が逃げ、3日で引き上げる ----
+  // ---- CPU軍勢の兵糧：道のりと攻城戦準備の日数ぶん持って出る。尽きると兵が逃げ、3日で引き上げる ----
   const baseLaunch = SIM.launchArmy;
   SIM.launchArmy = (w, o) => {
     const n = baseLaunch(w, o);

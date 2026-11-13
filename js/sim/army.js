@@ -1,4 +1,4 @@
-// 第8段階：軍勢（武将が集まって進軍・包囲・援軍・防衛戦）・空き城への城主配置・陣触れ・テスト用の操作
+// 第8段階：軍勢（武将が集まって進軍・攻城戦準備・援軍・防衛戦）・空き城への城主配置・陣触れ・テスト用の操作
 (function () {
   const SIM = SGK.SIM, M = SIM._mil;
   const rnd = (w) => SIM.rand(w);
@@ -10,7 +10,7 @@
   const scale = (tr, r) => { const o = {}; for (const k in tr) { const v = Math.round(tr[k] * r); if (v > 0) o[k] = v; } return o; };
   const addTr = (a, b) => { const o = Object.assign({}, a); for (const k in b) o[k] = (o[k] || 0) + b[k]; return o; };
   // 数値はすべて仮（ここで調整）
-  const AR = { siegeDays: 5, speed: 25, reliefKm: 50, fightKm: 2, liftKm: 3, musterRank: 3, musterKm: 40, musterDays: 30, musterCD: 20, musterRate: 0.4 };
+  const AR = { siegeDays: 1, marchDays: 2.5, speed: 25, reliefKm: 50, fightKm: 2, liftKm: 3, musterRank: 3, musterKm: 40, musterDays: 30, musterCD: 20, musterRate: 0.4 };
   SIM.ARMY = AR;
   const MEI = ['政', '長', '信', '義', '勝', '秀', '忠', '家', '重', '貞', '元', '光', '直', '康', '盛', '成', '房', '綱'];
 
@@ -43,10 +43,10 @@
   };
 
   // ---- 軍勢（地図の上を動くNPC。kind: 'army'） ----
-  // mode: siege（城へ進軍→包囲→総攻め）／relief（援軍：包囲している相手へ向かう）／return（引き上げ）
+  // mode: siege（城へ進軍→攻城戦準備→総攻め）／relief（援軍：攻城戦の準備をしている相手へ向かう）／return（引き上げ）
   function setGoal(n, x, y, dest) { n.tx = x; n.ty = y; n.dest = dest || null; n.path = SIM.findPath(n.x, n.y, x, y); }
   // 行軍の速さ：プレイヤーと同じく人数（大軍ほど遅い）と兵種の割合で決まる
-  SIM.armySpeed = (n) => SGK.CFG.WALK_KM_PER_DAY * SIM.sizeSpeed(n.size || 0) * SIM.mixSpeed(n.army);
+  SIM.armySpeed = (n) => SGK.CFG.WALK_KM_PER_DAY * SIM.sizeSpeed(n.size || 0) * SIM.mixSpeed(n.army) * (n.mode === 'siege' && n.until == null && n.slow ? n.slow : 1);
   function armyName(w, n) { const g = (n.gens && w.people[n.gens[0]]) || (n.person && w.people[n.person]); const t = n.kind === 'patrol' ? '隊' : n.kind === 'bushou' ? 'の一行' : 'の軍勢'; return g ? `${g.name}${t}` : `${fName(w, n.faction)}${t === '隊' ? 'の隊' : t}`; }
   SIM.launchArmy = (w, o) => {
     const id = 'a' + w.nextId++, size = SIM.troopCount(o.army);
@@ -56,8 +56,11 @@
     const gn = n.gens.map((g) => (w.people[g] || {}).name).filter(Boolean);
     if (o.mode === 'siege') {
       setGoal(n, o.to.x + 0.7, o.to.y + 0.4, o.to.id);
-      news(w, `${fName(w, o.faction)}の軍勢${size}人${gn.length ? `（${gn.join('・')}）` : ''}が${o.from.name}を発ち、${o.to.name}へ向かっているそうです（${Math.max(1, Math.ceil(dist(o.from, o.to) / n.speed))}日ほど）`);
-      for (const p of Object.values(w.players)) if (p.clan === o.to.owner) SIM.say(p.id, `【急報】${fName(w, o.faction)}の軍勢${size}人が${o.to.name}へ向かっています！ 着いても${AR.siegeDays}日は包囲するので、そのあいだに城へ入るか、軍勢に攻めかかって追い払えます`);
+      // 0.58.0 攻めの軍勢はゆっくり進み、近くの城でも着くまで2〜3日ほどかかる（遠ければふだんの速さ）
+      const pd = SIM.pathInfo(n.x, n.y, n.path, n.speed).days;
+      if (pd < AR.marchDays) { n.slow = Math.max(0.05, pd / AR.marchDays); n.speed = SIM.armySpeed(n); }
+      news(w, `${fName(w, o.faction)}の軍勢${size}人${gn.length ? `（${gn.join('・')}）` : ''}が${o.from.name}を発ち、${o.to.name}へ向かっているそうです（${Math.max(1, Math.round(SIM.pathInfo(o.from.x, o.from.y, n.path, n.speed).days))}日ほど）`);
+      for (const p of Object.values(w.players)) if (p.clan === o.to.owner) SIM.say(p.id, `【急報】${fName(w, o.faction)}の軍勢${size}人が${o.to.name}へ向かっています！ 着いても${AR.siegeDays}日は攻城戦の準備をするので、そのあいだに城へ入るか、軍勢に攻めかかって追い払えます`);
     } else if (o.mode === 'relief') {
       news(w, `${fName(w, o.faction)}の援軍${size}人${gn.length ? `（${gn.join('・')}）` : ''}が${o.to ? o.to.name : ''}の救援に向かっているそうです`);
     }
@@ -73,7 +76,7 @@
     if (!h) { delete w.npcs[n.id]; return; }
     n.mode = 'return'; n.home = h.id; n.until = null; n.target = null; setGoal(n, h.x, h.y, h.id);
   }
-  function sendRelief(w, fid, s, target) { // 包囲された城の近くの城から援軍を出す
+  function sendRelief(w, fid, s, target) { // 攻城戦の準備をされた城の近くの城から援軍を出す
     const f = w.factions[fid]; if (!f || f.dead) return; // プレイヤー大名の家でも、CPUの家臣（プレイヤーに任されていない城）が援軍を出す
     if (Object.values(w.npcs).some((n) => n.kind === 'army' && n.mode === 'relief' && n.faction === fid && n.to === s.id)) return;
     const srcs = castles(w, fid).filter((x) => x.id !== s.id && !x.holder && !x.site && !SIM.besieged(w, x.id) && dist(x, s) <= AR.reliefKm && SIM.garrison(x) >= 20).sort((a, b) => dist(a, s) - dist(b, s)).slice(0, 2);
@@ -85,10 +88,10 @@
   }
   function beginSiege(w, n, s) {
     n.until = w.time.min + AR.siegeDays * 1440; n.tx = n.ty = null; n.dest = null; n.x = s.x + 0.7; n.y = s.y + 0.4;
-    news(w, `${armyName(w, n)}（${n.size}人）が${s.name}を包囲しました（${AR.siegeDays}日後に総攻め）`);
-    for (const p of Object.values(w.players)) if (p.clan === s.owner) SIM.say(p.id, `【急報】${s.name}が包囲されました！ ${AR.siegeDays}日後に総攻めが来ます。城に入っていれば一緒に戦えます`);
+    news(w, `${armyName(w, n)}（${n.size}人）が${s.name}の前に陣を敷き、攻城戦の準備に入りました（${AR.siegeDays}日後に総攻め）`);
+    for (const p of Object.values(w.players)) if (p.clan === s.owner) SIM.say(p.id, `【急報】${s.name}の前に敵が陣を敷き、攻城戦の準備に入りました！ ${AR.siegeDays}日後に総攻めが来ます。城に入っていれば一緒に戦えます`);
     sendRelief(w, s.owner, s, { army: n.id });
-    for (const p of Object.values(w.players)) if (p.camp === n.id) SIM.say(p.id, `${s.name}を包囲しました。${AR.siegeDays}日後に総攻めです。軍勢のそばにいれば総攻めに加われます`);
+    for (const p of Object.values(w.players)) if (p.camp === n.id) SIM.say(p.id, `${s.name}の前に陣を敷き、攻城戦の準備に入りました。${AR.siegeDays}日後に総攻めです。軍勢のそばにいれば総攻めに加われます`);
   }
   function targetOf(w, n) {
     const t = n.target || {};
@@ -98,7 +101,7 @@
   }
   function clash(w, n, t) { // 援軍が着いた
     if (t.battle) return;
-    if (!t.kind) { // プレイヤーの包囲に援軍が攻めかかる
+    if (!t.kind) { // プレイヤーの攻城戦準備に援軍が攻めかかる
       if (t.busy) t.busy = null;
       return fieldBattle(w, n, t, `${armyName(w, n)}（${n.size}人）が救援に駆けつけ、攻めかかってきました！`);
     }
@@ -108,11 +111,11 @@
     const [wn, ls] = win ? [n, t] : [t, n];
     wn.army = scale(wn.army, 1 - loss); wn.size = SIM.troopCount(wn.army);
     ls.army = scale(ls.army, 0.3); ls.size = SIM.troopCount(ls.army);
-    if (win) { news(w, `${armyName(w, n)}が${s ? s.name : ''}を包囲する${armyName(w, t)}を打ち破りました（包囲が解かれました）`); goHome(w, t); goHome(w, n); }
+    if (win) { news(w, `${armyName(w, n)}が${s ? s.name : ''}の攻城戦の準備をする${armyName(w, t)}を打ち破りました（攻城戦の準備が崩れました）`); goHome(w, t); goHome(w, n); }
     else { news(w, `${armyName(w, t)}が${s ? s.name : ''}の援軍を退けました`); goHome(w, n); }
     for (const a of [n, t]) if (w.npcs[a.id] && !a.size) delete w.npcs[a.id];
   }
-  function assault(w, n, s) { // 包囲が終わって総攻め
+  function assault(w, n, s) { // 攻城戦準備が終わって総攻め
     const defs = n.noDef ? [] : Object.values(w.players).filter((p) => p.clan === s.owner && !p.battle && dist(p, s) <= AR.fightKm && (p.at === s.id || p.tx == null));
     if (defs.length) return defenseBattle(w, n, s, defs);
     const mine = Object.values(w.players).filter((p) => p.camp === n.id && !p.battle && dist(p, s) < AR.liftKm); // 0.50.0 参陣している人がいればいっしょに戦う
@@ -231,7 +234,7 @@
           if (r && res === 'lose') { q.x = r.x; q.y = r.y; q.at = r.id; q.tx = q.ty = null; }
         }
       }
-    } else if (res === 'win' && n && n.mode === 'siege' && n.until != null) news(w, `${b.foe}が討ち破られ、${(SIM.settlement(w, n.to) || {}).name}の包囲が解かれました`);
+    } else if (res === 'win' && n && n.mode === 'siege' && n.until != null) news(w, `${b.foe}が討ち破られ、${(SIM.settlement(w, n.to) || {}).name}の攻城戦の準備が崩れました`);
   };
   const baseFlee = SIM.commands.battleFlee;
   SIM.commands.battleFlee = (w, p, c) => {
@@ -253,7 +256,7 @@
     }
   };
 
-  // ---- プレイヤーの包囲・総攻め・軍勢に攻めかかる ----
+  // ---- プレイヤーの攻城戦準備・総攻め・軍勢に攻めかかる ----
   SIM.commands.siege = (w, p, c) => {
     const s = SIM.settlement(w, c.id), S = SIM.SIEGE;
     if (!s || s.type !== 'castle' || s.site || p.battle || p.busy) return;
@@ -263,11 +266,11 @@
     if (!SIM.atWar(w, p.clan, s.owner)) return SIM.say(p.id, `${fName(w, s.owner)}とは戦をしていません`);
     if (dist(p, s) > S.nearKm) return SIM.say(p.id, `${s.name}の近く（${S.nearKm}km以内）まで来てください`);
     if (!SIM.troopCount(p.troops) && !(p.allies && SIM.troopCount(p.allies.troops))) return SIM.say(p.id, '兵がいないと城は攻められません');
-    if (p.siege) return SIM.say(p.id, `すでに${(SIM.settlement(w, p.siege.sid) || {}).name}を包囲しています`);
+    if (p.siege) return SIM.say(p.id, `すでに${(SIM.settlement(w, p.siege.sid) || {}).name}の攻城戦の準備をしています`);
     p.siege = { sid: s.id, until: w.time.min + AR.siegeDays * 1440 };
-    SIM.say(p.id, `${s.name}を包囲しました。${AR.siegeDays}日後に総攻めをかけられます（${AR.liftKm}km以上離れると包囲が解けます）。敵の援軍に気をつけて`);
-    for (const q of Object.values(w.players)) if (q.clan === s.owner) SIM.say(q.id, `【急報】${p.name}が${s.name}を包囲しました！ ${AR.siegeDays}日後に総攻めが来ます`);
-    news(w, `${f.name}の${p.name}が${s.name}（${fName(w, s.owner)}）を包囲しました`);
+    SIM.say(p.id, `${s.name}の前に陣を敷き、攻城戦の準備に入りました。${AR.siegeDays}日後に総攻めをかけられます（${AR.liftKm}km以上離れると攻城戦の準備が崩れます）。敵の援軍に気をつけて`);
+    for (const q of Object.values(w.players)) if (q.clan === s.owner) SIM.say(q.id, `【急報】${p.name}が${s.name}の前に陣を敷き、攻城戦の準備に入りました！ ${AR.siegeDays}日後に総攻めが来ます`);
+    news(w, `${f.name}の${p.name}が${s.name}（${fName(w, s.owner)}）の前に陣を敷き、攻城戦の準備に入りました`);
     sendRelief(w, s.owner, s, { pid: p.id });
   };
   SIM.commands.assault = (w, p, c) => {
@@ -275,7 +278,7 @@
     if (w.time.min < p.siege.until) return SIM.say(p.id, `総攻めの準備ができるまで、あと${Math.ceil((p.siege.until - w.time.min) / 1440)}日です`);
     SIM._assault(w, p, c);
   };
-  SIM.commands.liftSiege = (w, p) => { if (p.siege && !p.battle) { SIM.say(p.id, '包囲を解きました'); p.siege = null; } };
+  SIM.commands.liftSiege = (w, p) => { if (p.siege && !p.battle) { SIM.say(p.id, '攻城戦の準備をやめました'); p.siege = null; } };
   SIM.commands.attackArmy = (w, p, c) => {
     const n = w.npcs[c.id]; if (!n || !['army', 'patrol', 'bushou'].includes(n.kind) || n.battle || n.fight || p.battle) return;
     if (n.loot == null) n.loot = Math.round((200 + (n.size || 0) * 30) / 10) * 10;
@@ -345,7 +348,7 @@
       if (p.siege && !p.battle) {
         const s = SIM.settlement(w, p.siege.sid);
         if (!s || s.owner === p.clan || !SIM.atWar(w, p.clan, s.owner)) p.siege = null;
-        else if (dist(p, s) > AR.liftKm) { SIM.say(p.id, `${s.name}から離れたため、包囲が解けました`); p.siege = null; }
+        else if (dist(p, s) > AR.liftKm) { SIM.say(p.id, `${s.name}から離れたため、攻城戦の準備が崩れました`); p.siege = null; }
         else if (now >= p.siege.until && !p.siege.ready) { p.siege.ready = 1; SIM.say(p.id, `${s.name}への総攻めの支度が整いました！ 城を選んで「総攻めをかける」`); }
       }
       if (p.allies && !p.battle && (!p.clan || now >= p.allies.until)) returnAllies(w, p, '役目を終えて城へ戻りました');
@@ -367,13 +370,13 @@
   SIM.armyText = (w, n) => {
     if (!n) return null;
     const gn = (n.gens || []).map((g) => (w.people[g] || {}).name).filter(Boolean), to = SIM.settlement(w, n.to);
-    const st = n.mode === 'siege' ? (n.until == null ? `${to ? to.name : ''}へ進軍中` : `${to ? to.name : ''}を包囲中（総攻めまであと${Math.max(0, Math.ceil((n.until - w.time.min) / 1440))}日）`)
+    const st = n.mode === 'siege' ? (n.until == null ? `${to ? to.name : ''}へ進軍中` : `${to ? to.name : ''}の攻城戦準備中（総攻めまであと${Math.max(0, Math.ceil((n.until - w.time.min) / 1440))}日）`)
       : n.mode === 'relief' ? `${to ? to.name : ''}の救援に向かっている` : '引き上げ中';
     return { name: armyName(w, n), text: `${st}${gn.length ? `<br>武将：${gn.join('・')}` : ''}` };
   };
   SIM.threats = (w, p) => Object.values(w.npcs).filter((n) => n.kind === 'army' && n.mode === 'siege' && SIM.settlement(w, n.to) && SIM.settlement(w, n.to).owner === p.clan)
     .map((n) => { const s = SIM.settlement(w, n.to); return { to: s.name, att: fName(w, n.faction), n: n.size, siege: n.until != null, days: Math.max(0, Math.ceil(n.until != null ? (n.until - w.time.min) / 1440 : dist(n, s) / (n.speed || AR.speed))) }; });
-  SIM.siegeInfo = (w, sid) => { // 城が包囲されていれば、誰に・総攻めまで何日
+  SIM.siegeInfo = (w, sid) => { // 城が攻城戦準備されていれば、誰に・総攻めまで何日
     const a = Object.values(w.npcs).find((n) => n.kind === 'army' && n.mode === 'siege' && n.to === sid && n.until != null);
     const p = !a && Object.values(w.players).find((q) => q.siege && q.siege.sid === sid);
     return a || p ? { by: a ? armyName(w, a) : p.name, days: Math.max(0, Math.ceil(((a ? a.until : p.siege.until) - w.time.min) / 1440)) } : null;
@@ -426,7 +429,7 @@
     else if (kind === 'war') { // 近くの軍勢をすぐ総攻めさせる
       for (const n of Object.values(w.npcs)) if (n.kind === 'army' && n.mode === 'siege') { const s = SIM.settlement(w, n.to); if (s && n.until == null) { n.x = s.x + 0.7; n.y = s.y + 0.4; beginSiege(w, n, s); } n.until = w.time.min; }
       if (p.siege) p.siege.until = w.time.min;
-      SIM.say(p.id, '（テスト）包囲をすぐ終わらせました');
+      SIM.say(p.id, '（テスト）攻城戦の準備をすぐ終わらせました');
     }
     SIM.ensure(w);
   };
@@ -536,14 +539,14 @@
     for (const n of Object.values(w.npcs)) {
       if (n.kind !== 'army' || n.mode !== 'siege') continue;
       const s = SIM.settlement(w, n.to); if (!s) continue;
-      const st = n.until == null ? `進軍中（あと約${Math.max(1, Math.ceil(dist(n, s) / (n.speed || AR.speed)))}日）` : `包囲中・総攻めまで${left(n.until)}日`;
+      const st = n.until == null ? `進軍中（あと約${Math.max(1, Math.ceil(dist(n, s) / (n.speed || AR.speed)))}日）` : `攻城戦準備中・総攻めまで${left(n.until)}日`;
       if (n.faction === p.clan) out.push({ atk: 1, text: `${s.name}（${fName(w, s.owner)}）を攻撃：${armyName(w, n)} ${n.size}人　${st}` });
       else if (s.owner === p.clan) out.push({ atk: 0, text: `${s.name}が攻撃されています：${fName(w, n.faction)}の${armyName(w, n)} ${n.size}人　${st}` });
     }
     for (const q of Object.values(w.players)) {
       if (!q.siege) continue;
       const s = SIM.settlement(w, q.siege.sid); if (!s) continue;
-      const st = w.time.min >= q.siege.until ? '総攻めできます' : `包囲中・総攻めまで${left(q.siege.until)}日`;
+      const st = w.time.min >= q.siege.until ? '総攻めできます' : `攻城戦準備中・総攻めまで${left(q.siege.until)}日`;
       if (q.clan === p.clan) out.push({ atk: 1, text: `${s.name}（${fName(w, s.owner)}）を攻撃：${q.id === p.id ? 'あなた' : q.name}　${st}` });
       else if (s.owner === p.clan) out.push({ atk: 0, text: `${s.name}が攻撃されています：${fName(w, q.clan)}の${q.name}　${st}` });
     }
