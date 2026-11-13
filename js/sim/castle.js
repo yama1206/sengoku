@@ -18,7 +18,7 @@
   SIM.heldCastle = heldBy;
   const nearHeld = (w, p) => heldAll(w, p.id).filter((s) => Math.hypot(s.x - p.x, s.y - p.y) < NEAR_KM).sort((a, b) => b.dev.wall - a.dev.wall)[0] || null;
   // 築城（新しく城を築く）：数値は仮
-  const BUILD = SIM.BUILD = { cost: 20000, minRank: 4, minKm: 5, hours: 16 };
+  const BUILD = SIM.BUILD = { cost: 40000, minRank: 4, minKm: 5, hours: 16 };
   SIM.siteGain = (p) => 0.12 * (1 + lv(p, 'chikujo') * 0.02 + (p.attrs.chi - 3) * 0.05) * (1 + fx(p, 'wallFx'));
 
   // 米の生産を農業の段階に合わせる
