@@ -928,6 +928,28 @@
     const BT = G.priv && G.priv.battle; if (!BT) return null;
     if (G.mode === 'client') return G.actView && G.actView.id === BT.id ? G.actView : null;
     const b = G.mode === 'host' && G.world.battles[BT.id]; return b && b.act ? b : null; };
+  // 0.63.0 3D表示の自分で戦う（マウント＆ブレイド2風の操作）
+  const ML = () => !!(R.act3dOn && actB());
+  const ORDM = { root: [['F1', '移動'], ['F2', '向き']], move: [['F1', 'ここへ移動'], ['F2', 'ついて来い'], ['F3', '突撃'], ['F4', '回り込み'], ['F5', '後退'], ['F6', '停止'], ['F7', '退却']], face: [['F1', 'この方向を向け'], ['F2', '敵の方を向け']] };
+  const ORDK = { move: ['move', 'follow', 'charge', 'flank', 'back', 'hold', 'retreat'], face: ['faceHere', 'faceFoe'] };
+  function ordMenu(m) { R.ordMenu = m; R.ordItems = m ? ORDM[m] : null; }
+  function myUnits3(AB) { return AB.units.filter((u) => u.idx && (u.owner === G.myPid || u.cmd === G.myPid) && u.hp > 0 && !u.gone && u.order !== 'rout'); }
+  function cen3(AB, f) { let x = 0, y = 0, n = 0; for (const s of AB.act.s) if (s.hp > 0 && !s.gone && f(s)) { x += s.x; y += s.y; n++; } return n ? { x: x / n, y: y / n } : null; }
+  function ord3(kind) {
+    const AB = actB(); if (!AB) return; ordMenu(null);
+    const all = G.selUnit == null || G.selUnit === 'all', L = myUnits3(AB).filter((u) => all || u.id === G.selUnit);
+    if (!L.length) { toast('指図できる隊がありません', 1000); return; }
+    if (!['move', 'back', 'faceHere', 'faceFoe'].includes(kind)) { command({ type: 'order', unit: all ? 'all' : G.selUnit, order: kind }); toast({ follow: 'ついて来い！', charge: '突撃！', flank: '回り込め！', hold: 'その場で止まれ！', retreat: '退却！' }[kind] || '', 900); return; }
+    const cs = L.map((u) => [u, cen3(AB, (s) => s.g === u.id)]).filter((a) => a[1]); if (!cs.length) return;
+    const mx = cs.reduce((a, c) => a + c[1].x, 0) / cs.length, my = cs.reduce((a, c) => a + c[1].y, 0) / cs.length;
+    const [px, py] = R.act3d.toWorld(cv.clientWidth / 2, cv.clientHeight / 2), foe = cen3(AB, (s) => s.side === 'B') || { x: mx + 100, y: my };
+    const fa = (c) => Math.atan2(foe.y - c.y, foe.x - c.x);
+    if (kind === 'move') { cs.forEach(([u, c]) => command({ type: 'order', unit: u.id, order: 'move', x: px + c.x - mx, y: py + c.y - my })); toast('そこへ移動せよ！', 900); }
+    if (kind === 'back') { const a = Math.atan2(my - foe.y, mx - foe.x); cs.forEach(([u, c]) => moveFace(u.id, c.x + Math.cos(a) * 25, c.y + Math.sin(a) * 25, fa(c))); toast('後退せよ！', 900); }
+    if (kind === 'faceHere') { cs.forEach(([u, c]) => command({ type: 'order', unit: u.id, order: 'face', f: Math.atan2(py - c.y, px - c.x) })); toast('この方向を向け！', 900); }
+    if (kind === 'faceFoe') { cs.forEach(([u, c]) => command({ type: 'order', unit: u.id, order: 'face', f: fa(c) })); toast('敵の方を向け！', 900); }
+  }
+  function sel3(n) { const AB = actB(); if (!AB) return; if (n === 0) G.selUnit = 'all'; else { const u = myUnits3(AB).find((x) => x.idx === n + 1); if (u) G.selUnit = u.id; } battleHtml = ''; }
   // 0.59.0 移動先を決めたあと、向く方向を決める（G.fpick = 移動先。次に押した所の方を向く）
   function moveFace(unit, x, y, face) { command({ type: 'order', unit, order: 'move', x, y }); if (face != null) command({ type: 'order', unit, order: 'face', f: face }); }
   function pickFace(fx, fy) { const P = G.fpick; G.fpick = null; if (!P) return false; if (Math.hypot(fx - P.x, fy - P.y) < 2) { toast('向きはそのままにしました', 800); return true; } command({ type: 'order', unit: P.unit, order: 'face', f: Math.atan2(fy - P.y, fx - P.x) }); toast('その方向を向かせます', 800); return true; }
@@ -1050,16 +1072,23 @@
   // 0.56.0 アクション戦闘のマウス・タッチ（地図・戦場の操作より先に受け取る）
   window.addEventListener('pointerdown', (e) => {
     if (e.target !== cv || !actB()) return; e.stopPropagation(); e.preventDefault();
+    if (ML() && e.pointerType !== 'touch') { // 0.63.0 3D：クリックでマウスを捕まえて視点操作。左＝攻撃、右＝防御
+      if (document.pointerLockElement !== cv) { try { cv.requestPointerLock(); } catch (er) { /* 使えない環境 */ } return; }
+      G.padUsed = false; if (e.button === 0) G.actAtk = true; else if (e.button === 2) G.actBlk = true; return;
+    }
     if (e.pointerType === 'touch') { G.actTouch = [e.offsetX, e.offsetY]; return; }
     G.mouseXY = [e.offsetX, e.offsetY]; G.padUsed = false;
     if (e.button === 0) G.actAtk = true;
     else if (e.button === 2) G.actRD = [e.offsetX, e.offsetY]; // 右ボタン：押した所へ移動。押したまま引っぱると、離した方向を向く
   }, true);
   window.addEventListener('pointermove', (e) => {
-    if (!actB()) return; if (e.target === cv) { if (e.pointerType === 'touch') { if (G.actTouch) G.actTouch = [e.offsetX, e.offsetY]; } else { G.mouseXY = [e.offsetX, e.offsetY]; G.vcur = G.mouseXY; G.vcurOn = false; G.padUsed = false; } e.stopPropagation(); }
+    if (!actB()) return;
+    if (ML() && document.pointerLockElement === cv) { const c = R.acam; c.yaw = (c.yaw || 0) + e.movementX * 0.0025; c.pitch = Math.max(-0.5, Math.min(1.2, (c.pitch || 0) + e.movementY * 0.0022)); e.stopPropagation(); return; }
+    if (e.target === cv) { if (e.pointerType === 'touch') { if (G.actTouch) G.actTouch = [e.offsetX, e.offsetY]; } else { G.mouseXY = [e.offsetX, e.offsetY]; G.vcur = G.mouseXY; G.vcurOn = false; G.padUsed = false; } e.stopPropagation(); }
   }, true);
   const actUp = (e) => {
     if (!actB()) return; G.actAtk = false; G.actTouch = null; if (e.target === cv) e.stopPropagation();
+    if (ML() && e.pointerType !== 'touch') { if (e.button === 2) G.actBlk = false; G.actRD = null; return; }
     const D = G.actRD; G.actRD = null;
     if (D && e.button === 2) { const [x, y] = R.actToWorld(D[0], D[1]), [x2, y2] = R.actToWorld(e.offsetX, e.offsetY), dr = Math.hypot(e.offsetX - D[0], e.offsetY - D[1]) > 14;
       if (G.selUnit == null) { toast('先に部隊を選んでください', 1000); return; } const unit = G.selUnit; moveFace(unit, x, y, dr ? Math.atan2(y2 - y, x2 - x) : null); toast(dr ? 'そこへ向かわせ、その方向を向かせます' : 'そこへ向かわせます', 800); }
@@ -1112,6 +1141,17 @@
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT') { if (e.key === 'Enter' && G.mode === 'title' && e.target.id === 'codeInput') $('btnJoinGo').click(); if (e.key === 'Enter' && e.target.id === 'fcInput') $('btnFcAdd').click(); return; }
     const k = e.key;
+    if (actB() && !activeMenuNotBattle() && k.toLowerCase() === 't') { const on = R.act3d && R.act3d.toggle(); if (!on && document.pointerLockElement) document.exitPointerLock(); toast(on ? '3D表示にしました' : '2D表示にしました', 1000); return; }
+    if (ML() && !activeMenuNotBattle()) { // 0.63.0 マウント＆ブレイド2風：0〜9で隊を選び、F1・F2…で指図
+      const kl = k.toLowerCase(), fm = /^F([1-9])$/.exec(k);
+      if (fm) { e.preventDefault(); const n = +fm[1]; if (!R.ordMenu) { if (n === 1) ordMenu('move'); else if (n === 2) ordMenu('face'); else toast('隊形などの指図はまだありません', 1000); } else if (R.ordMenu === 'root') { if (n === 1) ordMenu('move'); else if (n === 2) ordMenu('face'); } else { const o = ORDK[R.ordMenu][n - 1]; if (o) ord3(o); } return; }
+      if ('wasd'.includes(kl) && kl.length === 1) { keys.add(kl); G.padUsed = false; return; }
+      if (k === ' ') { e.preventDefault(); G.actDash = true; return; }
+      if (/^[0-9]$/.test(k)) { sel3(+k); if (!R.ordMenu) ordMenu('root'); return; }
+      if (k === 'Escape' || k === 'Backspace') { if (R.ordMenu) { ordMenu(null); return; } if (k === 'Escape') { toggleMenu(true); return; } }
+      if (k === 'Tab') { e.preventDefault(); actSel(1); return; }
+      return;
+    }
     if (actB() && !activeMenuNotBattle()) {
       const kl = k.toLowerCase(), o = { z: 'charge', x: 'hold', c: 'retreat', v: 'flank', f: 'follow' }[kl];
       if ('wasd'.includes(kl) && kl.length === 1) { keys.add(kl); G.padUsed = false; return; }
@@ -1213,7 +1253,14 @@
         if (down(14) || down(15)) { const i = bb.indexOf(G.bpick), d = down(15) ? 1 : -1, j = i + d; G.bpick = j >= 0 && j < bb.length && i !== -1 ? bb[j] : i === -1 ? bb[d > 0 ? 0 : bb.length - 1] : null; setFocus($('battle'), G.bpick || null); }
         if (G.bpick && !bb.includes(G.bpick)) G.bpick = null;
         if (down(0) && G.bpick) { const b = G.bpick; G.bpick = null; setFocus($('battle'), null); b.click(); }
-        else if (actB()) { // 0.56.0 アクション戦闘：左スティック移動・右スティック狙い・RT/A攻撃・Bかわす・LB/RB隊を選ぶ・X突撃・Y随行・十字↑待機↓後退
+        else if (ML()) { // 0.63.0 3D：左スティック移動（視点の向き基準）・右スティック視点・RT攻撃・LT防御・A回避・Bそこへ移動・LB/RB隊・X突撃・Y随行・十字↑停止↓退却
+          G.padMv = [lx, ly]; G.padAim = null; G.padUsed = true; G.vcurOn = false;
+          const c = R.acam; c.yaw = (c.yaw || 0) + rx * 2.6 * dt; c.pitch = Math.max(-0.5, Math.min(1.2, (c.pitch || 0) + ry * 1.6 * dt));
+          G.padAtk = btn(7); G.padBlk = btn(6); if (down(0)) G.actDash = true; if (down(1)) ord3('move');
+          if (down(4)) actSel(-1); if (down(5)) actSel(1);
+          if (down(2)) ord3('charge'); if (down(3)) ord3('follow'); if (down(12)) ord3('hold'); if (down(13)) ord3('retreat');
+          if (btn(10)) bZoom(1 - dt * 1.5); if (btn(11)) bZoom(1 + dt * 1.5);
+        } else if (actB()) { // 0.56.0 アクション戦闘：左スティック移動・右スティック狙い・RT/A攻撃・Bかわす・LB/RB隊を選ぶ・X突撃・Y随行・十字↑待機↓後退
           // 0.61.0 右スティックはマウスのようにカーソルを動かす（狙いもカーソルの方）。Aでカーソルの隊を選ぶ、LTでそこへ動かす（押したまま動かすと向き）
           G.padMv = [lx, ly]; G.padAim = null; G.padUsed = false;
           const W0 = cv.clientWidth, H0 = cv.clientHeight; if (!G.vcur) G.vcur = [W0 / 2 + 80, H0 / 2];
@@ -1294,6 +1341,7 @@
     const h = AB.act.s.find((s) => s.pc === G.myPid), pm = G.padMv || [0, 0];
     const inp = { mx: pm[0] + (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0), my: pm[1] + (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0), atk: !!(G.actAtk || G.padAtk), dash: !!G.actDash, aim: null };
     G.actDash = false;
+    if (ML()) { const y = R.acam.yaw || 0, f = -inp.my, r = inp.mx; inp.mx = Math.cos(y) * f - Math.sin(y) * r; inp.my = Math.sin(y) * f + Math.cos(y) * r; inp.aim = y; inp.blk = !!(G.actBlk || G.padBlk); return inp; }
     if (h && G.actTouch) { const [x, y] = R.actToWorld(G.actTouch[0], G.actTouch[1]), d = Math.hypot(x - h.x, y - h.y); inp.aim = Math.atan2(y - h.y, x - h.x); if (d > 3.5) { inp.mx = (x - h.x) / d; inp.my = (y - h.y) / d; } inp.atk = d < 6; }
     else if (G.padAim != null) inp.aim = G.padAim;
     else if (h && G.mouseXY && !G.padUsed) { const [x, y] = R.actToWorld(G.mouseXY[0], G.mouseXY[1]); inp.aim = Math.atan2(y - h.y, x - h.x); }
@@ -1341,15 +1389,18 @@
         }
         if (G.bcur) { R.bcam.x += (G.bcur[0] - R.bcam.x) * Math.min(1, k * 0.5); R.bcam.y += (G.bcur[1] - R.bcam.y) * Math.min(1, k * 0.5); }
         const AB = actB();
+        if (!AB) { R.act3dOn = false; if (R.ordMenu) ordMenu(null); }
+        if (AB && G.yawFor !== AB.id) { G.yawFor = AB.id; const h0 = AB.act.s.find((s) => s.pc === G.myPid); R.acam.yaw = h0 && h0.side === 'B' ? Math.PI : 0; R.acam.pitch = 0.28; R.acam.z = 9; G.actBlk = false; }
+        if (document.pointerLockElement === cv && (!ML() || !$('gameMenu').classList.contains('hidden'))) document.exitPointerLock();
         if (AB) {
           const menuOpen = !$('gameMenu').classList.contains('hidden'), inp = menuOpen ? { mx: 0, my: 0, atk: false, dash: false, aim: null } : actInput(AB);
           if (G.mode === 'host') { AB.act.inp[G.myPid] = inp; if (inp.dash) AB.act.dq[G.myPid] = true; if (!(menuOpen && soloHost())) SIM.actStep(G.world, AB, dt); }
           else { // 0.62.0 参加者：入力をホストへ送り（かわすはすぐ）、自分の本人は手もとで先に動かす
-            G.actSendAcc = (G.actSendAcc || 0) + dt; const key = `${inp.mx.toFixed(2)},${inp.my.toFixed(2)},${inp.aim == null ? '' : inp.aim.toFixed(2)},${inp.atk}`;
+            G.actSendAcc = (G.actSendAcc || 0) + dt; const key = `${inp.mx.toFixed(2)},${inp.my.toFixed(2)},${inp.aim == null ? '' : inp.aim.toFixed(2)},${inp.atk},${inp.blk}`;
             if (inp.dash || (key !== G.actLastKey && G.actSendAcc > 0.05) || G.actSendAcc > 0.5) { G.actSendAcc = 0; G.actLastKey = key; command(Object.assign({ type: 'actIn' }, inp)); }
             SIM.actSmooth(AB, dt, G.myPid, inp);
           }
-          R.actCur = G.vcurOn && G.vcur ? { p: G.vcur, d: G.padRD } : null; R.drawAction(ctx, AB, G.myPid, G.selUnit, dt); renderBattle(BT);
+          R.actCur = G.vcurOn && G.vcur ? { p: G.vcur, d: G.padRD } : null; R.drawAction(ctx, AB, G.myPid, G.selUnit, dt, BT.ter); renderBattle(BT);
         } else { R.drawBattle(ctx, BT, G.disp, G.myPid, G.selUnit); renderBattle(BT); }
         if (G.bcur && !AB) { const L = R.battleLayout(SIM.FIELD); drawCross(L.ox + G.bcur[0] * L.sc, L.oy + G.bcur[1] * L.sc, '#f2c14e'); }
         { // 0.59.0 向きを決める矢印

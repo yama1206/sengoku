@@ -60,6 +60,7 @@
 
   function damage(b, A, t, d, from) {
     if (!live(t) || (t.hero && t.dash > 0)) return;
+    if (t.hero && t.blk && from && angDiff(t.f || 0, ang(t, from)) < 1.3) { d *= 0.15; t.bk = 0.15; } // 0.63.0 防御（正面からの攻撃を大きく減らす）
     const u = A.byG[t.g];
     if (u && u.order === 'rout') d *= 1.3;
     if (from) { const dir = angDiff(t.f || 0, ang(t, from)); if (dir > Math.PI * 2 / 3) d *= 1.5; else if (dir > Math.PI / 3) d *= 1.2; if (u && !t.hero && dir > Math.PI / 3) u.mor -= 0.4; }
@@ -112,14 +113,14 @@
       const inp = A.inp[hero.pc] || {}; inp.dash = inp.dash || A.dq[hero.pc]; A.dq[hero.pc] = false;
       const W = ACT.WEP[SIM.heroKind ? SIM.heroKind(w.players[hero.pc]) || 'tachi' : 'tachi'] || ACT.WEP.tachi;
       hero.wep = W; if (hero.pc === A.pid) A.wep = W;
-      hero.cd -= dt; hero.dcd -= dt; hero.dash -= dt;
+      hero.cd -= dt; hero.dcd -= dt; hero.dash -= dt; hero.blk = !!inp.blk && hero.dash <= 0;
       let mx = inp.mx || 0, my = inp.my || 0; const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }
       if (inp.dash && hero.dcd <= 0 && (mx || my)) { hero.dash = ACT.DASH.t; hero.dcd = ACT.DASH.cd; hero.dx = mx; hero.dy = my; }
-      const sp = TR.hero.spd * ACT.SPD * 1.1;
+      const sp = TR.hero.spd * ACT.SPD * 1.1 * (hero.blk ? 0.5 : 1);
       if (hero.dash > 0) { hero.x += hero.dx * sp * ACT.DASH.mul * dt; hero.y += hero.dy * sp * ACT.DASH.mul * dt; }
       else { hero.x += mx * sp * dt; hero.y += my * sp * dt; }
       if (inp.aim != null) hero.f = inp.aim; else if (mx || my) hero.f = Math.atan2(my, mx);
-      if (inp.atk && hero.cd <= 0) {
+      if (inp.atk && !hero.blk && hero.cd <= 0) {
         const pa = A.byG[hero.g], am = (pa && pa.am) || 1, base = TR.hero.atk * am;
         hero.cd = W.cd;
         if (W.shot) { A.pr.push({ x: hero.x, y: hero.y, vx: Math.cos(hero.f) * W.spd, vy: Math.sin(hero.f) * W.spd, side: hero.side, dmg: base * W.dmg * 0.5, life: W.shot / W.spd, gun: W.spd > 100, src: hero }); sfx(hero, W.spd > 100 ? 'gun' : 'bow'); }
@@ -225,7 +226,7 @@
     actIn(w, p, c) {
       const b = w.battles[p.battle], A = b && b.act; if (!A) return;
       const n = (v) => (Number.isFinite(+v) ? Math.max(-1, Math.min(1, +v)) : 0);
-      A.inp[p.id] = { mx: n(c.mx), my: n(c.my), aim: Number.isFinite(+c.aim) && c.aim != null ? +c.aim : null, atk: !!c.atk };
+      A.inp[p.id] = { mx: n(c.mx), my: n(c.my), aim: Number.isFinite(+c.aim) && c.aim != null ? +c.aim : null, atk: !!c.atk, blk: !!c.blk };
       if (c.dash) A.dq[p.id] = true;
     },
   });
@@ -235,7 +236,7 @@
     const A = b.act, L = A.s.filter(live), o = { id: b.id, s: [], pr: [], dc: A.dc, dead: A.dead.slice(-40).map((d) => [q10(d.x), q10(d.y), d.side === 'A' ? 0 : 1]) };
     for (const s of L) o.s.push(s.id, q10(s.x), q10(s.y), Math.round((s.f || 0) * 100), Math.round((s.hp / s.mh) * 100), s.fl ? 1 : 0);
     for (const p of A.pr) o.pr.push(q10(p.x), q10(p.y), Math.round(p.vx), Math.round(p.vy), p.gun ? 1 : 0);
-    o.h = A.s.filter((s) => s.pc && live(s)).map((s) => [s.id, s.sw ? [Math.round(s.sw.t * 100), Math.round(s.sw.a * 100), Math.round(s.sw.arc * 100), q10(s.sw.r)] : null, s.wep ? s.wep.name : '']);
+    o.h = A.s.filter((s) => s.pc && live(s)).map((s) => [s.id, s.sw ? [Math.round(s.sw.t * 100), Math.round(s.sw.a * 100), Math.round(s.sw.arc * 100), q10(s.sw.r)] : null, s.wep ? s.wep.name : '', s.blk ? 1 : 0]);
     o.u = b.units.filter((u) => u.hp > 0 && !u.gone).map((u) => [u.id, u.side, u.owner || u.cmd || null, u.type, u.n, u.order, u.idx || 0, u.gname || '']);
     if (full) o.st = A.s.filter(live).map((s) => [s.id, s.side === 'A' ? 0 : 1, s.g, s.type || '', s.hero ? 1 : 0, s.pc || 0]);
     return o;
@@ -257,7 +258,7 @@
     A.s = list; A.pr = [];
     for (let i = 0; i < o.pr.length; i += 5) A.pr.push({ x: o.pr[i] / 10, y: o.pr[i + 1] / 10, vx: o.pr[i + 2], vy: o.pr[i + 3], gun: !!o.pr[i + 4] });
     const nd = o.dc - A.dc; if (nd > 0) { for (const [x, y, sd] of o.dead.slice(-Math.min(nd, o.dead.length))) A.dead.push({ x: x / 10, y: y / 10, side: sd ? 'B' : 'A' }); if (A.dead.length > 500) A.dead.splice(0, A.dead.length - 500); } A.dc = o.dc;
-    for (const [id, sw, wn] of o.h) { const s = V.byId[id]; if (!s) continue; s.wep = { name: wn }; const was = s.sw; s.sw = sw ? { t: sw[0] / 100, a: sw[1] / 100, arc: sw[2] / 100, r: sw[3] / 10 } : null; if (sw && !was && s.pc === SIM.localPid) SGK.AUDIO.sfx('slash'); }
+    for (const [id, sw, wn, bl] of o.h) { const s = V.byId[id]; if (!s) continue; s.wep = { name: wn }; s.blk = !!bl; const was = s.sw; s.sw = sw ? { t: sw[0] / 100, a: sw[1] / 100, arc: sw[2] / 100, r: sw[3] / 10 } : null; if (sw && !was && s.pc === SIM.localPid) SGK.AUDIO.sfx('slash'); }
     V.units = o.u.map(([id, side, owner, type, n, order, idx, gname]) => ({ id, side, owner, type, n, order, idx, gname: gname || undefined, hp: n > 0 ? 1 : 0, gone: false }));
     A.byG = {}; for (const u of V.units) A.byG[u.id] = u;
     return V;
@@ -279,11 +280,14 @@
   // ---- 描画 ----
   const cam = R.acam = { x: 350, y: 230, z: 9 };
   let W = 0, H = 0;
-  R.actToWorld = (sx, sy) => [(sx - W / 2) / cam.z + cam.x, (sy - H / 2) / cam.z + cam.y];
-  R.drawAction = function (ctx, b, myPid, sel, dt) {
+  R.actToWorld = (sx, sy) => (R.act3dOn ? R.act3d.toWorld(sx, sy) : [(sx - W / 2) / cam.z + cam.x, (sy - H / 2) / cam.z + cam.y]);
+  R.drawAction = function (ctx, b, myPid, sel, dt, ter) {
     const A = b.act, cv = ctx.canvas, d = window.devicePixelRatio || 1; W = cv.width / d; H = cv.height / d;
     const hero = A.s.find((s) => s.pc === myPid);
-    if (hero) { const k = Math.min(1, dt * 6); cam.x += (hero.x - cam.x) * k; cam.y += (hero.y - cam.y) * k; }
+    if (hero) { const k = Math.min(1, dt * 6); cam.x += (hero.x - cam.x) * k; cam.y += (hero.y - cam.y) * k; cam.hx = hero.x; cam.hy = hero.y; }
+    // 0.63.0 3D表示（three.js）。使えないときはこれまでの2D
+    R.act3dOn = !!(R.act3d && R.act3d.draw(b, myPid, sel, dt, ter || b.ter, cam, W, H));
+    if (R.act3dOn) return draw3dOverlay(ctx, A, b, hero, myPid, sel);
     const z = cam.z, S = (x, y) => [(x - cam.x) * z + W / 2, (y - cam.y) * z + H / 2];
     ctx.fillStyle = '#6f7d4a'; ctx.fillRect(0, 0, W, H);
     const [fx0, fy0] = S(0, 0), [fx1, fy1] = S(SIM.FIELD.w, SIM.FIELD.h);
@@ -352,4 +356,49 @@
       ctx.fillText('指図：Z突撃 X待機 C後退 V回り込み F随行（X突撃 Y随行 十字↑待機 ↓後退）', hx + 6, hy + 64);
     } else ctx.fillText('隊を選ぶと、移動や指図ができます', hx + 6, hy + 48);
   };
+
+  // ---- 0.63.0 3D表示のときに画面へ重ねるもの（マウント＆ブレイド2風） ----
+  const ON3 = { charge: '突撃', hold: '停止', retreat: '退却', flank: '回り込み', move: '移動', rout: '潰走', follow: '随行' };
+  function draw3dOverlay(ctx, A, b, hero, myPid, sel) {
+    const X = R.act3d, S = X.S;
+    ctx.clearRect(0, 0, W, H);
+    // 隊の旗（名前・人数・指図）
+    const cen = {};
+    for (const s of A.s) if (live(s) && !s.hero) { const q = cen[s.g] || (cen[s.g] = { x: 0, y: 0, n: 0 }); q.x += s.x; q.y += s.y; q.n++; }
+    ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+    for (const id in cen) {
+      const u = A.byG[id], q = cen[id]; if (!u) continue;
+      const [a, c] = S(q.x / q.n, q.y / q.n, 4.5); if (a < -50 || a > W + 50 || c < -20 || c > H + 20) continue;
+      const own = u.owner === myPid || u.cmd === myPid, t = `${own && u.idx ? u.idx - 1 + ' ' : ''}${u.gname ? u.gname + '隊・' : ''}${TR[u.type].short || TR[u.type].name} ${u.n}${own || u.side === 'A' ? '［' + (ON3[u.order] || '') + '］' : ''}`;
+      ctx.fillStyle = 'rgba(0,0,0,.55)'; const tw = ctx.measureText(t).width + 8; ctx.fillRect(a - tw / 2, c - 9, tw, 15);
+      ctx.fillStyle = u.side === 'B' ? '#ffb4a8' : own && (u.id === sel || sel === 'all') ? '#ffe680' : '#dfe9f5'; ctx.fillText(t, a, c + 2);
+    }
+    // 仲間の本人の名前
+    for (const s of A.s) if (s.pc && s.pc !== myPid && live(s)) { const [a, c] = S(s.x, s.y, 3); ctx.fillStyle = '#ffcf8a'; ctx.fillText('仲間', a, c); }
+    // 照準（画面の真ん中）
+    const cx = W / 2, cy = H / 2; ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(cx - 9, cy); ctx.lineTo(cx - 3, cy); ctx.moveTo(cx + 3, cy); ctx.lineTo(cx + 9, cy); ctx.moveTo(cx, cy - 9); ctx.lineTo(cx, cy - 3); ctx.moveTo(cx, cy + 3); ctx.lineTo(cx, cy + 9); ctx.stroke();
+    // 指図メニューを開いているとき：照準の先の地面に旗印
+    const OM = R.ordMenu;
+    if (OM) { const [gx, gy] = X.toWorld(cx, cy), [a, c] = S(gx, gy, 0), [, c2] = S(gx, gy, 3); ctx.strokeStyle = '#ffe070'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a, c); ctx.lineTo(a, c2); ctx.stroke(); ctx.fillStyle = '#ffe070'; ctx.fillRect(a, c2, 14, 9); ctx.beginPath(); ctx.ellipse(a, c, 10, 4, 0, 0, 7); ctx.stroke(); }
+    // 体力（左下）
+    if (hero) { const fr = Math.max(0, hero.hp / hero.mh); ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(16, H - 34, 204, 16); ctx.fillStyle = fr > 0.5 ? '#6c3' : fr > 0.25 ? '#ec3' : '#e33'; ctx.fillRect(18, H - 32, 200 * fr, 12); ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(`${hero.wep ? hero.wep.name : ''}${hero.blk ? '　防御中' : ''}`, 18, H - 40); }
+    // 選んでいる隊（下の真ん中）
+    const mine = b.units.filter((u) => u.idx && (u.owner === myPid || u.cmd === myPid) && u.hp > 0 && !u.gone).sort((p, q) => p.idx - q.idx);
+    ctx.textAlign = 'center'; ctx.font = '13px sans-serif';
+    const items = [['0 全軍', sel === 'all' || sel == null], ...mine.map((u) => [`${u.idx - 1} ${TR[u.type].short || TR[u.type].name}${u.n}`, sel === u.id || sel === 'all' || sel == null])];
+    let x0 = W / 2 - items.length * 42;
+    for (const [t, on] of items) { ctx.fillStyle = on ? 'rgba(90,70,20,.85)' : 'rgba(0,0,0,.55)'; ctx.fillRect(x0, H - 30, 80, 22); ctx.fillStyle = on ? '#ffe680' : '#ccc'; ctx.fillText(t, x0 + 40, H - 14); x0 += 84; }
+    // 指図メニュー
+    if (OM) {
+      const L = R.ordItems || []; ctx.textAlign = 'left'; const bw = 132, x1 = W / 2 - (L.length * (bw + 4)) / 2, y1 = H - 70;
+      L.forEach(([k, t], i) => { ctx.fillStyle = 'rgba(20,16,10,.85)'; ctx.fillRect(x1 + i * (bw + 4), y1, bw, 30); ctx.fillStyle = '#ffe070'; ctx.fillText(k, x1 + i * (bw + 4) + 6, y1 + 19); ctx.fillStyle = '#f4ead0'; ctx.fillText(t, x1 + i * (bw + 4) + 30, y1 + 19); });
+    }
+    // 操作の案内
+    ctx.textAlign = 'left'; ctx.font = '12px sans-serif'; const lk = document.pointerLockElement;
+    const lines = lk ? ['WASD 移動　マウス 視点　左クリック 攻撃　右クリック 防御　Space 回避', '0〜9 隊を選ぶ　F1 移動の指図　F2 向きの指図　ホイール 寄る・引く　Esc マウスを離す　T 2D表示']
+      : ['画面をクリックするとマウスで視点を動かせます（Esc で離す）', 'コントローラー：左スティック移動 右スティック視点 RT攻撃 LT防御 A回避 LB/RB隊 X突撃 Y随行 十字→そこへ ↑停止 ↓退却 ←敵を向く'];
+    const tw2 = Math.max(...lines.map((t) => ctx.measureText(t).width)) + 12; ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(W - tw2 - 8, 8, tw2, 40); ctx.fillStyle = '#f4ead0';
+    lines.forEach((t, i) => ctx.fillText(t, W - tw2 - 2, 24 + i * 16));
+  }
 })();
