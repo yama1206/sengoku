@@ -427,7 +427,7 @@
 
   // ---- 1日ごと：兵の補充・給金・野盗の出現 ----
   function daily(w) {
-    for (const s of w.settlements) for (const k in POOL[s.type]) { const [add, cap] = POOL[s.type][k]; s.pool[k] = Math.min(cap, (s.pool[k] || 0) + add); }
+    for (const s of w.settlements) for (const k in POOL[s.type]) { const [add, cap] = POOL[s.type][k], m = SIM.poolMul ? SIM.poolMul(s) : 1; s.pool[k] = Math.min(Math.round(cap * m), (s.pool[k] || 0) + add * m); } // 0.41.0 投資で補充が早く・多く
     for (const p of Object.values(w.players)) {
       const wage = SIM.wage(p.troops, p); if (!wage) continue;
       if (p.money >= wage) { p.money -= wage; continue; }
