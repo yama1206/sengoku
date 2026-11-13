@@ -353,6 +353,7 @@
     const now = performance.now(); const dt = Math.min(5, (now - lastTick) / 1000); lastTick = now;
     G.inBattle = Object.keys(G.world.battles || {}).length > 0; // 0.32.0 誰かが戦闘中は時間を等倍に
     G.effSpeed = G.inBattle && G.speed > 1 ? 1 : G.speed;
+    { const on = new Set([G.myPid, ...(G.net ? G.net.pids() : [])]); for (const id in G.world.players) G.world.players[id].off = !on.has(id); } // 0.61.1 いま接続していない人（前のマルチプレイの参加者）は地図に出さない
     SIM.step(G.world, dt * CFG.MIN_PER_SEC * G.effSpeed);
     { // 0.54.5 1人のとき：拠点に着いたら時間を止め、次に動き出すと元の速さに戻す
       const m = G.world.players[G.myPid], at = m && m.at, solo = !G.net || !G.net.pids().length;
