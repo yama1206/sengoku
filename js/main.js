@@ -469,11 +469,13 @@
     const M = G.priv && G.priv.me; let ptr = '';
     if (M) {
       const offs = (M.offIn || []).filter((o) => o.from === u.id);
-      for (const o of offs) { const it = SGK.DATA.items[o.item]; ptr += `<div class="trade"><b>申し出</b>：${it.name}${o.qty}${it.unit}を${SIM.money(o.price)}で<br><button id="po-ok-${o.id}" data-tr="ok" data-oid="${o.id}" ${M.money < o.price ? 'disabled' : ''}>買う</button><button id="po-ng-${o.id}" data-tr="ng" data-oid="${o.id}">断る</button></div>`; }
+      for (const o of offs) { const it = o.tk ? { name: SIM.TROOPS[o.tk].name, unit: '人' } : SGK.DATA.items[o.item]; ptr += `<div class="trade"><b>申し出</b>：${it.name}${o.qty}${it.unit}を${SIM.money(o.price)}で<br><button id="po-ok-${o.id}" data-tr="ok" data-oid="${o.id}" ${M.money < o.price ? 'disabled' : ''}>買う</button><button id="po-ng-${o.id}" data-tr="ng" data-oid="${o.id}">断る</button></div>`; }
       if (Number(km) <= 1.5) {
         ptr += `<div class="trade"><span class="muted">渡す</span><br><button id="pg-m1" data-tr="pm" data-qty="1000" ${M.money >= 1000 ? '' : 'disabled'}>1貫</button><button id="pg-m10" data-tr="pm" data-qty="10000" ${M.money >= 10000 ? '' : 'disabled'}>10貫</button></div>`;
         const trs = Object.entries(M.troops || {}).filter(([k, n]) => k !== 'hero' && n > 0);
-        if (trs.length) ptr += `<div class="trade"><span class="muted">兵を預ける（相手の率いる人数に空きが要ります）</span>` + trs.map(([k, n]) => `<br>${SIM.TROOPS[k].name} ${n}人　` + [1, 5, 10].filter((q) => q < n).map((q) => `<button id="pt-${k}-${q}" data-tr="pt" data-kind="${k}" data-qty="${q}">${q}人</button>`).join('') + `<button id="pt-${k}-a" data-tr="pt" data-kind="${k}" data-qty="${n}">全員</button>`).join('') + '</div>';
+        if (trs.length) ptr += `<div class="trade"><span class="muted">兵を預ける・売りに出す（雇うときの値段／2割引き。相手の率いる人数に空きが要ります）</span>` + trs.map(([k, n]) => `<br>${SIM.TROOPS[k].name} ${n}人　` + [1, 5, 10].filter((q) => q < n).map((q) => `<button id="pt-${k}-${q}" data-tr="pt" data-kind="${k}" data-qty="${q}">${q}人</button>`).join('') + `<button id="pt-${k}-a" data-tr="pt" data-kind="${k}" data-qty="${n}">全員</button>`
+          + `<br>　売りに出す：` + [...new Set([Math.min(5, n), n])].map((q) => `<button id="pq-${k}-${q}" data-tr="ps" data-tk="${k}" data-qty="${q}" data-mul="1">${q === n ? '全員' : q + '人'}を${SIM.money(SIM.TROOPS[k].cost * q)}</button>`).join('')
+          + `<button id="pq-${k}-d" data-tr="ps" data-tk="${k}" data-qty="${n}" data-mul="0.8">全員を${SIM.money(Math.round(SIM.TROOPS[k].cost * n * 0.8 / 10) * 10)}</button>`).join('') + '</div>';
         const inv = Object.entries(M.inv || {}).filter(([, n]) => n > 0);
         if (inv.length) ptr += `<div class="trade"><span class="muted">荷（渡す／相場で売りに出す／2割引きで売りに出す）${(M.offOut || []).includes(u.id) ? '　申し出中' : ''}</span>` + inv.map(([k, n]) => { const it = SGK.DATA.items[k], q = Math.min(n, 10); return `<br>${it.name}${n}${it.unit}　<button id="pi-${k}" data-tr="pi" data-item="${k}" data-qty="${q}">${q}渡す</button><button id="ps-${k}" data-tr="ps" data-item="${k}" data-qty="${q}" data-mul="1">${q}を${SIM.money(it.base * q)}</button><button id="pd-${k}" data-tr="ps" data-item="${k}" data-qty="${q}" data-mul="0.8">${q}を${SIM.money(Math.round(it.base * q * 0.8 / 10) * 10)}</button>`; }).join('') + '</div>';
       } else ptr += '<br><span class="muted">1.5km以内まで近づくと取引できます</span>';
@@ -503,7 +505,7 @@
     else if (d.tr === 'pm') command({ type: 'pGive', to: id, what: 'money', qty: +d.qty });
     else if (d.tr === 'pt') command({ type: 'pGive', to: id, what: 'troop', kind: d.kind, qty: +d.qty });
     else if (d.tr === 'pi') command({ type: 'pGive', to: id, what: 'item', item: d.item, qty: +d.qty });
-    else if (d.tr === 'ps') command({ type: 'pOffer', to: id, item: d.item, qty: +d.qty, mul: +d.mul });
+    else if (d.tr === 'ps') command({ type: 'pOffer', to: id, item: d.item, tk: d.tk, qty: +d.qty, mul: +d.mul });
     G.infoHtml = '';
   });
 

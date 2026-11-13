@@ -79,17 +79,30 @@
     }
   };
   SIM.commands.pOffer = (w, p, c) => {
-    const q = near(w, p, c); if (!q) return; const k = c.item, it = I()[k]; if (!it) return;
-    const n = Math.min(p.inv[k] || 0, +c.qty || 0); if (n <= 0) return SIM.say(p.id, `${it.name}を持っていません`);
+    const q = near(w, p, c); if (!q) return;
+    const tk = c.tk && SIM.TROOPS[c.tk] && c.tk !== 'hero' ? c.tk : null; // 0.54.2 兵も売りに出せる
+    const k = tk || c.item, it = tk ? { name: SIM.TROOPS[tk].name, unit: '人', base: SIM.TROOPS[tk].cost } : I()[k]; if (!it) return;
+    const n = Math.min(tk ? p.troops[tk] || 0 : p.inv[k] || 0, +c.qty || 0); if (n <= 0) return SIM.say(p.id, `${it.name}を持っていません`);
     const price = Math.max(0, Math.round((it.base * n * (+c.mul || 1)) / 10) * 10);
     w.offers = w.offers || {}; for (const [id, o] of Object.entries(w.offers)) if (o.from === p.id && o.to === q.id) delete w.offers[id]; // 同じ相手への申し出は1つだけ
-    const id = 'of' + w.nextId++; w.offers[id] = { id, from: p.id, to: q.id, item: k, qty: n, price, until: w.time.min + TH.offerMin };
+    const id = 'of' + w.nextId++; w.offers[id] = { id, from: p.id, to: q.id, item: tk ? null : k, tk, qty: n, price, until: w.time.min + TH.offerMin };
     SIM.say(p.id, `${q.name}に「${it.name}${n}${it.unit}を${SIM.money(price)}で」と申し出ました`);
     SIM.say(q.id, `${p.name}から申し出：${it.name}${n}${it.unit}を${SIM.money(price)}で売りたい（地図で${p.name}を選ぶと受けられます）`);
   };
   SIM.commands.pOfferAns = (w, p, c) => {
     const o = (w.offers || {})[c.id]; if (!o || o.to !== p.id) return; delete w.offers[c.id];
-    const a = w.players[o.from], it = I()[o.item]; if (!a) return;
+    const a = w.players[o.from]; if (!a) return;
+    if (o.tk) { // 兵の売り買い
+      const nm = SIM.TROOPS[o.tk].name;
+      if (!c.ok) { SIM.say(p.id, '申し出を断りました'); return SIM.say(a.id, `${p.name}は申し出を断りました`); }
+      if (dist(a, p) > TH.pKm * 2) return SIM.say(p.id, '相手が離れてしまいました');
+      if ((a.troops[o.tk] || 0) < o.qty) { SIM.say(p.id, `${a.name}の${nm}がもう足りません`); return SIM.say(a.id, `${nm}が足りず、取引できませんでした`); }
+      if (p.money < o.price) return SIM.say(p.id, 'お金が足りません');
+      if (SIM.troopCap(p) - SIM.troopCount(p.troops) < o.qty) return SIM.say(p.id, '率いる人数に空きがありません');
+      p.money -= o.price; a.money += o.price; a.troops[o.tk] -= o.qty; p.troops[o.tk] = (p.troops[o.tk] || 0) + o.qty;
+      SIM.say(p.id, `${a.name}から${nm}${o.qty}人を${SIM.money(o.price)}で引き取りました`); return SIM.say(a.id, `${p.name}が${nm}${o.qty}人を${SIM.money(o.price)}で引き取りました`);
+    }
+    const it = I()[o.item];
     if (!c.ok) { SIM.say(p.id, '申し出を断りました'); return SIM.say(a.id, `${p.name}は申し出を断りました`); }
     if (dist(a, p) > TH.pKm * 2) return SIM.say(p.id, '相手が離れてしまいました');
     if ((a.inv[o.item] || 0) < o.qty) { SIM.say(p.id, `${a.name}はもう${it.name}を持っていません`); return SIM.say(a.id, `${it.name}が足りず、取引できませんでした`); }
@@ -112,7 +125,7 @@
         rp: Math.floor(I().rice.base * TH.riceMul * good(p, id, n.faction) * (SIM.tradeMod ? SIM.tradeMod(p, 'sell') : 1)) };
     }
     r.me.tr = tr;
-    r.me.offIn = Object.values(w.offers || {}).filter((o) => o.to === pid).map((o) => ({ id: o.id, from: o.from, item: o.item, qty: o.qty, price: o.price }));
+    r.me.offIn = Object.values(w.offers || {}).filter((o) => o.to === pid).map((o) => ({ id: o.id, from: o.from, item: o.item, tk: o.tk, qty: o.qty, price: o.price }));
     r.me.offOut = Object.values(w.offers || {}).filter((o) => o.from === pid).map((o) => o.to);
     return r;
   };
