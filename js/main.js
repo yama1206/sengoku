@@ -795,6 +795,7 @@
     if (su && su[3] !== 'hero') html += `<div class="bu"><span class="nm">${su[15] ? '本人＋' : ''}${TR[su[3]].short || TR[su[3]].name} ${su[4]}人<span class="muted">［${ORDN[su[7]] || ''}］</span></span>${ob(su[0])}</div>`;
     else html += `<div class="bu"><span class="nm muted">隊をタップして選び、地面をタップで移動</span></div>`;
     html += `<div class="bu"><span class="nm">全軍</span>${ob('all')}</div>`;
+    if (bt.lead) html += `<div class="bu"><span class="nm">大将：${bt.lead === 2 ? '武将の隊も指図している' : '自分の隊だけ指図している'}</span><button id="bLead" data-lead="${bt.lead === 2 ? 0 : 1}">${bt.lead === 2 ? '自分の隊だけにする' : '武将の隊も指図する'}</button></div>`; // 0.50.0
     html += `<div class="row" style="margin-top:4px"><button id="bAuto" data-bact="battleAuto">自動で決着（スキップ）</button><button id="bFlee" data-bact="battleFlee">退却する（兵の3割を失う${bt.foe === '野盗' ? '・所持金の15%を奪われる' : ''}）</button></div>`;
     if (html !== battleHtml) { battleHtml = html; $('battleBody').innerHTML = html; G.bpick = null; setFocus($('battle'), null); }
   }
@@ -803,6 +804,7 @@
     if (b.dataset.sel) { G.selUnit = +b.dataset.sel; battleHtml = ''; }
     else if (b.dataset.order) command({ type: 'order', unit: b.dataset.unit, order: b.dataset.order });
     else if (b.dataset.bact) command({ type: b.dataset.bact });
+    else if (b.dataset.lead) command({ type: 'leadAll', on: b.dataset.lead === '1' });
   });
 
   // ---------- 捕らえた武将（0.35.0：逃がすか斬るかを選ぶ） ----------

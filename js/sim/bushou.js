@@ -176,9 +176,9 @@
   const M = SIM._mil, baseAdd = M.addUnits;
   M.addUnits = (w, b, side, owner, army) => {
     const k = b.units.length; baseAdd(w, b, side, owner, army);
-    if (side !== 'B' || owner) return;
-    let L = SIM.leadersOf(w, w.npcs[b.npc]);
-    if (!L.length && b.siege) { const s = SIM.settlement(w, b.siege); if (s && live(w, s.lord)) L = [SIM.genStats(w, w.people[s.lord], true)]; }
+    if (owner || (side !== 'B' && !(side === 'A' && b.allyArmy))) return;
+    let L = SIM.leadersOf(w, w.npcs[side === 'A' ? b.allyArmy : b.npc]); // 0.50.0 参陣した味方の軍勢も武将ごとに
+    if (!L.length && b.siege && side === 'B') { const s = SIM.settlement(w, b.siege); if (s && live(w, s.lord)) L = [SIM.genStats(w, w.people[s.lord], true)]; }
     if (!L.length) return;
     // 0.43.0 武将ごとに隊を分ける：兵種ごとの隊を武将の数で分け（1隊が10人未満にならない範囲）、その武将の武勇・統率だけを効かせる
     const add = b.units.splice(k), out = []; let rr = 0;

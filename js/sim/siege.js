@@ -145,6 +145,31 @@
     SIM.castleLayout(w, b, s, 'B'); // 0.37.0 平城・山城の攻城戦マップ
     s.gar = {};
   };
+  // 0.50.0 参陣した軍勢の総攻め：プレイヤーと軍勢の兵がいっしょに攻める
+  SIM._armyAssault = (w, n, s, ps) => {
+    const id = 'b' + w.nextId++, gar = Object.assign({}, s.gar);
+    const lead = ps.slice().sort((a, c) => (c.rank || 0) - (a.rank || 0))[0], isLead = lead && (lead.rank >= SIM.ARMY_LEAD_RANK || (w.factions[lead.clan] || {}).leader === lead.id);
+    const b = w.battles[id] = { id, npc: null, siege: s.id, war: 1, foe: `${s.name}の守備兵`, foeN: SIM.troopCount(gar), loot: 1500 + SIM.troopCount(gar) * 40,
+      pids: [], units: [], next: 1, t: 0, start: {}, routed: false, hd: {}, rd: {}, ter: M.genTerrain(w), lk: { A: null, B: { x: SIM.FIELD.ax, y: SIM.FIELD.h / 2 } }, visA: [],
+      ally: n.id, allyArmy: n.id, lead: isLead ? lead.id : null };
+    for (const q of ps) {
+      b.pids.push(q.id); q.battle = id; q.tx = q.ty = null; q.dest = null; q.at = null; q.busy = null; b.start[q.id] = Object.assign({}, q.troops);
+      SIM.addPlayerSide(w, b, q);
+      SIM.say(q.id, `${s.name}に総攻めをかけます！ 軍勢${n.size}人とともに、守備兵およそ${b.foeN}人を攻めます${b.lead === q.id ? '。あなたが大将です（武将の隊も指図するかは下のボタンで切り替え）' : '。武将の隊はそれぞれ攻めかかります'}`);
+    }
+    const k = b.units.length; M.addUnits(w, b, 'A', null, n.army);
+    for (const u of b.units.slice(k)) { u.ally = n.id; u.order = 'charge'; u.x -= 12; if (b.lead && w.players[b.lead].leadAll) { u.cmd = b.lead; u.order = 'hold'; } }
+    b.leadAll = !!(b.lead && w.players[b.lead].leadAll);
+    n.battle = id;
+    M.addUnits(w, b, 'B', null, gar);
+    const wall = Math.floor((s.dev && s.dev.wall) || 0), fb = SIM.factionBuff(w.factions, s.owner);
+    for (const u of b.units) if (u.side === 'B') {
+      u.order = 'hold'; u.da += 0.6 + wall * 0.15; u.mor = u.mo = 75 + wall * 2;
+      if (fb && fb.types.includes(u.type)) { u.am *= fb.am || 1; u.da += fb.da || 0; u.ra += fb.ra || 0; if (fb.hm) { u.hp *= fb.hm; u.mh *= fb.hm; } }
+    }
+    SIM.castleLayout(w, b, s, 'B');
+    s.gar = {};
+  };
   const baseEnd = SIM.onBattleEnd;
   SIM.onBattleEnd = (w, b, p, res, after) => {
     baseEnd(w, b, p, res, after);
@@ -318,6 +343,7 @@
       const days = Math.min(5, 2 + Math.floor((n + levy) / 80));
       w.musters.push({ att, src: src.id, tgt: tgt.id, army, gens, n: n + levy, at: w.time.min + days * 1440 });
       news(w, `${fName(w, att)}が${src.name}に兵を集めているそうです（${n + levy}人ほど。${fName(w, def)}の${tgt.name}を狙っているとか）`);
+      for (const q of Object.values(w.players)) if (q.clan === att) SIM.say(q.id, `【陣触れ】${src.name}に兵を集めています。${days}日のうちに${src.name}に入っておけば、${tgt.name}攻めに参陣できます`); // 0.50.0
     }
   }
   // 兵を集め終えたら出陣する。狙いの城がもう敵の城でなければ取りやめて兵を城に戻す
@@ -328,7 +354,9 @@
       const src = SIM.settlement(w, m.src), tgt = SIM.settlement(w, m.tgt);
       if (!src || src.owner !== m.att || !alive(w, m.att)) return false;
       if (!tgt || tgt.owner === m.att || !SIM.atWar(w, m.att, tgt.owner) || SIM.armyTo(w, tgt.id)) { const back = Object.assign({}, m.army); delete back.nohei; src.gar = garOf(SIM.garrison(src) + SIM.troopCount(back)); news(w, `${src.name}に集まっていた${fName(w, m.att)}の兵は解き放たれたそうです`); return false; }
-      SIM.launchArmy(w, { faction: m.att, from: src, to: tgt, army: m.army, gens: m.gens, mode: 'siege' });
+      const n = SIM.launchArmy(w, { faction: m.att, from: src, to: tgt, army: m.army, gens: m.gens, mode: 'siege' });
+      const js = Object.values(w.players).filter((q) => q.clan === m.att && !q.battle && !q.camp && (q.at === src.id || (q.tx == null && dist(q, src) < 2)));
+      if (js.length && SIM.joinArmy) SIM.joinArmy(w, n, js); // 0.50.0 城に来ていた家臣は参陣する
       return false;
     });
   }

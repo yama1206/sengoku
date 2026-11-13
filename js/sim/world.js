@@ -155,7 +155,7 @@
         if (p.follow) followStep(w, p);
         if (moveEntity(p, dt) && p.dest) { p.at = p.dest; p.dest = null; SIM.onPlayerArrive(w, p); continue; }
         // 歩いて（WASD・スティック）拠点の上で止まったときも「到着」とみなす
-        if (p.tx == null && !p.at && !p.battle && !p.follow) {
+        if (p.tx == null && !p.at && !p.battle && !p.follow && !p.camp) { // 0.50.0 参陣中は軍勢といっしょ
           const s = w.settlements.find((x) => Math.hypot(x.x - p.x, x.y - p.y) < 0.8);
           if (s) { p.x = s.x; p.y = s.y; p.at = s.id; SIM.onPlayerArrive(w, p); }
         }

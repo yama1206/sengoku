@@ -88,6 +88,7 @@
     news(w, `${armyName(w, n)}（${n.size}人）が${s.name}を包囲しました（${AR.siegeDays}日後に総攻め）`);
     for (const p of Object.values(w.players)) if (p.clan === s.owner) SIM.say(p.id, `【急報】${s.name}が包囲されました！ ${AR.siegeDays}日後に総攻めが来ます。城に入っていれば一緒に戦えます`);
     sendRelief(w, s.owner, s, { army: n.id });
+    for (const p of Object.values(w.players)) if (p.camp === n.id) SIM.say(p.id, `${s.name}を包囲しました。${AR.siegeDays}日後に総攻めです。軍勢のそばにいれば総攻めに加われます`);
   }
   function targetOf(w, n) {
     const t = n.target || {};
@@ -114,10 +115,39 @@
   function assault(w, n, s) { // 包囲が終わって総攻め
     const defs = n.noDef ? [] : Object.values(w.players).filter((p) => p.clan === s.owner && !p.battle && dist(p, s) <= AR.fightKm && (p.at === s.id || p.tx == null));
     if (defs.length) return defenseBattle(w, n, s, defs);
+    const mine = Object.values(w.players).filter((p) => p.camp === n.id && !p.battle && dist(p, s) < AR.liftKm); // 0.50.0 参陣している人がいればいっしょに戦う
+    if (mine.length && !n.solo) return SIM._armyAssault(w, n, s, mine);
     const r = SIM._campArrive(w, { to: s.id, att: n.faction, army: n.army });
     if (r === true || !r) { delete w.npcs[n.id]; return; }
     n.army = scale(n.army, r); n.size = SIM.troopCount(n.army); goHome(w, n);
   }
+
+  // ---- 0.50.0 参陣：味方の軍勢についていく ----
+  SIM.ARMY_LEAD_RANK = 5; // 部将以上なら大将を任される
+  SIM.joinArmy = (w, n, ps) => {
+    n.joined = ps.map((q) => q.id);
+    for (const q of ps) {
+      q.camp = n.id; q.at = null; q.tx = q.ty = null; q.dest = null; q.busy = null;
+      const lead = q.rank >= SIM.ARMY_LEAD_RANK || (w.factions[q.clan] || {}).leader === q.id;
+      SIM.say(q.id, `${armyName(w, n)}（${n.size}人）に参陣しました！ ${(SIM.settlement(w, n.to) || {}).name}へ向かいます${lead ? '。あなたが総攻めの大将です' : ''}（地図で行き先を選ぶと軍勢を離れます）`);
+    }
+  };
+  function campTick(w) {
+    for (const p of Object.values(w.players)) {
+      if (!p.camp || p.battle) continue;
+      const n = w.npcs[p.camp];
+      if (!n || n.kind !== 'army' || n.mode !== 'siege') { p.camp = null; SIM.say(p.id, '軍勢が引き上げたので、陣を離れました'); continue; }
+      if (p.tx != null) { p.camp = null; SIM.say(p.id, '軍勢を離れました'); continue; }
+      p.x = n.x - 0.2; p.y = n.y + 0.15; p.at = null;
+    }
+  }
+  SIM.commands.leadAll = (w, p, c) => { // 大将：武将の隊も指図するか
+    p.leadAll = !!c.on;
+    const b = p.battle && w.battles[p.battle]; if (!b || b.lead !== p.id) return SIM.say(p.id, p.leadAll ? '大将のときは武将の隊も指図します' : '大将のときも自分の隊だけ指図します');
+    b.leadAll = p.leadAll;
+    for (const u of b.units) if (u.ally === b.ally && u.owner == null && u.side === 'A') { u.cmd = p.leadAll ? p.id : null; if (!p.leadAll && u.order !== 'rout' && u.order !== 'retreat') u.order = 'charge'; }
+    SIM.say(p.id, p.leadAll ? '武将の隊もあなたが指図します' : '武将の隊はそれぞれ攻めかかります');
+  };
 
   // ---- 戦いを始める ----
   function newBattle(w, n, extra) {
@@ -166,6 +196,12 @@
   const baseEnd = SIM.onBattleEnd;
   SIM.onBattleEnd = (w, b, p, res, after) => {
     baseEnd(w, b, p, res, after);
+    if (b.allyArmy) { // 0.50.0 参陣した総攻めのあと
+      p.camp = null;
+      const n = w.npcs[b.allyArmy];
+      if (res !== 'win' && n && !b.gh) { b.gh = 1; n.battle = null; goHome(w, n); }
+      if (res === 'win' && b.lead === p.id && SIM.addMerit) SIM.addMerit(w, p, 60, '総攻めの大将を務めた');
+    }
     if (p.allies) allyBack(p, allyTally(b, p.id));
     if (b.siege && res === 'win') p.siege = null;
     if (!b.war || b.siege) return;
@@ -192,6 +228,12 @@
     const al = p.allies ? scale(allyTally(b, p.id), 0.7) : null;
     baseFlee(w, p, c);
     if (al) allyBack(p, al);
+    p.camp = null;
+    if (b.allyArmy && !w.battles[b.id]) { // 0.50.0 参陣した人がみな退いた：軍勢だけで攻め直す
+      const s = SIM.settlement(w, b.siege), n = w.npcs[b.allyArmy];
+      if (s) { const g = {}; for (const u of b.units) if (u.side === 'B' && u.hp > 0 && !u.gone) g[u.type] = (g[u.type] || 0) + u.n; s.gar = g; }
+      if (n) { n.solo = 1; n.until = w.time.min; }
+    }
     if (b.defend && !w.battles[b.id] && !b.sDone) { // 守る人が全員退いた：城兵だけで籠城を続ける
       b.sDone = 1;
       const s = SIM.settlement(w, b.defend), n = w.npcs[b.npc];
@@ -264,6 +306,7 @@
   // ---- 毎tick ----
   SIM.systems.push(function armyTick(w, dt) {
     const now = w.time.min;
+    campTick(w);
     for (const n of Object.values(w.npcs)) {
       if (n.kind !== 'army' || n.battle) continue;
       if (!w.factions[n.faction] || w.factions[n.faction].dead || !n.size) { delete w.npcs[n.id]; continue; }
