@@ -29,9 +29,22 @@
     take: 0.5,                          // 近くの城（3つまで）から出す守備兵の割合
     levyPer: 20, levyMax: 120,          // 陣触れ：持っている城1つにつき農兵20人（最大120）
     min: 30,                            // 0.44.0 これより少ない人数では攻めない
-    ratio: 2.0,                         // 相手の守り（守備兵×城の堅さ）の何倍の兵で攻めるか
-    reach: 60,                          // 攻める城までの距離（km）
-    rate: 0.08, weakRate: 0.6, weakFrac: 0.4, // 1週ごとに攻める見込み（ふつう／手薄な城）、手薄とみなす兵の割合
+        rate: 0.08, weakRate: 0.6, weakFrac: 0.4, // 1週ごとに攻める見込み（ふつう／手薄な城）、手薄とみなす兵の割合
+  };
+  // 0.45.0 大名の気性（好戦度 1慎重〜5好戦）。表にない家は3前後をくじで決める
+  const KOU = SIM.KOU = {
+    names: ['', '慎重', 'やや慎重', 'ふつう', 'やや好戦的', '好戦的'],
+    ratio: [0, 2.8, 2.4, 2.0, 1.7, 1.4],   // 相手の守りの何倍の兵で攻めるか
+    rate: [0, 0.4, 0.7, 1, 1.4, 1.9],      // 攻める見込みの倍率
+    reach: [0, 45, 50, 60, 70, 80],        // 攻める城までの距離（km）
+    start: [0, 0.3, 0.6, 1, 1.6, 2.4],     // 新しく戦を始める見込みの重み
+    peace: [0, 2, 1.5, 1, 0.7, 0.4],       // 和睦しやすさ
+    fixed: { oda: 5, takeda: 5, nagao: 5, shimazu: 5, mori: 4, hojo: 4, imagawa: 4, miyoshi: 4, ryuzoji: 5, chosokabe: 4, date: 4, saito: 4, otomo: 3, amako: 4, asakura: 2, azai: 3, rokkaku: 3, honganji: 2, ashikaga: 1, kitabatake: 2, satomi: 3, satake: 4, mogami: 4, ashina: 3, tsutsui: 2, hatakeyama: 2, isshiki: 2, yamana: 2, akamatsu: 2, urakami: 3, kono: 2, ichijo: 2, ito: 3, sagara: 2, aso: 2, utsunomiya: 3, odah: 2, nanbu: 3, ando: 3 },
+  };
+  SIM.kou = (w, fid) => {
+    const f = w.factions[fid]; if (!f) return 3;
+    if (f.kou == null) { const h = [...fid].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) % 997, 7); f.kou = KOU.fixed[fid] || [2, 3, 3, 3, 4][h % 5]; }
+    return f.kou;
   };
   const defPow = (s) => SIM.garrison(s) * (1 + 0.5 * (SIM.kaiF ? SIM.kaiF(s) : 0.5)) * (SIM.castleKind && SIM.castleKind(s) === 'yama' ? 1.15 : 1); // 守備兵×城の堅さ
   // ---- 守備兵 ----
@@ -229,10 +242,10 @@
       }
     }
     // ときどき戦が終わり、ときどき隣の家と戦が始まる（CPUどうし）
-    for (const k of Object.keys(w.wars)) { const [a, b] = k.split('|'); if (!w.factions[a].player && !w.factions[b].player && rnd(w) < 0.04) { setWar(w, a, b, false); news(w, `${fName(w, a)}と${fName(w, b)}が和睦しました`); } }
+    for (const k of Object.keys(w.wars)) { const [a, b] = k.split('|'); if (!w.factions[a].player && !w.factions[b].player && rnd(w) < 0.04 * (KOU.peace[SIM.kou(w, a)] + KOU.peace[SIM.kou(w, b)]) / 2) { setWar(w, a, b, false); news(w, `${fName(w, a)}と${fName(w, b)}が和睦しました`); } }
     if (rnd(w) < 0.12) {
       const fs = Object.keys(w.factions).filter((x) => alive(w, x) && !w.factions[x].player && x !== 'ashikaga');
-      const a = fs[Math.floor(rnd(w) * fs.length)];
+      let a = null, tot = fs.reduce((s2, x) => s2 + KOU.start[SIM.kou(w, x)], 0) * rnd(w); for (const x of fs) { tot -= KOU.start[SIM.kou(w, x)]; if (tot <= 0) { a = x; break; } } // 好戦的な家ほど戦を始めやすい
       const ca = castles(w, a), cand = fs.filter((x) => x !== a && !SIM.atWar(w, a, x) && (w.truce[key(a, x)] || 0) < w.time.min && castles(w, x).some((y) => ca.some((z) => dist(y, z) < 35)));
       const b = cand[Math.floor(rnd(w) * cand.length)];
       if (a && b) { setWar(w, a, b, true); news(w, `${fName(w, a)}と${fName(w, b)}が戦を始めました`); }
@@ -271,22 +284,23 @@
     const N = SIEGE_N;
     for (const k of Object.keys(w.wars)) {
       const [a, b] = k.split('|'); if (!alive(w, a) || !alive(w, b)) continue;
-      const att = w.factions[a].player ? b : w.factions[b].player ? a : rnd(w) < 0.5 ? a : b, def = att === a ? b : a;
+      const att = w.factions[a].player ? b : w.factions[b].player ? a : rnd(w) < SIM.kou(w, a) / (SIM.kou(w, a) + SIM.kou(w, b)) ? a : b, def = att === a ? b : a;
       if (w.factions[att].player) continue;
+      const K = SIM.kou(w, att);
       const mine = castles(w, att);
       let best = null;
       for (const y of castles(w, def)) {
         if (SIM.armyTo(w, y.id)) continue;
         const x = mine.slice().sort((p1, p2) => dist(p1, y) - dist(p2, y))[0]; if (!x) continue;
-        const d = dist(x, y); if (d > N.reach) continue;
+        const d = dist(x, y); if (d > KOU.reach[K]) continue;
         const guard = defPow(y), weak = SIM.garrison(y) / Math.max(1, garMax(w, y)); // 守りの強さ・兵の残り具合
         const score = guard * (1 + d / 40);
         if (!best || score < best.score) best = { src: x, tgt: y, guard, weak, score };
       }
       if (!best) continue;
       // 手薄な城（兵が上限の4割未満）はすぐ狙う。そうでなければときどき
-      if (rnd(w) > (best.weak < N.weakFrac ? N.weakRate : N.rate)) continue;
-      const { src, tgt } = best, need = Math.max(N.min, Math.ceil(best.guard * N.ratio));
+      if (rnd(w) > Math.min(0.95, (best.weak < N.weakFrac ? N.weakRate : N.rate) * KOU.rate[K])) continue;
+      const { src, tgt } = best, need = Math.max(N.min, Math.ceil(best.guard * KOU.ratio[K]));
       // 近くの城（3つまで）から兵を集め、足りなければ陣触れで農兵を足す
       const near = mine.slice().sort((a2, b2) => dist(a2, tgt) - dist(b2, tgt)).slice(0, 3);
       const can = near.reduce((s2, x) => s2 + Math.floor(SIM.garrison(x) * N.take), 0), levyCap = Math.min(N.levyMax, mine.length * N.levyPer);
@@ -329,7 +343,7 @@
       camps: SIM.threats ? SIM.threats(w, p) : [],
     };
     if (r.me.rank && r.me.rank.daimyo) {
-      r.me.rank.daimyo.diplo = Object.keys(w.factions).filter((k) => k !== p.clan && alive(w, k)).map((k) => ({ id: k, name: w.factions[k].name, war: SIM.atWar(w, p.clan, k), castles: castles(w, k).length, truce: Math.max(0, Math.ceil(((w.truce[key(p.clan, k)] || 0) - w.time.min) / 1440)) }));
+      r.me.rank.daimyo.diplo = Object.keys(w.factions).filter((k) => k !== p.clan && alive(w, k)).map((k) => ({ id: k, name: w.factions[k].name, war: SIM.atWar(w, p.clan, k), castles: castles(w, k).length, kou: KOU.names[SIM.kou(w, k)], truce: Math.max(0, Math.ceil(((w.truce[key(p.clan, k)] || 0) - w.time.min) / 1440)) }));
       r.me.rank.daimyo.peaceCost = SIEGE.peaceCost;
       r.me.rank.daimyo.generals = w.settlements.filter((x) => x.owner === p.clan && x.lord && w.people[x.lord]).map((x) => ({ name: w.people[x.lord].name, castle: x.name, loyal: w.people[x.lord].loyal }));
     }
