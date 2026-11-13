@@ -78,6 +78,27 @@
   #battle .bu .nm { flex:1; }
   #battle button { padding:5px 9px; font-size:13px; }
   @media (max-width:700px) { #date { font-size:15px; } }
+  /* 0.46.0 スマホ・タップ操作 */
+  .touchOnly { display:none !important; }
+  body.touch .touchOnly { display:flex !important; }
+  button { touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+  body.touch button { min-height:36px; }
+  body.touch #menuBtn { position:fixed; left:10px; bottom:10px; padding:10px 18px; font-size:15px; z-index:5; } /* スマホはメニューを左下に */
+  body.touch #warBoard { bottom:64px; }
+  body.touch #battle { bottom:62px; }
+  body.touch #info { bottom:62px; }
+  body.touch button:hover:not(.focus) { background:#2b241a; border-color:var(--line); color:var(--ink); outline:none; }
+  @media (max-width:560px) {
+    #hudL { padding:5px 8px; max-width:46vw; } #quests { max-width:46vw; font-size:11px; } #status { font-size:12px; }
+    #hudR button { padding:4px 7px; font-size:12px; } #hudR .row { flex-wrap:wrap; justify-content:flex-end; }
+    #town, #char { width:100vw; max-height:92vh; padding:8px; }
+    #town button, #char button { padding:6px 7px; font-size:12px; }
+    .grid { gap:4px 5px; font-size:12px; }
+    .card { flex-wrap:wrap; }
+    #battle { width:98vw; } #battle .bu { flex-wrap:wrap; } #battle button { padding:6px 7px; font-size:12px; }
+    #info { min-width:0; width:94vw; }
+    #warBoard { max-width:90vw; font-size:11px; }
+  }
   .bu.sel { outline: 1px solid #f2c14e; }
 .volRows{display:flex;flex-direction:column;gap:6px}.volLbl{min-width:13em;font-family:monospace;letter-spacing:1px}
 </style>
@@ -138,6 +159,7 @@
       <button id="charBtn">人物</button>
       <button id="menuBtn">メニュー</button>
     </div>
+    <div class="row touchOnly"><button id="nearBtn">近くの拠点</button><button id="followBtn">自分へ</button><button id="zoomOut">－</button><button id="zoomIn">＋</button></div>
   </div>
   <div class="hud hidden" id="info">
     <div id="infoName"></div><div id="infoBody"></div>

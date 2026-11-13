@@ -777,6 +777,12 @@
     $('battleTitle').textContent = `${bt.foe}との戦い${bt.ck ? (bt.ck === 'yama' ? '（山城）' : '（平城）') : ''}`;
     $('battleInfo').textContent = `味方 ${sum('A')}　敵 ${sum('B')}${bt.routed ? '（敗走中）' : ''}　${bt.t}秒`;
     let html = ''; // 部隊の一覧は出さない（地図の上でクリックして選ぶ）
+    // 0.46.0 タップでも指図できるように：選んだ隊と全軍への指図ボタン
+    const su = bt.units.find((u) => u[0] === G.selUnit && u[2] === G.myPid);
+    const ob = (unit) => ['charge', 'hold', 'retreat', 'flank'].map((o) => `<button id="bo-${unit}-${o}" data-unit="${unit}" data-order="${o}">${ORDN[o]}</button>`).join('');
+    if (su && su[3] !== 'hero') html += `<div class="bu"><span class="nm">${TR[su[3]].short || TR[su[3]].name} ${su[4]}人<span class="muted">［${ORDN[su[7]] || ''}］</span></span>${ob(su[0])}</div>`;
+    else html += `<div class="bu"><span class="nm muted">隊をタップして選び、地面をタップで移動</span></div>`;
+    html += `<div class="bu"><span class="nm">全軍</span>${ob('all')}</div>`;
     html += `<div class="row" style="margin-top:4px"><button id="bAuto" data-bact="battleAuto">自動で決着（スキップ）</button><button id="bFlee" data-bact="battleFlee">退却する（兵の3割を失う${bt.foe === '野盗' ? '・所持金の15%を奪われる' : ''}）</button></div>`;
     if (html !== battleHtml) { battleHtml = html; $('battleBody').innerHTML = html; G.bpick = null; setFocus($('battle'), null); }
   }
@@ -834,6 +840,12 @@
   $('mClose').onclick = () => toggleMenu(false);
   $('mSave').onclick = () => { SGK.SAVE.save(G.world).then((ok) => toast(ok ? `スロット${SGK.SAVE.slot}にセーブしました` : 'セーブに失敗しました')); };
   $('mExport').onclick = () => { SGK.SAVE.save(G.world); SGK.SAVE.exportFile(G.world); };
+  // 0.46.0 スマホ向け：タッチ端末なら body に touch を付け、地図のボタンを出す
+  if (matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window) document.body.classList.add('touch');
+  $('nearBtn').onclick = () => cycleNear();
+  $('followBtn').onclick = () => $('mFollow').click();
+  $('zoomIn').onclick = () => (G.priv && G.priv.battle ? (R.bcam.z *= 1.2) : R.zoom(1.2));
+  $('zoomOut').onclick = () => (G.priv && G.priv.battle ? (R.bcam.z /= 1.2) : R.zoom(1 / 1.2));
   $('mFollow').onclick = () => { R.cam.follow = !R.cam.follow; toast(R.cam.follow ? '自分を追いかけます' : '追いかけを止めました', 1200); };
   $('mTitle').onclick = () => backToTitle();
   // テスト用（ホストだけ）
