@@ -280,6 +280,7 @@
     }
   }
   function warPlan(w) {
+    w.musters = w.musters || [];
     // CPUの戦：戦をしている家の城のうち、近くて守りの手薄な城を狙う。兵は相手の守りに合わせて集める（0.44.0）
     const N = SIEGE_N;
     for (const k of Object.keys(w.wars)) {
@@ -290,7 +291,7 @@
       const mine = castles(w, att);
       let best = null;
       for (const y of castles(w, def)) {
-        if (SIM.armyTo(w, y.id)) continue;
+        if (SIM.armyTo(w, y.id) || w.musters.some((m) => m.tgt === y.id)) continue;
         const x = mine.slice().sort((p1, p2) => dist(p1, y) - dist(p2, y))[0]; if (!x) continue;
         const d = dist(x, y); if (d > KOU.reach[K]) continue;
         const guard = defPow(y), weak = SIM.garrison(y) / Math.max(1, garMax(w, y)); // 守りの強さ・兵の残り具合
@@ -313,12 +314,28 @@
       }
       const levy = Math.max(0, need - n);
       const army = garOf(n); if (levy) army.nohei = levy;
-      SIM.launchArmy(w, { faction: att, from: src, to: tgt, army, gens, mode: 'siege' });
+      // 0.49.0 すぐには出陣せず、まず兵を集める（噂が流れる）→ 数日後に軍勢が出る
+      const days = Math.min(5, 2 + Math.floor((n + levy) / 80));
+      w.musters.push({ att, src: src.id, tgt: tgt.id, army, gens, n: n + levy, at: w.time.min + days * 1440 });
+      news(w, `${fName(w, att)}が${src.name}に兵を集めているそうです（${n + levy}人ほど。${fName(w, def)}の${tgt.name}を狙っているとか）`);
     }
+  }
+  // 兵を集め終えたら出陣する。狙いの城がもう敵の城でなければ取りやめて兵を城に戻す
+  function musterTick(w) {
+    if (!w.musters.length) return;
+    w.musters = w.musters.filter((m) => {
+      if (w.time.min < m.at) return true;
+      const src = SIM.settlement(w, m.src), tgt = SIM.settlement(w, m.tgt);
+      if (!src || src.owner !== m.att || !alive(w, m.att)) return false;
+      if (!tgt || tgt.owner === m.att || !SIM.atWar(w, m.att, tgt.owner) || SIM.armyTo(w, tgt.id)) { const back = Object.assign({}, m.army); delete back.nohei; src.gar = garOf(SIM.garrison(src) + SIM.troopCount(back)); news(w, `${src.name}に集まっていた${fName(w, m.att)}の兵は解き放たれたそうです`); return false; }
+      SIM.launchArmy(w, { faction: m.att, from: src, to: tgt, army: m.army, gens: m.gens, mode: 'siege' });
+      return false;
+    });
   }
   SIM._campArrive = campArrive; SIM._garOf = garOf; SIM._garMax = garMax; SIM.SIEGE = SIEGE;
   SIM.systems.push(function warTick(w) {
     const d = Math.floor(w.time.min / 1440);
+    w.musters = w.musters || []; musterTick(w);
     while (w.wday < d) { w.wday++; if (w.wday % 30 === 15) monthly(w); if (w.wday % 7 === 3) warPlan(w); } // 0.44.0 攻めるかどうかは週ごとに考える
   });
 
