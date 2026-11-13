@@ -252,7 +252,7 @@
   const atkHalf = (u) => (TR[u.type].ranged ? Math.PI / 4 : Math.PI / 2); // 攻撃できる向き：弓・鉄砲は前方90°、それ以外は前方180°
   const reachOf = (b, u) => rad(u) + TR[u.type].range + (u.ra || 0) + (TR[u.type].ranged && terAt(b, u).h ? 5 : 0);
   const alive = (u) => u.hp > 0 && !u.gone;
-  const unitName = (u) => (u.type === 'hero' ? '本人' : TR[u.type].name);
+  const unitName = (u) => (u.type === 'hero' ? '本人' : (u.gname ? u.gname + '隊の' : '') + TR[u.type].name);
   function stepBattle(w, b, dt) {
     b.t += dt;
     const us = b.units.filter(alive), dmg = new Map(), hit = new Map();
@@ -337,6 +337,7 @@
       if (u.mor <= ROUT) {
         u.order = 'rout';
         for (const v of us) if (v.side === u.side && v !== u && v.type !== 'hero' && dist(u, v) < 40) v.mor -= 10;
+        if (u.gen) for (const v of us) if (v.gen === u.gen && v !== u) v.mor -= 15; // 0.43.0 同じ武将の隊も動揺する
         if (u.owner) SIM.say(u.owner, `${unitName(u)}が崩れて逃げ出しました！`);
         else b.pids.forEach((pid) => SIM.say(pid, u.side === 'B' ? `敵の${unitName(u)}が崩れました！` : `城兵の${unitName(u)}が崩れました！`));
       }
@@ -520,7 +521,7 @@
     r.battle = b ? { id: b.id, foe: b.foe, t: Math.floor(b.t), routed: b.routed,
       names: Object.fromEntries(b.pids.map((x) => [x, (w.players[x] || {}).name])),
       ter: b.ter || [], ck: b.ck || null, units: b.units.filter((u) => alive(u) && (u.side === 'A' || (b.visA || []).includes(u.id)))
-        .map((u) => [u.id, u.side, u.owner, u.type, u.n, r1(u.x), r1(u.y), u.order, Math.round(visRange(b, u)), Math.round(u.mor), Math.round(u.f * 100) / 100, u.type === 'hero' ? Math.ceil(u.hp) : undefined, r1(reachOf(b, u))]) } : null;
+        .map((u) => [u.id, u.side, u.owner, u.type, u.n, r1(u.x), r1(u.y), u.order, Math.round(visRange(b, u)), Math.round(u.mor), Math.round(u.f * 100) / 100, u.type === 'hero' ? Math.ceil(u.hp) : undefined, r1(reachOf(b, u)), u.gname || undefined]) } : null;
     return r;
   };
   SIM.FIELD = FIELD;

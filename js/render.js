@@ -245,7 +245,7 @@
         }
       }
       const cls = T.cls ? `〔${SGK.SIM.CLS_NAME[T.cls]}〕` : '';
-      const label = `${type === 'hero' ? (side === 'A' && owner !== myPid ? (bt.names[owner] || '味方') : '本人') : (T.short || T.name) + cls} ${type === 'hero' ? '' : n}${side === 'A' ? '［' + ORD[order] + '］' : order === 'rout' ? '［潰走］' : ''}`;
+      const label = `${u[13] ? u[13] + '・' : ''}${type === 'hero' ? (side === 'A' && owner !== myPid ? (bt.names[owner] || '味方') : '本人') : (T.short || T.name) + cls} ${type === 'hero' ? '' : n}${side === 'A' ? '［' + ORD[order] + '］' : order === 'rout' ? '［潰走］' : ''}`;
       ctx.font = 'bold 12px sans-serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.8)';
       const ly = cy - rr - 4;
       ctx.strokeText(label, cx, ly); ctx.fillStyle = side === 'B' ? '#ffb4a2' : '#fff'; ctx.fillText(label, cx, ly);

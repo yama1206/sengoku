@@ -177,8 +177,22 @@
     let L = SIM.leadersOf(w, w.npcs[b.npc]);
     if (!L.length && b.siege) { const s = SIM.settlement(w, b.siege); if (s && live(w, s.lord)) L = [SIM.genStats(w, w.people[s.lord], true)]; }
     if (!L.length) return;
-    const tou = Math.max(...L.map((p) => p.tou)), bu = Math.max(...L.map((p) => p.bu));
-    for (const u of b.units.slice(k)) { u.am = (u.am || 1) * (1 + (bu - 55) / 200); u.mor = u.mo = Math.max(30, Math.min(95, u.mor + (tou - 55) / 3)); }
+    // 0.43.0 武将ごとに隊を分ける：兵種ごとの隊を武将の数で分け（1隊が10人未満にならない範囲）、その武将の武勇・統率だけを効かせる
+    const add = b.units.splice(k), out = []; let rr = 0;
+    for (const u of add) {
+      const parts = u.type === 'hero' ? 1 : Math.max(1, Math.min(L.length, Math.floor(u.n / 10)));
+      for (let j = 0; j < parts; j++) {
+        const g = L[(rr + j) % L.length], n = Math.floor(u.n / parts) + (j < u.n % parts ? 1 : 0);
+        const v = Object.assign({}, u, { id: j ? b.next++ : u.id, n, n0: n, hp: (u.hp * n) / u.n, gen: g.name, gname: g.name });
+        v.am = (u.am || 1) * (1 + (g.bu - 55) / 200); v.mor = v.mo = Math.max(30, Math.min(95, u.mor + (g.tou - 55) / 3));
+        out.push(v);
+      }
+      rr += parts;
+    }
+    // 武将ごとに並べ直す（同じ武将の隊は近くに）
+    out.sort((a2, b2) => L.findIndex((g) => g.name === a2.gen) - L.findIndex((g) => g.name === b2.gen));
+    out.forEach((v, i) => { v.y = SIM.FIELD.h / 2 + (i - (out.length - 1) / 2) * 13; });
+    b.units.push(...out);
   };
   // 0.35.0 打ち破った隊の武将は、ときどき捕縛される（家臣だけ。城主は落ち延びる）。逃がすか切るかはプレイヤーが選ぶ
   const CAP_RATE = 0.35;
