@@ -8,11 +8,11 @@
   const FU = SIM.FUSHIN = {
     kai: [ // 改築の段階。kf＝城の守りの効き（0.35だと平地とあまり変わらない、1.35で今までより堅い）
       { name: '掻き揚げの砦', kf: 0.35 },
-      { name: '柵と空堀', kf: 0.55, cost: 3000, days: 8 },
-      { name: '土塁と水堀', kf: 0.75, cost: 7000, days: 14 },
-      { name: '櫓と石垣', kf: 0.95, cost: 14000, days: 20 },
-      { name: '天守', kf: 1.15, cost: 24000, days: 30 },
-      { name: '総構え', kf: 1.35, cost: 40000, days: 45 },
+      { name: '柵と空堀', kf: 0.55, cost: 6000, days: 8 },
+      { name: '土塁と水堀', kf: 0.75, cost: 14000, days: 14 },
+      { name: '櫓と石垣', kf: 0.95, cost: 28000, days: 20 },
+      { name: '天守', kf: 1.15, cost: 48000, days: 30 },
+      { name: '総構え', kf: 1.35, cost: 80000, days: 45 },
     ],
     roadKm: 40,                         // 新しい道をつくれる相手までの距離
     newCost: 120, newMtCost: 260,       // 新しい道：1kmあたりのお金（平地／山）
