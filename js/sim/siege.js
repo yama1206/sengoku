@@ -253,9 +253,9 @@
     const wall = Math.floor((s.dev && s.dev.wall) || 0);
     const defs = Object.values(w.players).filter((p) => p.at === s.id && p.tx == null && !p.battle && p.clan === s.owner);
     const aPow = M.power(c.army) * (0.75 + rnd(w) * 0.5);
-    const ck = SIM.castleKind(s) === 'yama' ? 1.35 : 1.1; // 0.37.0 山城ほど守りやすい
-    let dPow = M.power(s.gar) * (1.25 + wall * 0.12) * ck;
-    for (const p of defs) dPow += (M.power(p.troops) + TR.hero.hp * TR.hero.atk) * (1.3 + wall * 0.1) * ck;
+    const kf = SIM.kaiF ? SIM.kaiF(s) : 1, ck = 1 + (SIM.castleKind(s) === 'yama' ? 0.35 : 0.1) * kf; // 0.37.0 山城ほど守りやすい／0.40.0 改築の段階で変わる
+    let dPow = M.power(s.gar) * (1 + 0.25 * kf + wall * 0.12) * ck;
+    for (const p of defs) dPow += (M.power(p.troops) + TR.hero.hp * TR.hero.atk) * (1 + 0.3 * kf + wall * 0.1) * ck;
     dPow *= 0.75 + rnd(w) * 0.5;
     const win = aPow > dPow, loss = Math.min(0.85, (win ? dPow / aPow : aPow / dPow) * 0.6);
     for (const p of defs) {

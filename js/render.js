@@ -52,10 +52,11 @@
     }
     // 街道
     ctx.lineCap = ctx.lineJoin = 'round';
-    ctx.strokeStyle = 'rgba(245,232,190,.9)'; ctx.lineWidth = Math.max(4, cam.scale * 0.9);
-    for (const r of T.roads || []) { path(ctx, r.pts); ctx.stroke(); }
-    ctx.strokeStyle = '#8a6a3c'; ctx.lineWidth = Math.max(1.5, cam.scale * 0.3);
-    for (const r of T.roads || []) { path(ctx, r.pts); ctx.stroke(); }
+    // 0.40.0 道の格で太さを変える（脇道→街道→大街道の順に重ねる）
+    const RW = [0, 1.25, 0.85, 0.5], RD = ['', '#7a5426', '#8a6a3c', '#9a8058'];
+    const roads = (T.roads || []).slice().sort((a, b) => (b.rank || 2) - (a.rank || 2));
+    for (const r of roads) { const k = r.rank || 2; ctx.strokeStyle = k === 3 ? 'rgba(240,228,190,.6)' : 'rgba(245,232,190,.9)'; ctx.lineWidth = Math.max(k === 1 ? 6 : k === 2 ? 4 : 2.5, cam.scale * RW[k]); path(ctx, r.pts); ctx.stroke(); }
+    for (const r of roads) { const k = r.rank || 2; ctx.strokeStyle = RD[k]; ctx.lineWidth = Math.max(k === 1 ? 2.5 : k === 2 ? 1.5 : 1, cam.scale * RW[k] * 0.33); if (k === 3) ctx.setLineDash([4, 3]); path(ctx, r.pts); ctx.stroke(); ctx.setLineDash([]); }
     // 川
     ctx.strokeStyle = '#7d9fae'; ctx.lineCap = ctx.lineJoin = 'round';
     ctx.lineWidth = Math.max(2, cam.scale * 0.35);
@@ -67,6 +68,8 @@
       ctx.fillStyle = `rgba(${Math.round(20 + 150 * tw)},${Math.round(28 + 50 * tw)},${Math.round(70 - 30 * tw)},${(0.55 * night + 0.12 * tw).toFixed(3)})`;
       ctx.fillRect(0, 0, W, H);
     }
+    // 0.40.0 依頼の目標（野盗・行商人など）の印
+    for (const [qx, qy] of (marks && marks.pts) || []) { const [x, y] = R.toScreen(qx, qy); ctx.fillStyle = '#f2c14e'; ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y - 22); ctx.lineTo(x + 6, y - 15); ctx.lineTo(x, y - 8); ctx.lineTo(x - 6, y - 15); ctx.closePath(); ctx.fill(); ctx.stroke(); }
     // 自分の目的地の線
     const me = view.players.find((p) => p.id === myPid);
     if (me && me.tx != null) {

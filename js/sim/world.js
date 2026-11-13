@@ -141,6 +141,7 @@
     function npcLife(w, dt) {
       for (const n of Object.values(w.npcs)) {
         if (n.kind === 'bandit' || n.kind === 'army' || n.kind === 'bushou' || n.kind === 'ronin' || n.fight || n.battle) continue; // 野盗は military.js、軍勢は army.js で動かす
+        if (n.hold && n.hold > w.time.min) continue; // 0.40.0 護衛の行商人が野盗に足止めされている
         if (n.tx == null) {
           n.wait -= dt;
           if (n.wait > 0) continue;

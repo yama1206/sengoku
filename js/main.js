@@ -337,6 +337,7 @@
       G.view = { t: w.time.min, sr, settlements: w.settlements, factions: w.factions, people: w.people, wars: Object.keys(w.wars || {}), players: Object.values(w.players).filter(vis), npcs: Object.values(w.npcs).filter(vis) };
     } else if (G.mode === 'client' && G.dyn) {
       const d = G.dyn, s = G.stat;
+      if ((d.rv || 0) !== (G.rv || 0)) { G.rv = d.rv || 0; SIM.applyRoads(d.ra || []); } // 0.40.0 普請でできた道
       G.view = {
         t: d.t, sr: d.sr, settlements: withOwners(d.ns && d.ns.length ? s.settlements.filter((x) => !d.ns.some((n) => n.id === x.id)).concat(d.ns) : s.settlements, d.ow),
         factions: d.pf && Object.keys(d.pf).length ? Object.assign({}, s.factions, d.pf) : s.factions, people: s.people, wars: d.wars || [],
@@ -421,7 +422,7 @@
   function unitInfo(u) {
     const f = u.faction && G.view.factions[u.faction], fn = f ? `<b style="color:${f.color}">${f.name}</b>` : '';
     const m = me(), km = m ? Math.hypot(u.x - m.x, u.y - m.y).toFixed(1) : '?';
-    const where = `${u.at ? sName(u.at) + 'に滞在中' : u.dest ? sName(u.dest) + 'へ向かっている' : '野外'}　（ここから ${km}km・${SIM.terrainAt(u.x, u.y)}）`;
+    const where = `${u.at ? sName(u.at) + 'に滞在中' : u.dest ? sName(u.dest) + 'へ向かっている' : '野外'}　（ここから ${km}km・${SIM.placeName(u.x, u.y)}）`;
     const TR = SIM.TROOPS, ar = u.army ? Object.entries(u.army).filter(([, n]) => n > 0).map(([k, n]) => `${(TR[k] || {}).name || k} ${n}人`).join('・') : `${u.size}人`;
     if (u.kind === 'merchant') {
       const it = u.cargo && SGK.DATA.items[u.cargo.item], pr = it && SIM.cargoPrice(u.cargo.item);
@@ -506,10 +507,13 @@
       html += `<div class="muted">受けている依頼（${me.quests.length}/3）</div>`;
       if (!me.quests.length) html += '<div class="muted" style="margin:4px 0 8px">なし</div>';
       for (const q of me.quests) {
-        const where = q.type === 'deliver' ? `届け先：${sName(q.to)}` : `納品先：${sName(q.from)}（所持 ${me.inv[q.item] || 0}/${q.qty}）`;
+        const where = q.where || (q.type === 'deliver' ? `届け先：${sName(q.to)}` : `納品先：${sName(q.from)}（所持 ${me.inv[q.item] || 0}/${q.qty}）`);
         const canDeliver = q.type === 'procure' && q.from === h.id;
+        const canAct = q.act && q.actAt === h.id && !(q.type === 'labor' && me.busy);
         html += `<div class="card"><div><b>${q.title}</b><br><span class="muted">${where}　報酬 ${SIM.money(q.reward)}　${dayLeft(q.deadline)}</span></div><div class="row">`
           + (canDeliver ? `<button id="dq-${q.id}" data-act="deliverJob" data-id="${q.id}">納品</button>` : '')
+          + (canAct ? `<button id="qa-${q.id}" data-act="questAct" data-id="${q.id}">${q.act}</button>` : '')
+          + (q.pt ? `<button id="ql-${q.id}" data-lookxy="${q.pt[0]},${q.pt[1]}">地図で見る</button>` : q.mk && q.mk !== h.id ? `<button id="ql-${q.id}" data-look="${q.mk}">地図で見る</button>` : '')
           + `<button id="aq-${q.id}" data-act="abandonJob" data-id="${q.id}">やめる</button></div></div>`;
       }
       html += '<div class="muted" style="margin-top:10px">この拠点の依頼</div>';
@@ -517,9 +521,9 @@
       for (const j of h.jobs) {
         const to = j.type === 'deliver' && G.view.settlements.find((x) => x.id === j.to), fr = G.view.settlements.find((x) => x.id === j.from);
         const km = to && fr ? Math.round(Math.hypot(to.x - fr.x, to.y - fr.y)) : null;
-        const what = j.type === 'deliver' ? `届け先：${sName(j.to)}${km != null ? `（${dirOf(fr, to)}へ約${km}km）` : ''}` : `${IT[j.item].name}を${j.qty}${IT[j.item].unit}、ここへ納品`;
+        const what = j.what ? j.what : j.type === 'deliver' ? `届け先：${sName(j.to)}${km != null ? `（${dirOf(fr, to)}へ約${km}km）` : ''}` : `${IT[j.item].name}を${j.qty}${IT[j.item].unit}、ここへ納品`;
         html += `<div class="card"><div><b>${j.title}</b>　<span class="muted">依頼主：${j.giver}</span><br><span class="muted">${what}　報酬 ${SIM.money(j.reward)}　期限${j.days}日</span></div><div class="row">`
-          + (to ? `<button id="lk-${j.id}" data-look="${j.to}">地図で見る</button>` : '') + `<button id="ac-${j.id}" data-act="acceptJob" data-id="${j.id}">受ける</button></div></div>`;
+          + (to || j.look ? `<button id="lk-${j.id}" data-look="${to ? j.to : j.look}">地図で見る</button>` : '') + `<button id="ac-${j.id}" data-act="acceptJob" data-id="${j.id}">受ける</button></div></div>`;
       }
     } else if (townTab === 'work') {
       const s = G.view.settlements.find((x) => x.id === h.id);
@@ -562,6 +566,8 @@
             + `</div><div class="bar"><i style="width:${pct}%"></i></div><div class="muted">1回で+${gp}%（${SIM.SKILLS[D.skill].name}の技能・${SIM.ATTRS[D.attr]}が高いほど進む）</div></div>`;
         }
         if (me.busy) html += `<div class="muted">${me.busy.label}の最中です（「仕事」で取りやめられます）</div>`;
+        html += fushinHtml(me);
+      } else if (me.fushin && me.fushin.id === h.id) { html += fushinHtml(me);
       } else {
         const lord = lordName(hs);
         html += `<div class="card" style="display:block">城主：${h.holder ? `<b>${h.holder}</b>（プレイヤー）` : lord || '（不明）'}<br><span class="muted">${me.castle ? `あなたが治めている城：${(me.castles || []).map((c) => c.name).join('・')}` : '部将から「城主」に昇進すると、主家の城を一つ任されます。部将以上は野外に新しく城を築くこともできます（人物画面の「身分」）'}</span></div>`;
@@ -581,6 +587,18 @@
     }
   }
   // 方角（地図の上が北）
+  // 0.40.0 普請（改築・道を広げる・新しい道）
+  function fushinHtml(me) {
+    const F = me.fushin; if (!F) return '';
+    let h = `<div class="muted" style="margin-top:10px"><b>普請</b>　城の構え：${F.kaiName}（${F.kai}/5段階・守りの効き ${Math.round(F.kf * 100)}%）</div>`;
+    if (F.work) return h + `<div class="card" style="display:block">${F.work.label}の最中です（あと${F.work.left}日）</div>`;
+    if (F.next) h += `<div class="card"><div><b>改築</b>：${F.next.name}<br><span class="muted">${SIM.money(F.next.cost)}・${F.next.days}日。城を守る戦で有利になる（守りの効き ${Math.round(F.next.kf * 100)}%）</span></div><button id="fk" data-act="fushin" data-kind="kai" ${me.money >= F.next.cost ? '' : 'disabled'}>改築する</button></div>`;
+    else h += '<div class="muted">これ以上の改築はできません</div>';
+    const RN = ['', '大街道', '街道', '脇道'];
+    for (const g of F.widen) h += `<div class="card"><div><b>道を広げる</b>：${g.name}へ（${RN[g.rank]}→${RN[g.rank - 1]}・約${g.len}km）<br><span class="muted">${SIM.money(g.cost)}・${g.days}日</span></div><button id="fw-${g.to}" data-act="fushin" data-kind="widen" data-id="${g.to}" ${me.money >= g.cost ? '' : 'disabled'}>広げる</button></div>`;
+    for (const g of F.roads) h += `<div class="card"><div><b>新しい道</b>：${g.name}へ（約${g.len}km${g.mt ? `・山${g.mt}%` : ''}）<br><span class="muted">${SIM.money(g.cost)}・${g.days}日。脇道ができる</span></div><button id="fr-${g.to}" data-act="fushin" data-kind="road" data-id="${g.to}" ${me.money >= g.cost ? '' : 'disabled'}>道をつくる</button></div>`;
+    return h;
+  }
   function dirOf(a, b) { const ang = Math.atan2(-(b.y - a.y), b.x - a.x) * 180 / Math.PI; return ['東', '北東', '北', '北西', '西', '南西', '南', '南東'][Math.round(((ang + 360) % 360) / 45) % 8]; }
   // 依頼の届け先を地図で見る（「依頼に戻る」で拠点の画面へ戻れる）
   function lookAt(id) {
@@ -592,6 +610,7 @@
   }
   $('townBody').addEventListener('click', (e) => {
     const lb = e.target.closest('button[data-look]'); if (lb) return lookAt(lb.dataset.look);
+    const lx = e.target.closest('button[data-lookxy]'); if (lx) { const [x, y] = lx.dataset.lookxy.split(',').map(Number); openTown(false); R.cam.follow = false; R.cam.x = x; R.cam.y = y; G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; return; }
     const b = e.target.closest('button[data-act]'); if (!b) return;
     const c = { type: b.dataset.act };
     if (b.dataset.item) c.item = b.dataset.item;
@@ -1031,7 +1050,8 @@
       const md = m && G.disp[m.id];
       if (R.cam.follow && md) { R.cam.x += (md.x - R.cam.x) * k; R.cam.y += (md.y - R.cam.y) * k; }
       const P = G.priv, marks = new Set();
-      if (P) P.me.quests.forEach((q) => marks.add(q.type === 'deliver' ? q.to : q.from));
+      if (P) P.me.quests.forEach((q) => marks.add(q.mk || (q.type === 'deliver' ? q.to : q.from)));
+      marks.pts = P ? P.me.quests.filter((q) => q.pt).map((q) => q.pt) : [];
       if (BT) {
         for (const u of BT.units) {
           const key = 'u' + BT.id + '_' + u[0], d = G.disp[key];
@@ -1072,13 +1092,13 @@
           el.classList.toggle('hidden', !h || !!(G.priv && G.priv.battle)); if (el.dataset.h !== h) { el.innerHTML = h; el.dataset.h = h; } }
         renderCaptive(P.me.captives);
         $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　荷 ${SIM.cargo(P.me)}/${P.me.cap}　名声 ${P.me.fame}${P.me.infamy ? `　<span style="color:#e07a6a">悪名 ${P.me.infamy}</span>` : ''}${P.me.rank && P.me.rank.clan ? `　功績 ${P.me.rank.merit}${(() => { const n = SIM.RANKS[P.me.rank.rank + 1]; return n && !n.indep ? '/' + n.merit : ''; })()}` : ''}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.wage ? `<br>兵の給金 ${SIM.money(P.me.wage)}/日${P.me.money < P.me.wage ? '　<b style="color:#e07a6a">払えません</b>' : '（約' + Math.floor(P.me.money / P.me.wage) + '日分）'}` : '') + (P.me.riceNeed ? `<br>士気 <b style="color:${P.me.morale < 35 ? '#e07a6a' : P.me.morale < 60 ? '#e0c060' : '#6fbf73'}">${P.me.morale}</b>　兵糧 米${(P.me.inv && P.me.inv.rice) || 0}/${P.me.riceCap}俵（1日${P.me.riceNeed}俵・${P.me.hungry ? '<b style="color:#e07a6a">米が足りません</b>' : '約' + P.me.riceDays + '日分'}）` : '') + (P.me.follow ? `<br>追跡中：${P.me.follow}` : '') + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
-          + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品'}・${dayLeft(q.deadline)}）</div>`).join('');
+          + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.where || (q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品')}・${dayLeft(q.deadline)}）</div>`).join('');
       }
       // HUD
       $('date').textContent = SIM.formatDate(G.view.t) + (G.speed === 0 ? '（停止中）' : G.speed > 1 ? (G.inBattle ? '（戦闘中のため×1）' : `（×${G.speed}）`) : '');
       if (m) {
         const at = m.at && G.view.settlements.find((s) => s.id === m.at);
-        $('status').textContent = `${m.name}（${m.status || '浪人'}）　${BT ? '戦闘中' : at ? at.name + 'に滞在中' : m.tx != null ? `移動中（${SIM.terrainAt(m.x, m.y)}）` : `野外（${SIM.terrainAt(m.x, m.y)}）`}`;
+        $('status').textContent = `${m.name}（${m.status || '浪人'}）　${BT ? '戦闘中' : at ? at.name + 'に滞在中' : m.tx != null ? `移動中（${SIM.placeName(m.x, m.y)}）` : `野外（${SIM.terrainAt(m.x, m.y)}）`}`;
       }
       document.querySelectorAll('[data-speed]').forEach((b) => b.classList.toggle('on', +b.dataset.speed === G.speed));
     }

@@ -553,7 +553,8 @@
     { name: '三河の道', via: ['chiryu', 'anjo', 'okazaki'] },
     { name: '大高道', via: ['narumi', 'odaka'] },
     // 全国
-    { name: '東海道（東）', via: ['sunpu', [35.05, 138.52], [35.12, 138.7], [35.1, 138.86], 'nirayama', [35.15, 139.0], 'odawara', [35.33, 139.3], 'kamakura', 'tamanawa', [35.47, 139.6], 'edo'] },
+    { name: '東海道（東）', via: ['sunpu', [35.05, 138.52], [35.12, 138.7], [35.1, 138.86], [35.12, 138.92], [35.19, 139.03], 'odawara', [35.33, 139.3], 'tamanawa', [35.47, 139.6], 'edo'] }, // 0.40.0 三島から箱根越え
+    { name: '鎌倉道', via: ['tamanawa', 'kamakura'] },
     { name: '鎌倉街道', via: ['edo', 'kawagoe', 'hachigata', 'umayabashi', 'minowa'] },
     { name: '中山道（東）', via: ['inuyama', [35.48, 137.2], 'naegi', [35.65, 137.55], 'kisofukushima', [36.0, 137.85], 'uehara', [36.2, 138.25], 'komoro', [36.35, 138.6], 'minowa'] },
     { name: '甲州道', via: ['uehara', [35.85, 138.3], 'kofu', [35.6, 138.85], 'takiyama', 'edo'] },
@@ -600,7 +601,12 @@
     { name: '日光道', via: ['edo', 'iwatsuki', 'sekiyado', 'yuki', 'mibu', 'utsunomiya'] },
     { name: '水戸道', via: ['konodai', 'tsuchiura', 'mito', 'hitachiota'] },
     { name: '房総往還', via: ['kururi', 'otaki'] },
-    { name: '下田街道', via: ['nirayama', 'shimoda'] },
+    { name: '下田街道', via: [[35.12, 138.92], 'nirayama', 'shimoda'] },
+    // 0.40.0 街道の見直しで足した道
+    { name: '若狭街道（鯖街道）', via: ['obama', 'kutsuki', 'kyo'] },
+    { name: '千国街道（塩の道）', via: ['itoigawa', [36.7, 137.86], 'fukashi'] },
+    { name: '伊勢本街道', via: ['nara', [34.55, 136.0], [34.5, 136.3], 'ujiyamada'] },
+    { name: '出雲街道', via: ['himeji', [35.07, 134.0], [35.3, 133.6], 'odaka_y'] },
     { name: '奥州の脇道', via: ['nishiyama', 'kakuda', 'iwakiri', 'iwadeyama', 'sanuma', 'ishinomaki'] },
     { name: '羽州の脇道', via: ['kaminoyama', 'yamagata', 'tendo'] },
     { name: '会津の道', via: ['kurokawa', 'inawashiro'] },
@@ -655,8 +661,11 @@
     for (const [ai, bi] of pairs) {
       const a = byId[ai], b = byId[bi]; if (!a || !b || (adj[ai] && adj[ai].has(bi))) continue;
       if (!viaOk(a, b) || detour(a, b)) continue;
-      ROADS.push({ name: '街道', via: [ai, bi] }); link(ai, bi);
+      ROADS.push({ name: '脇道', via: [ai, bi] }); link(ai, bi);
     }
   })();
-  D.terrain.roads = ROADS.map((r) => ({ name: r.name, pts: r.via.map((v) => (typeof v === 'string' ? [byId[v].x, byId[v].y] : poly([v])[0])) }));
+  // 0.40.0 道の格（1=大街道 2=街道 3=脇道）。格が高いほど速く歩ける（route.js）
+  const MAJOR = ['東海道', '東海道（東）', '中山道', '中山道（東）', '北陸道', '北陸道（越前・加賀）', '北陸道（越後）', '北国街道', '山陰道', '山陽道', '西国街道', '西海道', '奥州街道', '甲州道', '美濃路'];
+  const rankOf = (r) => (MAJOR.includes(r.name) ? 1 : r.name === '脇道' || r.name === '街道' ? 3 : 2);
+  D.terrain.roads = ROADS.map((r) => ({ name: r.name, rank: rankOf(r), pts: r.via.map((v) => (typeof v === 'string' ? [byId[v].x, byId[v].y] : poly([v])[0])) }));
 })();

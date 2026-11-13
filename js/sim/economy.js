@@ -71,8 +71,8 @@
   function jobFame(w, q) { const a = SIM.settlement(w, q.from), b = q.to && SIM.settlement(w, q.to); return q.type === 'deliver' && a && b && dist(a, b) >= 80 ? 1 : 0.5; }
   function genJob(w, s) {
     const id = 'j' + w.nextId++, now = w.time.min, giver = giverOf(w, s);
-    let job;
-    if (SIM.rand(w) < 0.55) {
+    let job = SIM.extraJob ? SIM.extraJob(w, s, id, giver) : null; // 0.40.0 新しい種類の依頼（quest.js）
+    if (job) {} else if (SIM.rand(w) < 0.55) {
       const r = SIM.rand(w), lim = r < 0.6 ? 40 : r < 0.9 ? 90 : 1e9; // 6割は40km以内、3割は90km以内の近場へ
       let tos = w.settlements.filter((x) => x.id !== s.id && dist(s, x) < lim); if (!tos.length) tos = w.settlements.filter((x) => x.id !== s.id);
       const to = pick(w, tos); const d = dist(s, to);
