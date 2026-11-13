@@ -54,7 +54,8 @@
       return p.id;
     }
     if (Object.keys(w.players).length >= SGK.CFG.MAX_PLAYERS) return null;
-    const st = SIM.settlement(w, SGK.DATA.startSettlement);
+    const ps = prof && typeof prof.start === 'string' && SIM.settlement(w, prof.start); // 0.39.0 開始地点（町だけ）
+    const st = ps && ps.type === 'town' ? ps : SIM.settlement(w, SGK.DATA.startSettlement);
     const id = 'p' + w.nextId++;
     w.players[id] = { id, name: name || '浪人', x: st.x + (SIM.rand(w) - 0.5), y: st.y + (SIM.rand(w) - 0.5),
       tx: null, ty: null, dest: null, at: st.id, speed: SGK.CFG.WALK_KM_PER_DAY, status: '浪人' };

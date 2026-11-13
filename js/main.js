@@ -182,12 +182,21 @@
 
   // ---------- 0.38.0 はじめの人物づくり（名前・家紋・能力値・成長の型） ----------
   const ATK = Object.keys(SIM.ATTRS), GK = Object.keys(SIM.GROW);
+  // 0.39.0 開始地点：町から選ぶ（東から西の順）
+  const START = SGK.DATA.settlements.filter((s) => s.type === 'town').sort((a, b) => b.x - a.x);
+  function nearLord(t) {
+    let best = null, bd = 1e9;
+    for (const s of SGK.DATA.settlements) if (s.type === 'castle' && s.owner) { const d = Math.hypot(s.x - t.x, s.y - t.y); if (d < bd) { bd = d; best = s; } }
+    const f = best && SGK.DATA.factions.find ? SGK.DATA.factions.find((x) => x.id === best.owner) : best && SGK.DATA.factions[best.owner];
+    return f ? f.name : '';
+  }
   function loadProf() {
     let p = null; try { p = JSON.parse(localStorage.getItem('sgk_prof') || 'null'); } catch (e) {}
     p = p || {}; const C = SIM.CREATE;
     if (!p.attrs || !ATK.every((k) => p.attrs[k] >= C.base)) p.attrs = { bu: 3, tou: 3, chi: 3, sei: 3, mi: 3 };
     if (!SIM.GROW[p.grow]) p.grow = 'bal';
     p.mon = p.mon || monDefault();
+    if (!START.some((t) => t.id === p.start)) p.start = SGK.DATA.startSettlement;
     return p;
   }
   const myProf = () => { const p = loadProf(); SGK.NET.prof = p; return p; };
@@ -200,6 +209,8 @@
     h += `<div style="margin-top:8px"><b>能力値</b>　<span class="muted">残り ${crLeft()}点（1つ${C.max}まで）</span></div>`;
     for (const k of ATK) h += `<div class="row" style="align-items:center;gap:6px;margin:3px 0"><span style="width:4em">${SIM.ATTRS[k]}</span><button id="ca-${k}-m" data-cr="at" data-k="${k}" data-md="-1">◀</button><span style="min-width:3em;text-align:center">${prof.attrs[k]}</span><button id="ca-${k}-p" data-cr="at" data-k="${k}" data-md="1">▶</button></div>`;
     h += `<div style="margin-top:8px"><b>成長の型</b></div><div class="row" style="align-items:center;gap:6px"><button id="cg-m" data-cr="gr" data-md="-1">◀</button><span style="min-width:6em;text-align:center">${g.name}</span><button id="cg-p" data-cr="gr" data-md="1">▶</button></div><div class="muted">${g.desc}</div>`;
+    const si = Math.max(0, START.findIndex((t) => t.id === prof.start)), st = START[si], nl = nearLord(st);
+    h += `<div style="margin-top:8px"><b>開始地点</b>　<span class="muted">${si + 1}/${START.length}（東から西の順）</span></div><div class="row" style="align-items:center;gap:6px"><button id="cs-mm" data-cr="st" data-md="-5">◀◀</button><button id="cs-m" data-cr="st" data-md="-1">◀</button><span style="min-width:5em;text-align:center">${st.name}</span><button id="cs-p" data-cr="st" data-md="1">▶</button><button id="cs-pp" data-cr="st" data-md="5">▶▶</button><button id="cs-r" data-cr="sr">おまかせ</button></div><div class="muted">${nl ? `近くの大名：${nl}` : ''}</div>`;
     h += `<div style="margin-top:8px"><b>家紋</b></div>` + monEditorHtml(prof.mon, 'crMon');
     h += `<div class="row" style="margin-top:8px"><button id="cr-back" data-cr="back">戻る</button><button id="cr-ok" data-cr="ok">この人物で決める</button></div>`;
     $('createBody').innerHTML = h; drawMonPrev('crMon', prof.mon);
@@ -214,9 +225,11 @@
     else if (b.dataset.cr === 'nm') { $('nameInput').value = b.dataset.v; localStorage.setItem('sgk_name', b.dataset.v); }
     else if (b.dataset.cr === 'more') pickNames();
     else if (b.dataset.cr === 'at') { const k = b.dataset.k, v = prof.attrs[k] + dir; if (v >= C.base && v <= C.max && (dir < 0 || crLeft() > 0)) prof.attrs[k] = v; }
+    else if (b.dataset.cr === 'st') { const n = START.length, i = START.findIndex((t) => t.id === prof.start); prof.start = START[(((i + dir) % n) + n) % n].id; }
+    else if (b.dataset.cr === 'sr') prof.start = START[Math.floor(Math.random() * START.length)].id;
     else if (b.dataset.cr === 'gr') prof.grow = GK[(GK.indexOf(prof.grow) + dir + GK.length) % GK.length];
     else if (b.dataset.cr === 'back') { $('createPanel').classList.add('hidden'); titleBack(); return; }
-    else if (b.dataset.cr === 'ok') { localStorage.setItem('sgk_prof', JSON.stringify(prof)); myName(); $('createPanel').classList.add('hidden'); titleBack(); titleMsg(`${myName()}（${SIM.GROW[prof.grow].name}）で始めます${crLeft() ? `（能力値の残り${crLeft()}点は使われません）` : ''}`); return; }
+    else if (b.dataset.cr === 'ok') { localStorage.setItem('sgk_prof', JSON.stringify(prof)); myName(); $('createPanel').classList.add('hidden'); titleBack(); titleMsg(`${myName()}（${SIM.GROW[prof.grow].name}）で${(START.find((t) => t.id === prof.start) || {}).name || ''}から始めます${crLeft() ? `（能力値の残り${crLeft()}点は使われません）` : ''}`); return; }
     renderCreate();
   });
 
