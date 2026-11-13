@@ -72,9 +72,9 @@
     const q = near(w, p, c); if (!q) return;
     if (c.what === 'money') { const n = Math.min(p.money, Math.max(0, +c.qty || 0)); if (!n) return SIM.say(p.id, 'お金が足りません'); p.money -= n; q.money += n; SIM.say(p.id, `${q.name}に${SIM.money(n)}を渡しました`); return SIM.say(q.id, `${p.name}から${SIM.money(n)}を受け取りました`); }
     if (c.what === 'item') { const k = c.item, it = I()[k]; if (!it) return; const n = Math.min((p.inv[k] || 0), +c.qty || 0, Math.max(0, room(q, k))); if (n <= 0) return SIM.say(p.id, (p.inv[k] || 0) ? `${q.name}の荷にもう空きがありません` : `${it.name}を持っていません`); moveItem(p, q, k, n); SIM.say(p.id, `${q.name}に${it.name}${n}${it.unit}を渡しました`); return SIM.say(q.id, `${p.name}から${it.name}${n}${it.unit}を受け取りました`); }
-    if (c.what === 'troop') {
-      const k = Object.keys(p.troops).filter((x) => x !== 'hero' && p.troops[x] > 0).sort((a, b) => p.troops[b] - p.troops[a])[0]; if (!k) return SIM.say(p.id, '渡せる兵がいません');
-      const n = Math.min(p.troops[k], 5, SIM.troopCap(q) - SIM.troopCount(q.troops)); if (n <= 0) return SIM.say(p.id, `${q.name}は率いる人数に空きがありません`);
+    if (c.what === 'troop') { // 0.54.1 兵種と人数を選んで預ける
+      const k = c.kind; if (!SIM.TROOPS[k] || k === 'hero' || !(p.troops[k] > 0)) return SIM.say(p.id, 'その兵はいません');
+      const n = Math.min(p.troops[k], Math.max(1, +c.qty || 1), SIM.troopCap(q) - SIM.troopCount(q.troops)); if (n <= 0) return SIM.say(p.id, `${q.name}は率いる人数に空きがありません`);
       p.troops[k] -= n; q.troops[k] = (q.troops[k] || 0) + n; SIM.say(p.id, `${q.name}に${SIM.TROOPS[k].name}${n}人を預けました`); return SIM.say(q.id, `${p.name}から${SIM.TROOPS[k].name}${n}人を預かりました`);
     }
   };
