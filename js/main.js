@@ -339,7 +339,10 @@
       const w = G.world;
       const m = w.players[G.myPid], sr = m ? SIM.sightRadius(w, m) : 0;
       const vis = (e) => !m || e === m || SIM.canSee(m, sr, e.x, e.y);
-      G.view = { t: w.time.min, sr, settlements: w.settlements, factions: w.factions, people: w.people, wars: Object.keys(w.wars || {}), players: Object.values(w.players).filter(vis), npcs: Object.values(w.npcs).filter(vis) };
+      G.view = { t: w.time.min, sr, settlements: w.settlements, factions: w.factions, people: w.people, wars: Object.keys(w.wars || {}), players: Object.values(w.players).filter(vis),
+        // 0.54.3 ホストでも参加者と同じ形に（大将の名前・率いる武将・用件を付ける。前はホストだけ「武将の隊」と出ていた）
+        npcs: Object.values(w.npcs).filter(vis).map((n) => Object.assign({}, n, { battle: n.battle ? 1 : n.fight ? 2 : 0, at: n.tx == null ? n.at || null : null, pname: SIM.npcName ? SIM.npcName(w, n) : null,
+          extra: n.kind === 'bushou' ? n.purpose : n.kind === 'ronin' ? [n.need, n.fee] : null, lead: SIM.npcLead ? SIM.npcLead(w, n) : null })) };
     } else if (G.mode === 'client' && G.dyn) {
       const d = G.dyn, s = G.stat;
       if (d.pp) G.pp = d.pp; // 0.52.0 人口
