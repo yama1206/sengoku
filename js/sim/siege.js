@@ -28,8 +28,12 @@
     gar: 70, garHome: 120, garWall: 8, // 守備兵の上限（ふつうの城・大名の居城・城壁1段ごと）
     take: 0.5,                          // 近くの城（3つまで）から出す守備兵の割合
     levyPer: 20, levyMax: 120,          // 陣触れ：持っている城1つにつき農兵20人（最大120）
-    min: 100,                           // これより少ないなら攻めない
+    min: 30,                            // 0.44.0 これより少ない人数では攻めない
+    ratio: 2.0,                         // 相手の守り（守備兵×城の堅さ）の何倍の兵で攻めるか
+    reach: 60,                          // 攻める城までの距離（km）
+    rate: 0.08, weakRate: 0.6, weakFrac: 0.4, // 1週ごとに攻める見込み（ふつう／手薄な城）、手薄とみなす兵の割合
   };
+  const defPow = (s) => SIM.garrison(s) * (1 + 0.5 * (SIM.kaiF ? SIM.kaiF(s) : 0.5)) * (SIM.castleKind && SIM.castleKind(s) === 'yama' ? 1.15 : 1); // 守備兵×城の堅さ
   // ---- 守備兵 ----
   function garMax(w, s) {
     const f = w.factions[s.owner], home = f && w.people[f.leader] && s.lord === f.leader;
@@ -224,28 +228,6 @@
         }
       }
     }
-    // CPUの戦：戦をしている家の、近い城へ兵を出す
-    for (const k of Object.keys(w.wars)) {
-      if (rnd(w) > 0.3) continue;
-      const [a, b] = k.split('|'); if (!alive(w, a) || !alive(w, b)) continue;
-      const att = w.factions[a].player ? b : w.factions[b].player ? a : rnd(w) < 0.5 ? a : b, def = att === a ? b : a;
-      if (w.factions[att].player) continue;
-      let best = null;
-      for (const x of castles(w, att)) for (const y of castles(w, def)) { const d = dist(x, y); if (!best || d < best[2]) best = [x, y, d]; }
-      if (!best || best[2] > 60) continue;
-      const [src, tgt, d] = best;
-      if (SIM.armyTo(w, tgt.id)) continue;
-      // 近くの城（3つまで）から兵を集める
-      let n = 0; const gens = [];
-      for (const x of castles(w, att).sort((a2, b2) => dist(a2, tgt) - dist(b2, tgt)).slice(0, 3)) {
-        const t = Math.floor(SIM.garrison(x) * SIEGE_N.take); n += t; x.gar = garOf(SIM.garrison(x) - t);
-        if (x.lord && w.people[x.lord] && !gens.includes(x.lord)) gens.push(x.lord); // 城主が武将として加わる
-      }
-      const levy = Math.min(SIEGE_N.levyMax, castles(w, att).length * SIEGE_N.levyPer); // 陣触れで領内の農兵を集める
-      if (n + levy < SIEGE_N.min) { src.gar = garOf(SIM.garrison(src) + n); continue; }
-      const army = garOf(n); if (levy) army.nohei = levy;
-      SIM.launchArmy(w, { faction: att, from: src, to: tgt, army, gens, mode: 'siege' });
-    }
     // ときどき戦が終わり、ときどき隣の家と戦が始まる（CPUどうし）
     for (const k of Object.keys(w.wars)) { const [a, b] = k.split('|'); if (!w.factions[a].player && !w.factions[b].player && rnd(w) < 0.04) { setWar(w, a, b, false); news(w, `${fName(w, a)}と${fName(w, b)}が和睦しました`); } }
     if (rnd(w) < 0.12) {
@@ -284,10 +266,46 @@
       return 1 - loss;
     }
   }
+  function warPlan(w) {
+    // CPUの戦：戦をしている家の城のうち、近くて守りの手薄な城を狙う。兵は相手の守りに合わせて集める（0.44.0）
+    const N = SIEGE_N;
+    for (const k of Object.keys(w.wars)) {
+      const [a, b] = k.split('|'); if (!alive(w, a) || !alive(w, b)) continue;
+      const att = w.factions[a].player ? b : w.factions[b].player ? a : rnd(w) < 0.5 ? a : b, def = att === a ? b : a;
+      if (w.factions[att].player) continue;
+      const mine = castles(w, att);
+      let best = null;
+      for (const y of castles(w, def)) {
+        if (SIM.armyTo(w, y.id)) continue;
+        const x = mine.slice().sort((p1, p2) => dist(p1, y) - dist(p2, y))[0]; if (!x) continue;
+        const d = dist(x, y); if (d > N.reach) continue;
+        const guard = defPow(y), weak = SIM.garrison(y) / Math.max(1, garMax(w, y)); // 守りの強さ・兵の残り具合
+        const score = guard * (1 + d / 40);
+        if (!best || score < best.score) best = { src: x, tgt: y, guard, weak, score };
+      }
+      if (!best) continue;
+      // 手薄な城（兵が上限の4割未満）はすぐ狙う。そうでなければときどき
+      if (rnd(w) > (best.weak < N.weakFrac ? N.weakRate : N.rate)) continue;
+      const { src, tgt } = best, need = Math.max(N.min, Math.ceil(best.guard * N.ratio));
+      // 近くの城（3つまで）から兵を集め、足りなければ陣触れで農兵を足す
+      const near = mine.slice().sort((a2, b2) => dist(a2, tgt) - dist(b2, tgt)).slice(0, 3);
+      const can = near.reduce((s2, x) => s2 + Math.floor(SIM.garrison(x) * N.take), 0), levyCap = Math.min(N.levyMax, mine.length * N.levyPer);
+      if (can + levyCap < need) continue; // 集めても足りない：攻めない
+      let n = 0; const gens = [];
+      for (const x of near) {
+        if (n >= need) break;
+        const t = Math.min(Math.floor(SIM.garrison(x) * N.take), need - n); n += t; x.gar = garOf(SIM.garrison(x) - t);
+        if (t > 0 && x.lord && w.people[x.lord] && !gens.includes(x.lord)) gens.push(x.lord); // 城主が武将として加わる
+      }
+      const levy = Math.max(0, need - n);
+      const army = garOf(n); if (levy) army.nohei = levy;
+      SIM.launchArmy(w, { faction: att, from: src, to: tgt, army, gens, mode: 'siege' });
+    }
+  }
   SIM._campArrive = campArrive; SIM._garOf = garOf; SIM._garMax = garMax; SIM.SIEGE = SIEGE;
   SIM.systems.push(function warTick(w) {
     const d = Math.floor(w.time.min / 1440);
-    while (w.wday < d) { w.wday++; if (w.wday % 30 === 15) monthly(w); }
+    while (w.wday < d) { w.wday++; if (w.wday % 30 === 15) monthly(w); if (w.wday % 7 === 3) warPlan(w); } // 0.44.0 攻めるかどうかは週ごとに考える
   });
 
   // ---- 地図・画面に送る情報 ----
