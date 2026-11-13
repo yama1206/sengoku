@@ -218,6 +218,7 @@
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     for (const u of bt.units) {
       const [id, side, owner, type, n, , , order, , mor, face] = u;
+      if (type === 'hero' && u[14] != null) continue; // 0.47.0 隊に入っている本人は隊といっしょに描く
       const d = disp['u' + bt.id + '_' + id] || { x: u[5], y: u[6] };
       const col = side === 'B' ? '#a83228' : owner === myPid ? '#f2c14e' : '#e8e8e8';
       const cx = sx(d.x), cy = sy(d.y), T = TR[type];
@@ -245,7 +246,7 @@
         }
       }
       const cls = T.cls ? `〔${SGK.SIM.CLS_NAME[T.cls]}〕` : '';
-      const label = `${u[13] ? u[13] + '・' : ''}${type === 'hero' ? (side === 'A' && owner !== myPid ? (bt.names[owner] || '味方') : '本人') : (T.short || T.name) + cls} ${type === 'hero' ? '' : n}${side === 'A' ? '［' + ORD[order] + '］' : order === 'rout' ? '［潰走］' : ''}`;
+      const label = `${u[13] ? u[13] + '・' : ''}${u[15] ? (owner === myPid ? '本人＋' : (bt.names[owner] || '味方') + '＋') : ''}${type === 'hero' ? (side === 'A' && owner !== myPid ? (bt.names[owner] || '味方') : '本人') : (T.short || T.name) + cls} ${type === 'hero' ? '' : n}${side === 'A' ? '［' + ORD[order] + '］' : order === 'rout' ? '［潰走］' : ''}`;
       ctx.font = 'bold 12px sans-serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.8)';
       const ly = cy - rr - 4;
       ctx.strokeText(label, cx, ly); ctx.fillStyle = side === 'B' ? '#ffb4a2' : '#fff'; ctx.fillText(label, cx, ly);

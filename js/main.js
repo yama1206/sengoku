@@ -503,6 +503,18 @@
           + `<button id="s1-${k}" data-act="sell" data-item="${k}" data-qty="1" ${have ? '' : 'disabled'}>売1</button><button id="sa-${k}" data-act="sell" data-item="${k}" data-qty="999" ${have ? '' : 'disabled'}>全部</button>`;
       }
       html += '</div>';
+      // 0.47.0 武具（町・城）
+      const EQ = SIM.EQUIP, E = me.equip || {};
+      if (E && (h.shop || []).length) {
+        const cur = (sl) => (E[sl] && EQ[sl][E[sl]]) ? EQ[sl][E[sl]].name : 'なし';
+        const wk = E.wep && EQ.wep[E.wep] ? EQ.wep[E.wep].kind : null;
+        html += `<div class="muted" style="margin-top:10px">武具　いまの装備：武器 ${cur('wep')}${wk ? `（${EQ.groupName[wk]}に入る）` : ''}・防具 ${cur('arm')}・馬 ${cur('horse')}</div>`;
+        for (const [sl, id] of h.shop) {
+          const e = EQ[sl][id], have = E[sl] === id, old = E[sl] && EQ[sl][E[sl]], back = old ? Math.floor(old.cost * EQ.sell) : 0;
+          const eff = sl === 'wep' ? `${EQ.kindName[e.kind]}・${EQ.groupName[e.kind]}に入る${e.am ? `・本人の攻撃+${Math.round(e.am * 100)}%` : ''}` : sl === 'arm' ? `守り+${e.da}・体力+${Math.round(e.hm * 100)}%` : `1日の移動+${e.km}km`;
+          html += `<div class="card"><div><b>${e.name}</b>　<span class="muted">${EQ.slotName[sl]}　${SIM.money(e.cost)}${back && !have ? `（下取り${SIM.money(back)}）` : ''}<br>${eff}</span></div><button id="eq-${id}" data-act="buyEquip" data-kind="${sl}" data-id="${id}" ${have || me.money + back < e.cost ? 'disabled' : ''}>${have ? '装備中' : '買う'}</button></div>`;
+        }
+      }
     } else if (townTab === 'jobs') {
       html += `<div class="muted">受けている依頼（${me.quests.length}/3）</div>`;
       if (!me.quests.length) html += '<div class="muted" style="margin:4px 0 8px">なし</div>';
@@ -780,7 +792,7 @@
     // 0.46.0 タップでも指図できるように：選んだ隊と全軍への指図ボタン
     const su = bt.units.find((u) => u[0] === G.selUnit && u[2] === G.myPid);
     const ob = (unit) => ['charge', 'hold', 'retreat', 'flank'].map((o) => `<button id="bo-${unit}-${o}" data-unit="${unit}" data-order="${o}">${ORDN[o]}</button>`).join('');
-    if (su && su[3] !== 'hero') html += `<div class="bu"><span class="nm">${TR[su[3]].short || TR[su[3]].name} ${su[4]}人<span class="muted">［${ORDN[su[7]] || ''}］</span></span>${ob(su[0])}</div>`;
+    if (su && su[3] !== 'hero') html += `<div class="bu"><span class="nm">${su[15] ? '本人＋' : ''}${TR[su[3]].short || TR[su[3]].name} ${su[4]}人<span class="muted">［${ORDN[su[7]] || ''}］</span></span>${ob(su[0])}</div>`;
     else html += `<div class="bu"><span class="nm muted">隊をタップして選び、地面をタップで移動</span></div>`;
     html += `<div class="bu"><span class="nm">全軍</span>${ob('all')}</div>`;
     html += `<div class="row" style="margin-top:4px"><button id="bAuto" data-bact="battleAuto">自動で決着（スキップ）</button><button id="bFlee" data-bact="battleFlee">退却する（兵の3割を失う${bt.foe === '野盗' ? '・所持金の15%を奪われる' : ''}）</button></div>`;
@@ -874,7 +886,7 @@
     const BT = G.priv && G.priv.battle;
     if (BT) { // 戦闘中：自分の部隊をクリックで選択、地面をクリックで選んだ部隊を移動
       const [fx, fy] = R.battleToField(e.offsetX, e.offsetY), L = R.battleLayout(SIM.FIELD);
-      const mine = BT.units.filter((u) => u[2] === G.myPid && u[7] !== 'rout').map((u) => [u, Math.hypot(u[5] - fx, u[6] - fy)]).sort((a, b) => a[1] - b[1])[0];
+      const mine = BT.units.filter((u) => u[2] === G.myPid && u[7] !== 'rout' && u[14] == null).map((u) => [u, Math.hypot(u[5] - fx, u[6] - fy)]).sort((a, b) => a[1] - b[1])[0];
       if (mine && mine[1] * L.sc < Math.max(22, (0.6 + Math.sqrt(mine[0][4]) * 0.7) * L.sc + 10) && p.btn !== 2) { G.selUnit = mine[0][0]; battleHtml = ''; return; }
       if (G.selUnit != null) command({ type: 'order', unit: G.selUnit, order: 'move', x: fx, y: fy });
       return;
@@ -935,7 +947,7 @@
   // 戦闘中のコントローラー：スティックでカーソル、×/A で自分の部隊を選ぶ→行き先で ×/A を押すとそこへ移動（LB/RB でも部隊を順に選べる）
   function padBattle(down, mx, my, dt) {
     const BT = G.priv && G.priv.battle; if (!BT) return;
-    const mine = BT.units.filter((u) => u[2] === G.myPid && u[7] !== 'rout');
+    const mine = BT.units.filter((u) => u[2] === G.myPid && u[7] !== 'rout' && u[14] == null);
     if (!mine.length) return;
     if (G.selUnit != null && !mine.some((u) => u[0] === G.selUnit)) G.selUnit = null;
     const F = SIM.FIELD;
@@ -1082,7 +1094,7 @@
         if (G.bcamFor !== BT.id) { // 新しい戦闘：自分の部隊が真ん中に来るように
           G.bcamFor = BT.id; const my = BT.units.filter((u) => u[2] === G.myPid);
           if (my.length) { R.bcam.x = my.reduce((a, u) => a + u[5], 0) / my.length + 90; R.bcam.y = my.reduce((a, u) => a + u[6], 0) / my.length; } R.bcam.z = 1;
-          const h = my.find((u) => u[3] === 'hero'); G.selUnit = h ? h[0] : my[0] && my[0][0];
+          const h = my.find((u) => u[15]) || my.find((u) => u[3] === 'hero' && u[14] == null); G.selUnit = h ? h[0] : my[0] && my[0][0];
         }
         if (G.bcur) { R.bcam.x += (G.bcur[0] - R.bcam.x) * Math.min(1, k * 0.5); R.bcam.y += (G.bcur[1] - R.bcam.y) * Math.min(1, k * 0.5); }
         R.drawBattle(ctx, BT, G.disp, G.myPid, G.selUnit); renderBattle(BT);

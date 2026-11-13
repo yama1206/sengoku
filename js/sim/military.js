@@ -226,6 +226,7 @@
         x: base - fx * (t.ranged ? 8 : type === 'hero' ? 4 : 0), y: FIELD.h / 2 + (i - (list.length - 1) / 2) * 14 + (side === 'A' ? (b.pids.length - 1) * 6 : 0),
         f: side === 'A' ? 0 : Math.PI, mor: type === 'hero' ? 100 : mo, mo, order: side === 'A' ? 'hold' : !t.ranged && i % 2 ? 'flank' : 'charge' }); // 敵の近接は半分が回り込む
     });
+    if (owner && army.hero && SIM.attachHero) SIM.attachHero(w, b.units.filter((u) => u.owner === owner), owner); // 0.47.0 本人は武器に合った隊に入る
   }
   function startBattle(w, n, p) {
     const id = 'b' + w.nextId++;
@@ -255,6 +256,12 @@
   const unitName = (u) => (u.type === 'hero' ? '本人' : (u.gname ? u.gname + '隊の' : '') + TR[u.type].name);
   function stepBattle(w, b, dt) {
     b.t += dt;
+    // 0.47.0 隊に入っている本人は、その隊といっしょに動く（隊が討たれたら一人で戦う）
+    for (const h of b.units) if (h.att != null && alive(h)) {
+      const g = b.units.find((u) => u.id === h.att);
+      if (!g || !alive(g) || g.order === 'rout') { if (g && g.gone) h.gone = true; h.att = null; if (g) g.lead = 0; continue; }
+      h.x = g.x; h.y = g.y; h.f = g.f; h.order = 'hold';
+    }
     const us = b.units.filter(alive), dmg = new Map(), hit = new Map();
     const vis = { A: visibleTo(b, 'A', us), B: visibleTo(b, 'B', us) };
     b.visA = [...vis.A].map((u) => u.id);
@@ -269,7 +276,7 @@
         continue;
       }
       let e = null, ed = Infinity;
-      for (const v of vis[u.side]) if (alive(v)) { const d = dist(u, v); if (d < ed) { ed = d; e = v; } }
+      for (const v of vis[u.side]) if (alive(v) && v.att == null) { const d = dist(u, v); if (d < ed) { ed = d; e = v; } } // 隊の中の本人は直接は狙われない
       const reach = e ? rad(u) + rad(e) + t.range + (u.ra || 0) + (t.ranged && tu.h ? 5 : 0) : 0;
       if (!e || ed > reach) {
         if (u.order === 'move') { if (goTo(u, u.mx, u.my, spd)) u.order = 'hold'; }
@@ -319,13 +326,14 @@
     }
     // 味方同士が重ならないように押し合う
     for (let i = 0; i < us.length; i++) for (let j = i + 1; j < us.length; j++) {
-      const a = us[i], c = us[j]; if (a.side !== c.side) continue;
+      const a = us[i], c = us[j]; if (a.side !== c.side || a.att === c.id || c.att === a.id) continue;
       const d = dist(a, c) || 0.01, m = rad(a) + rad(c);
       if (d < m) { const k = (m - d) / 2 / d; a.x -= (c.x - a.x) * k; a.y -= (c.y - a.y) * k; c.x += (c.x - a.x) * k; c.y += (c.y - a.y) * k; }
     }
     for (const u of us) { u.y = Math.max(2, Math.min(FIELD.h - 2, u.y)); if (u.order !== 'retreat' && u.order !== 'rout') u.x = Math.max(2, Math.min(FIELD.w - 2, u.x)); }
     for (const [u, d] of dmg) {
       const before = u.n;
+      if (u.lead) { const h = us.find((x) => x.att === u.id); if (h) { h.hp = Math.max(0, h.hp - (d * 2) / (before + 1)); if (h.hp <= 0) { h.att = null; u.lead = 0; for (const v of us) if (v.owner === h.owner && v !== h) v.mor -= 25; } } } // 隊が討たれると本人も傷を負う
       u.hp = Math.max(0, u.hp - d); u.n = Math.ceil(u.hp / (u.mh || TR[u.type].hp) - 1e-6);
       if (u.type === 'hero') { if (u.hp <= 0 && u.owner) for (const v of us) if (v.owner === u.owner && v !== u) v.mor -= 25; continue; }
       u.mor -= ((before - u.n) / (u.n0 || 1)) * 110 + (hit.get(u) || 0) * 3 * dt; // 損害と側面・背後からの攻撃で士気が下がる
@@ -521,7 +529,7 @@
     r.battle = b ? { id: b.id, foe: b.foe, t: Math.floor(b.t), routed: b.routed,
       names: Object.fromEntries(b.pids.map((x) => [x, (w.players[x] || {}).name])),
       ter: b.ter || [], ck: b.ck || null, units: b.units.filter((u) => alive(u) && (u.side === 'A' || (b.visA || []).includes(u.id)))
-        .map((u) => [u.id, u.side, u.owner, u.type, u.n, r1(u.x), r1(u.y), u.order, Math.round(visRange(b, u)), Math.round(u.mor), Math.round(u.f * 100) / 100, u.type === 'hero' ? Math.ceil(u.hp) : undefined, r1(reachOf(b, u)), u.gname || undefined]) } : null;
+        .map((u) => [u.id, u.side, u.owner, u.type, u.n, r1(u.x), r1(u.y), u.order, Math.round(visRange(b, u)), Math.round(u.mor), Math.round(u.f * 100) / 100, u.type === 'hero' ? Math.ceil(u.hp) : undefined, r1(reachOf(b, u)), u.gname || undefined, u.att != null ? u.att : undefined, u.lead ? 1 : undefined]) } : null;
     return r;
   };
   SIM.FIELD = FIELD;
