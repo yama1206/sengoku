@@ -23,10 +23,17 @@
   }
   SIM.setWar = setWar;
 
+  // 0.42.0 CPUの戦の人数（数値はここで調整）
+  const SIEGE_N = SIM.SIEGE_N = {
+    gar: 70, garHome: 120, garWall: 8, // 守備兵の上限（ふつうの城・大名の居城・城壁1段ごと）
+    take: 0.5,                          // 近くの城（3つまで）から出す守備兵の割合
+    levyPer: 20, levyMax: 120,          // 陣触れ：持っている城1つにつき農兵20人（最大120）
+    min: 100,                           // これより少ないなら攻めない
+  };
   // ---- 守備兵 ----
   function garMax(w, s) {
     const f = w.factions[s.owner], home = f && w.people[f.leader] && s.lord === f.leader;
-    return Math.round((home ? 60 : 35) + Math.floor((s.dev && s.dev.wall) || 0) * 5);
+    return Math.round((home ? SIEGE_N.garHome : SIEGE_N.gar) + Math.floor((s.dev && s.dev.wall) || 0) * SIEGE_N.garWall);
   }
   function garOf(n) { // 兵数から守備兵の内訳を作る
     const t = { yari: Math.round(n * 0.55), yumi: Math.round(n * 0.25), teppo: Math.round(n * 0.1) };
@@ -231,11 +238,13 @@
       // 近くの城（3つまで）から兵を集める
       let n = 0; const gens = [];
       for (const x of castles(w, att).sort((a2, b2) => dist(a2, tgt) - dist(b2, tgt)).slice(0, 3)) {
-        const t = Math.floor(SIM.garrison(x) * 0.5); n += t; x.gar = garOf(SIM.garrison(x) - t);
+        const t = Math.floor(SIM.garrison(x) * SIEGE_N.take); n += t; x.gar = garOf(SIM.garrison(x) - t);
         if (x.lord && w.people[x.lord] && !gens.includes(x.lord)) gens.push(x.lord); // 城主が武将として加わる
       }
-      if (n < 12) { src.gar = garOf(SIM.garrison(src) + n); continue; }
-      SIM.launchArmy(w, { faction: att, from: src, to: tgt, army: garOf(n), gens, mode: 'siege' });
+      const levy = Math.min(SIEGE_N.levyMax, castles(w, att).length * SIEGE_N.levyPer); // 陣触れで領内の農兵を集める
+      if (n + levy < SIEGE_N.min) { src.gar = garOf(SIM.garrison(src) + n); continue; }
+      const army = garOf(n); if (levy) army.nohei = levy;
+      SIM.launchArmy(w, { faction: att, from: src, to: tgt, army, gens, mode: 'siege' });
     }
     // ときどき戦が終わり、ときどき隣の家と戦が始まる（CPUどうし）
     for (const k of Object.keys(w.wars)) { const [a, b] = k.split('|'); if (!w.factions[a].player && !w.factions[b].player && rnd(w) < 0.04) { setWar(w, a, b, false); news(w, `${fName(w, a)}と${fName(w, b)}が和睦しました`); } }
