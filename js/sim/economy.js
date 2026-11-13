@@ -200,7 +200,7 @@
       SIM.say(p.id, `${it.name}を${q}${it.unit}売りました（${SIM.money(unit * q)}）`);
     },
     acceptJob(w, p, c) {
-      const s = needTown(w, p), j = w.jobs[c.id]; if (!s || !j || j.from !== s.id) return;
+      const s = needTown(w, p), j = w.jobs[c.id]; if (!s || !j || j.from !== s.id || !SIM.jobOk(w, p, j)) return;
       if (p.quests.length >= 3) return SIM.say(p.id, '同時に受けられる依頼は3つまでです');
       delete w.jobs[j.id];
       p.quests.push(Object.assign({}, j, { deadline: w.time.min + j.days * 1440 }));
@@ -260,7 +260,7 @@
     const s = here(w, p);
     return {
       me: { money: p.money, inv: p.inv, cost: p.cost || {}, quests: p.quests, fame: Math.round(p.fame * 10) / 10, busy: p.busy, cap: CAP, riceCap: SIM.riceCap(p) },
-      here: s ? { id: s.id, noBuy: [...SIM.noBuy(w, s)], market: Object.keys(I()).map((k) => [k, SIM.buyPrice(s, k, p), SIM.sellPrice(s, k, p), Math.floor(s.stock[k])]), jobs: Object.values(w.jobs).filter((j) => j.from === s.id) } : null,
+      here: s ? { id: s.id, noBuy: [...SIM.noBuy(w, s)], market: Object.keys(I()).map((k) => [k, SIM.buyPrice(s, k, p), SIM.sellPrice(s, k, p), Math.floor(s.stock[k])]), jobs: Object.values(w.jobs).filter((j) => j.from === s.id && SIM.jobOk(w, p, j)) } : null,
     };
   };
 })();

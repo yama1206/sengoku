@@ -51,6 +51,10 @@
     return best;
   }
 
+  // 0.53.2 偵察・兵糧の運び込み・調略の使いは、その城の家に仕えている人だけが受けられる
+  QC.milTypes = ['scout', 'supply', 'envoy'];
+  SIM.jobOk = (w, p, j) => !QC.milTypes.includes(j.type) || (!!p.clan && st(w, j.from) && st(w, j.from).owner === p.clan);
+
   // ---- 依頼をつくる（economy.js の genJob から呼ばれる） ----
   SIM.extraJob = (w, s, id, giver) => {
     if (rnd(w) > (s.type === 'castle' ? QC.castleRate : QC.extraRate)) return null;
