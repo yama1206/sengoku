@@ -289,6 +289,12 @@
     G.inBattle = Object.keys(G.world.battles || {}).length > 0; // 0.32.0 誰かが戦闘中は時間を等倍に
     G.effSpeed = G.inBattle && G.speed > 1 ? 1 : G.speed;
     SIM.step(G.world, dt * CFG.MIN_PER_SEC * G.effSpeed);
+    { // 0.54.5 1人のとき：拠点に着いたら時間を止め、次に動き出すと元の速さに戻す
+      const m = G.world.players[G.myPid], at = m && m.at, solo = !G.net || !G.net.pids().length;
+      if (solo && at && at !== G.lastAt && G.speed > 0 && !m.battle) { G.autoPause = G.speed; G.speed = 0; toast(`${(SIM.settlement(G.world, at) || {}).name || '拠点'}に着いたので時間を止めました（動き出すと再開）`, 2500); }
+      if (G.autoPause && m && (m.tx != null || m.follow)) { G.speed = G.autoPause; G.autoPause = 0; }
+      G.lastAt = at;
+    }
     netAcc += dt * 1000;
     if (netAcc >= CFG.NET_SEND_MS) {
       netAcc = 0;
@@ -306,7 +312,7 @@
     } else if (G.mode === 'client') $('roomInfo').textContent = '参加中';
   }
   function hostUI(on) { document.querySelectorAll('.hostOnly').forEach((e) => e.classList.toggle('hidden', !on)); }
-  document.querySelectorAll('[data-speed]').forEach((b) => (b.onclick = () => { G.speed = +b.dataset.speed; }));
+  document.querySelectorAll('[data-speed]').forEach((b) => (b.onclick = () => { G.speed = +b.dataset.speed; G.autoPause = 0; }));
 
   // ---------- 参加者 ----------
   function startClient(code) {
@@ -976,7 +982,7 @@
     else if (k === 'p' || k === 'P') openChar(true);
     else if (k === 'Enter' && G.selected) $('infoGo').click();
     else if (k === '+' || k === '=') R.zoom(1.2); else if (k === '-') R.zoom(1 / 1.2);
-    else if (G.mode === 'host' && '1234'.includes(k)) G.speed = [0, 1, 2, 4][+k - 1];
+    else if (G.mode === 'host' && '1234'.includes(k)) { G.speed = [0, 1, 2, 4][+k - 1]; G.autoPause = 0; }
   });
   window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
   window.addEventListener('blur', () => keys.clear());
@@ -1089,7 +1095,7 @@
       }
       if (down(1)) { if (G.selected) selectSettlement(null); else if (G.pcurOn || !R.cam.follow) { G.pcurOn = false; R.cam.follow = true; } else command({ type: 'stop' }); }
       if (down(8)) openChar(true);
-      if (G.mode === 'host' && !infoOpen && (down(14) || down(15))) { const S = [0, 1, 2, 4], i = S.indexOf(G.speed); G.speed = S[Math.max(0, Math.min(3, i + (down(15) ? 1 : -1)))]; toast(G.speed ? `時間の速さ ×${G.speed}` : '時間を止めました', 900); }
+      if (G.mode === 'host' && !infoOpen && (down(14) || down(15))) { const S = [0, 1, 2, 4], i = S.indexOf(G.speed); G.autoPause = 0; G.speed = S[Math.max(0, Math.min(3, i + (down(15) ? 1 : -1)))]; toast(G.speed ? `時間の速さ ×${G.speed}` : '時間を止めました', 900); }
       if (down(2)) cycleNear();
       if (down(3)) $('mFollow').click();
       if (down(10)) { // L3：カーソルを自分の場所へ戻す（地図も自分に合わせて追従）
