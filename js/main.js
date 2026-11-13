@@ -35,7 +35,7 @@
     if (!$('captive').classList.contains('hidden')) return $('captive');
     return null;
   }
-  function menuButtons(m) { return [...m.querySelectorAll('button')].filter((b) => !b.disabled && b.offsetParent); }
+  function menuButtons(m) { const a = [...m.querySelectorAll('button')]; if (m.id === 'titleMenu') a.push($('updateBtn')); return a.filter((b) => !b.disabled && b.offsetParent); } // 0.60.2 タイトルの更新ボタンもコントローラーで選べる
   function setFocus(m, b) { menuButtons(m).forEach((x) => x.classList.toggle('focus', x === b)); focusMem[m.id] = b ? b.id || b.textContent : null; }
   function currentFocus(m) {
     const bs = menuButtons(m);
