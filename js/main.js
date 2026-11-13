@@ -25,6 +25,7 @@
 
   // ---------- メニュー操作（キー・コントローラー：押した方向へ移動／決定してもカーソル位置は保つ） ----------
   const focusMem = {};
+  function activeMenuNotBattle() { const m = activeMenu(); return m && m !== $('battle'); }
   function activeMenu() {
     if (G.mode === 'title') return !$('mapPanel').classList.contains('hidden') ? $('mapPanel') : !$('createPanel').classList.contains('hidden') ? $('createPanel') : !$('slotPanel').classList.contains('hidden') ? $('slotPanel') : !$('friendPanel').classList.contains('hidden') ? $('friendPanel') : !$('namePanel').classList.contains('hidden') ? $('namePanel') : $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
     if (!$('gameMenu').classList.contains('hidden')) return $('gameMenu');
@@ -902,7 +903,12 @@
 
   // ---------- 戦闘の操作パネル ----------
   let battleHtml = '';
-  const ORDN = { charge: '突撃', hold: '待機', retreat: '後退', flank: '回り込み', move: '移動中', rout: '潰走中' };
+  // 0.56.0 アクション戦闘（試作）：1人で遊んでいるホストだけ
+  const soloHost = () => G.mode === 'host' && (!G.net || !G.net.pids().length);
+  const actB = () => { const BT = G.priv && G.priv.battle, b = BT && G.mode === 'host' && G.world.battles[BT.id]; return b && b.act ? b : null; };
+  function actOrder(o, x, y) { const c = { type: 'order', unit: G.selUnit == null ? 'all' : G.selUnit, order: o }; if (o === 'move') { c.x = x; c.y = y; } command(c); }
+  function actSel(d) { const AB = actB(); if (!AB) return; const l = [null, ...AB.units.filter((u) => u.idx && u.hp > 0 && !u.gone).sort((a, b) => a.idx - b.idx).map((u) => u.id)]; const i = Math.max(0, l.indexOf(G.selUnit)); G.selUnit = l[(i + d + l.length) % l.length]; battleHtml = ''; }
+  const ORDN = { charge: '突撃', hold: '待機', retreat: '後退', flank: '回り込み', move: '移動中', rout: '潰走中', follow: '随行' };
   function renderBattle(bt) {
     const TR = SIM.TROOPS;
     const sum = (side) => bt.units.filter((u) => u[1] === side).reduce((a, u) => a + (u[3] === 'hero' ? 1 : u[4]), 0);
@@ -911,17 +917,19 @@
     let html = ''; // 部隊の一覧は出さない（地図の上でクリックして選ぶ）
     // 0.46.0 タップでも指図できるように：選んだ隊と全軍への指図ボタン
     const su = bt.units.find((u) => u[0] === G.selUnit && u[2] === G.myPid);
-    const ob = (unit) => ['charge', 'hold', 'retreat', 'flank'].map((o) => `<button id="bo-${unit}-${o}" data-unit="${unit}" data-order="${o}">${ORDN[o]}</button>`).join('');
+    const AB = actB(), ob = (unit) => ['charge', 'hold', 'retreat', 'flank', ...(AB ? ['follow'] : [])].map((o) => `<button id="bo-${unit}-${o}" data-unit="${unit}" data-order="${o}">${ORDN[o]}</button>`).join('');
     if (su && su[3] !== 'hero') html += `<div class="bu"><span class="nm">${su[15] ? '本人＋' : ''}${TR[su[3]].short || TR[su[3]].name} ${su[4]}人<span class="muted">［${ORDN[su[7]] || ''}］</span></span>${ob(su[0])}</div>`;
-    else html += `<div class="bu"><span class="nm muted">隊をタップして選び、地面をタップで移動</span></div>`;
+    else if (!AB) html += `<div class="bu"><span class="nm muted">隊をタップして選び、地面をタップで移動</span></div>`;
     html += `<div class="bu"><span class="nm">全軍</span>${ob('all')}</div>`;
     if (bt.lead) html += `<div class="bu"><span class="nm">大将：${bt.lead === 2 ? '武将の隊も指図している' : '自分の隊だけ指図している'}</span><button id="bLead" data-lead="${bt.lead === 2 ? 0 : 1}">${bt.lead === 2 ? '自分の隊だけにする' : '武将の隊も指図する'}</button></div>`; // 0.50.0
+    if (!AB && soloHost() && SIM.actCan(G.world, G.world.battles[bt.id])) html += `<div class="row" style="margin-top:4px"><button id="bAct" data-act="1">自分で戦う（試作）</button></div>`;
     html += `<div class="row" style="margin-top:4px"><button id="bAuto" data-bact="battleAuto">自動で決着（スキップ）</button><button id="bFlee" data-bact="battleFlee">退却する（兵の3割を失う${bt.foe === '野盗' ? '・所持金の15%を奪われる' : ''}）</button></div>`;
     if (html !== battleHtml) { battleHtml = html; $('battleBody').innerHTML = html; G.bpick = null; setFocus($('battle'), null); }
   }
   $('battleBody').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.sel) { G.selUnit = +b.dataset.sel; battleHtml = ''; }
+    if (b.dataset.act) { const wb = G.priv && G.priv.battle && G.world.battles[G.priv.battle.id]; if (wb && SIM.actCan(G.world, wb)) { SIM.actStart(G.world, wb, G.myPid); G.selUnit = null; battleHtml = ''; b.blur(); } }
+    else if (b.dataset.sel) { G.selUnit = +b.dataset.sel; battleHtml = ''; }
     else if (b.dataset.order) command({ type: 'order', unit: b.dataset.unit, order: b.dataset.order });
     else if (b.dataset.bact) command({ type: b.dataset.bact });
     else if (b.dataset.lead) command({ type: 'leadAll', on: b.dataset.lead === '1' });
@@ -990,6 +998,20 @@
   const cv = $('map'), ctx = cv.getContext('2d');
   const ptrs = new Map(); let dragMoved = false, pinchD = 0;
   cv.addEventListener('contextmenu', (e) => e.preventDefault());
+  // 0.56.0 アクション戦闘のマウス・タッチ（地図・戦場の操作より先に受け取る）
+  window.addEventListener('pointerdown', (e) => {
+    if (e.target !== cv || !actB()) return; e.stopPropagation(); e.preventDefault();
+    if (e.pointerType === 'touch') { G.actTouch = [e.offsetX, e.offsetY]; return; }
+    G.mouseXY = [e.offsetX, e.offsetY]; G.padUsed = false;
+    if (e.button === 0) G.actAtk = true;
+    else if (e.button === 2) { const [x, y] = R.actToWorld(e.offsetX, e.offsetY); actOrder('move', x, y); toast('そこへ向かわせます', 800); }
+  }, true);
+  window.addEventListener('pointermove', (e) => {
+    if (!actB()) return; if (e.target === cv) { if (e.pointerType === 'touch') { if (G.actTouch) G.actTouch = [e.offsetX, e.offsetY]; } else { G.mouseXY = [e.offsetX, e.offsetY]; G.padUsed = false; } e.stopPropagation(); }
+  }, true);
+  const actUp = (e) => { if (!actB()) return; G.actAtk = false; G.actTouch = null; if (e.target === cv) e.stopPropagation(); };
+  window.addEventListener('pointerup', actUp, true); window.addEventListener('pointercancel', actUp, true);
+  window.addEventListener('wheel', (e) => { if (e.target !== cv || !actB()) return; e.stopPropagation(); e.preventDefault(); R.acam.z = Math.max(4, Math.min(22, R.acam.z * (e.deltaY < 0 ? 1.15 : 1 / 1.15))); }, { capture: true, passive: false });
   cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.offsetX, y: e.offsetY, sx: e.offsetX, sy: e.offsetY, btn: e.button }); dragMoved = false; pinchD = 0; });
   cv.addEventListener('pointermove', (e) => {
     const p = ptrs.get(e.pointerId); if (!p) return;
@@ -1033,6 +1055,15 @@
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT') { if (e.key === 'Enter' && G.mode === 'title' && e.target.id === 'codeInput') $('btnJoinGo').click(); if (e.key === 'Enter' && e.target.id === 'fcInput') $('btnFcAdd').click(); return; }
     const k = e.key;
+    if (actB() && !activeMenuNotBattle()) {
+      const kl = k.toLowerCase(), o = { z: 'charge', x: 'hold', c: 'retreat', v: 'flank', f: 'follow' }[kl];
+      if ('wasd'.includes(kl) && kl.length === 1) { keys.add(kl); G.padUsed = false; return; }
+      if (k === ' ') { e.preventDefault(); G.actDash = true; return; }
+      if (o) { actOrder(o); return; }
+      if (/^[1-9]$/.test(k)) { const AB = actB(), u = AB.units.find((x) => x.idx === +k); G.selUnit = k === '1' ? null : u ? u.id : G.selUnit; battleHtml = ''; return; }
+      if (k === 'Escape') { toggleMenu(true); return; }
+      if (k === 'Tab') { e.preventDefault(); actSel(1); return; }
+    }
     const dir = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[k];
     if (activeMenu()) {
       if (dir) { e.preventDefault(); navMenu(dir[0], dir[1]); return; }
@@ -1122,7 +1153,13 @@
         if (down(14) || down(15)) { const i = bb.indexOf(G.bpick), d = down(15) ? 1 : -1, j = i + d; G.bpick = j >= 0 && j < bb.length && i !== -1 ? bb[j] : i === -1 ? bb[d > 0 ? 0 : bb.length - 1] : null; setFocus($('battle'), G.bpick || null); }
         if (G.bpick && !bb.includes(G.bpick)) G.bpick = null;
         if (down(0) && G.bpick) { const b = G.bpick; G.bpick = null; setFocus($('battle'), null); b.click(); }
-        else padBattle(down, lx + rx, ly + ry, dt);
+        else if (actB()) { // 0.56.0 アクション戦闘：左スティック移動・右スティック狙い・RT/A攻撃・Bかわす・LB/RB隊を選ぶ・X突撃・Y随行・十字↑待機↓後退
+          G.padMv = [lx, ly]; const am = Math.hypot(rx, ry);
+          G.padAim = am > 0.3 ? Math.atan2(ry, rx) : null; if (am > 0.3 || lx || ly) G.padUsed = true;
+          G.padAtk = btn(7) || btn(0); if (down(1)) G.actDash = true;
+          if (down(4)) actSel(-1); if (down(5)) actSel(1);
+          if (down(2)) actOrder('charge'); if (down(3)) actOrder('follow'); if (down(12)) actOrder('hold'); if (down(13)) actOrder('retreat');
+        } else padBattle(down, lx + rx, ly + ry, dt);
       } else {
         if (nx || ny) { if (!navHold || now - lastNav > (navHold === 1 ? 400 : 150)) { navMenu(Math.abs(nx) >= Math.abs(ny) ? Math.sign(nx) : 0, Math.abs(nx) >= Math.abs(ny) ? 0 : Math.sign(ny)); lastNav = now; navHold++; } }
         else navHold = 0;
@@ -1185,6 +1222,15 @@
 
   // ---------- 毎フレーム ----------
   let lastFrame = performance.now(), dirSendAcc = 0, wasDirMoving = false;
+  function actInput(AB) {
+    const h = AB.act.s.find((s) => s.pc), pm = G.padMv || [0, 0];
+    const inp = { mx: pm[0] + (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0), my: pm[1] + (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0), atk: !!(G.actAtk || G.padAtk), dash: !!G.actDash, aim: null };
+    G.actDash = false;
+    if (h && G.actTouch) { const [x, y] = R.actToWorld(G.actTouch[0], G.actTouch[1]), d = Math.hypot(x - h.x, y - h.y); inp.aim = Math.atan2(y - h.y, x - h.x); if (d > 3.5) { inp.mx = (x - h.x) / d; inp.my = (y - h.y) / d; } inp.atk = d < 6; }
+    else if (G.padAim != null) inp.aim = G.padAim;
+    else if (h && G.mouseXY && !G.padUsed) { const [x, y] = R.actToWorld(G.mouseXY[0], G.mouseXY[1]); inp.aim = Math.atan2(y - h.y, x - h.x); }
+    return inp;
+  }
   function frame(now) {
     const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
     const padMove = pollPad(dt);
@@ -1226,8 +1272,12 @@
           const h = my.find((u) => u[15]) || my.find((u) => u[3] === 'hero' && u[14] == null); G.selUnit = h ? h[0] : my[0] && my[0][0];
         }
         if (G.bcur) { R.bcam.x += (G.bcur[0] - R.bcam.x) * Math.min(1, k * 0.5); R.bcam.y += (G.bcur[1] - R.bcam.y) * Math.min(1, k * 0.5); }
-        R.drawBattle(ctx, BT, G.disp, G.myPid, G.selUnit); renderBattle(BT);
-        if (G.bcur) { const L = R.battleLayout(SIM.FIELD); drawCross(L.ox + G.bcur[0] * L.sc, L.oy + G.bcur[1] * L.sc, '#f2c14e'); }
+        const AB = actB();
+        if (AB) {
+          if ($('gameMenu').classList.contains('hidden')) SIM.actStep(G.world, AB, dt, actInput(AB));
+          R.drawAction(ctx, AB, G.myPid, G.selUnit, dt); renderBattle(BT);
+        } else { R.drawBattle(ctx, BT, G.disp, G.myPid, G.selUnit); renderBattle(BT); }
+        if (G.bcur && !AB) { const L = R.battleLayout(SIM.FIELD); drawCross(L.ox + G.bcur[0] * L.sc, L.oy + G.bcur[1] * L.sc, '#f2c14e'); }
       } else {
         G.bcur = null;
         G.view.myClan = P && P.me && P.me.rank ? P.me.rank.clan || null : null;

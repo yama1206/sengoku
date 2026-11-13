@@ -112,6 +112,10 @@
     arrive: (t) => bell(t, 659, 0.3, 2.5),
     news: (t) => tsuzumi(t, 0.35, sfxBus),
     battleStart: (t) => { horagai(t, 0.35); taiko(t + 0.1, 0.9, true, sfxBus); taiko(t + 0.55, 0.7, false, sfxBus); taiko(t + 0.8, 0.9, true, sfxBus); },
+    slash: (t) => koto(t, 93, 0.05, sfxBus),
+    hit: (t) => taiko(t, 0.25, false, sfxBus),
+    bow: (t) => koto(t, 86, 0.05, sfxBus),
+    gun: (t) => { taiko(t, 0.7, true, sfxBus); taiko(t + 0.02, 0.4, false, sfxBus); },
     battleEnd: (t) => { bell(t, 196, 0.4, 3.5); taiko(t, 0.6, true, sfxBus); },
   };
   let lastSfx = {};

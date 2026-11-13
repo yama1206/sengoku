@@ -463,7 +463,7 @@
     banditTick,
     healTick,
     patrolTick,
-    function battles(w, dtMin) { const sec = (dtMin / CFG.MIN_PER_SEC) * BATTLE_PACE; for (const b of Object.values(w.battles)) stepBattle(w, b, sec); },
+    function battles(w, dtMin) { const sec = (dtMin / CFG.MIN_PER_SEC) * BATTLE_PACE; for (const b of Object.values(w.battles)) if (!b.act) stepBattle(w, b, sec); },
   );
 
   // ---- コマンド ----
@@ -492,7 +492,7 @@
       SIM.say(p.id, `${TR[c.kind].name}を${q}人解き放ちました`);
     },
     order(w, p, c) {
-      const b = w.battles[p.battle]; if (!b || !['charge', 'hold', 'retreat', 'flank', 'move'].includes(c.order)) return;
+      const b = w.battles[p.battle]; if (!b || !['charge', 'hold', 'retreat', 'flank', 'move', 'follow'].includes(c.order)) return;
       for (const u of b.units) if ((u.owner === p.id || u.cmd === p.id) && u.order !== 'rout' && (c.unit === 'all' || u.id === +c.unit)) {
         u.order = c.order;
         if (c.order === 'move') { u.mx = Math.max(2, Math.min(FIELD.w - 2, +c.x || 0)); u.my = Math.max(2, Math.min(FIELD.h - 2, +c.y || 0)); }
@@ -533,5 +533,6 @@
     return r;
   };
   SIM.FIELD = FIELD;
+  SIM._finishBattle = finish; // 0.56.0 アクション戦闘から使う
   SIM._mil = { addUnits, genTerrain, inField, power, surviving }; // 攻城戦（siege.js）から使う
 })();
