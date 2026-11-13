@@ -986,8 +986,17 @@
   if (matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window) document.body.classList.add('touch');
   $('nearBtn').onclick = () => cycleNear();
   $('followBtn').onclick = () => $('mFollow').click();
-  $('zoomIn').onclick = () => (G.priv && G.priv.battle ? (R.bcam.z *= 1.2) : R.zoom(1.2));
-  $('zoomOut').onclick = () => (G.priv && G.priv.battle ? (R.bcam.z /= 1.2) : R.zoom(1 / 1.2));
+  // 0.58.0 戦場のズーム：地図と同じ操作（ホイール・ピンチ・＋－ボタン・＋/－キー・LB/RB等）で、指した所を中心に
+  const inB = () => !!(G.priv && G.priv.battle);
+  function bZoom(k, sx, sy) {
+    if (actB()) { R.acam.z = Math.max(4, Math.min(22, R.acam.z * k)); return; }
+    const c = R.bcam, nz = Math.max(0.35, Math.min(3, c.z * k)); k = nz / c.z; if (k === 1) return;
+    if (sx != null) { const L = R.battleLayout(SIM.FIELD), fx = (sx - L.ox) / L.sc, fy = (sy - L.oy) / L.sc; c.x = fx + (c.x - fx) / k; c.y = fy + (c.y - fy) / k; }
+    c.z = nz;
+  }
+  const anyZoom = (k, sx, sy) => (inB() ? bZoom(k, sx, sy) : R.zoom(k, sx, sy));
+  $('zoomIn').onclick = () => anyZoom(1.2);
+  $('zoomOut').onclick = () => anyZoom(1 / 1.2);
   $('mFollow').onclick = () => { R.cam.follow = !R.cam.follow; toast(R.cam.follow ? '自分を追いかけます' : '追いかけを止めました', 1200); };
   $('mTitle').onclick = () => backToTitle();
   // テスト用（ホストだけ）
@@ -1011,14 +1020,13 @@
   }, true);
   const actUp = (e) => { if (!actB()) return; G.actAtk = false; G.actTouch = null; if (e.target === cv) e.stopPropagation(); };
   window.addEventListener('pointerup', actUp, true); window.addEventListener('pointercancel', actUp, true);
-  window.addEventListener('wheel', (e) => { if (e.target !== cv || !actB()) return; e.stopPropagation(); e.preventDefault(); R.acam.z = Math.max(4, Math.min(22, R.acam.z * (e.deltaY < 0 ? 1.15 : 1 / 1.15))); }, { capture: true, passive: false });
   cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.offsetX, y: e.offsetY, sx: e.offsetX, sy: e.offsetY, btn: e.button }); dragMoved = false; pinchD = 0; });
   cv.addEventListener('pointermove', (e) => {
     const p = ptrs.get(e.pointerId); if (!p) return;
     if (ptrs.size === 2) {
       p.x = e.offsetX; p.y = e.offsetY;
       const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y);
-      if (pinchD) { if (G.priv && G.priv.battle) R.bcam.z *= d / pinchD; else R.zoom(d / pinchD, (a.x + b.x) / 2, (a.y + b.y) / 2); } pinchD = d; dragMoved = true; return;
+      if (pinchD) anyZoom(d / pinchD, (a.x + b.x) / 2, (a.y + b.y) / 2); pinchD = d; dragMoved = true; return;
     }
     const dx = e.offsetX - p.x, dy = e.offsetY - p.y; p.x = e.offsetX; p.y = e.offsetY;
     if (Math.hypot(p.x - p.sx, p.y - p.sy) > 6) { dragMoved = true; R.cam.follow = false; }
@@ -1048,7 +1056,7 @@
     else if (hit) selectSettlement(hit);   // 左クリック・タップ：拠点なら情報
     else moveTo(wx, wy);                   // 地面なら移動
   });
-  cv.addEventListener('wheel', (e) => { e.preventDefault(); if (G.priv && G.priv.battle) { const L = R.battleLayout(SIM.FIELD), fx = (e.offsetX - L.ox) / L.sc, fy = (e.offsetY - L.oy) / L.sc, k = e.deltaY < 0 ? 1.15 : 1 / 1.15; R.bcam.z *= k; R.bcam.x = fx + (R.bcam.x - fx) / k; R.bcam.y = fy + (R.bcam.y - fy) / k; return; } R.zoom(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.offsetX, e.offsetY); }, { passive: false });
+  cv.addEventListener('wheel', (e) => { e.preventDefault(); anyZoom(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.offsetX, e.offsetY); }, { passive: false });
 
   // ---------- キーボード ----------
   const keys = new Set();
@@ -1086,7 +1094,7 @@
     else if (k === 'e' || k === 'E') openTown(true);
     else if (k === 'p' || k === 'P') openChar(true);
     else if (k === 'Enter' && G.selected) $('infoGo').click();
-    else if (k === '+' || k === '=') R.zoom(1.2); else if (k === '-') R.zoom(1 / 1.2);
+    else if (k === '+' || k === '=' || k === ';') anyZoom(1.2); else if (k === '-') anyZoom(1 / 1.2);
     else if (G.mode === 'host' && '1234'.includes(k)) { G.speed = [0, 1, 2, 4][+k - 1]; G.autoPause = 0; }
   });
   window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
@@ -1159,7 +1167,8 @@
           G.padAtk = btn(7) || btn(0); if (down(1)) G.actDash = true;
           if (down(4)) actSel(-1); if (down(5)) actSel(1);
           if (down(2)) actOrder('charge'); if (down(3)) actOrder('follow'); if (down(12)) actOrder('hold'); if (down(13)) actOrder('retreat');
-        } else padBattle(down, lx + rx, ly + ry, dt);
+          if (btn(10)) bZoom(1 - dt * 1.5); if (btn(11)) bZoom(1 + dt * 1.5); // スティック押し込み：L3縮小・R3拡大
+        } else { padBattle(down, lx + rx, ly + ry, dt); if (btn(6)) bZoom(1 - dt * 1.5); if (btn(7)) bZoom(1 + dt * 1.5); } // LT縮小・RT拡大
       } else {
         if (nx || ny) { if (!navHold || now - lastNav > (navHold === 1 ? 400 : 150)) { navMenu(Math.abs(nx) >= Math.abs(ny) ? Math.sign(nx) : 0, Math.abs(nx) >= Math.abs(ny) ? 0 : Math.sign(ny)); lastNav = now; navHold++; } }
         else navHold = 0;
