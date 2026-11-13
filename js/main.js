@@ -828,6 +828,10 @@
   });
   document.querySelectorAll('#char [data-ctab]').forEach((b) => (b.onclick = () => setCTab(b.dataset.ctab)));
   $('charClose').onclick = () => openChar(false);
+  // 0.54.10 ウインドウの上で右クリック：そのウインドウを閉じる（マウスだけで操作できるように）
+  $('char').addEventListener('contextmenu', (e) => { e.preventDefault(); openChar(false); });
+  $('town').addEventListener('contextmenu', (e) => { e.preventDefault(); openTown(false); });
+  $('info').addEventListener('contextmenu', (e) => { e.preventDefault(); selectSettlement(null); });
   $('charBtn').onclick = () => openChar(true);
   $('mChar').onclick = () => openChar(true);
   $('townChar').onclick = () => openChar(true); // 0.29.2 拠点の画面からも人物を開ける
@@ -949,6 +953,11 @@
     const [wx, wy] = R.toWorld(e.offsetX, e.offsetY);
     const uh = p.btn !== 2 && unitHit(e.offsetX, e.offsetY);
     if (uh) { selectUnit(uh); return; } // 部隊をクリック・タップ：情報
+    if (p.btn === 2) { // 0.54.10 右クリック：自分の上なら人物を開く（開いていれば閉じる）／それ以外はすぐ移動
+      const mm = me(), md = mm && (G.disp[G.myPid] || mm), ms = md && R.toScreen(md.x, md.y);
+      if (!$('char').classList.contains('hidden')) { openChar(false); return; }
+      if (ms && Math.hypot(ms[0] - e.offsetX, ms[1] - e.offsetY) < 18) { openChar(true); return; }
+    }
     if (p.btn === 2) { hit ? moveTo(hit.x, hit.y, hit.id) : moveTo(wx, wy); } // 右クリック：すぐ移動
     else if (hit) selectSettlement(hit);   // 左クリック・タップ：拠点なら情報
     else moveTo(wx, wy);                   // 地面なら移動
