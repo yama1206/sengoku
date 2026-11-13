@@ -342,7 +342,7 @@
       const levy = Math.max(0, need - n);
       const army = garOf(n); if (levy) army.nohei = levy;
       // 0.49.0 すぐには出陣せず、まず兵を集める（噂が流れる）→ 数日後に軍勢が出る
-      const days = Math.min(5, 2 + Math.floor((n + levy) / 80));
+      const days = Math.max(1, Math.min(7, Math.round(1 + (n + levy) / 60))); // 0.59.0 大軍ほど集めるのに日数がかかる
       w.musters.push({ att, src: src.id, tgt: tgt.id, army, gens, n: n + levy, at: w.time.min + days * 1440 });
       news(w, `${fName(w, att)}が${src.name}に兵を集めているそうです（${n + levy}人ほど。${fName(w, def)}の${tgt.name}を狙っているとか）`);
       for (const q of Object.values(w.players)) if (q.clan === att) SIM.say(q.id, `【陣触れ】${src.name}に兵を集めています。${days}日のうちに${src.name}に入っておけば、${tgt.name}攻めに参陣できます`); // 0.50.0

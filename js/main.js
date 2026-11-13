@@ -906,6 +906,9 @@
   // 0.56.0 アクション戦闘（試作）：1人で遊んでいるホストだけ
   const soloHost = () => G.mode === 'host' && (!G.net || !G.net.pids().length);
   const actB = () => { const BT = G.priv && G.priv.battle, b = BT && G.mode === 'host' && G.world.battles[BT.id]; return b && b.act ? b : null; };
+  // 0.59.0 移動先を決めたあと、向く方向を決める（G.fpick = 移動先。次に押した所の方を向く）
+  function moveFace(unit, x, y, face) { command({ type: 'order', unit, order: 'move', x, y }); if (face != null) command({ type: 'order', unit, order: 'face', f: face }); }
+  function pickFace(fx, fy) { const P = G.fpick; G.fpick = null; if (!P) return false; if (Math.hypot(fx - P.x, fy - P.y) < 2) { toast('向きはそのままにしました', 800); return true; } command({ type: 'order', unit: P.unit, order: 'face', f: Math.atan2(fy - P.y, fx - P.x) }); toast('その方向を向かせます', 800); return true; }
   function actOrder(o, x, y) { const c = { type: 'order', unit: G.selUnit == null ? 'all' : G.selUnit, order: o }; if (o === 'move') { c.x = x; c.y = y; } command(c); }
   function actSel(d) { const AB = actB(); if (!AB) return; const l = [null, ...AB.units.filter((u) => u.idx && u.hp > 0 && !u.gone).sort((a, b) => a.idx - b.idx).map((u) => u.id)]; const i = Math.max(0, l.indexOf(G.selUnit)); G.selUnit = l[(i + d + l.length) % l.length]; battleHtml = ''; }
   const ORDN = { charge: '突撃', hold: '待機', retreat: '後退', flank: '回り込み', move: '移動中', rout: '潰走中', follow: '随行' };
@@ -1013,14 +1016,20 @@
     if (e.pointerType === 'touch') { G.actTouch = [e.offsetX, e.offsetY]; return; }
     G.mouseXY = [e.offsetX, e.offsetY]; G.padUsed = false;
     if (e.button === 0) G.actAtk = true;
-    else if (e.button === 2) { const [x, y] = R.actToWorld(e.offsetX, e.offsetY); actOrder('move', x, y); toast('そこへ向かわせます', 800); }
+    else if (e.button === 2) G.actRD = [e.offsetX, e.offsetY]; // 右ボタン：押した所へ移動。押したまま引っぱると、離した方向を向く
   }, true);
   window.addEventListener('pointermove', (e) => {
     if (!actB()) return; if (e.target === cv) { if (e.pointerType === 'touch') { if (G.actTouch) G.actTouch = [e.offsetX, e.offsetY]; } else { G.mouseXY = [e.offsetX, e.offsetY]; G.padUsed = false; } e.stopPropagation(); }
   }, true);
-  const actUp = (e) => { if (!actB()) return; G.actAtk = false; G.actTouch = null; if (e.target === cv) e.stopPropagation(); };
+  const actUp = (e) => {
+    if (!actB()) return; G.actAtk = false; G.actTouch = null; if (e.target === cv) e.stopPropagation();
+    const D = G.actRD; G.actRD = null;
+    if (D && e.button === 2) { const [x, y] = R.actToWorld(D[0], D[1]), [x2, y2] = R.actToWorld(e.offsetX, e.offsetY), dr = Math.hypot(e.offsetX - D[0], e.offsetY - D[1]) > 14;
+      const unit = G.selUnit == null ? 'all' : G.selUnit; moveFace(unit, x, y, dr ? Math.atan2(y2 - y, x2 - x) : null); toast(dr ? 'そこへ向かわせ、その方向を向かせます' : 'そこへ向かわせます', 800); }
+  };
   window.addEventListener('pointerup', actUp, true); window.addEventListener('pointercancel', actUp, true);
   cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.offsetX, y: e.offsetY, sx: e.offsetX, sy: e.offsetY, btn: e.button }); dragMoved = false; pinchD = 0; });
+  cv.addEventListener('mousemove', (e) => { G.hov = [e.offsetX, e.offsetY]; G.hovT = performance.now(); });
   cv.addEventListener('pointermove', (e) => {
     const p = ptrs.get(e.pointerId); if (!p) return;
     if (ptrs.size === 2) {
@@ -1030,17 +1039,20 @@
     }
     const dx = e.offsetX - p.x, dy = e.offsetY - p.y; p.x = e.offsetX; p.y = e.offsetY;
     if (Math.hypot(p.x - p.sx, p.y - p.sy) > 6) { dragMoved = true; R.cam.follow = false; }
+    if (dragMoved && p.btn === 2 && G.priv && G.priv.battle && G.selUnit != null) return; // 右ドラッグ：向きを決める（地図は動かさない）
     if (dragMoved) { if (G.priv && G.priv.battle) { const L = R.battleLayout(SIM.FIELD); R.bcam.x -= dx / L.sc; R.bcam.y -= dy / L.sc; } else { R.cam.x -= dx / R.cam.scale; R.cam.y -= dy / R.cam.scale; } }
   });
   cv.addEventListener('pointerup', (e) => {
     const p = ptrs.get(e.pointerId); ptrs.delete(e.pointerId);
-    if (!p || dragMoved || !G.view) return;
     const BT = G.priv && G.priv.battle;
+    if (p && BT && dragMoved && p.btn === 2 && G.selUnit != null && !actB()) { const [x, y] = R.battleToField(p.sx, p.sy), [x2, y2] = R.battleToField(e.offsetX, e.offsetY); G.fpick = null; moveFace(G.selUnit, x, y, Math.atan2(y2 - y, x2 - x)); toast('そこへ移動し、その方向を向かせます', 900); return; }
+    if (!p || dragMoved || !G.view) return;
     if (BT) { // 戦闘中：自分の部隊をクリックで選択、地面をクリックで選んだ部隊を移動
       const [fx, fy] = R.battleToField(e.offsetX, e.offsetY), L = R.battleLayout(SIM.FIELD);
       const mine = BT.units.filter((u) => u[2] === G.myPid && u[7] !== 'rout' && u[14] == null).map((u) => [u, Math.hypot(u[5] - fx, u[6] - fy)]).sort((a, b) => a[1] - b[1])[0];
-      if (mine && mine[1] * L.sc < Math.max(22, (0.6 + Math.sqrt(mine[0][4]) * 0.7) * L.sc + 10) && p.btn !== 2) { G.selUnit = mine[0][0]; battleHtml = ''; return; }
-      if (G.selUnit != null) command({ type: 'order', unit: G.selUnit, order: 'move', x: fx, y: fy });
+      if (mine && mine[1] * L.sc < Math.max(22, (0.6 + Math.sqrt(mine[0][4]) * 0.7) * L.sc + 10) && p.btn !== 2) { G.selUnit = mine[0][0]; G.fpick = null; battleHtml = ''; return; }
+      if (G.fpick && p.btn !== 2 && pickFace(fx, fy)) return;
+      if (G.selUnit != null) { moveFace(G.selUnit, fx, fy); if (p.btn !== 2) { G.fpick = { unit: G.selUnit, x: fx, y: fy }; toast('向かせたい方向をタップ（同じ所なら向きはそのまま）', 1500); } }
       return;
     }
     const hit = R.hitSettlement(G.view, e.offsetX, e.offsetY);
@@ -1129,8 +1141,11 @@
     }
     if (down(0) || down(2)) {
       const near = mine.map((u) => [u, Math.hypot(u[5] - G.bcur[0], u[6] - G.bcur[1])]).sort((a, b) => a[1] - b[1])[0];
-      if (near && near[1] < Math.max(8, 0.6 + Math.sqrt(near[0][4]) * 0.7 + 5) && near[0][0] !== G.selUnit) { G.selUnit = near[0][0]; SGK.AUDIO.sfx('click'); }
-      else if (G.selUnit != null) { command({ type: 'order', unit: G.selUnit, order: 'move', x: G.bcur[0], y: G.bcur[1] }); toast('そこへ移動します', 800); }
+      if (near && near[1] < Math.max(8, 0.6 + Math.sqrt(near[0][4]) * 0.7 + 5) && near[0][0] !== G.selUnit) { G.selUnit = near[0][0]; G.fpick = null; SGK.AUDIO.sfx('click'); }
+      else if (G.fpick) pickFace(G.bcur[0], G.bcur[1]);
+      else if (G.selUnit != null) { moveFace(G.selUnit, G.bcur[0], G.bcur[1]); G.fpick = { unit: G.selUnit, x: G.bcur[0], y: G.bcur[1] }; toast('カーソルを向かせたい方へ動かしてA（Bで向きはそのまま）', 1500); }
+    }
+    if (down(1) && G.fpick) { G.fpick = null; toast('向きはそのままにしました', 800);
     }
   }
   // 照準の十字
@@ -1287,6 +1302,16 @@
           R.drawAction(ctx, AB, G.myPid, G.selUnit, dt); renderBattle(BT);
         } else { R.drawBattle(ctx, BT, G.disp, G.myPid, G.selUnit); renderBattle(BT); }
         if (G.bcur && !AB) { const L = R.battleLayout(SIM.FIELD); drawCross(L.ox + G.bcur[0] * L.sc, L.oy + G.bcur[1] * L.sc, '#f2c14e'); }
+        { // 0.59.0 向きを決める矢印
+          let a = null, b2 = null;
+          if (!AB && G.fpick) { const L = R.battleLayout(SIM.FIELD); a = [L.ox + G.fpick.x * L.sc, L.oy + G.fpick.y * L.sc]; b2 = G.bcur && !(G.hovT > performance.now() - 1500) ? [L.ox + G.bcur[0] * L.sc, L.oy + G.bcur[1] * L.sc] : G.hov; }
+          const rp = [...ptrs.values()].find((q) => q.btn === 2); if (!AB && rp && dragMoved && G.selUnit != null) { a = [rp.sx, rp.sy]; b2 = [rp.x, rp.y]; }
+          if (AB && G.actRD && G.mouseXY) { a = G.actRD; b2 = G.mouseXY; }
+          if (a) { ctx.save(); ctx.strokeStyle = '#ffe070'; ctx.fillStyle = '#ffe070'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(a[0], a[1], 6, 0, 7); ctx.fill();
+            if (b2 && Math.hypot(b2[0] - a[0], b2[1] - a[1]) > 8) { const an = Math.atan2(b2[1] - a[1], b2[0] - a[0]), e2 = [a[0] + Math.cos(an) * 46, a[1] + Math.sin(an) * 46];
+              ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(e2[0], e2[1]); ctx.stroke(); ctx.beginPath(); ctx.moveTo(e2[0] + Math.cos(an) * 8, e2[1] + Math.sin(an) * 8); ctx.lineTo(e2[0] + Math.cos(an + 2.4) * 12, e2[1] + Math.sin(an + 2.4) * 12); ctx.lineTo(e2[0] + Math.cos(an - 2.4) * 12, e2[1] + Math.sin(an - 2.4) * 12); ctx.fill(); }
+            ctx.restore(); }
+        }
       } else {
         G.bcur = null;
         G.view.myClan = P && P.me && P.me.rank ? P.me.rank.clan || null : null;

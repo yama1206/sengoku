@@ -280,6 +280,7 @@
       const reach = e ? rad(u) + rad(e) + t.range + (u.ra || 0) + (t.ranged && tu.h ? 5 : 0) : 0;
       if (!e || ed > reach) {
         if (u.order === 'move') { if (goTo(u, u.mx, u.my, spd)) u.order = 'hold'; }
+        else if (u.order === 'hold' && u.mf != null) turnTo(u, u.mf, (TR[u.type].cav ? 1.6 : 0.9) * dt);
         else if (u.order === 'charge' || u.order === 'flank') {
           if (e && u.order === 'flank' && angDiff(e.f, Math.atan2(u.y - e.y, u.x - e.x)) < 1.2) {
             // 回り込み：敵の向きに対して横～後ろの点を目指す
@@ -498,9 +499,10 @@
       SIM.say(p.id, `${TR[c.kind].name}を${q}人解き放ちました`);
     },
     order(w, p, c) {
-      const b = w.battles[p.battle]; if (!b || !['charge', 'hold', 'retreat', 'flank', 'move', 'follow'].includes(c.order)) return;
+      const b = w.battles[p.battle]; if (!b || !['charge', 'hold', 'retreat', 'flank', 'move', 'follow', 'face'].includes(c.order)) return;
       for (const u of b.units) if ((u.owner === p.id || u.cmd === p.id) && u.order !== 'rout' && (c.unit === 'all' || u.id === +c.unit)) {
-        u.order = c.order;
+        if (c.order === 'face') { if (Number.isFinite(+c.f)) u.mf = +c.f; continue; } // 0.59.0 着いたら（止まっているなら今）この向きを向く
+        u.order = c.order; if (c.order !== 'hold') u.mf = null;
         if (c.order === 'move') { u.mx = Math.max(2, Math.min(FIELD.w - 2, +c.x || 0)); u.my = Math.max(2, Math.min(FIELD.h - 2, +c.y || 0)); }
       }
     },

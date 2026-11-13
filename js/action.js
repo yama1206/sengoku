@@ -96,7 +96,8 @@
       } else u.tgt = null;
       if (u.order === 'follow' && hero && live(hero)) { const hf = hero.f || 0; u.ax += (hero.x - Math.cos(hf) * 6 - u.ax) * Math.min(1, dt * 2); u.ay += (hero.y - Math.sin(hf) * 6 - u.ay) * Math.min(1, dt * 2); u.af = hf; }
       if (u.order === 'move') { const d = Math.hypot(u.mx - u.ax, u.my - u.ay), sp = TR[u.type].spd * ACT.SPD * dt; if (d > 0.5) { u.af = Math.atan2(u.my - u.ay, u.mx - u.ax); u.ax += ((u.mx - u.ax) / d) * Math.min(d, sp); u.ay += ((u.my - u.ay) / d) * Math.min(d, sp); } else u.order = 'hold'; }
-      if (u.order === 'hold' && u.ho !== 'hold') { u.ax = c.x; u.ay = c.y; } // 待機を命じた所にとどまる
+      if (u.order === 'hold' && u.ho !== 'hold') { u.ax = c.x; u.ay = c.y; }
+      if (u.order === 'hold' && u.mf != null) u.af = u.mf; // 0.59.0 決めた向き // 待機を命じた所にとどまる
       u.ho = u.order;
       // 士気の回復
       if (u.order !== 'rout') { const hn = all.some((s) => s.hero && s.side === u.side && Math.hypot(s.x - c.x, s.y - c.y) < 40); u.mor = Math.min(u.mo || 60, (u.mor || 0) + dt * (hn ? 1.5 : 0.7)); }

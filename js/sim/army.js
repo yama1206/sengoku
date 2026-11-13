@@ -10,7 +10,7 @@
   const scale = (tr, r) => { const o = {}; for (const k in tr) { const v = Math.round(tr[k] * r); if (v > 0) o[k] = v; } return o; };
   const addTr = (a, b) => { const o = Object.assign({}, a); for (const k in b) o[k] = (o[k] || 0) + b[k]; return o; };
   // 数値はすべて仮（ここで調整）
-  const AR = { siegeDays: 1, marchDays: 2.5, speed: 25, reliefKm: 50, fightKm: 2, liftKm: 3, musterRank: 3, musterKm: 40, musterDays: 30, musterCD: 20, musterRate: 0.4 };
+  const AR = { siegeDays: 1, marchDays: (n) => Math.min(3.5, 1 + n / 80), speed: 25, reliefKm: 50, fightKm: 2, liftKm: 3, musterRank: 3, musterKm: 40, musterDays: 30, musterCD: 20, musterRate: 0.4 };
   SIM.ARMY = AR;
   const MEI = ['政', '長', '信', '義', '勝', '秀', '忠', '家', '重', '貞', '元', '光', '直', '康', '盛', '成', '房', '綱'];
 
@@ -46,7 +46,7 @@
   // mode: siege（城へ進軍→攻城戦準備→総攻め）／relief（援軍：攻城戦の準備をしている相手へ向かう）／return（引き上げ）
   function setGoal(n, x, y, dest) { n.tx = x; n.ty = y; n.dest = dest || null; n.path = SIM.findPath(n.x, n.y, x, y); }
   // 行軍の速さ：プレイヤーと同じく人数（大軍ほど遅い）と兵種の割合で決まる
-  SIM.armySpeed = (n) => SGK.CFG.WALK_KM_PER_DAY * SIM.sizeSpeed(n.size || 0) * SIM.mixSpeed(n.army) * (n.mode === 'siege' && n.until == null && n.slow ? n.slow : 1);
+  SIM.armySpeed = (n) => SGK.CFG.WALK_KM_PER_DAY * SIM.sizeSpeed(n.size || 0) * SIM.mixSpeed(n.army) * Math.max(0.5, 1 - (n.size || 0) / 600) * (n.mode === 'siege' && n.until == null && n.slow ? n.slow : 1); // 0.59.0 大軍ほどさらに遅い
   function armyName(w, n) { const g = (n.gens && w.people[n.gens[0]]) || (n.person && w.people[n.person]); const t = n.kind === 'patrol' ? '隊' : n.kind === 'bushou' ? 'の一行' : 'の軍勢'; return g ? `${g.name}${t}` : `${fName(w, n.faction)}${t === '隊' ? 'の隊' : t}`; }
   SIM.launchArmy = (w, o) => {
     const id = 'a' + w.nextId++, size = SIM.troopCount(o.army);
@@ -58,7 +58,8 @@
       setGoal(n, o.to.x + 0.7, o.to.y + 0.4, o.to.id);
       // 0.58.0 攻めの軍勢はゆっくり進み、近くの城でも着くまで2〜3日ほどかかる（遠ければふだんの速さ）
       const pd = SIM.pathInfo(n.x, n.y, n.path, n.speed).days;
-      if (pd < AR.marchDays) { n.slow = Math.max(0.05, pd / AR.marchDays); n.speed = SIM.armySpeed(n); }
+      const md = AR.marchDays(n.size); // 0.59.0 少ない軍勢は早く、大軍ほど日数がかかる
+      if (pd < md) { n.slow = Math.max(0.05, pd / md); n.speed = SIM.armySpeed(n); }
       news(w, `${fName(w, o.faction)}の軍勢${size}人${gn.length ? `（${gn.join('・')}）` : ''}が${o.from.name}を発ち、${o.to.name}へ向かっているそうです（${Math.max(1, Math.round(SIM.pathInfo(o.from.x, o.from.y, n.path, n.speed).days))}日ほど）`);
       for (const p of Object.values(w.players)) if (p.clan === o.to.owner) SIM.say(p.id, `【急報】${fName(w, o.faction)}の軍勢${size}人が${o.to.name}へ向かっています！ 着いても${AR.siegeDays}日は攻城戦の準備をするので、そのあいだに城へ入るか、軍勢に攻めかかって追い払えます`);
     } else if (o.mode === 'relief') {
