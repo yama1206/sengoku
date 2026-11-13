@@ -78,7 +78,7 @@
       n.size = SIM.troopCount(n.army);
       if (n.starve >= HS.starveHome && n.mode !== 'return') {
         SIM._armyGoHome(w, n);
-        for (const p of Object.values(w.players)) SIM.say(p.id, `【噂】${fNm(w, n.faction)}の軍勢は兵糧が尽き、引き上げていくそうです`);
+        SIM.newsTo(w, `${fNm(w, n.faction)}の軍勢は兵糧が尽き、引き上げていくそうです`);
       }
     }
   });

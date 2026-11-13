@@ -5,7 +5,7 @@
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const fName = (w, id) => (w.factions[id] || {}).name || '';
   const castles = (w, fid) => w.settlements.filter((s) => s.type === 'castle' && s.owner === fid && !s.site);
-  const news = (w, msg) => { for (const p of Object.values(w.players)) SIM.say(p.id, `【噂】${msg}`); };
+  const news = (w, msg) => SIM.newsTo(w, msg); // 0.54.9 自分の家に関わる噂だけ
   const garOf = (n) => SIM._garOf(n);
   const scale = (tr, r) => { const o = {}; for (const k in tr) { const v = Math.round(tr[k] * r); if (v > 0) o[k] = v; } return o; };
   const addTr = (a, b) => { const o = Object.assign({}, a); for (const k in b) o[k] = (o[k] || 0) + b[k]; return o; };
@@ -31,7 +31,7 @@
     if (!id && f.leader && w.people[f.leader] && !busy.has(f.leader)) id = f.leader;
     if (!id) { id = 'g' + w.nextId++; w.people[id] = { name: genName(w), faction: s.owner, loyal: 55 + Math.floor(rnd(w) * 20) }; }
     s.lord = id;
-    if (!quiet) news(w, `${f.name}は${s.name}に${w.people[id].name}を城主として置きました`);
+    if (!quiet && false) news(w, `${f.name}は${s.name}に${w.people[id].name}を城主として置きました`);
     return id;
   };
   // 城主のいない城（データで決めていない城）には、はじめから城主・城代を置く。古いセーブにも

@@ -6,7 +6,7 @@
   const rnd = (w) => SIM.rand(w);
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const fName = (w, id) => (w.factions[id] || {}).name || '';
-  const news = (w, msg) => { for (const p of Object.values(w.players)) SIM.say(p.id, `【噂】${msg}`); };
+  const news = (w, msg) => SIM.newsTo(w, msg); // 0.54.9 自分の家に関わる噂だけ
   const alive = (w, fid) => w.factions[fid] && !w.factions[fid].dead;
 
   // 数値はここで調整
@@ -96,7 +96,7 @@
       s.invPts = (s.invPts || 0) + Math.round(next * r);
       if (s.invPts >= next) {
         s.invPts = 0; s.inv = (s.inv || 0) + 1;
-        if (s.type === 'castle' && s.inv >= 2) news(w, `${fName(w, s.owner)}の${s.name}が栄え、「${I.names[s.inv]}城下」になったそうです`);
+        if (false && s.type === 'castle' && s.inv >= 2) news(w, `${fName(w, s.owner)}の${s.name}が栄え、「${I.names[s.inv]}城下」になったそうです`);
       }
     }
     // 悪名の高い家には、となりの家が攻めかかってくる

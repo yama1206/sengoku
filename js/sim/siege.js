@@ -9,7 +9,7 @@
   const here = (w, p) => (p.at && p.tx == null ? SIM.settlement(w, p.at) : null);
   const castles = (w, fid) => w.settlements.filter((s) => s.type === 'castle' && s.owner === fid && !s.site);
   const alive = (w, fid) => w.factions[fid] && !w.factions[fid].dead;
-  const news = (w, msg) => { for (const p of Object.values(w.players)) SIM.say(p.id, `【噂】${msg}`); };
+  const news = (w, msg) => SIM.newsTo(w, msg); // 0.54.9 自分の家に関わる噂だけ
   // 数値はすべて仮
   const SIEGE = { minRank: 3, nearKm: 2, persuadeCost: 3000, persuadeRank: 4, rewardCost: 2000, peaceCost: 10000, truceDays: 360, marchKmDay: 25 };
   const START_WARS = [['oda', 'imagawa'], ['oda', 'saito'], ['azai', 'rokkaku'], ['miyoshi', 'hatakeyama'],

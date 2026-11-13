@@ -136,6 +136,13 @@
     return false;
   }
   SIM.moveEntity = moveEntity;
+  // 0.54.9 噂は、自分の家（勢力）が出てくる話か、自分の家の城が出てくる話だけ届ける（浪人には届かない）
+  SIM.newsTo = (w, msg) => {
+    for (const p of Object.values(w.players)) {
+      const f = p.clan && w.factions[p.clan]; if (!f) continue;
+      if (msg.includes(f.name) || w.settlements.some((s) => s.owner === p.clan && s.type === 'castle' && msg.includes(s.name))) SIM.say(p.id, `【噂】${msg}`);
+    }
+  };
   const UNIT_NAME = { merchant: '行商人', bandit: '野盗', army: '軍勢', patrol: '武将の隊', bushou: '武将', ronin: '浪人' };
   SIM.followName = (w, p) => { const t = p.follow && (w.npcs[p.follow] || w.players[p.follow]); return t ? t.name || UNIT_NAME[t.kind] || '部隊' : null; };
   function followStep(w, p) {
