@@ -86,6 +86,7 @@
     const ho = s.holder && w.players[s.holder];
     if (ho && ho.clan !== to) SIM.say(ho.id, `${s.name}を失いました……`);
     s.owner = to; s.holder = null;
+    if (SIM.landsFollow) SIM.landsFollow(w, s, from, to); // 0.52.0 領内の村・町も渡る
     if (!opt.lordJoins && (s.inv || 0) > 0) { s.inv--; s.invPts = 0; SIM.say && Object.keys(s.invBy || {}).forEach((pid) => SIM.say(pid, `${s.name}は戦で荒れ、規模が「${SIM.INVEST ? SIM.INVEST.names[s.inv] : s.inv}」に下がりました`)); } // 0.51.0 落城で規模が1つ下がる
     const lord = s.lord && w.people[s.lord];
     let joined = false;

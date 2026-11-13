@@ -79,6 +79,21 @@
       const rest = me.path && me.path.length ? me.path : [[me.tx, me.ty]];
       path(ctx, [[d.x, d.y], ...rest]); ctx.stroke(); ctx.setLineDash([]);
     }
+    // 0.52.0 選んだ城と領内の村・町を点線で結ぶ
+    if (selectedId && SGK.SIM.ryoOf) {
+      const sel = view.settlements.find((x) => x.id === selectedId), cid = sel && (sel.type === 'castle' ? sel.id : SGK.SIM.ryoOf(sel.id)), c = cid && view.settlements.find((x) => x.id === cid);
+      if (c) { const [cx, cy] = R.toScreen(c.x, c.y); ctx.strokeStyle = 'rgba(255,240,200,.75)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+        for (const v of view.settlements) if (SGK.SIM.ryoOf(v.id) === c.id) { const [vx, vy] = R.toScreen(v.x, v.y); ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(vx, vy); ctx.stroke(); }
+        ctx.setLineDash([]); }
+    }
+    // 0.52.0 金山・銀山
+    if (cam.scale >= 1.5 && SGK.DATA.mines) for (const m of SGK.DATA.mines) {
+      const [x, y] = R.toScreen(m.x, m.y);
+      ctx.fillStyle = m.k === 'kin' ? '#e8c440' : '#cfd6dc'; ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x, y - 8); ctx.lineTo(x + 8, y); ctx.lineTo(x, y + 8); ctx.lineTo(x - 8, y); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#2a2118'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(m.k === 'kin' ? '金' : '銀', x, y + 0.5);
+      if (cam.scale >= 4) { ctx.fillStyle = '#fff'; ctx.font = '11px sans-serif'; ctx.textBaseline = 'top'; ctx.fillText(m.name, x, y + 10); }
+    }
     // 拠点
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     for (const s of view.settlements) {

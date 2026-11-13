@@ -337,6 +337,7 @@
       G.view = { t: w.time.min, sr, settlements: w.settlements, factions: w.factions, people: w.people, wars: Object.keys(w.wars || {}), players: Object.values(w.players).filter(vis), npcs: Object.values(w.npcs).filter(vis) };
     } else if (G.mode === 'client' && G.dyn) {
       const d = G.dyn, s = G.stat;
+      if (d.pp) G.pp = d.pp; // 0.52.0 人口
       if ((d.rv || 0) !== (G.rv || 0)) { G.rv = d.rv || 0; SIM.applyRoads(d.ra || []); } // 0.40.0 普請でできた道
       G.view = {
         t: d.t, sr: d.sr, settlements: withOwners(d.ns && d.ns.length ? s.settlements.filter((x) => !d.ns.some((n) => n.id === x.id)).concat(d.ns) : s.settlements, d.ow),
@@ -366,6 +367,10 @@
     $('infoName').textContent = s.name;
     const ho = holders()[s.id];
     $('infoBody').innerHTML = `${kind}${s.site ? `（普請中 ${Math.floor(s.site.prog * 100)}%）` : ''}　勢力：<b style="color:${f ? f.color : '#ccc'}">${f ? f.name : 'なし'}</b>${(() => { const fb = SIM.factionBuff(G.view.factions, s.owner); return fb ? `<span class="muted">（得意：${fb.name}・${fb.text}）</span>` : ''; })()}<br>城主・代官：${ho ? `<b>${ho}</b>（プレイヤー）` : lord || '（不明）'}`;
+    { const ry = SIM.ryoOf && SIM.ryoOf(s.id), rc = ry && G.view.settlements.find((x) => x.id === ry); // 0.52.0 城と村・町のつながり
+      { const pop = (G.mode === 'client' ? G.pp && G.pp[s.id] : ((G.world && G.world.settlements.find((x) => x.id === s.id)) || {}).pop); if (pop) $('infoBody').innerHTML += `<br>人口 約${(Math.round(pop / 10) * 10).toLocaleString()}人`; }
+      if (rc) $('infoBody').innerHTML += `<br>${rc.name}の領内`;
+      if (s.type === 'castle') { const ls = G.view.settlements.filter((v) => SIM.ryoOf(v.id) === s.id); if (ls.length) $('infoBody').innerHTML += `<br>領内：${ls.map((v) => v.name + (v.owner !== s.owner ? '（他家）' : '')).join('・')}`; const ms = SIM.minesOf(s); if (ms.length) $('infoBody').innerHTML += `<br>鉱山：${ms.map((m) => m.name + `（月+${SIM.money(SIM.KUNI.mineInc[m.k])}）`).join('・')}`; } }
     if (s.type === 'castle') {
       const cs = castleStat(s), m = G.priv && G.priv.me, W = m && m.war, R = m && m.rank, at = G.view.wars || [];
       const lordN = cs.lordName;
@@ -696,7 +701,7 @@
         + (R.clan ? `<div class="muted">功績 ${R.merit}　俸禄 ${SIM.money(cur.stipend)}/月　率いる人数+${cur.cap}</div>` : '')
         + (R.clan ? (() => { const fb = SIM.factionBuff(G.view.factions, R.clan); return fb ? `<div class="muted">家の得意：<b>${fb.name}</b>（${fb.text}）</div>` : ''; })() : '')
         + (R.limit ? `<div class="muted">任される城 ${R.held}/${R.limit >= 99 ? '上限なし' : R.limit}</div>` : '')
-        + (me.castles && me.castles.length ? `<div class="muted">治めている城：${me.castles.map((c) => `<b>${c.name}</b>（年貢 約${SIM.money(c.tax)}/月）`).join('・')}</div>` : '') + '</div>';
+        + (me.castles && me.castles.length ? `<div class="muted">治めている城：${me.castles.map((c) => `<b>${c.name}</b>（年貢 約${SIM.money(c.tax)}/月${c.lands ? '・領内の村 ' + c.lands.join('・') : ''}${c.mines ? '・' + c.mines.join('・') : ''}）`).join('・')}</div>` : '') + '</div>';
       const B = me.build;
       if (B) {
         html += `<div class="card"><div><b>築城</b>　<span class="muted">いま立っている野外に新しく城を築く（${SIM.money(B.cost)}・ほかの拠点から${B.minKm}km以上・部将以上）<br>`

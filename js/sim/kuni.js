@@ -111,12 +111,94 @@
       news(w, `${fName(w, b)}が「悪名高い${f.name}を討つ」と兵を挙げました`);
     }
   }
+  // ---- 0.52.0 城のまわりの村・町からの上がり（その城がいちばん近い自家の城で、20km以内） ----
+  // 村・町はそれぞれ、いちばん近い城（30km以内）の領内。地図のデータから決まるのでセーブには入れない
+  KN.landKm = 30; KN.landInc = { village: 400, town: 700 }; // 1か月の額（拠点の規模で生産と同じく増える）
+  let RYO = null;
+  SIM.ryoOf = (id) => {
+    if (!RYO) {
+      RYO = {}; const D = SGK.DATA.settlements, cs = D.filter((x) => x.type === 'castle');
+      for (const v of D) if (v.type !== 'castle') { const c = cs.slice().sort((a, b) => dist(a, v) - dist(b, v))[0]; if (c && dist(c, v) <= KN.landKm) RYO[v.id] = c.id; }
+    }
+    return RYO[id] || null;
+  };
+  SIM.landsOf = (w, c) => (c && c.type === 'castle' ? w.settlements.filter((v) => SIM.ryoOf(v.id) === c.id && v.owner === c.owner) : []);
+  // 城が落ちたら、領内の村・町も一緒に渡る
+  SIM.landsFollow = (w, c, from, to) => {
+    for (const x of [c].concat(w.settlements.filter((v) => SIM.ryoOf(v.id) === c.id))) if (x.pop) x.pop = Math.round(x.pop * (1 - KN.popCapture)); // 落城で人が逃げる
+    for (const v of w.settlements) if (SIM.ryoOf(v.id) === c.id && v.owner === from) {
+      v.owner = to;
+      for (const n of Object.values(w.npcs)) if (n.home === v.id && n.faction === from) n.faction = to;
+    }
+  };
+  const landInc = (p, v) => Math.round((KN.landInc[v.type] * (SIM.popF ? SIM.popF(v) : 1) * (SIM.prodMul ? SIM.prodMul(v) : 1) * (1 + (((p.attrs && p.attrs.sei) || 3) - 3) * 0.03)) / 10) * 10;
+  SIM.landsIncome = (w, p, c) => SIM.landsOf(w, c).reduce((a, v) => a + landInc(p, v), 0);
+  function landsMonth(w) {
+    for (const c of w.settlements) {
+      const p = c.holder && w.players[c.holder]; if (!p || c.site) continue;
+      const ls = SIM.landsOf(w, c), ms = SIM.minesOf(c);
+      if (ls.length) { const t = ls.reduce((a, v) => a + landInc(p, v), 0); p.money += t; SIM.say(p.id, `${c.name}の領内（${ls.map((v) => v.name).join('・')}）から年貢${SIM.money(t)}が納められました`); }
+      if (ms.length) { const t = ms.reduce((a, m) => a + mineInc(m), 0); p.money += t; SIM.say(p.id, `${ms.map((m) => m.name).join('・')}から${SIM.money(t)}の上がりがありました`); }
+    }
+  }
+  const basePriv = SIM.privateState;
+  SIM.privateState = (w, pid) => {
+    const r = basePriv(w, pid), p = w.players[pid];
+    if (r && p && r.me && r.me.castles) for (const c of r.me.castles) { const s = SIM.settlement(w, c.id); const ls = SIM.landsOf(w, s), ms = SIM.minesOf(s); if (ls.length) { c.tax += SIM.landsIncome(w, p, s); c.lands = ls.map((v) => v.name); } if (ms.length) { c.tax += ms.reduce((a, m) => a + mineInc(m), 0); c.mines = ms.map((m) => m.name); } }
+    return r;
+  };
+
+  // ---- 0.52.0 金山・銀山：いちばん近い城（60km以内）に付き、城主に毎月の上がり ----
+  const ll = (lat, lon) => ({ x: +((lon - 129.4) * 91).toFixed(2), y: +((41.6 - lat) * 111).toFixed(2) });
+  KN.mineInc = { kin: 1500, gin: 1000 }; KN.mineKm = 60;
+  const MINES = SGK.DATA.mines = [
+    ['kurokawa_m', '黒川金山', 'kin', 35.78, 138.85], ['yunooku', '湯之奥金山', 'kin', 35.43, 138.48], ['abe_m', '安倍金山', 'kin', 35.20, 138.33],
+    ['toi_m', '土肥金山', 'kin', 34.91, 138.79], ['sado_m', '佐渡金山', 'kin', 38.04, 138.25], ['osarizawa', '尾去沢金山', 'kin', 40.19, 140.76],
+    ['iwami_m', '石見銀山', 'gin', 35.11, 132.44], ['ikuno_m', '生野銀山', 'gin', 35.17, 134.80], ['tada_m', '多田銀山', 'gin', 34.88, 135.39],
+    ['innai', '院内銀山', 'gin', 39.02, 140.43], ['handa', '半田銀山', 'gin', 37.88, 140.53],
+  ].map(([id, name, k, la, lo]) => Object.assign({ id, name, k }, ll(la, lo)));
+  let MC = null;
+  SIM.mineCastle = (m) => {
+    if (!MC) { MC = {}; const cs = SGK.DATA.settlements.filter((x) => x.type === 'castle'); for (const mm of MINES) { const c = cs.slice().sort((a, b) => dist(a, mm) - dist(b, mm))[0]; if (c && dist(c, mm) <= KN.mineKm) MC[mm.id] = c.id; } }
+    return MC[m.id] || null;
+  };
+  SIM.minesOf = (c) => (c ? MINES.filter((m) => SIM.mineCastle(m) === c.id) : []);
+  const mineInc = (m) => KN.mineInc[m.k];
+
+  // ---- 0.52.0 人口：拠点ごとの人の数。増えると年貢・兵の集まりが増える ----
+  KN.popGrow = 0.006; KN.popGrowInv = 0.003; KN.popCapInv = 0.3; KN.popSiege = 0.04; KN.popWar = 0.002; KN.popCapture = 0.15;
+  SIM.popBase = (s) => {
+    let h = 0; for (const c of String(s.id)) h = (h * 31 + c.charCodeAt(0)) % 9973;
+    if (s.id === 'kyo') return 30000;
+    return s.type === 'castle' ? 4000 + (h % 4000) : s.type === 'town' ? 3000 + (h % 4000) : 600 + (h % 900);
+  };
+  SIM.popF = (s) => (s && s.pop ? Math.max(0.4, Math.min(2.5, s.pop / SIM.popBase(s))) : 1);
+  const baseTax = SIM.tax; SIM.tax = (p, s) => Math.round((baseTax(p, s) * SIM.popF(s)) / 10) * 10;
+  const basePool = SIM.poolMul; if (basePool) SIM.poolMul = (s) => basePool(s) * Math.sqrt(SIM.popF(s));
+  function popMonth(w) {
+    const warring = new Set(); for (const k of Object.keys(w.wars || {})) for (const x of k.split('|')) warring.add(x);
+    for (const s of w.settlements) {
+      if (s.site) continue;
+      const base = SIM.popBase(s), cap = base * (1 + (s.inv || 0) * KN.popCapInv);
+      let g = KN.popGrow + (s.inv || 0) * KN.popGrowInv - (warring.has(s.owner) ? KN.popWar : 0);
+      if (s.pop > cap) g = Math.min(g, -0.02);
+      if (SIM.besieged && SIM.besieged(w, s.id)) g = -KN.popSiege;
+      s.pop = Math.max(Math.round(base * 0.3), Math.round(s.pop * (1 + g)));
+    }
+  }
+  const baseEnsure = SIM.ensure;
+  SIM.ensure = (w) => { baseEnsure(w); for (const s of w.settlements) if (s.pop == null && !s.site) s.pop = SIM.popBase(s); return w; };
+  const baseDyn = SIM.dynamicState;
+  SIM.dynamicState = (w, pid) => { const d = baseDyn(w, pid); if (Math.floor(w.time.min / 15) % 40 === 0 || !w._ppSent) { w._ppSent = 1; d.pp = Object.fromEntries(w.settlements.filter((s) => s.pop).map((s) => [s.id, s.pop])); } return d; };
+
   SIM.systems.push(function kuniTick(w) {
     const d = Math.floor(w.time.min / 1440);
     if (w.kday == null) w.kday = d;
     while (w.kday < d) {
       w.kday++;
-      if (w.kday % 30 === 15) monthly(w); // 配当の日とずらす
+      if (w.kday % 30 === 15) monthly(w);
+      if (w.kday % 30 === 0) landsMonth(w);
+      if (w.kday % 30 === 10) popMonth(w); // 配当の日とずらす
       if (w.kday % KN.infFadeDays === 0) for (const p of Object.values(w.players)) if (p.infamy > 0) { p.infamy--; SIM.say(p.id, `時がたち、悪名が${p.infamy}に薄れました`); }
     }
   });
