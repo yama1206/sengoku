@@ -16,7 +16,7 @@
     ['takeda', 'nagao'], ['takeda', 'minowa'], ['hojo', 'satomi'], ['mori', 'amako'], ['mori', 'otomo'], ['ito', 'shimazu'], ['chosokabe', 'motoyama'], ['jinbo', 'shiina']];
 
   // ---- 戦争の状態 ----
-  SIM.atWar = (w, a, b) => !!(a && b && a !== b && w.wars[key(a, b)]);
+  SIM.atWar = (w, a, b) => !!(a && b && a !== b && (w.wars || {})[key(a, b)]);
   function setWar(w, a, b, on) {
     const k = key(a, b);
     if (on) w.wars[k] = { since: w.time.min }; else { delete w.wars[k]; w.truce[k] = w.time.min + SIEGE.truceDays * 1440; }
