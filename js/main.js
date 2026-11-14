@@ -417,10 +417,11 @@
     titleMsg('接続しています…');
     G.mode = 'connecting';
     myProf();
+    const onState0 = (m) => { G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; G.priv = m.priv; (m.msgs || []).forEach((t) => toast(t, 4000)); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } };
     G.net = SGK.NET.join(code, token, myName(), {
       onWelcome: (m) => { SGK.NET.addFriend(m.hostCode || code, m.hostName); G.mode = 'client'; G.myPid = m.pid; SIM.localPid = m.pid; G.actView = null; G.stat = m.static; G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
       onAct: (m) => { const BT = G.priv && G.priv.battle; if (BT && BT.id === m.a.id) G.actView = SIM.actApply(G.actView, m.a); },
-      onState: (m) => { G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; G.priv = m.priv; (m.msgs || []).forEach((t) => toast(t, 4000)); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } },
+      onState: (m) => { try { onState0(m); } catch (e) { const t = 'エラー: ' + (e && e.message); if (G.lastErr !== t) { G.lastErr = t; toast(t, 15000); console.error(e); } } },
       onBye: (why) => { backToTitle(); titleMsg(why); },
       onError: (t) => titleMsg(t),
     });
@@ -1527,7 +1528,9 @@
     else if (h && G.mouseXY && !G.padUsed) { const [x, y] = R.actToWorld(G.mouseXY[0], G.mouseXY[1]); inp.aim = Math.atan2(y - h.y, x - h.x); }
     return inp;
   }
-  function frame(now) {
+  // 1.6.2 描画中にエラーが出ても止まらないように（エラーの内容は画面に出す）
+  function frame(now) { try { frame0(now); } catch (e) { const t = 'エラー: ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastErr !== t) { G.lastErr = t; toast(t, 15000); console.error(e); } requestAnimationFrame(frame); } }
+  function frame0(now) {
     const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
     const padMove = pollPad(dt);
     if (G.mode === 'title') SGK.AUDIO.scene('title');

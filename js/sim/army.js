@@ -15,11 +15,15 @@
 
   // ---- 空いた城に武将を置く（CPUの家） ----
   // 1.1.0 その家の実在の武将から、まだ出ていない人を順に選ぶ（faction が null なら浪人）。onlyReal なら足りない時 null
-  // 1.5.0 架空の名前は作らない。その家の名簿（浪人は浪人の名簿）に残りがなければ null
+  // 1.5.0 架空の名前は作らない。実在の人物が全員出たら null
   function genName(w, faction) {
     const used = new Set(Object.values(w.people).map((p) => p.name));
     const RO = (SGK.DATA.roster || {})[faction || 'ronin'] || [];
     for (const n of RO) if (!used.has(n)) return n;
+    // 1.6.2 その家の名簿が尽きたら（プレイヤーの家など）、浪人→ほかの家の名簿から、まだ出ていない実在の人物を
+    const R = SGK.DATA.roster || {};
+    for (const n of R.ronin || []) if (!used.has(n)) return n;
+    for (const k in R) for (const n of R[k]) if (!used.has(n)) return n;
     return null;
   }
   SIM.genName = genName;
