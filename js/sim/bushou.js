@@ -43,6 +43,7 @@
   function travelTick(w, dt) {
     for (const n of Object.values(w.npcs)) {
       if (n.kind !== 'bushou' && n.kind !== 'ronin') continue;
+      if (n.fight || n.battle || n.ref || n.gfl || n.gh) { if ((n.ref || n.gfl || n.gh) && n.tx != null && !n.fight) SIM.moveEntity(n, dt); continue; } /* 1.6.33 武将どうしの戦・逃げ込み */
       if (n.tx != null) { if (SIM.moveEntity(n, dt)) { n.at = n.dest; n.dest = null; n.wait = n.kind === 'ronin' ? 720 + rnd(w) * 2160 : 360 + rnd(w) * 720; if (n.kind === 'bushou' && n.back) delete w.npcs[n.id]; } continue; }
       n.wait -= dt; if (n.wait > 0) continue;
       if (n.kind === 'bushou') { // 用事を済ませて帰る

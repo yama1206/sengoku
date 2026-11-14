@@ -296,6 +296,7 @@
     if (n.loot == null) n.loot = Math.round((200 + (n.size || 0) * 30) / 10) * 10;
     if (!SIM.atWar(w, p.clan, n.faction)) return SIM.say(p.id, `${fName(w, n.faction)}とは戦をしていません`);
     if (dist(p, n) > AR.fightKm) return SIM.say(p.id, `もっと近づいてください（${AR.fightKm}km以内）`);
+    if (inCastle(n)) return SIM.say(p.id, `${armyName(w, n)}は城に逃げ込んでいます`); /* 1.6.33 */
     if (p.busy) p.busy = null;
     fieldBattle(w, n, p, `${armyName(w, n)}（${n.size}人）に攻めかかります！`);
   };
@@ -453,7 +454,7 @@
   const foeOf = (w, n, p) => p.clan && SIM.atWar(w, n.faction, p.clan) && M.inField(p) && !p.battle;
   const huntKm = (p) => HUNT.km * (p.nin && SIM.NIN ? SIM.NIN.armySeen : 1); // 0.78.0 忍びは大名の軍勢からも見つかりにくい
   function huntable(w, n, p) {
-    return foeOf(w, n, p) && !SIM.hidden(w, p) && dist(n, p) < huntKm(p) && M.power(n.army) >= need(p);
+    return !inCastle(n) && foeOf(w, n, p) && !SIM.hidden(w, p) && dist(n, p) < huntKm(p) && M.power(n.army) >= need(p);
   }
   // ---- 0.57.0 1隊では負けそうでも、近くの同じ家の隊と合わせて勝てそうなら、いっしょに攻めかかる ----
   const PACK = { km: 3, joinKm: 3 };
@@ -486,12 +487,13 @@
     const ps = Object.values(w.players);
     for (const n of Object.values(w.npcs)) {
       if (!isGen(n) || n.hunt) { if (n.flee && (n.battle || n.fight)) n.flee = null; continue; }
+      if (inCastle(n)) continue; /* 1.6.33 城の中は安全 */
       const p = ps.filter((q) => scary(w, n, q) && dist(n, q) < (n.flee === q.id ? FLEE.safeKm : FLEE.km)).sort((a, b) => dist(a, n) - dist(b, n))[0];
       if (p) {
         if (!n.flee) { n.fleeDest = n.dest || null; n.dest = null; SIM.say(p.id, `${armyName(w, n)}（${fName(w, n.faction)}・${n.size}人）がこちらを見て逃げ出しました`); }
-        n.flee = p.id; fleeFrom(w, n, p);
+        n.flee = p.id; if (!inCastle(n)) runTo(w, n, p); /* 1.6.33 近くに城があれば逃げ込む */
       } else if (n.flee) { // 逃げ切ったら元の用事に戻る
-        n.flee = null; n.tx = n.ty = null; n.path = null;
+        n.flee = null; if (n.ref) continue; /* 1.6.33 城へ向かっているなら着くまで続ける */ n.tx = n.ty = null; n.path = null;
         const s = n.fleeDest && SIM.settlement(w, n.fleeDest); n.fleeDest = null;
         if (s) { n.tx = s.x; n.ty = s.y; n.dest = s.id; n.path = SIM.findPath(n.x, n.y, s.x, s.y); } else n.wait = 30;
       }
@@ -543,6 +545,71 @@
       const f = w.factions[s.owner]; if (!f || f.player || f.dead) continue;
       const n = SIM.spawnNpc(w, 'patrol', s.owner, s);
       n.army = SIM.genArmy(w, s.owner, { yari: 8 + Math.floor(rnd(w) * 8), yumi: 2 + Math.floor(rnd(w) * 5) }); n.size = SIM.troopCount(n.army); n.cap = n.size;
+    }
+  });
+  // ---- 1.6.33 武将の隊どうしの戦：戦をしている家の隊が近くで出会うと、強い方が攻めかかり、弱い方は近くの城へ逃げ込む ----
+  const GW = { km: 3, hitKm: 0.4, ratio: 1.15, refKm: 8, inKm: 0.2, stayMin: 6 * 60, hr: 0.06 };
+  const inCastle = (n) => !!(n.ref && n.tx == null && n.at === n.ref);
+  SIM.genInCastle = inCastle;
+  function refugeOf(w, n, from) { // 追ってくる相手より自分に近い、自分の家の城
+    return castles(w, n.faction).filter((s) => !s.site && !SIM.besieged(w, s.id) && dist(n, s) < GW.refKm && dist(from, s) > dist(n, s) * 0.8).sort((a, b) => dist(a, n) - dist(b, n))[0] || null;
+  }
+  function runTo(w, n, from) { // 城があればそこへ、なければ離れる
+    const s = refugeOf(w, n, from);
+    if (s) { if (n.ref !== s.id) { n.ref = s.id; n.refT = null; setGoal(n, s.x, s.y, s.id); n.at = null; } return true; }
+    n.ref = null; fleeFrom(w, n, from); return false;
+  }
+  SIM.genRunTo = runTo;
+  function loseTroops(e, k) { e.fa = (e.fa || 0) + k; while (e.fa >= 1 && SIM.troopCount(e.army)) { e.fa -= 1; const ty = Object.keys(e.army).sort((a, b) => e.army[b] - e.army[a])[0]; if (!--e.army[ty]) delete e.army[ty]; } e.size = SIM.troopCount(e.army); }
+  function tellNear(w, a, b, msg) { for (const p of Object.values(w.players)) if (!p.battle && (dist(p, a) < SIM.sightRadius(w, p))) SIM.say(p.id, msg); }
+  SIM.systems.push(function genWar(w, dt) {
+    const now = w.time.min, gens = Object.values(w.npcs).filter((n) => (n.kind === 'patrol' || n.kind === 'bushou') && n.faction && n.army);
+    for (const n of gens) { // 城に逃げ込んだ隊：しばらくしたら外へ戻る
+      if (!n.ref) continue;
+      if (n.battle || n.fight) { n.ref = null; continue; }
+      const s = SIM.settlement(w, n.ref);
+      if (!s || s.owner !== n.faction) { n.ref = null; continue; }
+      if (n.tx == null && dist(n, s) < GW.inKm + 0.5) { if (!n.refT) { n.at = s.id; n.refT = now + GW.stayMin; n.gfl = null; n.flee = null; tellNear(w, n, n, `${armyName(w, n)}（${fName(w, n.faction)}）が${s.name}に逃げ込みました`); } }
+      if (inCastle(n) && now >= (n.refT || 0) && !Object.values(w.players).some((p) => foeOf(w, n, p) && dist(p, n) < FLEE.safeKm)) { n.ref = null; n.refT = null; n.wait = 30; }
+    }
+    for (const n of gens) { // 交戦中
+      if (!n.fight) continue;
+      const m = w.npcs[n.fight];
+      if (!m || m.fight !== n.id || m.kind === 'bandit') { if (!m || m.fight !== n.id) n.fight = null; continue; }
+      if (n.battle || m.battle) continue;
+      if (n.id > m.id) continue; // 1組につき1回
+      const h = dt / 60, pn = M.power(n.army), pm = M.power(m.army);
+      loseTroops(n, m.size * GW.hr * h * (pm / Math.max(1, pn)) ** 0.3 * (0.7 + rnd(w) * 0.6));
+      loseTroops(m, n.size * GW.hr * h * (pn / Math.max(1, pm)) ** 0.3 * (0.7 + rnd(w) * 0.6));
+      const brk = (a) => a.size <= 3 || a.size <= (a.f0 || 10) * 0.4;
+      if (brk(n) || brk(m)) {
+        const [los, win] = n.size / (n.f0 || 1) <= m.size / (m.f0 || 1) ? [n, m] : [m, n];
+        n.fight = m.fight = null; win.calm = now + HUNT.rest; win.wait = 60; win.gh = null;
+        tellNear(w, win, los, `${armyName(w, win)}（${fName(w, win.faction)}）が${armyName(w, los)}（${fName(w, los.faction)}）を打ち破りました`);
+        if (!los.size) { delete w.npcs[los.id]; continue; }
+        los.calm = now + HUNT.rest; los.gfl = win.id; runTo(w, los, win);
+      }
+    }
+    for (const n of gens) { // 逃げている隊：追手が離れるまで城へ
+      if (!n.gfl || n.fight || n.battle) continue;
+      const m = w.npcs[n.gfl];
+      if (inCastle(n)) continue;
+      if (!m || m.battle || dist(m, n) > FLEE.safeKm + 2) { n.gfl = null; if (!n.ref) { n.tx = n.ty = null; n.path = null; n.wait = 30; } continue; }
+      if (!n.ref) runTo(w, n, m);
+    }
+    for (const n of gens) { // 攻めかかる
+      if (n.fight || n.battle || n.hunt || n.flee || n.gfl || n.ref || n.packOf || n.pack || (n.calm || 0) > now || (n.size || 0) < 6) { if (n.gh && (n.hunt || n.fight || n.battle)) n.gh = null; continue; }
+      let m = n.gh && w.npcs[n.gh];
+      const ok = (x) => x && x !== n && (x.kind === 'patrol' || x.kind === 'bushou') && x.army && !x.battle && !x.fight && !inCastle(x) && SIM.atWar(w, n.faction, x.faction) && dist(n, x) < GW.km + (x === m ? 1 : 0) && M.power(n.army) >= M.power(x.army) * GW.ratio;
+      if (!ok(m)) { m = gens.filter(ok).sort((a, b) => dist(a, n) - dist(b, n))[0] || null; n.gh = m ? m.id : null; }
+      if (!m) continue;
+      if (!m.gfl) { m.gfl = n.id; m.hunt = null; if (m.pack) disband(w, m); }
+      n.tx = m.x; n.ty = m.y; n.path = null; n.dest = null; n.at = null;
+      if (dist(n, m) < GW.hitKm) {
+        n.gh = null; m.gfl = null; m.ref = null; n.fight = m.id; m.fight = n.id; n.f0 = n.size; m.f0 = m.size; n.fa = m.fa = 0;
+        n.tx = n.ty = m.tx = m.ty = null; n.path = m.path = null;
+        tellNear(w, n, m, `${armyName(w, n)}（${fName(w, n.faction)}・${n.size}人）と${armyName(w, m)}（${fName(w, m.faction)}・${m.size}人）が戦い始めました`);
+      }
     }
   });
   // ---- 0.31.0 戦況：自分の家が攻めている・攻められている城（画面左下に出し続ける） ----

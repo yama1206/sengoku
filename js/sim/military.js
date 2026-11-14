@@ -155,6 +155,7 @@
       if (pa.fight) {
         const bd = w.npcs[pa.fight];
         if (!bd || bd.fight !== pa.id) { pa.fight = null; continue; }
+        if (bd.kind !== 'bandit') continue; /* 1.6.33 武将どうしの戦は army.js genWar */
         if (bd.battle) continue; // プレイヤーが加勢して戦場で戦っている
         const hr = dt / 60, nA = SIM.troopCount(pa.army), nB = bd.size;
         loseTroops(pa, nB * 0.05 * hr * (0.7 + rnd(w) * 0.6));
