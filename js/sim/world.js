@@ -162,7 +162,9 @@
       return;
     }
     if (Math.hypot(t.x - p.x, t.y - p.y) < 0.3) { p.tx = p.ty = null; p.path = null; return; } // 追いついたら横に付く
-    if (p.tx == null || Math.hypot(t.x - p.tx, t.y - p.ty) > 0.4) {
+    const dd = Math.hypot(t.x - p.x, t.y - p.y);
+    if (dd < 5) { p.tx = t.x; p.ty = t.y; p.path = [[t.x, t.y]]; p.at = null; p.dest = null; return; } /* 1.6.27 近くなったら道を探し直さず、まっすぐ追う（行ったり来たりしない） */
+    if (p.tx == null || Math.hypot(t.x - p.tx, t.y - p.ty) > Math.max(0.4, dd * 0.15)) {
       const path = SIM.findPath(p.x, p.y, t.x, t.y);
       if (!path) { p.follow = null; return SIM.say(p.id, 'そこへは陸路で行けません'); }
       p.tx = t.x; p.ty = t.y; p.path = path; p.at = null; p.dest = null;
