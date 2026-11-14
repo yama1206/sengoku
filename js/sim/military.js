@@ -9,14 +9,18 @@
     hero: { name: '本人', hp: 35, atk: 4.5, def: 2, spd: 5, range: 2 },
     // tier：兵の格。up：昇格先（兵種ツリー）
     nohei: { name: '農兵', short: '農', tier: 1, hp: 8, atk: 1.4, def: 0, spd: 4, range: 2.5, cost: 150, wage: 6, up: ['yari', 'yumi', 'take'] },
-    take: { name: '竹束足軽', short: '竹束', tier: 2, hp: 11, atk: 1.5, def: 1.5, spd: 3, range: 2, cost: 400, wage: 12, shield: true }, /* 1.6.40 脇差と竹束。足は遅いが矢・弾の被害が半分 */
+    take: { name: '竹束足軽', short: '竹束', tier: 2, hp: 11, atk: 1.5, def: 1.5, spd: 3, range: 2, cost: 400, wage: 12, shield: true, up: ['shiyori'] },
+    tsuyoyumi: { name: '強弓足軽', short: '強弓', tier: 3, hp: 9, atk: 2.3, def: 0.5, spd: 4, range: 42, ranged: true, cost: 800, wage: 20, up: ['yumigashira'] }, /* 1.6.41 弓の3段目・4段目 */
+    yumigashira: { name: '弓組頭', short: '弓頭', tier: 4, hp: 11, atk: 3, def: 1, spd: 4.2, range: 48, ranged: true, cost: 1500, wage: 35 },
+    shiyori: { name: '仕寄り衆', short: '仕寄', tier: 3, hp: 14, atk: 2, def: 2.2, spd: 3, range: 2, shield: true, cost: 800, wage: 20, up: ['takegashira'] }, /* 1.6.41 竹束の3段目・4段目 */
+    takegashira: { name: '竹束頭', short: '竹束頭', tier: 4, hp: 18, atk: 2.8, def: 3, spd: 3.2, range: 2, shield: true, cost: 1500, wage: 35 }, /* 1.6.40 脇差と竹束。足は遅いが矢・弾の被害が半分 */
     yari: { name: '足軽（槍）', short: '槍', tier: 2, hp: 10, atk: 2, def: 1, spd: 4, range: 2.5, cost: 300, wage: 10, up: ['nagayari', 'kiba'] },
-    yumi: { name: '弓足軽', short: '弓', tier: 2, hp: 7, atk: 1.5, def: 0, spd: 4, range: 35, ranged: true, cost: 500, wage: 15, up: ['teppo'] },
+    yumi: { name: '弓足軽', short: '弓', tier: 2, hp: 7, atk: 1.5, def: 0, spd: 4, range: 35, ranged: true, cost: 500, wage: 15, up: ['teppo', 'tsuyoyumi'] },
     nagayari: { name: '長槍足軽', short: '長槍', tier: 3, hp: 12, atk: 2.6, def: 1.5, spd: 4, range: 3.5, cost: 700, wage: 18, up: ['yarigashira'] },
     kiba: { name: '騎馬武者', short: '騎', tier: 3, hp: 18, atk: 4, def: 2, spd: 12, range: 4, cav: true, cost: 750, wage: 40, fame: 5, up: ['horo'] },
-    teppo: { name: '鉄砲足軽', short: '鉄砲', tier: 3, hp: 7, atk: 3, def: 0, spd: 3.5, range: 40, ranged: true, cost: 1000, wage: 25, up: ['teppogashira'] },
+    teppo: { name: '鉄砲足軽', short: '鉄砲', tier: 3, hp: 7, atk: 4, def: 0, spd: 3.5, range: 40, ranged: true, cost: 1000, wage: 25, up: ['teppogashira'] },
     yarigashira: { name: '槍組頭', short: '組頭', tier: 4, hp: 15, atk: 3.4, def: 2.2, spd: 4.2, range: 3.5, cost: 1200, wage: 30 },
-    teppogashira: { name: '鉄砲頭', short: '鉄砲頭', tier: 4, hp: 9, atk: 4, def: 0.5, spd: 3.5, range: 45, ranged: true, cost: 1800, wage: 40 },
+    teppogashira: { name: '鉄砲頭', short: '鉄砲頭', tier: 4, hp: 9, atk: 5.2, def: 0.5, spd: 3.5, range: 45, ranged: true, cost: 1800, wage: 40 },
     horo: { name: '母衣衆', short: '母衣', tier: 4, hp: 24, atk: 5, def: 3, spd: 13, range: 4, cav: true, cost: 3000, wage: 70, fame: 15 },
     bandit: { name: '野盗', hp: 10, atk: 2.0, def: 0, spd: 4.5, range: 2.5 },
     banditBow: { name: '野盗（弓）', hp: 6, atk: 1.4, def: 0, spd: 4.5, range: 30, ranged: true },
@@ -180,7 +184,7 @@
   }
 
   // ---- 兵種の区分・視界・地形（数値はすべて仮・ここで調整） ----
-  const CLS = { nohei: 'spear', yari: 'spear', nagayari: 'spear', yarigashira: 'spear', bandit: 'spear', take: 'spear',
+  const CLS = { nohei: 'spear', yari: 'spear', nagayari: 'spear', yarigashira: 'spear', bandit: 'spear', take: 'spear', shiyori: 'spear', takegashira: 'spear', tsuyoyumi: 'bow', yumigashira: 'bow',
     yumi: 'bow', teppo: 'bow', teppogashira: 'bow', banditBow: 'bow', kiba: 'cav', horo: 'cav' };
   for (const k in CLS) TR[k].cls = CLS[k];
   SIM.CLS_NAME = { spear: '槍', cav: '騎馬', bow: '弓' };

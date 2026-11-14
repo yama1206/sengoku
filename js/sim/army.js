@@ -552,7 +552,7 @@
       if (s.type !== 'castle' || s.site || !s.owner || homes.has(s.id) || rnd(w) > 0.25) continue;
       const f = w.factions[s.owner]; if (!f || f.player || f.dead) continue;
       const n = SIM.spawnNpc(w, 'patrol', s.owner, s);
-      n.army = SIM.genArmy(w, s.owner, { yari: 8 + Math.floor(rnd(w) * 8), yumi: 2 + Math.floor(rnd(w) * 5) }); n.size = SIM.troopCount(n.army); n.cap = n.size;
+      n.army = SIM.genArmy(w, s.owner, { yari: 8 + Math.floor(rnd(w) * 8), yumi: 2 + Math.floor(rnd(w) * 5), take: Math.floor(rnd(w) * 3) }); n.size = SIM.troopCount(n.army); n.cap = n.size;
     }
   });
   // ---- 1.6.33 武将の隊どうしの戦：戦をしている家の隊が近くで出会うと、強い方が攻めかかり、弱い方は近くの城へ逃げ込む ----

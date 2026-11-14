@@ -1144,7 +1144,7 @@
   function zukanHtml(me) {
     let html = '';
       const TRS = SIM.TROOPS, EQ = SIM.EQUIP, E = me.equip || {}, wp = E.wep && EQ.wep[E.wep], ar = E.arm && EQ.arm[E.arm], H = TRS.hero;
-      const WN = { yari: '槍', nagayari: '槍', yarigashira: '槍', kiba: '槍', horo: '槍', yumi: '弓（近いと刀）', teppo: '鉄砲（近いと刀）', teppogashira: '鉄砲（近いと刀）', banditBow: '弓（近いと刀）' };
+      const WN = { yari: '槍', nagayari: '槍', yarigashira: '槍', kiba: '槍', horo: '槍', yumi: '弓（近いと刀）', teppo: '鉄砲（近いと刀）', teppogashira: '鉄砲（近いと刀）', banditBow: '弓（近いと刀）', tsuyoyumi: '弓（近いと刀）', yumigashira: '弓（近いと刀）', take: '脇差＋竹束', shiyori: '脇差＋竹束', takegashira: '脇差＋竹束' };
       html += '<div class="muted" style="margin-bottom:6px">数値は兵1人あたり。費用は1人を雇う値段、日当は1人1日の給金。速さは戦場での速さ</div>';
       html += `<div class="card" style="display:block"><b>本人</b>　<span class="muted">いまの装備込み</span><br>体力 ${H.hp}　攻撃 ${Math.round((H.atk + ((wp && wp.atk) || 0)) * 10) / 10}　守り ${H.def + ((ar && ar.da) || 0)}　速さ ${H.spd}${E.horse ? '（馬）' : ''}　武器 ${wp ? wp.name : 'なし'}</div>`;
       const row = (k) => { const t = TRS[k], up = (t.up || []).map((u) => TRS[u] && TRS[u].name).filter(Boolean);

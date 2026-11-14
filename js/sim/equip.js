@@ -36,8 +36,8 @@
     slotName: { wep: '武器', wep2: '副武器', arm: '防具', horse: '馬' },
     kindName: { yari: '槍', tachi: '太刀', yumi: '弓', teppo: '鉄砲', waki: '脇差', shuri: '手裏剣', tate: '盾' },
     // 武器ごとに入る隊（左ほど優先。そのうち人数の多い隊に入る）
-    group: { yari: ['yarigashira', 'nagayari', 'yari', 'nohei'], tachi: ['horo', 'kiba'], yumi: ['yumi'], teppo: ['teppogashira', 'teppo'], waki: ['horo', 'kiba'], shuri: ['yumi'] },
-    groupName: { yari: '槍の隊', tachi: '騎馬の隊', yumi: '弓の隊', teppo: '鉄砲の隊', waki: '騎馬の隊', shuri: '弓の隊' },
+    group: { yari: ['yarigashira', 'nagayari', 'yari', 'nohei'], tachi: ['horo', 'kiba'], yumi: ['yumigashira', 'tsuyoyumi', 'yumi'], teppo: ['teppogashira', 'teppo'], waki: ['takegashira', 'shiyori', 'take', 'horo', 'kiba'], shuri: ['yumigashira', 'tsuyoyumi', 'yumi'] },
+    groupName: { yari: '槍の隊', tachi: '騎馬の隊', yumi: '弓の隊', teppo: '鉄砲の隊', waki: '竹束か騎馬の隊', shuri: '弓の隊' },
     lead: { am: 1.1, mo: 5 }, // 本人のいる隊：攻撃+10%・士気+5（兵種の相性は覆らない程度）
     sell: 0.5,                // 武具を売ると半値
     // 0.74.0 荷の重さ：目安(kg)＝本人＋兵1人ごと＋馬。目安を超えると遅くなる（2倍で約0.57倍、下限0.25倍）

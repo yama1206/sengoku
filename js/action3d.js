@@ -321,6 +321,14 @@
     else if (wk === 'bow') { P.aL = 0.7; P.aR = 0.35 - sw * 0.5; P.tilt = 0.5; }
     else if (wk === 'gun') { P.aR = 0.9; P.aL = 1.1; P.tilt = 0.55; }
     if (s.hero && s.blk) { P.aR = 1.3; P.aL = 1.2; P.tilt = 1.5; return P; }
+    if (s.hero && s.hold && !s.sw) { /* 1.6.41 構え：槍は引いて構える、弓は引きしぼる */
+      if (wk === 'spearS' || wk === 'spearL') { P.aR = 0.45; P.aL = 0.7; P.tilt = 0.25; P.lean = -0.1; return P; }
+      if (wk === 'bow') { P.aL = 1.55; P.aR = 1.5; P.tilt = 0; P.tw = 0.25; return P; }
+    }
+    if (s.hero && s.sw && (wk === 'spearS' || wk === 'spearL')) { /* 1.6.41 槍は突き出す */
+      const k = 1 - Math.max(0, s.sw.t) / (s.sw.d || 0.18), e = k < 0.4 ? ease(k / 0.4) : 1 - (k - 0.4) / 0.6;
+      P.aR = 0.45 + e * 1.1; P.aL = 0.7 + e * 0.85; P.tilt = 0.25 - e * 0.15; P.lean = -0.1 + e * 0.38; return P;
+    }
     if (s.hero && s.sw) { // 本人の振り：横に払う（上半身ごとひねる）
       const k = 1 - Math.max(0, s.sw.t) / (s.sw.d || 0.18), a = s.sw.a + s.sw.arc * (1 - 2 * k);
       P.tw = -(a - (s.f || 0)); P.aR = 1.45; P.aL = 0.5; P.tilt = wk === 'bow' || wk === 'gun' ? 0.2 : 0; P.lean = 0.12; return P;
@@ -343,8 +351,8 @@
   function weaponOf(s) {
     if (s.hero) { const n = s.wep && s.wep.name; return n === '槍' ? 'spearL' : n === '弓' ? 'bow' : n === '鉄砲' ? 'gun' : n === '脇差' ? 'waki' : n === '手裏剣' ? 'shuri' : 'sword'; }
     const t = s.type; if (!t || s.kat) return 'sword'; // 0.73.8 近づかれた弓・鉄砲は刀
-    if (t === 'take') return 'waki';
-    if (t === 'yumi') return 'bow'; if (t === 'teppo' || t === 'teppogashira') return 'gun';
+    if (t === 'take' || t === 'shiyori' || t === 'takegashira') return 'waki';
+    if (t === 'yumi' || t === 'tsuyoyumi' || t === 'yumigashira') return 'bow'; if (t === 'teppo' || t === 'teppogashira') return 'gun';
     if (t === 'nagayari' || t === 'yarigashira') return 'spearL'; if (t === 'bandit') return 'sword';
     return 'spearS';
   }
@@ -535,7 +543,7 @@
       else if (tr <= 3) put('hat', Mu, C.setHex(hatC)); // 足軽：陣笠
       else { put('kabutoS', Mu, C.setHex(s.hero ? 0x1a1a1a : 0x2a2622)); put('fuki', Mu, C.setHex(bc).multiplyScalar(0.5)); if (!s.hero) put('mae', Mu); } // 兜と吹返し
       if (tr >= 2) { put('flag', Mu, C.setHex(flagC)); put('pole', Mu); }
-      if (s.type === 'take') put('take', Mu); /* 1.6.40 */
+      if (s.type === 'take' || s.type === 'shiyori' || s.type === 'takegashira') put('take', Mu); /* 1.6.40 */
       if (s.type === 'horo') put('horoB', Mu, C.setHex(flagC)); // 母衣衆：背中の母衣
       if (s.hero) put('crest', Mu);
       C.setHex(bc).multiplyScalar(0.7);

@@ -53,8 +53,8 @@
     return Math.round((home ? SIEGE_N.garHome : SIEGE_N.gar) + Math.floor((s.dev && s.dev.wall) || 0) * SIEGE_N.garWall + (s.inv || 0) * SIEGE_N.garInv);
   }
   function garOf(n) { // 兵数から守備兵の内訳を作る
-    const t = { yari: Math.round(n * 0.55), yumi: Math.round(n * 0.25), teppo: Math.round(n * 0.1) };
-    t.kiba = Math.max(0, n - t.yari - t.yumi - t.teppo); return t;
+    const t = { yari: Math.round(n * 0.5), yumi: Math.round(n * 0.25), teppo: Math.round(n * 0.1), take: Math.round(n * 0.06) }; /* 1.6.41 竹束も混ぜる */
+    t.kiba = Math.max(0, n - t.yari - t.yumi - t.teppo - t.take); return t;
   }
   SIM.garrison = (s) => SIM.troopCount(s.gar);
   SIM.garMax = garMax;

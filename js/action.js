@@ -13,7 +13,7 @@
       tachi: { name: '刀', reach: 2.3, arc: 0.45, cd: 0.5, sw: 0.16, dmg: 2.4 }, // 0.73.9 振りの範囲にいる敵には全員当たる（2人目から減る ACT.MULTI）0.73.10 届く長さ 1.9→2.3、速く振れる
       yari: { name: '槍', reach: 3.8, arc: 0.3, cd: 0.8, sw: 0.24, dmg: 2.7 }, // 0.73.10 届く長さ 2.7→3.2、振りは遅い
       yumi: { name: '弓', shot: 45, cd: 1, dmg: 3, spd: 45 },
-      teppo: { name: '鉄砲', shot: 60, cd: 3, dmg: 9, spd: 140 },
+      teppo: { name: '鉄砲', shot: 60, cd: 4, dmg: 13, spd: 140 }, /* 1.6.41 威力 9→13、間隔 3→4秒 */
       waki: { name: '脇差', reach: 1.7, arc: 0.55, cd: 0.32, sw: 0.11, dmg: 1.7, sk: 'tachi' }, // 0.81.0 短くて速い（刀の技能で伸びる）
       shuri: { name: '手裏剣', shot: 22, cd: 0.4, dmg: 1.7, spd: 38, sk: 'shuri' }, // 0.81.0 近い間合いで速く投げる。まっすぐ飛ぶ（0.82.0 手裏剣の技能で伸びる）
     },
@@ -301,8 +301,11 @@
       if (hero.dash > 0) { hero.x += hero.dx * sp * ACT.DASH.mul * dt; hero.y += hero.dy * sp * ACT.DASH.mul * dt; }
       else { const tm = terMul(b, hero, mx, my, !!hero.rd); hero.x += mx * sp * tm * dt; hero.y += my * sp * tm * dt; }
       if (inp.aim != null) hero.f = inp.aim; else if (mx || my) hero.f = Math.atan2(my, mx);
-      if (inp.atk && !hero.blk && hero.cd <= 0) {
-        const pa = A.byG[hero.g], am = (pa && pa.am) || 1, base = TR.hero.atk * am;
+      /* 1.6.41 槍・弓は押して構え（溜め）、離すと突く・放つ。長く構えるほど少し強い（0.8秒で+40%） */
+      const rel = kk === 'yari' || kk === 'yumi'; let fire = !!inp.atk, chg = 0;
+      if (rel) { if (hero.blk) hero.hold = 0; else if (inp.atk) hero.hold = (hero.hold || 0) + dt; else if (hero.hold > 0) { hero.rq = Math.min(1, hero.hold / 0.8); hero.hold = 0; } fire = hero.rq != null && hero.cd <= 0; if (fire) { chg = hero.rq; hero.rq = null; } } else hero.hold = 0;
+      if (fire && !hero.blk && hero.cd <= 0) {
+        const pa = A.byG[hero.g], am = (pa && pa.am) || 1, base = TR.hero.atk * am * (1 + 0.4 * chg);
         hero.cd = W.cd;
         if (W.shot) { A.pr.push({ x0: hero.x, y0: hero.y, x: hero.x, y: hero.y, vx: Math.cos(hero.f) * W.spd, vy: Math.sin(hero.f) * W.spd, side: hero.side, dmg: base * W.dmg * 0.5, life: W.shot / W.spd, gun: W.spd > 100, src: hero }); sfx(hero, W.spd > 100 ? 'gun' : 'bow'); }
         else {
@@ -467,7 +470,7 @@
     const A = b.act, L = A.s.filter(live), o = { id: b.id, s: [], pr: [], dc: A.dc, dead: A.dead.slice(-40).map((d) => [q10(d.x), q10(d.y), d.side === 'A' ? 0 : 1]) };
     for (const s of L) o.s.push(s.id, q10(s.x), q10(s.y), Math.round((s.f || 0) * 100), Math.round((s.hp / s.mh) * 100), (s.fl ? 1 : 0) | (s.at && performance.now() / 1000 - s.at < 0.3 ? 2 : 0) | (s.kat ? 4 : 0));
     for (const p of A.pr) o.pr.push(q10(p.x), q10(p.y), Math.round(p.vx), Math.round(p.vy), p.gun ? 1 : 0, q10(p.h || 0));
-    o.h = A.s.filter((s) => s.pc && live(s)).map((s) => [s.id, s.sw ? [Math.round(s.sw.t * 100), Math.round(s.sw.a * 100), Math.round(s.sw.arc * 100), q10(s.sw.r), Math.round((s.sw.d || 0.18) * 100)] : null, s.wep ? s.wep.name : '', s.blk ? 1 : 0, Math.round((s.jp || 0) * 100), s.rd ? 1 : 0, s.hn || 0, s.hw || '', s.hd || 0, s.tate ? 1 : 0]);
+    o.h = A.s.filter((s) => s.pc && live(s)).map((s) => [s.id, s.sw ? [Math.round(s.sw.t * 100), Math.round(s.sw.a * 100), Math.round(s.sw.arc * 100), q10(s.sw.r), Math.round((s.sw.d || 0.18) * 100)] : null, s.wep ? s.wep.name : '', s.blk ? 1 : 0, Math.round((s.jp || 0) * 100), s.rd ? 1 : 0, s.hn || 0, s.hw || '', s.hd || 0, s.tate ? 1 : 0, s.hold > 0 ? 1 : 0]);
     if (A.gt) o.gt = A.gt;
     o.u = b.units.filter((u) => u.hp > 0 && !u.gone).map((u) => [u.id, u.side, u.owner || u.cmd || null, u.type, u.n, u.order, u.idx || 0, u.gname || '']);
     if (full) o.st = A.s.filter(live).map((s) => [s.id, s.side === 'A' ? 0 : 1, s.g, s.type || '', s.hero ? 1 : 0, s.pc || 0]);
@@ -490,7 +493,7 @@
     A.s = list; A.pr = [];
     for (let i = 0; i < o.pr.length; i += 6) A.pr.push({ x: o.pr[i] / 10, y: o.pr[i + 1] / 10, vx: o.pr[i + 2], vy: o.pr[i + 3], gun: !!o.pr[i + 4], h: o.pr[i + 5] / 10 });
     const nd = o.dc - A.dc; if (nd > 0) { for (const [x, y, sd] of o.dead.slice(-Math.min(nd, o.dead.length))) A.dead.push({ x: x / 10, y: y / 10, side: sd ? 'B' : 'A' }); if (A.dead.length > 500) A.dead.splice(0, A.dead.length - 500); } A.dc = o.dc;
-    for (const [id, sw, wn, bl, jp, rd, hn, hw, hd, tt] of o.h) { const s = V.byId[id]; if (!s) continue; s.tate = tt ? 1 : 0; s.rd = rd ? 1 : 0; s.hn = hn; s.hw = hw; s.hd = hd; s.wep = { name: wn }; s.blk = !!bl; if (jp && !(s.jp > 0)) s.jp = jp / 100; const was = s.sw; s.sw = sw ? { t: sw[0] / 100, a: sw[1] / 100, arc: sw[2] / 100, r: sw[3] / 10, d: (sw[4] || 18) / 100 } : null; if (sw && !was && s.pc === SIM.localPid) SGK.AUDIO.sfx('slash'); }
+    for (const [id, sw, wn, bl, jp, rd, hn, hw, hd, tt, hl] of o.h) { const s = V.byId[id]; if (!s) continue; s.tate = tt ? 1 : 0; s.hold = hl ? 1 : 0; s.rd = rd ? 1 : 0; s.hn = hn; s.hw = hw; s.hd = hd; s.wep = { name: wn }; s.blk = !!bl; if (jp && !(s.jp > 0)) s.jp = jp / 100; const was = s.sw; s.sw = sw ? { t: sw[0] / 100, a: sw[1] / 100, arc: sw[2] / 100, r: sw[3] / 10, d: (sw[4] || 18) / 100 } : null; if (sw && !was && s.pc === SIM.localPid) SGK.AUDIO.sfx('slash'); }
     V.units = o.u.map(([id, side, owner, type, n, order, idx, gname]) => ({ id, side, owner, type, n, order, idx, gname: gname || undefined, hp: n > 0 ? 1 : 0, gone: false }));
     A.byG = {}; for (const u of V.units) A.byG[u.id] = u;
     A.gt = o.gt || null;

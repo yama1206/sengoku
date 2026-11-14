@@ -34,7 +34,7 @@
 
   // ---- 勢力ごとの兵種の得意（控えめな強化。数値は仮） ----
   // am：攻撃×、hm：体力×、da：守り+、ra：射程+（m）
-  const G = { teppo: ['teppo', 'teppogashira'], yumi: ['yumi'], yari: ['yari', 'nagayari', 'yarigashira'], naga: ['nagayari', 'yarigashira'], kiba: ['kiba', 'horo'], nohei: ['nohei'] };
+  const G = { teppo: ['teppo', 'teppogashira'], yumi: ['yumi', 'tsuyoyumi', 'yumigashira'], yari: ['yari', 'nagayari', 'yarigashira'], naga: ['nagayari', 'yarigashira'], kiba: ['kiba', 'horo'], nohei: ['nohei'] };
   const FB = SIM.FACTION_BUFF = {
     oda: { name: '鉄砲隊', types: G.teppo, am: 1.08, text: '鉄砲の攻撃+8%' },
     takeda: { name: '武田の騎馬', types: G.kiba, am: 1.08, text: '騎馬の攻撃+8%' },
