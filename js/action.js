@@ -202,6 +202,14 @@
     u.kite = 0;
     if (!fo) { u.eo = 'hold'; return; }
     const toFoe = Math.atan2(fo.y - c.y, fo.x - c.x);
+    const mc = b.cside === u.side && (SIM.castleWalls(b.ter) || []).find((x) => x.main);
+    if (mc) { /* 1.6.38 守り手は城にこもる：弓・鉄砲は狭間、槍・刀は門の内側で待ち、塀の中に入られたら打ちかかる */
+      const ins = all.some((s) => s.side !== u.side && live(s) && Math.hypot(s.x - mc.x, s.y - mc.y) < mc.R - 1);
+      if (ins && !T.ranged) { u.eo = u.pref; return; }
+      u.eo = 'hold'; u.af = toFoe;
+      if (!T.ranged) { if (u.gk == null) u.gk = (A.gk = (A.gk || 0) + 1) % 3 ? 0 : 1; const ga = u.gk ? mc.aF - 0.35 * Math.PI : mc.gA, k = mc.R - 11; u.ax = mc.x + Math.cos(ga) * k; u.ay = mc.y + Math.sin(ga) * k; }
+      return;
+    }
     const go = (a, k) => { u.eo = 'move'; u.mx = Math.max(2, Math.min(F.w - 2, c.x + Math.cos(a) * k)); u.my = Math.max(2, Math.min(F.h - 2, c.y + Math.sin(a) * k)); };
     const hold = () => { u.eo = 'hold'; u.af = toFoe; };
     // 士気が下がったら、いったん下がって立て直す
@@ -226,9 +234,23 @@
   // ---- 1フレームの計算 ----
   const sfx = (s, k) => { if (s && s.pc && s.pc === SIM.localPid) SGK.AUDIO.sfx(k); }; // 音は操っている本人の端末だけ
   const sayAll = (A, m) => A.pids.forEach((q) => SIM.say(q, m));
+  /* 1.6.38 攻城戦：門（破るまで攻め手は通れない）と狭間（塀のすぐ内側の弓・鉄砲は塀ごしに撃てる） */
+  const gG = (A, b, s) => (A.gt ? { gs: A.gt, side: s ? s.side : null, cs: b.cside } : null);
+  function gateDmg(A, id, d) {
+    if (!A.gt || !(A.gt[id] > 0)) return;
+    A.gt[id] -= d; if (A.gt[id] <= 0) { A.gt[id] = 0; sayAll(A, `${SIM.GATE_NAME[id.slice(-1)] || '門'}が破られました！`); }
+  }
+  function setPosts(A, b, cw) {
+    A.posted = 1; const c = cw.find((x) => x.main) || cw[0]; if (!c) return;
+    const q = c.rings.find((x) => !x.w && Math.abs(x.r - c.R) < 0.5) || c.rings[c.rings.length - 1], rp = q.r - 1.6, st = 2.4 / rp, slots = [];
+    for (let i = 0; slots.length < 80 && i < 200; i++) { const a = c.aF + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * st; if (Math.abs(nrm2(a - c.aF)) > 2.2) break; if (q.gaps.some(([ga, gw]) => Math.abs(nrm2(a - ga)) < gw + 2 / rp)) continue; slots.push(a); }
+    let k = 0; for (const s of A.s) if (live(s) && !s.hero && s.side === b.cside && TR[s.type] && TR[s.type].ranged && k < slots.length) { const a = slots[k++]; s.post = { x: c.x + Math.cos(a) * rp, y: c.y + Math.sin(a) * rp }; }
+  }
+  const nrm2 = (a) => { a %= 2 * Math.PI; return a > Math.PI ? a - 2 * Math.PI : a < -Math.PI ? a + 2 * Math.PI : a; };
   SIM.actStep = (w, b, dt) => {
     const A = b.act; if (!A) return;
     const F = SIM.FIELD; b.t += dt;
+    const CW = SIM.castleWalls(b.ter); if (CW && !A.gt) A.gt = SIM.gateInit(CW); if (CW && b.cside && !A.posted) setPosts(A, b, CW);
     const all = A.s.filter(live), g = grid(all);
     const center = {};
     for (const s of all) if (!s.hero) { const c = center[s.g] || (center[s.g] = { x: 0, y: 0, n: 0 }); c.x += s.x; c.y += s.y; c.n++; }
@@ -285,6 +307,7 @@
         else {
           hero.sw = { t: W.sw || 0.18, d: W.sw || 0.18, a: hero.f, arc: W.arc, r: W.reach }; sfx(hero, 'slash');
           swing(g, hero, hero.f, W, (o, k) => damage(b, A, o, base * W.dmg * k * (0.8 + rr() * 0.4), hero));
+          if (CW && A.gt && hero.side !== b.cside) for (const gp of SIM.gatePts(CW)) if (A.gt[gp.id] > 0 && Math.hypot(gp.x - hero.x, gp.y - hero.y) < W.reach + gp.w / 2 + 0.5 && angDiff(hero.f, ang(hero, gp)) < W.arc + 0.5) gateDmg(A, gp.id, base * W.dmg); /* 1.6.38 本人も門を打てる */
         }
       }
     }
@@ -301,7 +324,7 @@
       s.cd -= dt;
       if (!u) continue;
       if (u.order === 'rout' || u.order === 'retreat') {
-        const ex = s.side === 'A' ? -6 : F.w + 6, wy = SIM.castleWalls(b.ter) && SIM.wallWay(SIM.castleWalls(b.ter), s, ex, s.y); s.f = s.side === 'A' ? Math.PI : 0; /* 1.6.25 城の中からは門を通って逃げる */
+        const ex = s.side === 'A' ? -6 : F.w + 6, wy = CW && SIM.wallWay(CW, s, ex, s.y, gG(A, b, s)); s.f = s.side === 'A' ? Math.PI : 0; /* 1.6.25 城の中からは門を通って逃げる */
         if (wy) { const l = Math.hypot(wy[0] - s.x, wy[1] - s.y) || 1, st = spd * (u.order === 'rout' ? 1.1 : 0.9) * dt; s.x += (wy[0] - s.x) / l * st; s.y += (wy[1] - s.y) / l * st; s.f = Math.atan2(wy[1] - s.y, wy[0] - s.x); } else s.x += Math.sign(ex - s.x) * spd * (u.order === 'rout' ? 1.1 : 0.9) * dt;
         if (s.x < 2 || s.x > F.w - 2) s.gone = true;
         continue;
@@ -359,7 +382,9 @@
       } else if (u.tgt && (o === 'charge' || o === 'flank')) {
         gx = u.tgt.x + s.oy * 0.6 * (o === 'flank' ? 3 : 1); gy = u.tgt.y + s.oy * (o === 'flank' ? 2.5 : 1);
       } else { const c = Math.cos(u.af), n = Math.sin(u.af); gx = u.ax + s.ox * c - s.oy * n; gy = u.ay + s.ox * n + s.oy * c; }
-      if (SIM.castleWalls(b.ter)) { const wy = SIM.wallWay(SIM.castleWalls(b.ter), s, gx, gy); if (wy) { gx = wy[0]; gy = wy[1]; } } /* 1.6.25 塀は門を通って回り込む */
+      if (s.post && T.ranged && s.side === b.cside && o === 'hold' && !s.kat) { gx = s.post.x; gy = s.post.y; } /* 1.6.38 弓・鉄砲の守り手は狭間（塀のすぐ内側）につく */
+      if (CW) { const wy = SIM.wallWay(CW, s, gx, gy, gG(A, b, s)); if (wy) { gx = wy[0]; gy = wy[1]; /* 1.6.25 塀は門を通って回り込む */
+        if (wy[2] && s.side !== b.cside && Math.hypot(wy[3] - s.x, wy[4] - s.y) < 4.2) { s.f = Math.atan2(wy[4] - s.y, wy[3] - s.x); s.mv = 0; if (s.cd <= 0) { gateDmg(A, wy[2], T.atk * (u.am || 1) * (T.ranged ? 0.5 : 1) * (s.hero ? 2 : 1)); s.cd = ACT.WEP.tachi.cd * 2.2 + rr() * 0.6; s.at = performance.now() / 1000; } continue; } } } /* 1.6.38 閉じた門は打ち破る */
       const d = Math.hypot(gx - s.x, gy - s.y);
       if (d > 0.3) { const st = Math.min(d, spd * terMul(b, s, gx - s.x, gy - s.y, cav) * dt * (d < 2 ? 0.6 : 1)); s.x += ((gx - s.x) / d) * st; s.y += ((gy - s.y) / d) * st; s.f = Math.atan2(gy - s.y, gx - s.x); s.mv = 1; }
       else { s.f = u.af; s.mv = 0; }
@@ -377,6 +402,7 @@
       // 0.75.0 木や味方に当たったら消える（自分の隊の中と、撃ってすぐは通り抜ける）
       const sg = p.src && p.src.g, gone = Math.hypot(nx - p.x0, ny - p.y0), far = gone > 2.5;
       if (far && p.h < 1.5) near(g, nx, ny, 1.5, (o) => { if (p.life > 0 && o.side === p.side && o !== p.src && o.g !== sg && live(o) && Math.hypot(o.x - nx, o.y - ny) < (o.hero ? 0.8 : 0.6)) p.life = 0; });
+      if (p.life > 0 && CW && p.h < 4 && !(p.side === b.cside && p.x0 != null && SIM.atLoophole(CW, p.x0, p.y0)) && SIM.wallHit(CW, p.x, p.y, nx, ny, gG(A, b, null))) p.life = 0; /* 1.6.38 塀・閉じた門に当たる（高い山なりの矢は越える。狭間から撃った守り手の弾は通る） */
       if (p.life > 0 && A.trees && p.h < 5) for (const F of A.trees) if (Math.hypot(nx - F.x, ny - F.y) < F.r + 1) { for (const t of F.p) if (Math.abs(nx - t[0]) < 0.6 && Math.abs(ny - t[1]) < 0.6) { p.life = 0; break; } if (p.life <= 0) break; }
     }
     A.pr = A.pr.filter((p) => p.life > 0);
@@ -391,7 +417,7 @@
         s.x -= (o.x - s.x) * k * wa; s.y -= (o.y - s.y) * k * wa; o.x += (o.x - s.x) * k * wb; o.y += (o.y - s.y) * k * wb;
       });
       s.y = Math.max(1, Math.min(F.h - 1, s.y)); if (!s.gone) s.x = Math.max(1, Math.min(F.w - 1, s.x));
-      if (SIM.castleWalls(b.ter)) SIM.wallPush(SIM.castleWalls(b.ter), s, r(s)); /* 1.6.25 塀の当たり判定 */
+      if (CW) SIM.wallPush(CW, s, r(s), gG(A, b, s)); /* 1.6.25 塀の当たり判定（1.6.38 閉じた門も） */
     }
     // 潰走
     for (const u of b.units) {
@@ -441,6 +467,7 @@
     for (const s of L) o.s.push(s.id, q10(s.x), q10(s.y), Math.round((s.f || 0) * 100), Math.round((s.hp / s.mh) * 100), (s.fl ? 1 : 0) | (s.at && performance.now() / 1000 - s.at < 0.3 ? 2 : 0) | (s.kat ? 4 : 0));
     for (const p of A.pr) o.pr.push(q10(p.x), q10(p.y), Math.round(p.vx), Math.round(p.vy), p.gun ? 1 : 0, q10(p.h || 0));
     o.h = A.s.filter((s) => s.pc && live(s)).map((s) => [s.id, s.sw ? [Math.round(s.sw.t * 100), Math.round(s.sw.a * 100), Math.round(s.sw.arc * 100), q10(s.sw.r), Math.round((s.sw.d || 0.18) * 100)] : null, s.wep ? s.wep.name : '', s.blk ? 1 : 0, Math.round((s.jp || 0) * 100), s.rd ? 1 : 0, s.hn || 0, s.hw || '', s.hd || 0]);
+    if (A.gt) o.gt = A.gt;
     o.u = b.units.filter((u) => u.hp > 0 && !u.gone).map((u) => [u.id, u.side, u.owner || u.cmd || null, u.type, u.n, u.order, u.idx || 0, u.gname || '']);
     if (full) o.st = A.s.filter(live).map((s) => [s.id, s.side === 'A' ? 0 : 1, s.g, s.type || '', s.hero ? 1 : 0, s.pc || 0]);
     return o;
@@ -465,6 +492,7 @@
     for (const [id, sw, wn, bl, jp, rd, hn, hw, hd] of o.h) { const s = V.byId[id]; if (!s) continue; s.rd = rd ? 1 : 0; s.hn = hn; s.hw = hw; s.hd = hd; s.wep = { name: wn }; s.blk = !!bl; if (jp && !(s.jp > 0)) s.jp = jp / 100; const was = s.sw; s.sw = sw ? { t: sw[0] / 100, a: sw[1] / 100, arc: sw[2] / 100, r: sw[3] / 10, d: (sw[4] || 18) / 100 } : null; if (sw && !was && s.pc === SIM.localPid) SGK.AUDIO.sfx('slash'); }
     V.units = o.u.map(([id, side, owner, type, n, order, idx, gname]) => ({ id, side, owner, type, n, order, idx, gname: gname || undefined, hp: n > 0 ? 1 : 0, gone: false }));
     A.byG = {}; for (const u of V.units) A.byG[u.id] = u;
+    A.gt = o.gt || null;
     return V;
   };
   // 参加者側：表示をなめらかに。自分の本人は入力ですぐ動かし、ホストの位置へ少しずつ寄せる

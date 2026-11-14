@@ -15,7 +15,7 @@
   X.toggle = () => { X.on = !X.on; try { localStorage.setItem('sgk-act3d', X.on ? '1' : '0'); } catch (e) { /* 無視 */ } if (!X.on && cv) cv.style.display = 'none'; return X.on; };
 
   let T, rd, scene, cam3, cv, sun, hideT, W = 0, H = 0, clock = 0;
-  let built = null, groundG = null, groundM = null, trees = [], ter = [], hills = [], sky = null;
+  let built = null, groundG = null, groundM = null, gateM = [], trees = [], ter = [], hills = [], sky = null;
   const L4 = { m: null }; // 足などの部分を動かすための行列
   const M = {}; // 兵の各部分（まとめて描く InstancedMesh）
   const CAP = { body: 700, dead: 520, arrow: 300, ring: 120 };
@@ -253,17 +253,38 @@
       for (const w of c.rad) { const n = Math.max(1, Math.round((w.r1 - w.r0) / 4)), sl = (w.r1 - w.r0) / n; for (let i = 0; i < n; i++) { const d = w.r0 + (i + 0.5) * sl; segs.push([c.x + Math.cos(w.a) * d, c.y + Math.sin(w.a) * d, -w.a, sl]); } }
     }
     if (segs.length) {
-      const N = segs.length, stone = new T.InstancedMesh(new T.BoxGeometry(1, 1.2, 1.4), new T.MeshLambertMaterial({ color: 0x7d786c }), N);
-      const wallM = new T.InstancedMesh(new T.BoxGeometry(1, 1.5, 0.5), new T.MeshLambertMaterial({ color: 0xece6d6 }), N);
-      const roofM = new T.InstancedMesh(new T.BoxGeometry(1, 0.18, 0.95), new T.MeshLambertMaterial({ color: 0x3a3f46 }), N);
+      /* 1.6.38 石垣を高く（2m）＋土塀1.8m＋瓦。塀には狭間（四角い窓）を並べる */
+      const N = segs.length, stone = new T.InstancedMesh(new T.BoxGeometry(1, 2.0, 1.6), new T.MeshLambertMaterial({ color: 0x7d786c }), N);
+      const wallM = new T.InstancedMesh(new T.BoxGeometry(1, 1.8, 0.5), new T.MeshLambertMaterial({ color: 0xece6d6 }), N);
+      const roofM = new T.InstancedMesh(new T.BoxGeometry(1, 0.22, 1.0), new T.MeshLambertMaterial({ color: 0x3a3f46 }), N);
+      const winM = new T.InstancedMesh(new T.BoxGeometry(0.32, 0.32, 0.56), new T.MeshLambertMaterial({ color: 0x1c1712 }), N * 2);
       const o3 = new T.Object3D();
       segs.forEach(([x, y, r, l], k) => {
         const g = hgt(x, y); o3.rotation.set(0, r, 0); o3.scale.set(l * 1.02, 1, 1);
-        o3.position.set(x, g + 0.5, y); o3.updateMatrix(); stone.setMatrixAt(k, o3.matrix);
-        o3.position.set(x, g + 1.85, y); o3.updateMatrix(); wallM.setMatrixAt(k, o3.matrix);
-        o3.position.set(x, g + 2.68, y); o3.updateMatrix(); roofM.setMatrixAt(k, o3.matrix);
+        o3.position.set(x, g + 0.9, y); o3.updateMatrix(); stone.setMatrixAt(k, o3.matrix);
+        o3.position.set(x, g + 2.8, y); o3.updateMatrix(); wallM.setMatrixAt(k, o3.matrix);
+        o3.position.set(x, g + 3.78, y); o3.updateMatrix(); roofM.setMatrixAt(k, o3.matrix);
+        o3.scale.set(1, 1, 1); for (const j of [-0.25, 0.25]) { o3.position.set(x + Math.cos(r) * l * j, g + 2.75 + (j > 0 ? 0 : 0.3), y - Math.sin(r) * l * j); o3.updateMatrix(); winM.setMatrixAt(k * 2 + (j > 0 ? 1 : 0), o3.matrix); }
       });
-      for (const m of [stone, wallM, roofM]) { m.castShadow = true; m.receiveShadow = true; scene.add(m); trees.push(m); }
+      for (const m of [stone, wallM, roofM, winM]) { m.castShadow = true; m.receiveShadow = true; scene.add(m); trees.push(m); }
+    }
+    /* 1.6.38 門：櫓門（門の上に櫓）と扉。扉は破られたら消える。外の塀の角には隅櫓 */
+    gateM = [];
+    const mat = (c) => new T.MeshLambertMaterial({ color: c }), addM = (m) => { m.castShadow = m.receiveShadow = true; scene.add(m); trees.push(m); return m; };
+    for (const gp of SGK.SIM.gatePts ? SGK.SIM.gatePts(CWs) : []) {
+      const g = hgt(gp.x, gp.y), ry = -gp.a, wd = gp.w + 1.2;
+      const tw = addM(new T.Mesh(new T.BoxGeometry(2.2, 2.4, wd + 2.4), mat(0xece6d6))); tw.position.set(gp.x, g + 4.7, gp.y); tw.rotation.y = ry;
+      const rf = addM(new T.Mesh(new T.BoxGeometry(3.2, 0.5, wd + 3.4), mat(0x3a3f46))); rf.position.set(gp.x, g + 6.1, gp.y); rf.rotation.y = ry;
+      for (const sd of [-1, 1]) { const pl = addM(new T.Mesh(new T.BoxGeometry(1.4, 3.6, 1.0), mat(0x7d786c))); pl.position.set(gp.x - Math.sin(gp.a) * sd * (gp.w / 2 + 0.6), g + 1.8, gp.y + Math.cos(gp.a) * sd * (gp.w / 2 + 0.6)); pl.rotation.y = ry; }
+      const dr = addM(new T.Mesh(new T.BoxGeometry(0.4, 3.5, gp.w), mat(0x4a3424))); dr.position.set(gp.x, g + 1.75, gp.y); dr.rotation.y = ry; dr.userData.gid = gp.id; gateM.push(dr);
+    }
+    for (const c of CWs) if (c.main && c.aF != null) {
+      for (const da of [-0.75, 1.05, Math.PI - 0.6, Math.PI + 0.6]) {
+        const a = c.aF + da, x = c.x + Math.cos(a) * (c.R - 2.5), y = c.y + Math.sin(a) * (c.R - 2.5), g = hgt(x, y);
+        const bs = addM(new T.Mesh(new T.BoxGeometry(6, 2.2, 6), mat(0x7d786c))); bs.position.set(x, g + 1.1, y);
+        const bd = addM(new T.Mesh(new T.BoxGeometry(4.6, 3.4, 4.6), mat(0xece6d6))); bd.position.set(x, g + 3.9, y);
+        const rf = addM(new T.Mesh(new T.ConeGeometry(4.2, 1.6, 4).rotateY(Math.PI / 4), mat(0x3a3f46))); rf.position.set(x, g + 6.4, y);
+      }
     }
     for (const c of CWs) if (c.main) {
       const tx = c.x, ty = c.y, g0 = hgt(tx, ty);
@@ -451,6 +472,7 @@
     clock += dt;
     if (w !== W || h !== H) { W = w; H = h; rd.setSize(W, H, false); cam3.aspect = W / Math.max(1, H); cam3.updateProjectionMatrix(); }
     if (built !== b.id) build(b.id, terList);
+    { const gt = b.act && b.act.gt; for (const d of gateM) d.visible = !gt || gt[d.userData.gid] > 0; } /* 1.6.38 破れた門の扉は消す */
     cv.style.display = 'block'; clearTimeout(hideT); hideT = setTimeout(() => { cv.style.display = 'none'; }, 250);
     if (!O) { O = new T.Object3D(); O.rotation.order = 'YXZ'; Mx = new T.Matrix4(); Mu = new T.Matrix4(); C = new T.Color(); }
     const nowS = performance.now() / 1000;

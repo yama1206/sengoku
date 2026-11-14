@@ -23,25 +23,38 @@
     if (!ter || !ter.length) return null;
     let c = CWC.get(ter); if (c !== undefined) return c;
     const F = SIM.FIELD, out = [], hg = (w, r) => w / 2 / r;
+    let ci = 0;
     for (const t of ter) if (t.k === 'k') {
+      const G = (k) => ci + k; ci++; /* 1.6.38 門のid（閉じた門は破るまで攻め手は通れない） */
       const aF = t.x > F.w / 2 ? PI : 0, R = t.r;
       if (R >= 45) {
         const ri = Math.round(R * 0.4), rm = R - 7, gA = aF + 0.35;
         const o = { x: t.x, y: t.y, R, main: 1, rings: [
-          { r: ri, gaps: [[aF + PI, hg(7, ri)]] }, // 本丸（門は奥）
+          { r: ri, gaps: [[aF + PI, hg(7, ri), G('h')]] }, // 本丸（門は奥）
           { r: rm, gaps: [[gA + PI, PI - hg(18, rm)]] }, // 枡形（大手門の内側だけ塀）
-          { r: R, gaps: [[gA, hg(7, R)], [aF - 0.35 * PI, hg(6, R)]] } // 外の塀（大手門・搦手門）
-        ], rad: [{ a: aF - PI / 2, r0: ri, r1: R }] }; // 仕切りの塀（片側をふさいで、本丸の門まで遠回りさせる）
+          { r: R, gaps: [[gA, hg(7, R), G('o')], [aF - 0.35 * PI, hg(6, R), G('k')]] } // 外の塀（大手門・搦手門）
+        ], rad: [{ a: aF - PI / 2, r0: ri, r1: R }], aF, gA }; // 仕切りの塀（片側をふさいで、本丸の門まで遠回りさせる）
         /* 1.6.37 堀は通れない（w：堀の幅の半分）。大手門・搦手門の前だけ土橋（切れ目）で渡れる */
         const mt = ter.find((m) => m.k === 'm' && Math.abs(m.x - t.x) < 1 && Math.abs(m.y - t.y) < 1);
         if (mt) { const mr = (mt.r + (mt.ri || R)) / 2; o.rings.push({ r: mr, w: (mt.r - (mt.ri || R)) / 2, moat: 1, gaps: [[gA, hg(8, mr)], [aF - 0.35 * PI, hg(8, mr)]] }); o.RO = mt.r; }
         out.push(o);
-      } else out.push({ x: t.x, y: t.y, R, rings: [{ r: R, gaps: [[aF + 0.3, hg(6, R)]] }], rad: [] });
+      } else out.push({ x: t.x, y: t.y, R, rings: [{ r: R, gaps: [[aF + 0.3, hg(6, R), G('s')]] }], rad: [], aF });
     }
     c = out.length ? out : null; CWC.set(ter, c); return c;
   };
-  const inGap = (q, a, m) => q.gaps.some(([ga, gw]) => Math.abs(nrm(a - ga)) < gw - m / q.r);
+  /* 1.6.38 門：G＝{ gs: 門の残りの強さ, side: 通る者の側, cs: 守り手の側 }。閉じた門はだれも通れない。G がなければ門も切れ目あつかい */
+  SIM.GATE_HP = { o: 900, k: 750, h: 600, s: 600 };
+  SIM.GATE_NAME = { o: '大手門', k: '搦手門', h: '本丸の門', s: '門' };
+  const gOpen = (id, G) => !id || !G || !G.gs || !(G.gs[id] > 0) || (G.side && G.side === G.cs && !/[ok]$/.test(id)); /* 守り手は内側の門（本丸の門など）は開けて通れる。外の門（大手・搦手）は破られるまで閉じたまま */
+  const inGap = (q, a, m, G) => q.gaps.some(([ga, gw, id]) => Math.abs(nrm(a - ga)) < gw - m / q.r && gOpen(id, G));
   SIM.wallInGap = inGap;
+  SIM.gateInit = (cw) => { const gs = {}; for (const c of cw || []) for (const q of c.rings) for (const g of q.gaps) if (g[2]) gs[g[2]] = SIM.GATE_HP[g[2].slice(-1)] || 600; return gs; };
+  /* 門の真ん中の位置 */
+  SIM.gatePts = (cw) => { const o = []; for (const c of cw || []) for (const q of c.rings) for (const [ga, gw, id] of q.gaps) if (id) o.push({ id, x: c.x + Math.cos(ga) * q.r, y: c.y + Math.sin(ga) * q.r, a: ga, w: gw * q.r * 2 }); return o; };
+  /* 飛び道具が塀・閉じた門に当たるか（堀は関係なし） */
+  SIM.wallHit = (cw, x0, y0, x1, y1, G) => cw.some((c) => blocked(c, x0, y0, x1, y1, G, 1));
+  /* 塀のすぐ内側（狭間から撃てる場所）にいるか */
+  SIM.atLoophole = (cw, x, y) => { for (const c of cw) { const d = Math.hypot(x - c.x, y - c.y); for (const q of c.rings) if (!q.w && d < q.r && d > q.r - 3.2) return true; } return false; };
   /* 1.6.37 土橋の上か（堀の幅の中で、切れ目の角度） */
   SIM.onBridge = (ter, x, y) => {
     const cw = SIM.castleWalls(ter); if (!cw) return false;
@@ -49,13 +62,13 @@
     return false;
   };
   // 塀にめり込んだら押し戻す（rad：体の半径）
-  SIM.wallPush = (cw, s, rad) => {
+  SIM.wallPush = (cw, s, rad, G) => {
     for (const c of cw) {
       let dx = s.x - c.x, dy = s.y - c.y, d = Math.hypot(dx, dy) || 0.01;
       if (d > (c.RO || c.R) + 3) continue;
       const m = rad + WT;
       for (const q of c.rings) {
-        const w = q.w || 0, a = Math.atan2(dy, dx); if (Math.abs(d - q.r) >= m + w || inGap(q, a, rad)) continue;
+        const w = q.w || 0, a = Math.atan2(dy, dx); if (Math.abs(d - q.r) >= m + w || inGap(q, a, rad, G)) continue;
         if (w && Math.abs(d - q.r) < w) { /* 堀の上：土橋のすぐ脇なら橋の上へ戻す */
           let br = 0; for (const [ga, gw] of q.gaps) { const da = nrm(a - ga), lim = Math.max(0, gw - rad / q.r); if ((Math.abs(da) - lim) * d < 2.5) { const na = ga + Math.sign(da) * lim; s.x = c.x + Math.cos(na) * d; s.y = c.y + Math.sin(na) * d; br = 1; break; } }
           if (br) { dx = s.x - c.x; dy = s.y - c.y; continue; }
@@ -70,11 +83,11 @@
     }
   };
   // まっすぐ行くと塀に当たるか
-  const blocked = (c, x0, y0, x1, y1) => {
+  const blocked = (c, x0, y0, x1, y1, G, noMoat) => {
     const ax = x0 - c.x, ay = y0 - c.y, vx = x1 - x0, vy = y1 - y0, A = vx * vx + vy * vy; if (A < 1e-6) return false;
-    for (const q of c.rings) for (const rq of q.w ? [q.r - q.w, q.r, q.r + q.w] : [q.r]) {
+    for (const q of c.rings) if (!(noMoat && q.w)) for (const rq of q.w ? [q.r - q.w, q.r, q.r + q.w] : [q.r]) {
       const B = 2 * (ax * vx + ay * vy), C = ax * ax + ay * ay - rq * rq, D = B * B - 4 * A * C; if (D < 0) continue;
-      for (const sg of [-1, 1]) { const t = (-B + sg * Math.sqrt(D)) / (2 * A); if (t > 0.02 && t < 0.98 && !inGap(q, Math.atan2(ay + vy * t, ax + vx * t), 0.6)) return true; }
+      for (const sg of [-1, 1]) { const t = (-B + sg * Math.sqrt(D)) / (2 * A); if (t > 0.02 && t < 0.98 && !inGap(q, Math.atan2(ay + vy * t, ax + vx * t), noMoat ? 0 : 0.6, G)) return true; }
     }
     for (const w of c.rad) {
       const ux = Math.cos(w.a), uy = Math.sin(w.a), ex = ux * (w.r1 - w.r0), ey = uy * (w.r1 - w.r0), sx = ux * w.r0 - ax, sy = uy * w.r0 - ay, den = vx * ey - vy * ex;
@@ -84,7 +97,7 @@
     return false;
   };
   // 塀を回り込む行き先（門を通る）。変わらなければそのまま返す
-  SIM.wallWay = (cw, s, gx, gy) => {
+  SIM.wallWay = (cw, s, gx, gy, G) => {
     for (const c of cw) {
       const sx = s.x - c.x, sy = s.y - c.y, ds = Math.hypot(sx, sy), dg = Math.hypot(gx - c.x, gy - c.y);
       if (ds > (c.RO || c.R) + 6 && dg > (c.RO || c.R) + 6 && !blocked(c, s.x, s.y, gx, gy)) continue;
@@ -100,15 +113,16 @@
       };
       if (bs === bg) { if (!blocked(c, s.x, s.y, gx, gy)) continue; return orbit(Math.atan2(gy - c.y, gx - c.x)); }
       const q = c.rings[bs < bg ? bs : bs - 1], out = bs < bg ? 1 : -1;
-      let best = null, bc = 1e9;
-      for (const [ga, gw] of q.gaps) {
+      let best = null, bc = 1e9, bid = null;
+      for (const [ga, gw, id] of q.gaps) {
         const m = Math.max(0, gw - 3.5 / q.r), pa = ga + Math.max(-m, Math.min(m, nrm(as - ga)));
         let dd = Math.abs(nrm(pa - as)); if (wallBetween(as, pa, nrm(pa - as) >= 0 ? 1 : -1)) dd = 2 * PI - dd;
-        const px = c.x + Math.cos(pa) * q.r, py = c.y + Math.sin(pa) * q.r, cost = dd * Math.max(ds, 5) + Math.hypot(gx - px, gy - py);
-        if (cost < bc) { bc = cost; best = pa; }
+        const px = c.x + Math.cos(pa) * q.r, py = c.y + Math.sin(pa) * q.r, cost = dd * Math.max(ds, 5) + Math.hypot(gx - px, gy - py) + (gOpen(id, G) ? 0 : 60); /* 1.6.38 破れた門を選びやすく */
+        if (cost < bc) { bc = cost; best = pa; bid = id; }
       }
       if (best == null) continue;
       const px = c.x + Math.cos(best) * q.r, py = c.y + Math.sin(best) * q.r;
+      if (!gOpen(bid, G)) { const k = q.r - out * 2.2; return [c.x + Math.cos(best) * k, c.y + Math.sin(best) * k, bid, px, py]; } /* 1.6.38 閉じた門：門の前まで行って打ち破る */
       if (Math.hypot(px - s.x, py - s.y) < 2.5) return [c.x + Math.cos(best) * (q.r + out * (4 + (q.w || 0))), c.y + Math.sin(best) * (q.r + out * (4 + (q.w || 0)))];
       // 門の手前（同じ側に 3m）をめざす
       const fx = c.x + Math.cos(best) * (q.r - out * (3 + (q.w || 0))), fy = c.y + Math.sin(best) * (q.r - out * (3 + (q.w || 0)));
