@@ -171,7 +171,7 @@
   SIM.systems = [
     function meetHold(w) { // 0.73.4 向き合いの終わり：プレイヤーが離れた・戦が始まった・時間切れ
       for (const n of Object.values(w.npcs)) {
-        if (!n.hold || typeof n.hold !== 'object') continue; // 1.6.7 数値の hold は護衛の足止め（消さない） const p = w.players[n.hold.by];
+        if (!n.hold || typeof n.hold !== 'object') continue; /* 1.6.7 数値の hold は護衛の足止めなので消さない */ const p = w.players[n.hold.by];
         if (!p || p.meet !== n.id || p.battle || n.battle || n.fight || w.time.min > n.hold.until || Math.hypot(n.x - p.x, n.y - p.y) > 2.5) { delete n.hold; if (p && p.meet === n.id) p.meet = null; }
       }
       for (const p of Object.values(w.players)) if (p.meet && !w.npcs[p.meet]) p.meet = null;
