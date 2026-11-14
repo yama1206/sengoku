@@ -475,7 +475,7 @@
     for (const p of A.dead) { O.position.set(p.x, hgt(p.x, p.y), p.y); O.rotation.set(0, (di++ * 2.39) % 6.28, 0); O.scale.set(1, 1, 1); O.updateMatrix(); put('dead', O.matrix, C.setHex(p.side === 'A' ? 0x34405e : 0x6a2a20)); }
     // 飛び道具
     for (const p of A.pr) {
-      const a = Math.atan2(p.vy, p.vx); O.position.set(p.x, hgt(p.x, p.y) + 1.3, p.y); O.rotation.set(0, -a, 0); O.scale.set(1, 1, 1); O.updateMatrix();
+      const a = Math.atan2(p.vy, p.vx); O.position.set(p.x, hgt(p.x, p.y) + 1.3 + (p.h || 0), p.y); // 0.75.3 弓は山なり O.rotation.set(0, -a, 0); O.scale.set(1, 1, 1); O.updateMatrix();
       put(p.gun ? 'bullet' : 'arrow', O.matrix);
     }
     for (const id of [...rigs.keys()]) if (!seen.has(id)) dropRig(id);
