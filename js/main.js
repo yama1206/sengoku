@@ -19,6 +19,8 @@
     else try { sessionStorage.removeItem('sgkReload'); } catch (e) {} }
   $('verLabel').textContent = 'ver ' + SGK.VERSION;
   $('updateBtn').onclick = () => { location.href = location.pathname + '?v=' + Date.now(); };
+  // 1.6.4 エラーは2分出しておく（タップで消える）
+  function errToast(text) { const t = document.createElement('div'); t.className = 'toast'; t.style.background = '#5a1a1a'; t.style.pointerEvents = 'auto'; t.textContent = text + '（タップで消す）'; t.onclick = () => t.remove(); $('toasts').appendChild(t); setTimeout(() => t.remove(), 120000); console.error(text); }
   function toast(text, ms = 3000) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = text; $('toasts').appendChild(t); setTimeout(() => t.remove(), ms); }
   function titleMsg(text) { $('titleMsg').textContent = text || ''; }
   function show(id) { ['title', 'game'].forEach((s) => $(s).classList.toggle('hidden', s !== id)); if (id === 'game') requestAnimationFrame(() => R.resize($('map'))); }
@@ -370,7 +372,8 @@
     } else { toast('通信ライブラリを読み込めませんでした（一人で遊べます）', 5000); }
     updateRoom();
   }
-  function hostTick() {
+  function hostTick() { try { hostTick0(); } catch (e) { const t = 'エラー(ホストの進行): ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastHostErr !== t) { G.lastHostErr = t; errToast(t); } } }
+  function hostTick0() {
     const now = performance.now(); const dt = Math.min(5, (now - lastTick) / 1000); lastTick = now;
     G.inBattle = Object.keys(G.world.battles || {}).length > 0; // 0.32.0 誰かが戦闘中は時間を等倍に
     G.effSpeed = G.inBattle && G.speed > 1 ? 1 : G.speed;
@@ -395,8 +398,8 @@
     netAcc += dt * 1000;
     if (netAcc >= CFG.NET_SEND_MS) {
       netAcc = 0;
-      if (G.net) { G.net.each((pid) => { try { return { t: 'state', s: SIM.dynamicState(G.world, pid), sp: G.speed, priv: SIM.privateState(G.world, pid), msgs: SIM.drain(pid), bt: G.inBattle }; } catch (e) { // 1.6.3 参加者への様子が作れないときは、ホストと参加者の両方にエラーを出す
-          const t = 'エラー(参加者へ送信): ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastNetErr !== t) { G.lastNetErr = t; toast(t, 15000); console.error(e); } return { t: 'err', text: t }; } }); }
+      if (G.net) { G.net.each((pid) => { try { const st = { t: 'state', s: SIM.dynamicState(G.world, pid), sp: G.speed, priv: SIM.privateState(G.world, pid), msgs: SIM.drain(pid), bt: G.inBattle }; G.sentOnce = G.sentOnce || {}; if (!G.sentOnce[pid]) { G.sentOnce[pid] = 1; toast(`参加者へ様子を送りはじめました（${Math.round(JSON.stringify(st).length / 1024)}KB）`, 8000); } return st; } catch (e) { // 1.6.3 参加者への様子が作れないときは、ホストと参加者の両方にエラーを出す
+          const t = 'エラー(参加者へ送信): ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastNetErr !== t) { G.lastNetErr = t; errToast(t); } return { t: 'err', text: t }; } }); }
       for (const pid in SIM.out) if (pid !== G.myPid) delete SIM.out[pid]; // 接続していない人宛ては捨てる
     }
     saveAcc += dt;
@@ -420,10 +423,10 @@
     myProf();
     const onState0 = (m) => { G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; G.priv = m.priv; (m.msgs || []).forEach((t) => toast(t, 4000)); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } };
     G.net = SGK.NET.join(code, token, myName(), {
-      onWelcome: (m) => { SGK.NET.addFriend(m.hostCode || code, m.hostName); G.mode = 'client'; G.myPid = m.pid; SIM.localPid = m.pid; G.actView = null; G.dyn = null; G.stat = m.static; setTimeout(() => { if (G.mode === 'client' && !G.dyn) toast('ホストから様子が届いていません（ホストの画面にエラーが出ていないか見てください）', 10000); }, 6000); G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
-      onErr: (m) => { if (G.lastErr !== m.text) { G.lastErr = m.text; toast(m.text, 15000); } },
+      onWelcome: (m) => { SGK.NET.addFriend(m.hostCode || code, m.hostName); G.mode = 'client'; G.myPid = m.pid; SIM.localPid = m.pid; G.actView = null; G.dyn = null; G.stat = m.static; setTimeout(() => { if (G.mode === 'client' && !G.dyn) errToast('ホストから様子が届いていません（ホストの画面にエラーが出ていないか見てください）'); }, 6000); G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
+      onErr: (m) => { if (G.lastErr !== m.text) { G.lastErr = m.text; errToast(m.text); } },
       onAct: (m) => { const BT = G.priv && G.priv.battle; if (BT && BT.id === m.a.id) G.actView = SIM.actApply(G.actView, m.a); },
-      onState: (m) => { try { onState0(m); } catch (e) { const t = 'エラー: ' + (e && e.message); if (G.lastErr !== t) { G.lastErr = t; toast(t, 15000); console.error(e); } } },
+      onState: (m) => { try { onState0(m); } catch (e) { const t = 'エラー: ' + (e && e.message); if (G.lastErr !== t) { G.lastErr = t; errToast(t); } } },
       onBye: (why) => { backToTitle(); titleMsg(why); },
       onError: (t) => titleMsg(t),
     });
@@ -1531,7 +1534,7 @@
     return inp;
   }
   // 1.6.2 描画中にエラーが出ても止まらないように（エラーの内容は画面に出す）
-  function frame(now) { try { frame0(now); } catch (e) { const t = 'エラー: ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastErr !== t) { G.lastErr = t; toast(t, 15000); console.error(e); } requestAnimationFrame(frame); } }
+  function frame(now) { try { frame0(now); } catch (e) { const t = 'エラー: ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastErr !== t) { G.lastErr = t; errToast(t); } requestAnimationFrame(frame); } }
   function frame0(now) {
     const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
     const padMove = pollPad(dt);
