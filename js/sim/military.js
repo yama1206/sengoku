@@ -99,6 +99,7 @@
     if (d <= step) { e.x = e.tx; e.y = e.ty; e.tx = e.ty = null; return true; }
     e.x += (dx / d) * step; e.y += (dy / d) * step; return false;
   }
+  SIM.HIDE_MIN = 180; SIM.hidden = (w, p) => (p.hideT || 0) > w.time.min; /* 1.6.20 逃げたり戦が終わったあと3時間は敵に見つからない */
   const inField = (p) => !p.battle && !(p.at && p.tx == null); // 拠点にいる人は襲われない
   function playerPower(p) { return power(p.troops) + TR.hero.hp * TR.hero.atk; }
 
@@ -114,10 +115,10 @@
       }
       if (n.tgt) { // 狙っていた相手が拠点に入ったらあきらめて根城へ帰る
         const tp = w.players[n.tgt];
-        if (!tp || !inField(tp)) { n.tgt = null; n.calm = now + 6 * 60; n.tx = n.hx; n.ty = n.hy; }
+        if (!tp || !inField(tp) || SIM.hidden(w, tp)) { n.tgt = null; n.calm = now + 6 * 60; n.tx = n.hx; n.ty = n.hy; }
       }
       let tgt = null, td = 5;
-      if (n.calm < now) for (const p of Object.values(w.players)) { const d = dist(n, p); if (inField(p) && d < td && d < 5 * (p.nin ? SIM.NIN.seen : 1)) { td = d; tgt = p; } /* 0.77.0 忍びは見つかりにくい */ }
+      if (n.calm < now) for (const p of Object.values(w.players)) { const d = dist(n, p); if (inField(p) && !SIM.hidden(w, p) && d < td && d < 5 * (p.nin ? SIM.NIN.seen : 1)) { td = d; tgt = p; } /* 0.77.0 忍びは見つかりにくい */ }
       n.tgt = tgt ? tgt.id : null;
       if (tgt) {
         if (playerPower(tgt) > power(n.army) * 1.25) { // 勝てそうにない相手からは逃げる（0.54.8 2倍→1.25倍）
@@ -419,7 +420,7 @@
     for (const pid of b.pids) {
       const p = w.players[pid]; if (!p) continue;
       const after = surviving(w, b, pid), lt = lossText(b.start[pid] || {}, after);
-      p.troops = after; p.battle = null;
+      p.troops = after; p.battle = null; p.hideT = w.time.min + SIM.HIDE_MIN; /* 1.6.20 戦のあとしばらく見つからない */
       if (res === 'win') {
         const share = Math.floor(b.loot / b.pids.length), fame = 1 + Math.floor(b.foeN / 10);
         p.money += share; p.fame += fame;
@@ -542,7 +543,7 @@
       const before = b.start[p.id] || {}, tr = surviving(w, b, p.id);
       for (const k in tr) { tr[k] = Math.floor(tr[k] * 0.7); if (!tr[k]) delete tr[k]; }
       setWound(b, p, 'escape');
-      p.troops = tr; p.battle = null;
+      p.troops = tr; p.battle = null; p.hideT = w.time.min + SIM.HIDE_MIN; SIM.say(p.id, 'しばらくは敵に見つかりません'); /* 1.6.20 */
       b.units = b.units.filter((u) => u.owner !== p.id); b.pids = b.pids.filter((x) => x !== p.id);
       const n = w.npcs[b.npc];
       let lostTxt = '';
