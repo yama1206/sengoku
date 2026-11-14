@@ -168,6 +168,16 @@
         if (n.pname && cam.scale >= 3) { const t = n.pname + '隊'; ctx.font = 'bold 11px sans-serif'; ctx.textBaseline = 'top'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)'; ctx.strokeText(t, x, y + 8); ctx.fillStyle = '#2a2118'; ctx.fillText(t, x, y + 8); } // 0.53.5 見回りの隊にも大将の名前
       }
     }
+    // 0.73.4 部隊の移動の速さ（km/日）を印の上に。こちらより速いと赤、遅いと緑
+    if (cam.scale >= 2) {
+      const mS = meV && meV.spd; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.lineWidth = 3;
+      for (const n of view.npcs) {
+        if (!n.spd || n.at) continue; const d = disp[n.id] || n; const [x, y] = R.toScreen(d.x, d.y);
+        const t = (mS ? (n.spd > mS * 1.05 ? '▲' : n.spd < mS * 0.95 ? '▼' : '＝') : '') + n.spd + 'km/日';
+        ctx.strokeStyle = 'rgba(20,16,12,.8)'; ctx.strokeText(t, x, y - (n.kind === 'army' ? 16 : 11));
+        ctx.fillStyle = !mS ? '#eee' : n.spd > mS * 1.05 ? '#ff9a80' : n.spd < mS * 0.95 ? '#9be08f' : '#eee'; ctx.fillText(t, x, y - (n.kind === 'army' ? 16 : 11));
+      }
+    }
     // プレイヤー
     ctx.font = 'bold 12px sans-serif'; ctx.textBaseline = 'bottom';
     for (const p of view.players) {

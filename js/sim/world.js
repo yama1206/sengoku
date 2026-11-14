@@ -99,16 +99,17 @@
       if (!dest && SIM.isSea(x, y)) return; // 海の上は目的地にできない（船は後日）
       const path = SIM.findPath(p.x, p.y, x, y);
       if (!path) return SIM.say(p.id, 'そこへは陸路で行けません');
-      p.tx = x; p.ty = y; p.dest = dest; p.at = null; p.path = path; p.follow = null;
+      p.tx = x; p.ty = y; p.dest = dest; p.at = null; p.path = path; p.follow = null; endMeet(w, p);
     },
-    stop(w, p) { p.tx = p.ty = null; p.dest = null; p.path = null; p.follow = null; },
+    stop(w, p) { p.tx = p.ty = null; p.dest = null; p.path = null; p.follow = null; endMeet(w, p); },
+    meetEnd(w, p) { endMeet(w, p); },
     // 部隊（CPU・他プレイヤー）を追いかける。見えているあいだ道筋を引き直し続ける
     follow(w, p, c) {
       const t = w.npcs[c.id] || w.players[c.id];
       if (!t || t === p || t.off || p.battle) return;
       if (p.busy) return SIM.say(p.id, `${p.busy.label}の最中です（取りやめると報酬はもらえません）`);
       if (!SIM.canSee(p, SIM.sightRadius(w, p), t.x, t.y)) return SIM.say(p.id, '見えない相手は追えません');
-      p.follow = t.id; p.dest = null; p.at = null; p.tx = p.ty = null; p.path = null;
+      endMeet(w, p); p.follow = t.id; p.dest = null; p.at = null; p.tx = p.ty = null; p.path = null;
       followStep(w, p);
       if (p.follow) SIM.say(p.id, `${SIM.followName(w, p)}を追いかけます`);
     },
@@ -123,6 +124,7 @@
   // 道筋（path）の通過点を順にたどる。速さは足もとの地形（街道・平地・山）で変わる
   function moveEntity(e, dtMin) {
     if (e.tx == null) { e.path = null; return false; }
+    if (e.hold) return false; // 0.73.4 プレイヤーと向き合っているあいだは止まる
     if (!e.path || !e.path.length) e.path = [[e.tx, e.ty]];
     let left = dtMin;
     while (left > 0 && e.path.length) {
@@ -145,10 +147,17 @@
   };
   const UNIT_NAME = { merchant: '行商人', bandit: '野盗', army: '軍勢', patrol: '武将の隊', bushou: '武将', ronin: '浪人' };
   SIM.followName = (w, p) => { const t = p.follow && (w.npcs[p.follow] || w.players[p.follow]); return t ? t.name || UNIT_NAME[t.kind] || '部隊' : null; };
+  const MEET_KINDS = ['bushou', 'patrol', 'army', 'ronin'], MEET_KM = 1.4;
+  function endMeet(w, p) { const n = p.meet && w.npcs[p.meet]; if (n && n.hold && n.hold.by === p.id) delete n.hold; p.meet = null; }
   function followStep(w, p) {
     const t = w.npcs[p.follow] || w.players[p.follow];
     if (!t || p.battle) { p.follow = null; return; }
     if (!SIM.canSee(p, SIM.sightRadius(w, p), t.x, t.y)) { p.follow = null; SIM.say(p.id, '見失いました（最後に見えた所へ向かいます）'); return; }
+    // 0.73.4 追いかけて近づいたら、双方止まって「話しかける／攻めかかる」の窓を出す
+    if (MEET_KINDS.includes(t.kind) && !t.battle && !t.fight && Math.hypot(t.x - p.x, t.y - p.y) <= MEET_KM) {
+      p.follow = null; p.tx = p.ty = null; p.path = null; p.meet = t.id; t.hold = { by: p.id, until: w.time.min + 240 };
+      return;
+    }
     if (Math.hypot(t.x - p.x, t.y - p.y) < 0.3) { p.tx = p.ty = null; p.path = null; return; } // 追いついたら横に付く
     if (p.tx == null || Math.hypot(t.x - p.tx, t.y - p.ty) > 0.4) {
       const path = SIM.findPath(p.x, p.y, t.x, t.y);
@@ -157,6 +166,13 @@
     }
   }
   SIM.systems = [
+    function meetHold(w) { // 0.73.4 向き合いの終わり：プレイヤーが離れた・戦が始まった・時間切れ
+      for (const n of Object.values(w.npcs)) {
+        if (!n.hold) continue; const p = w.players[n.hold.by];
+        if (!p || p.meet !== n.id || p.battle || n.battle || n.fight || w.time.min > n.hold.until || Math.hypot(n.x - p.x, n.y - p.y) > 2.5) { delete n.hold; if (p && p.meet === n.id) p.meet = null; }
+      }
+      for (const p of Object.values(w.players)) if (p.meet && !w.npcs[p.meet]) p.meet = null;
+    },
     function playerMove(w, dt) {
       for (const p of Object.values(w.players)) {
         if (p.follow) followStep(w, p);

@@ -28,7 +28,7 @@
     const path = SIM.findPath(s.x, s.y, to.x, to.y); if (!path) return;
     const id = 'n' + w.nextId++;
     w.npcs[id] = { id, kind: 'bushou', faction: s.owner, person: s.lord, x: s.x, y: s.y, tx: to.x, ty: to.y, path, dest: to.id, at: null, home: s.id, goal: to.id, purpose,
-      army: { yari: 4 + Math.floor(rnd(w) * 5), yumi: 1 + Math.floor(rnd(w) * 3) }, speed: 30, wait: 0, back: false };
+      army: SIM.genArmy(w, s.owner, { yari: 4 + Math.floor(rnd(w) * 5), yumi: 1 + Math.floor(rnd(w) * 3) }), speed: 30, wait: 0, back: false };
     w.npcs[id].size = SIM.troopCount(w.npcs[id].army);
   }
   // ---- 3. 浪人：町や村を渡り歩く ----

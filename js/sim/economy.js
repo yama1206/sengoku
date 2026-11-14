@@ -264,7 +264,7 @@
     const p = w.players[pid]; if (!p) return null;
     const s = here(w, p);
     return {
-      me: { money: p.money, inv: p.inv, cost: p.cost || {}, quests: p.quests, fame: Math.round(p.fame * 10) / 10, busy: p.busy, cap: CAP, riceCap: SIM.riceCap(p) },
+      me: { money: p.money, inv: p.inv, cost: p.cost || {}, quests: p.quests, fame: Math.round(p.fame * 10) / 10, busy: p.busy, meet: p.meet || null, cap: CAP, riceCap: SIM.riceCap(p) },
       here: s ? { id: s.id, noBuy: [...SIM.noBuy(w, s)], market: Object.keys(I()).map((k) => [k, SIM.buyPrice(s, k, p), SIM.sellPrice(s, k, p), Math.floor(s.stock[k])]), jobs: Object.values(w.jobs).filter((j) => j.from === s.id && SIM.jobOk(w, p, j)) } : null,
     };
   };

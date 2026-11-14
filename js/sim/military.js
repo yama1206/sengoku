@@ -31,6 +31,16 @@
   const MAX_BANDITS = 200; // 地図の広さに合わせて（全国）
 
   SIM.troopCount = (tr) => Object.values(tr || {}).reduce((a, b) => a + b, 0);
+  // 0.73.4 武将の手勢を増やす：今までの人数の GEN_MUL 倍まで。増やした分は1人 GEN_COST 文を家の蔵から払う（蔵が足りなければその分だけ）
+  SIM.GEN_MUL = 2.5; SIM.GEN_COST = 150;
+  SIM.genArmy = (w, fid, army, free) => {
+    const f = fid && w.factions[fid], n0 = SIM.troopCount(army);
+    if (!f || f.player || f.dead) return army;
+    let extra = Math.round(n0 * (SIM.GEN_MUL - 1));
+    if (!free) { extra = Math.min(extra, Math.floor(Math.max(0, f.kura || 0) / SIM.GEN_COST)); f.kura = (f.kura || 0) - extra * SIM.GEN_COST; }
+    const ey = Math.round(extra * 0.7); army.yari = (army.yari || 0) + ey; army.yumi = (army.yumi || 0) + extra - ey;
+    return army;
+  };
   SIM.troopCap = (p) => Math.min(60, Math.ceil(10 + p.fame * 1.5)); // 0.30.3 半分に
   SIM.wage = (tr) => Math.round(Object.entries(tr || {}).reduce((a, [k, n]) => a + (TR[k].wage || 0) * n, 0) * 0.4); // 0.28.0 給金は兵種の値の4割
   // 成長要素（growth.js）が上書きする差し込み口
@@ -58,7 +68,7 @@
     for (const b of Object.values(w.battles)) { b.ter = b.ter || []; b.lk = b.lk || { A: null, B: null }; for (const u of b.units) { if (u.f == null) u.f = u.side === 'A' ? 0 : Math.PI; if (u.mor == null) u.mor = u.mo = 65; if (u.n0 == null) u.n0 = u.n; } }
     if (!Object.values(w.npcs).some((n) => n.kind === 'bandit')) for (let i = 0; i < 100; i++) spawnBandit(w);
     for (const n of Object.values(w.npcs)) if (n.kind === 'patrol' && !n.army) { // 巡回兵の手勢
-      n.army = { yari: 8 + Math.floor(rnd(w) * 8), yumi: 2 + Math.floor(rnd(w) * 5) }; n.size = SIM.troopCount(n.army);
+      n.army = SIM.genArmy(w, n.faction, { yari: 8 + Math.floor(rnd(w) * 8), yumi: 2 + Math.floor(rnd(w) * 5) }, true); n.size = SIM.troopCount(n.army); n.cap = n.size;
     }
     return w;
   };
@@ -452,7 +462,12 @@
       for (const k in p.troops) { const go = Math.ceil(p.troops[k] * 0.2); p.troops[k] -= go; left += go; if (p.troops[k] <= 0) delete p.troops[k]; }
       SIM.say(p.id, `給金が払えず、兵${left}人が去りました`);
     }
-    for (const n of Object.values(w.npcs)) if (n.kind === 'patrol' && n.army && !n.fight && !n.battle && SIM.troopCount(n.army) < 12) { n.army.yari = (n.army.yari || 0) + 2; n.size = SIM.troopCount(n.army); } // 巡回兵の補充
+    for (const n of Object.values(w.npcs)) if (n.kind === 'patrol' && n.army && !n.fight && !n.battle) { // 巡回兵の補充（12人までは無料、そこから元の人数までは家の蔵から1人 GEN_COST 文）
+      const c = SIM.troopCount(n.army), f = w.factions[n.faction];
+      if (c < 12) n.army.yari = (n.army.yari || 0) + 2;
+      else if (c < (n.cap || 12) && f && !f.player && (f.kura || 0) >= SIM.GEN_COST * 3) { n.army.yari = (n.army.yari || 0) + 3; f.kura -= SIM.GEN_COST * 3; }
+      n.size = SIM.troopCount(n.army);
+    }
     if (Object.values(w.npcs).filter((n) => n.kind === 'bandit').length < MAX_BANDITS) for (let i = 0; i < 5; i++) if (rnd(w) < 0.7) spawnBandit(w);
   }
 

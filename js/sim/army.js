@@ -530,7 +530,7 @@
       if (s.type !== 'castle' || s.site || !s.owner || homes.has(s.id) || rnd(w) > 0.25) continue;
       const f = w.factions[s.owner]; if (!f || f.player || f.dead) continue;
       const n = SIM.spawnNpc(w, 'patrol', s.owner, s);
-      n.army = { yari: 8 + Math.floor(rnd(w) * 8), yumi: 2 + Math.floor(rnd(w) * 5) }; n.size = SIM.troopCount(n.army);
+      n.army = SIM.genArmy(w, s.owner, { yari: 8 + Math.floor(rnd(w) * 8), yumi: 2 + Math.floor(rnd(w) * 5) }); n.size = SIM.troopCount(n.army); n.cap = n.size;
     }
   });
   // ---- 0.31.0 戦況：自分の家が攻めている・攻められている城（画面左下に出し続ける） ----

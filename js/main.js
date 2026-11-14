@@ -589,7 +589,7 @@
     $('infoName').textContent = i.name; $('infoBody').innerHTML = i.body; $('infoGo').textContent = i.go;
     G.infoCmd = i.act ? i.act.cmd : null; $('infoAct').classList.toggle('hidden', !i.act); if (i.act) $('infoAct').textContent = i.act.label;
   }
-  $('infoClose').onclick = () => selectSettlement(null);
+  $('infoClose').onclick = () => { if (G.priv && G.priv.me && G.priv.me.meet) command({ type: 'meetEnd' }); selectSettlement(null); };
   // 0.54.0 取引のボタン（武将・プレイヤー）
   $('infoBody').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-tr]'); if (!b || !G.selected) return; const d = b.dataset, id = G.selected;
@@ -1484,6 +1484,7 @@
         R.draw(ctx, G.view, G.disp, G.myPid, G.selected, marks);
         if (G.pcurOn) drawCross(G.pcur[0], G.pcur[1], '#fff');
       }
+      { const mt = P && P.me && P.me.meet; if (mt && mt !== G.lastMeet && !BT) { const u = findUnit(mt); if (u) { selectUnit(u); toast('追いつきました。話しかけるか、攻めかかるかを選んでください（閉じると相手は動き出します）', 3500); } } G.lastMeet = mt || null; } // 0.73.4
       if (G.selKind === 'u' && !BT) refreshUnitInfo();
       $('townBtn').classList.toggle('hidden', !(P && P.here) || !!BT);
       // 拠点に着いたら自動で拠点画面を開く
