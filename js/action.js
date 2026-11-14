@@ -47,9 +47,17 @@
       layout(u, L); for (const s of L) place(s, u);
     }
     A.byG = {}; for (const u of b.units) A.byG[u.id] = u;
+    A.trees = treePts(b.id, b.ter || []);
     const ix = {}; for (const u of b.units) { const o = u.owner || u.cmd; if (o && A.pids.includes(o) && u.type !== 'hero' && u.m0) { ix[o] = ix[o] || 2; u.idx = ix[o]++; } }
     for (const q of A.pids) if (q !== pid) SIM.say(q, `${(w.players[pid] || {}).name || '仲間'}が「自分で戦う」にしました。あなたも本人を直接動かせます`);
   };
+  // 0.75.0 森の木の位置（3D表示の木と同じ並び。action3d.js の build と同じ作り方）
+  function treePts(id, ter) {
+    let sd = String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0), 3), q = (sd * 9301 + 49297) % 233280 || 1; const r = () => { q = (q * 9301 + 49297) % 233280; return q / 233280; };
+    const out = [];
+    for (const t of ter) if (t.k === 'f') { const n = Math.min(160, Math.round(t.r * t.r * 0.07)), F = { x: t.x, y: t.y, r: t.r, p: [] }; for (let i = 0; i < n; i++) { const a = r() * 7, d = Math.sqrt(r()) * t.r; F.p.push([t.x + Math.cos(a) * d, t.y + Math.sin(a) * d]); r(); } out.push(F); }
+    return out;
+  }
   // 0.75.0 隊形：兵の持ち場（ox 前後・oy 左右）を並べ直す
   ACT.FORMS = { norm: '通常', line: '横隊', col: '縦隊', loose: '散開', square: '方陣', wedge: '鋒矢' };
   function layout(u, L) {
@@ -189,7 +197,7 @@
       if (inp.atk && !hero.blk && hero.cd <= 0) {
         const pa = A.byG[hero.g], am = (pa && pa.am) || 1, base = TR.hero.atk * am;
         hero.cd = W.cd;
-        if (W.shot) { A.pr.push({ x: hero.x, y: hero.y, vx: Math.cos(hero.f) * W.spd, vy: Math.sin(hero.f) * W.spd, side: hero.side, dmg: base * W.dmg * 0.5, life: W.shot / W.spd, gun: W.spd > 100, src: hero }); sfx(hero, W.spd > 100 ? 'gun' : 'bow'); }
+        if (W.shot) { A.pr.push({ x0: hero.x, y0: hero.y, x: hero.x, y: hero.y, vx: Math.cos(hero.f) * W.spd, vy: Math.sin(hero.f) * W.spd, side: hero.side, dmg: base * W.dmg * 0.5, life: W.shot / W.spd, gun: W.spd > 100, src: hero }); sfx(hero, W.spd > 100 ? 'gun' : 'bow'); }
         else {
           hero.sw = { t: W.sw || 0.18, d: W.sw || 0.18, a: hero.f, arc: W.arc, r: W.reach }; sfx(hero, 'slash');
           swing(g, hero, hero.f, W, (o, k) => damage(b, A, o, base * W.dmg * k * (0.8 + rr() * 0.4), hero));
@@ -237,7 +245,7 @@
           if (s.cd <= 0) {
             if (T.ranged && !close) {
               const sp = s.type === 'teppo' || s.type === 'teppogashira' ? 140 : 45, tt = d / sp, ex = e.x + (rr() - 0.5) * d * 0.12, ey = e.y + (rr() - 0.5) * d * 0.12, a = Math.atan2(ey - s.y, ex - s.x);
-              A.pr.push({ x: s.x, y: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, side: s.side, dmg: T.atk * (u.am || 1) * (sp > 100 ? 2.6 : 2.2) * (0.55 + 0.45 * u.mor / 100), life: tt * 1.3, gun: sp > 100, src: s });
+              A.pr.push({ x0: s.x, y0: s.y, x: s.x, y: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, side: s.side, dmg: T.atk * (u.am || 1) * (sp > 100 ? 2.6 : 2.2) * (0.55 + 0.45 * u.mor / 100), life: tt * 1.3, gun: sp > 100, src: s });
               s.cd = (sp > 100 ? 4 : 2.4) + rr(); s.at = performance.now() / 1000; // 0.66.0 3Dの射る・撃つ動き
             } else { const atk = T.atk * (u.am || 1) * (close ? 0.8 : 1) * (0.55 + 0.45 * u.mor / 100) * (T.cav && s.mv ? 1.3 : 1); const CW = cpuWep(s, close); if (!swing(g, s, s.f, CW, (o, k) => melee(b, A, s, o, atk * k))) melee(b, A, s, e, atk); s.cd = CW.cd * 2.2 + rr() * 0.6; s.at = performance.now() / 1000; } // 0.73.10 武器ごとの振りの速さ（刀1.1秒・槍1.76秒＋ゆらぎ） // 0.73.9 CPUも一振りで範囲の敵全員に
           }
@@ -261,7 +269,11 @@
       const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt; let hit = null;
       near(g, nx, ny, 1.5, (o) => { if (!hit && o.side !== p.side && live(o)) { const d = Math.hypot(o.x - nx, o.y - ny); if (d < (o.hero ? 0.9 : 0.7)) hit = o; } });
       p.x = nx; p.y = ny; p.life -= dt;
-      if (hit) { damage(b, A, hit, p.dmg * (0.7 + rr() * 0.6), p.src); p.life = 0; }
+      if (hit) { damage(b, A, hit, p.dmg * (0.7 + rr() * 0.6), p.src); p.life = 0; continue; }
+      // 0.75.0 木や味方に当たったら消える（自分の隊の中と、撃ってすぐは通り抜ける）
+      const sg = p.src && p.src.g, far = Math.hypot(nx - p.x0, ny - p.y0) > 2.5;
+      if (far) near(g, nx, ny, 1.5, (o) => { if (p.life > 0 && o.side === p.side && o !== p.src && o.g !== sg && live(o) && Math.hypot(o.x - nx, o.y - ny) < (o.hero ? 0.8 : 0.6)) p.life = 0; });
+      if (p.life > 0 && A.trees) for (const F of A.trees) if (Math.hypot(nx - F.x, ny - F.y) < F.r + 1) { for (const t of F.p) if (Math.abs(nx - t[0]) < 0.6 && Math.abs(ny - t[1]) < 0.6) { p.life = 0; break; } if (p.life <= 0) break; }
     }
     A.pr = A.pr.filter((p) => p.life > 0);
     // 押し合い
