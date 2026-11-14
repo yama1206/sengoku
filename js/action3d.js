@@ -281,7 +281,9 @@
     UP = new T.Vector3(0, 1, 0); tv = [V1(), V1(), V1(), V1()]; tq = [Q1(), Q1(), Q1(), Q1(), Q1()];
     new T.GLTFLoader().load('assets/models/Xbot.glb', (g) => {
       g.scene.updateMatrixWorld(true);
-      const bx = new T.Box3().setFromObject(g.scene); RIG.h = Math.max(0.1, bx.max.y - bx.min.y);
+      // 0.68.2 背の高さは骨の位置で測る（包み箱だと単位がずれて巨人になっていた）
+      let lo = 1e9, hi = -1e9; const wp = new T.Vector3(); g.scene.traverse((o) => { if (o.isBone) { o.getWorldPosition(wp); lo = Math.min(lo, wp.y); hi = Math.max(hi, wp.y); } });
+      RIG.h = hi > lo ? (hi - lo) * 1.06 : 1.8; if (!(RIG.h > 0.3 && RIG.h < 6)) RIG.h = 1.8;
       RIG.clips = g.animations; RIG.proto = g.scene;
     }, undefined, (e) => { console.warn('人型モデルを読めませんでした（これまでの形で描きます）', e); });
   }
