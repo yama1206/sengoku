@@ -227,6 +227,7 @@
     let r = SGK.CFG.SIGHT_KM * (0.7 + 0.3 * SIM.daylight(w.time.min)); // 夜は視界が7割
     if (p.at && p.tx == null) { const s = SIM.settlement(w, p.at); if (s && s.type === 'castle') r *= 1.5; }
     else if (SIM.speedAt && SIM.terrainAt(p.x, p.y) === '山地') r *= 0.6;
+    if (p.nin && SIM.NIN) r *= SIM.NIN.view; /* 1.6.32 忍びは遠くまで見える */
     return r;
   };
   SIM.canSee = (p, r, x, y) => Math.hypot(x - p.x, y - p.y) <= r;

@@ -370,7 +370,7 @@
     for (const p of A.pr) {
       const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt; let hit = null;
       // 0.75.3 弓は山なり（高さ h、頂点は距離の15%。高いうちは敵にも味方にも当たらない）。鉄砲はまっすぐ
-      { const f = p.gun || !p.L || p.x0 == null ? 0 : Math.min(1, Math.hypot(nx - p.x0, ny - p.y0) / p.L); p.h = p.gun ? 0 : 4 * p.L * 0.15 * f * (1 - f); }
+      { const f = p.gun || !p.L || p.x0 == null ? 0 : Math.min(1, Math.hypot(nx - p.x0, ny - p.y0) / p.L); p.h = p.gun || !p.L ? 0 : /* 1.6.32 本人の手裏剣・弓は高さがNaNで当たらなかった */ 4 * p.L * 0.15 * f * (1 - f); }
       if (p.h < 1.8) near(g, nx, ny, 1.5, (o) => { if (!hit && o.side !== p.side && live(o)) { const d = Math.hypot(o.x - nx, o.y - ny); if (d < (o.hero ? 0.9 : 0.7)) hit = o; } });
       p.x = nx; p.y = ny; p.life -= dt;
       if (hit) { damage(b, A, hit, p.dmg * (0.7 + rr() * 0.6), p.x0 != null ? { x: p.x0, y: p.y0, pc: p.src && p.src.pc, wk: p.src && p.src.wk, wn: p.src && p.src.wep && p.src.wep.name, side: p.side, f: p.src && p.src.f } : p.src, true); p.life = 0; continue; }
