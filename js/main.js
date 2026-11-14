@@ -1221,8 +1221,6 @@
   $('mFollow').onclick = () => { const m = me(), d = m && (G.disp[m.id] || m); if (d) { R.cam.x = d.x; R.cam.y = d.y; } R.cam.follow = true; if (G.pcurOn) G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; }; // 0.75.0 自分の所へ移って追いかける（カーソルや地図を動かすと解除）
   $('mTitle').onclick = () => backToTitle();
   // テスト用（ホストだけ）
-  $('mTest').onclick = () => { const on = document.querySelector('.testBtn').classList.contains('hidden'); document.querySelectorAll('.testBtn').forEach((b) => b.classList.toggle('hidden', !on)); };
-  document.querySelectorAll('.testBtn').forEach((b) => { b.onclick = () => { if (G.mode !== 'host') return; SIM.debug(G.world, G.myPid, b.dataset.dbg); (SIM.out[G.myPid] || []).splice(0).forEach((t) => toast(t, 3000)); }; });
 
   // ---------- マウス・タッチ ----------
   const cv = $('map'), ctx = cv.getContext('2d');
