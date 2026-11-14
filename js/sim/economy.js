@@ -78,8 +78,9 @@
     const id = 'j' + w.nextId++, now = w.time.min, giver = giverOf(w, s);
     let job = SIM.extraJob ? SIM.extraJob(w, s, id, giver) : null; // 0.40.0 新しい種類の依頼（quest.js）
     if (job) {} else if (SIM.rand(w) < 0.8) { // 0.74.1 調達の依頼を減らす（以前は届け物55%・調達45%）
-      const r = SIM.rand(w), lim = r < 0.6 ? 40 : r < 0.9 ? 90 : 1e9; // 6割は40km以内、3割は90km以内の近場へ
-      let tos = w.settlements.filter((x) => x.id !== s.id && dist(s, x) < lim); if (!tos.length) tos = w.settlements.filter((x) => x.id !== s.id);
+      const r = SIM.rand(w), lim = r < 0.6 ? 40 : 100; // 6割は40km以内、残りも100km以内（0.74.3 遠くへの依頼はなし）
+      const ok = (x) => x.id !== s.id && !SIM.foeDest(w, s, x);
+      let tos = w.settlements.filter((x) => ok(x) && dist(s, x) < lim); if (!tos.length) tos = w.settlements.filter((x) => ok(x) && dist(s, x) < 100); if (!tos.length) return;
       const to = pick(w, tos); const d = dist(s, to);
       job = { id, type: 'deliver', from: s.id, to: to.id, days: Math.ceil(d / 20) + 2, reward: Math.round((60 + d * 12) / 10) * 10, title: `${to.name}へ届け物`, giver };
     } else {

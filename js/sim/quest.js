@@ -45,7 +45,7 @@
   }
   // 前線の城：自家の城のうち、敵の城にいちばん近いもの
   function frontCastle(w, s) {
-    const own = w.settlements.filter((t) => t.type === 'castle' && t !== s && t.owner === s.owner && dist(s, t) < 110);
+    const own = w.settlements.filter((t) => t.type === 'castle' && t !== s && t.owner === s.owner && dist(s, t) < 100); // 0.74.3 100km以内
     let best = null, bd = 1e9;
     for (const t of own) { const e = enemyCastles(w, t, 60)[0]; if (e && dist(t, e) < bd) { bd = dist(t, e); best = t; } }
     return best;
@@ -53,7 +53,13 @@
 
   // 0.53.2 偵察・兵糧の運び込み・調略の使いは、その城の家に仕えている人だけが受けられる
   QC.milTypes = ['scout', 'supply', 'envoy'];
-  SIM.jobOk = (w, p, j) => !QC.milTypes.includes(j.type) || (!!p.clan && st(w, j.from) && st(w, j.from).owner === p.clan);
+  // 0.74.3 届け先が出す側か受ける人と戦をしている家なら、その依頼は出さない・見せない（偵察・調略は敵の城が目当てなので別）
+  QC.foeOk = ['scout', 'envoy'];
+  SIM.foeDest = (w, a, b) => !!(SIM.atWar && a && b && SIM.atWar(w, a.owner, b.owner));
+  SIM.jobOk = (w, p, j) => {
+    if (j.to && !QC.foeOk.includes(j.type)) { const t = st(w, j.to), f = st(w, j.from); if (t && ((p.clan && SIM.atWar(w, p.clan, t.owner)) || SIM.foeDest(w, f, t))) return false; }
+    return !QC.milTypes.includes(j.type) || (!!p.clan && st(w, j.from) && st(w, j.from).owner === p.clan);
+  };
 
   // ---- 依頼をつくる（economy.js の genJob から呼ばれる） ----
   SIM.extraJob = (w, s, id, giver) => {
@@ -68,18 +74,18 @@
     }
     if (s.type === 'town') {
       if (rnd(w) < 0.5) {
-        const tos = w.settlements.filter((t) => t.type !== 'castle' && t !== s && dist(s, t) > 25 && dist(s, t) < 90); if (!tos.length) return null;
+        const tos = w.settlements.filter((t) => t.type !== 'castle' && t !== s && dist(s, t) > 25 && dist(s, t) < 90 && !SIM.foeDest(w, s, t)); if (!tos.length) return null;
         const to = pick(w, tos), d = dist(s, to);
         return Object.assign(base, { type: 'escort', to: to.id, days: Math.ceil(d / 18) + 4, reward: r10(300 + d * 15), title: `${to.name}まで行商人の護衛`, what: `行商人について${to.name}まで守る（${dirOf(s, to)}へ約${Math.round(d)}km）`, look: to.id });
       }
-      const tos = w.settlements.filter((t) => t.type === 'town' && t !== s && dist(s, t) < 120); if (!tos.length) return null;
+      const tos = w.settlements.filter((t) => t.type === 'town' && t !== s && dist(s, t) < 100 && !SIM.foeDest(w, s, t)); // 0.74.3 100km以内・戦の相手の町はなし if (!tos.length) return null;
       const to = pick(w, tos), k = pick(w, Object.keys(I())), it = I()[k], qty = 10 + Math.floor(rnd(w) * 16);
       return Object.assign(base, { type: 'sell', to: to.id, item: k, qty, left: qty, days: 15, reward: r10(it.base * qty * 0.4 + 200), title: `${to.name}で${it.name}${qty}${it.unit}を売る`, what: `${to.name}の市で${it.name}を${qty}${it.unit}売りさばく（売った代金とは別に報酬）`, look: to.id });
     }
     if (s.type !== 'castle' || !s.owner || !w.factions[s.owner]) return null;
     let k = pick(w, ['scout', 'supply', 'outlaw', 'envoy']); if (k === 'supply' && rnd(w) < 0.5) k = pick(w, ['scout', 'outlaw', 'envoy']); // 0.74.1 兵糧運びを半分に
     if (k === 'scout') {
-      const t = pick(w, enemyCastles(w, s, 120).slice(0, 4)); if (!t) return null; const d = dist(s, t);
+      const t = pick(w, enemyCastles(w, s, 100).slice(0, 4)); if (!t) return null; const d = dist(s, t);
       return Object.assign(base, { type: k, to: t.id, stage: 0, days: Math.ceil((d * 2) / 20) + 3, reward: r10(400 + d * 10), title: `${t.name}の偵察`, what: `${t.name}に近づいて守りを調べ、ここへ戻って報告する`, look: t.id });
     }
     if (k === 'supply') {
@@ -90,7 +96,7 @@
       const name = pick(w, OUTLAWS);
       return Object.assign(base, { type: k, oname: name, stage: 0, days: 10, reward: r10(800 + rnd(w) * 700 + grow(w) * 40), title: `お尋ね者「${name}」の捕縛`, what: `${name}とその手下を討ち、捕らえてここへ連れてくる` });
     }
-    const t = enemyCastles(w, s, 130).filter((x) => x.lord && w.people[x.lord] && !(w.factions[x.owner] && w.factions[x.owner].leader === x.lord)).slice(0, 4);
+    const t = enemyCastles(w, s, 100).filter((x) => x.lord && w.people[x.lord] && !(w.factions[x.owner] && w.factions[x.owner].leader === x.lord)).slice(0, 4);
     const to = t.length && pick(w, t); if (!to) return null; const d = dist(s, to), lord = w.people[to.lord];
     return Object.assign(base, { type: 'envoy', to: to.id, days: Math.ceil(d / 20) + 4, reward: r10(600 + d * 8), title: `${lord.name}への調略の使い`, what: `${to.name}に入り、城主${lord.name}に寝返りを説く（受けた人の知略で成否が決まる）`, look: to.id });
   };
