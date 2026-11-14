@@ -73,6 +73,18 @@
   };
   SIM.commands.joinBattle = (w, p) => {
     const b = SIM.joinableBattle(w, p); if (!b) return SIM.say(p.id, '加われる合戦が近くにありません');
+    SIM.joinInto(w, p, b);
+  };
+  SIM.commands.joinFight = (w, p, c) => { /* 1.6.22 戦闘中の相手に「攻めかかる」と、その合戦に加わる */
+    const n = w.npcs[c.id], b = n && n.battle && w.battles[n.battle];
+    if (!b || p.battle) return;
+    if (p.hpFrac != null && p.hpFrac <= 0.05) return SIM.say(p.id, '傷が深くて戦えません');
+    if (b.routed) return SIM.say(p.id, 'もう敵は崩れています');
+    if ((b.war || b.siege) && !(p.clan && b.pids.some((id) => w.players[id] && w.players[id].clan === p.clan))) return SIM.say(p.id, 'この戦には同じ家の者しか加われません');
+    if (Math.hypot(n.x - p.x, n.y - p.y) > 2) return SIM.say(p.id, 'もっと近づいてください（2km以内）');
+    SIM.joinInto(w, p, b);
+  };
+  SIM.joinInto = (w, p, b) => {
     const k = b.units.length;
     b.pids.push(p.id); p.battle = b.id; p.tx = p.ty = null; p.dest = null; p.path = null; p.at = null; p.busy = null; b.start[p.id] = Object.assign({}, p.troops);
     SIM.addPlayerSide(w, b, p);
