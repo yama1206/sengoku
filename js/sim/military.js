@@ -422,9 +422,10 @@
       const after = surviving(w, b, pid), lt = lossText(b.start[pid] || {}, after);
       p.troops = after; p.battle = null; p.hideT = w.time.min + SIM.HIDE_MIN; /* 1.6.20 戦のあとしばらく見つからない */
       if (res === 'win') {
-        const share = Math.floor(b.loot / b.pids.length), fame = 1 + Math.floor(b.foeN / 10);
-        p.money += share; p.fame += fame;
-        SIM.say(pid, `勝利！ ${SIM.money(share)}を手に入れました（名声+${fame}）。${lt}`);
+        const left = b.units.filter((u) => u.side === 'B' && u.type !== 'hero' && u.hp > 0).reduce((a, u) => a + (u.n || 0), 0), kills = Math.max(0, (b.foeN || 0) - left); /* 1.6.26 倒した人数に応じた褒美（1人60文） */
+        const bonus = Math.floor(kills * SIM.KILL_PAY / b.pids.length), share = Math.floor(b.loot / b.pids.length), fame = 1 + Math.floor(b.foeN / 10);
+        p.money += share + bonus; p.fame += fame;
+        SIM.say(pid, `勝利！ ${SIM.money(share + bonus)}を手に入れました（戦利品${SIM.money(share)}＋討ち取り${kills}人分${SIM.money(bonus)}、名声+${fame}）。${lt}`);
       } else if (res === 'lose') {
         const lost = Math.floor(p.money * 0.3); p.money -= lost;
         const s = nearestSettlement(w, p); p.x = s.x; p.y = s.y; p.at = s.id; p.tx = p.ty = null;
@@ -572,6 +573,7 @@
     return r;
   };
   SIM.FIELD = FIELD;
+  SIM.KILL_PAY = 60; /* 1.6.26 敵を1人倒すごとの褒美（文） */
   SIM._finishBattle = finish; // 0.56.0 アクション戦闘から使う
   SIM._mil = { addUnits, genTerrain, inField, power, surviving }; // 攻城戦（siege.js）から使う
 })();
