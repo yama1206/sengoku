@@ -67,7 +67,7 @@
     };
     open();
     return {
-      each(fn) { for (const [c, pid] of conns) if (c.open) c.send(fn(pid)); },
+      each(fn) { for (const [c, pid] of conns) if (c.open) { const m = fn(pid); try { c.send(m); } catch (e) { console.error(e); try { c.send({ t: 'err', text: 'エラー(送信): ' + (e && e.message) }); } catch (e2) {} } } },
       sendTo(pid, msg) { for (const [c, p] of conns) if (p === pid && c.open) c.send(msg); },
       broadcast(msg) { for (const c of conns.keys()) if (c.open) c.send(msg); },
       count: () => conns.size,
@@ -88,6 +88,7 @@
         if (m.t === 'welcome') h.onWelcome(m);
         else if (m.t === 'state') h.onState(m);
         else if (m.t === 'act') { if (h.onAct) h.onAct(m); }
+        else if (m.t === 'err') { if (h.onErr) h.onErr(m); }
         else if (m.t === 'bye') end(m.reason);
       });
       conn.on('close', () => end('ホストとの接続が切れました'));

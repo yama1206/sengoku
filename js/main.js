@@ -395,7 +395,8 @@
     netAcc += dt * 1000;
     if (netAcc >= CFG.NET_SEND_MS) {
       netAcc = 0;
-      if (G.net) { G.net.each((pid) => ({ t: 'state', s: SIM.dynamicState(G.world, pid), sp: G.speed, priv: SIM.privateState(G.world, pid), msgs: SIM.drain(pid), bt: G.inBattle })); }
+      if (G.net) { G.net.each((pid) => { try { return { t: 'state', s: SIM.dynamicState(G.world, pid), sp: G.speed, priv: SIM.privateState(G.world, pid), msgs: SIM.drain(pid), bt: G.inBattle }; } catch (e) { // 1.6.3 参加者への様子が作れないときは、ホストと参加者の両方にエラーを出す
+          const t = 'エラー(参加者へ送信): ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastNetErr !== t) { G.lastNetErr = t; toast(t, 15000); console.error(e); } return { t: 'err', text: t }; } }); }
       for (const pid in SIM.out) if (pid !== G.myPid) delete SIM.out[pid]; // 接続していない人宛ては捨てる
     }
     saveAcc += dt;
@@ -419,7 +420,8 @@
     myProf();
     const onState0 = (m) => { G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; G.priv = m.priv; (m.msgs || []).forEach((t) => toast(t, 4000)); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } };
     G.net = SGK.NET.join(code, token, myName(), {
-      onWelcome: (m) => { SGK.NET.addFriend(m.hostCode || code, m.hostName); G.mode = 'client'; G.myPid = m.pid; SIM.localPid = m.pid; G.actView = null; G.stat = m.static; G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
+      onWelcome: (m) => { SGK.NET.addFriend(m.hostCode || code, m.hostName); G.mode = 'client'; G.myPid = m.pid; SIM.localPid = m.pid; G.actView = null; G.dyn = null; G.stat = m.static; setTimeout(() => { if (G.mode === 'client' && !G.dyn) toast('ホストから様子が届いていません（ホストの画面にエラーが出ていないか見てください）', 10000); }, 6000); G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
+      onErr: (m) => { if (G.lastErr !== m.text) { G.lastErr = m.text; toast(m.text, 15000); } },
       onAct: (m) => { const BT = G.priv && G.priv.battle; if (BT && BT.id === m.a.id) G.actView = SIM.actApply(G.actView, m.a); },
       onState: (m) => { try { onState0(m); } catch (e) { const t = 'エラー: ' + (e && e.message); if (G.lastErr !== t) { G.lastErr = t; toast(t, 15000); console.error(e); } } },
       onBye: (why) => { backToTitle(); titleMsg(why); },
