@@ -801,7 +801,7 @@
     openTown(false); toggleMenu(false); c.classList.remove('hidden'); charHtml = ''; renderChar(); setFocus(c, currentFocus(c));
   }
   function setCTab(t) { charTab = t; charHtml = ''; renderChar(); setFocus($('char'), $('ctab-' + t)); }
-  function cycleCTab(d) { const t = ['eq', 'zukan', 'stat', 'perk', 'army', 'rank', 'pol', 'mon', 'hyo'].filter((x) => !$('ctab-' + x).classList.contains('hidden')); setCTab(t[(t.indexOf(charTab) + d + t.length) % t.length]); }
+  function cycleCTab(d) { const t = ['eq', 'zukan', 'skill', 'stat', 'perk', 'army', 'rank', 'pol', 'mon', 'hyo'].filter((x) => !$('ctab-' + x).classList.contains('hidden')); setCTab(t[(t.indexOf(charTab) + d + t.length) % t.length]); }
   function renderChar() {
     const P = G.priv; if (!P || !P.me.char || P.battle) return openChar(false);
     const me = P.me, C = me.char, TR = SIM.TROOPS, m = G.view && G.view.players.find((x) => x.id === G.myPid);
@@ -830,6 +830,14 @@
         html += `<div class="card"><div><b>${e.name}</b>${G2[id] > 1 ? ` ×${G2[id]}` : ''}　<span class="muted">${EQ.slotName[sl]}<br>${desc(sl, e)}</span></div><div class="row">${bt}${me.canSell ? `<button id="gs-${id}" data-cact="sellGear" data-id="${id}">売る ${SIM.money(Math.floor(e.cost * EQ.sell))}</button>` : ''}</div></div>`;
       }
       if (C.off) html += '<div class="muted" style="margin-top:8px">いまは能力値・技能・特技はありません。本人の強さは装備で変わります（武具は町・城で買えます）</div>';
+    } else if (charTab === 'skill') { // 0.76.0 技能：使うと伸び、25・50・75・100で特技が自動で付く
+      const WS = SIM.WSKILL, K = C.wsk || {};
+      html += `<div class="muted" style="margin-bottom:6px">使うほど伸びます（強い相手ほど・利益が出るほどよく伸びる）。25・50・75・100で特技を自動で覚えます</div>`;
+      for (const k in WS) {
+        const [lv, xp] = K[k] || [0, 0], need = SIM.wsNeed(lv), pr = lv >= 100 ? 1 : Math.min(1, xp / need);
+        const pk = SIM.WPERKS.filter((x) => x.sk === k).map((x) => `<span style="${lv >= x.lv ? 'color:#ffe070' : 'opacity:.5'}">${x.lv} ${x.name}（${x.desc}）</span>`).join('<br>');
+        html += `<div class="card" style="display:block"><b>${WS[k].name}</b>　${lv}<span class="muted">　${WS[k].desc}</span><div style="height:6px;background:rgba(0,0,0,.4);margin:4px 0"><div style="height:6px;width:${Math.round(pr * 100)}%;background:#c9a64a"></div></div><span style="font-size:12px">${pk}</span></div>`;
+      }
     } else if (charTab === 'zukan') { // 0.74.2 兵士図鑑：兵種ごとの実数
       const TRS = SIM.TROOPS, EQ = SIM.EQUIP, E = me.equip || {}, wp = E.wep && EQ.wep[E.wep], ar = E.arm && EQ.arm[E.arm], H = TRS.hero;
       const WN = { yari: '槍', nagayari: '槍', yarigashira: '槍', kiba: '槍', horo: '槍', yumi: '弓（近いと刀）', teppo: '鉄砲（近いと刀）', teppogashira: '鉄砲（近いと刀）', banditBow: '弓（近いと刀）' };

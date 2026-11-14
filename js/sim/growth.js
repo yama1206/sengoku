@@ -49,7 +49,8 @@
   SIM.upNeed = (tier) => [0, 30, 60, 120, 240][tier]; // 兵が1段階上がるのに必要な経験
   SIM.upCost = (p, to) => Math.round(TR[to].tier * 150 * (1 + fx(p, 'upCost')));
   const lvOf = (p, k) => (OFF ? 0 : (p.skills[k] || [0])[0]);
-  const fx = SIM.fx = (p, key) => OFF ? (SIM.eqFx ? SIM.eqFx(p, key) : 0) : (p.perks || []).reduce((a, id) => a + ((PERK[id] && PERK[id].fx[key]) || 0), 0);
+  const fx = (p, key) => SIM.fx(p, key); // 0.76.0 あとから技能の特技を足せるように SIM.fx を通す
+  SIM.fx = (p, key) => OFF ? (SIM.eqFx ? SIM.eqFx(p, key) : 0) : (p.perks || []).reduce((a, id) => a + ((PERK[id] && PERK[id].fx[key]) || 0), 0);
   SIM.charLevel = (p) => 1 + Math.floor(Object.keys(SKILLS).reduce((a, k) => a + lvOf(p, k), 0) / 15);
   SIM.attrPoints = (p) => SIM.charLevel(p) - 1 - p.spent;
 
@@ -208,7 +209,7 @@
   SIM.privateState = function (w, pid) {
     const r = basePriv(w, pid); if (!r) return r;
     const p = w.players[pid];
-    r.me.char = { off: OFF ? 1 : 0, attrs: p.attrs, skills: p.skills, perks: p.perks, level: SIM.charLevel(p), points: SIM.attrPoints(p), txp: p.txp, fame: Math.round(p.fame * 10) / 10 };
+    r.me.char = { off: OFF ? 1 : 0, attrs: p.attrs, skills: p.skills, perks: p.perks, level: SIM.charLevel(p), points: SIM.attrPoints(p), txp: p.txp, wsk: p.wsk || {}, fame: Math.round(p.fame * 10) / 10 };
     return r;
   };
 })();

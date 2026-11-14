@@ -88,6 +88,7 @@
     if (u && u.order === 'rout') d *= 1.3;
     if (t.hero && u && u.da) d /= 1 + u.da * 0.15; // 0.73.8 本人の防具の守り（守り3で約3割減）
     if (from) { const dir = angDiff(t.f || 0, ang(t, from)); if (dir > Math.PI * 2 / 3) d *= 1.5; else if (dir > Math.PI / 3) d *= 1.2; if (u && !t.hero && dir > Math.PI / 3) u.mor -= 0.4; }
+    if (from && from.pc && from.wk && from.side !== t.side) (A.xq = A.xq || []).push([from.pc, from.wk, Math.min(d, t.hp) / (t.mh || 1), t, d >= t.hp]); // 0.76.0 本人の技能の経験
     t.hp -= d; t.fl = 0.15;
     if (from && t.hero) { const a = ang(from, t); t.x += Math.cos(a) * 0.3; t.y += Math.sin(a) * 0.3; }
     if (t.hp <= 0) {
@@ -177,6 +178,7 @@
       if (u.order !== 'rout') { const hn = all.some((s) => s.hero && s.side === u.side && Math.hypot(s.x - c.x, s.y - c.y) < 40); u.mor = Math.min(u.mo || 60, (u.mor || 0) + dt * (hn ? 1.5 : 0.7)); }
     }
     // 本人（プレイヤー）：それぞれの人の入力で動く
+    if (A.xq && A.xq.length) { for (const [pc, k, fr, t, kill] of A.xq) { const pl = w.players[pc]; if (pl && SIM.wsFight) SIM.wsFight(pl, k, fr, t, kill); } A.xq = []; }
     for (const hero of heroes) {
       if (!live(hero)) continue;
       const inp = A.inp[hero.pc] || {}; inp.dash = inp.dash || A.dq[hero.pc]; A.dq[hero.pc] = false;
@@ -185,7 +187,8 @@
       if (A.wq[hero.pc]) { A.wq[hero.pc] = false; if (k2) { hero.wi = hero.wi ? 0 : 1; hero.cd = Math.max(hero.cd, 0.5); } else SIM.say(hero.pc, '副武器を持っていません（町の武具屋で「副武器に買う」）'); }
       if (A.jq[hero.pc]) { A.jq[hero.pc] = false; if (!(hero.jp > 0)) hero.jp = 0.55; } // 0.64.0 ジャンプ（見た目だけ）
       hero.jp = Math.max(0, (hero.jp || 0) - dt);
-      const W = ACT.WEP[hero.wi && k2 ? k2 : k1] || ACT.WEP.tachi;
+      const kk = ACT.WEP[hero.wi && k2 ? k2 : k1] ? (hero.wi && k2 ? k2 : k1) : 'tachi', W0 = ACT.WEP[kk], wf = (key) => (pl && SIM.wsFx ? SIM.wsFx(pl, kk + key) : 0); // 0.76.0 技能の特技
+      const W = Object.assign({}, W0, { cd: W0.cd * (1 + wf('Cd')), dmg: W0.dmg * (1 + wf('Atk')) }, W0.reach ? { reach: W0.reach + wf('Reach') } : { shot: W0.shot * (1 + wf('Range')) }); hero.wk = kk;
       hero.wep = W; if (hero.pc === A.pid) A.wep = W;
       hero.cd -= dt; hero.dcd -= dt; hero.dash -= dt; hero.blk = !!inp.blk && hero.dash <= 0;
       let mx = inp.mx || 0, my = inp.my || 0; const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }

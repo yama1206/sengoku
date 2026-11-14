@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="0.75.5">
+<meta name="sgk-ver" content="0.76.0">
 <title>戦国出世</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -191,7 +191,7 @@
   </div>
   <div class="hud hidden" id="char">
     <div class="townHead"><span id="charName"></span><button id="charClose">閉じる</button></div>
-    <div class="row tabs"><button id="ctab-eq" data-ctab="eq">装備</button><button id="ctab-zukan" data-ctab="zukan">兵士図鑑</button><button id="ctab-stat" data-ctab="stat">能力・技能</button><button id="ctab-perk" data-ctab="perk">特技</button><button id="ctab-army" data-ctab="army">部隊・昇格</button><button id="ctab-rank" data-ctab="rank">身分</button><button id="ctab-pol" data-ctab="pol">政策</button><button id="ctab-mon" data-ctab="mon">家紋</button><button id="ctab-hyo" data-ctab="hyo" class="hidden">評定</button></div>
+    <div class="row tabs"><button id="ctab-eq" data-ctab="eq">装備</button><button id="ctab-zukan" data-ctab="zukan">兵士図鑑</button><button id="ctab-skill" data-ctab="skill">技能</button><button id="ctab-stat" data-ctab="stat">能力・技能</button><button id="ctab-perk" data-ctab="perk">特技</button><button id="ctab-army" data-ctab="army">部隊・昇格</button><button id="ctab-rank" data-ctab="rank">身分</button><button id="ctab-pol" data-ctab="pol">政策</button><button id="ctab-mon" data-ctab="mon">家紋</button><button id="ctab-hyo" data-ctab="hyo" class="hidden">評定</button></div>
     <div id="charBody"></div>
   </div>
   <div class="hud hidden" id="battle"><div class="bh"><b id="battleTitle"></b><span id="battleInfo"></span></div><div id="battleBody"></div></div>
@@ -264,7 +264,7 @@
 <script>
   // 更新が確実に反映されるよう、毎回最新のファイルを読み込む
   (function () {
-    const files = ['js/config.js', 'js/data/world1560.js', 'js/data/items.js', 'js/sim/world.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/sim/castle.js', 'js/sim/daimyo.js', 'js/sim/siege.js', 'js/sim/army.js', 'js/sim/bushou.js', 'js/sim/supply.js', 'js/sim/house.js', 'js/sim/quest.js', 'js/sim/fushin.js', 'js/sim/invest.js', 'js/sim/equip.js', 'js/sim/castlemap.js', 'js/sim/kuni.js', 'js/sim/torihiki.js', 'js/sim/seisaku.js', 'js/save.js', 'js/net/net.js', 'js/kamon.js', 'js/render.js', 'js/audio.js', 'js/action.js', 'js/lib/BufferGeometryUtils.js', 'js/lib/GLTFLoader.js', 'js/lib/SkeletonUtils.js', 'js/action3d.js', 'js/main.js'];
+    const files = ['js/config.js', 'js/data/world1560.js', 'js/data/items.js', 'js/sim/world.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/sim/castle.js', 'js/sim/daimyo.js', 'js/sim/siege.js', 'js/sim/army.js', 'js/sim/bushou.js', 'js/sim/supply.js', 'js/sim/house.js', 'js/sim/quest.js', 'js/sim/fushin.js', 'js/sim/invest.js', 'js/sim/equip.js', 'js/sim/castlemap.js', 'js/sim/kuni.js', 'js/sim/torihiki.js', 'js/sim/seisaku.js', 'js/sim/skill.js', 'js/save.js', 'js/net/net.js', 'js/kamon.js', 'js/render.js', 'js/audio.js', 'js/action.js', 'js/lib/BufferGeometryUtils.js', 'js/lib/GLTFLoader.js', 'js/lib/SkeletonUtils.js', 'js/action3d.js', 'js/main.js'];
     const v = Date.now();
     (function next(i) { if (i >= files.length) return; const s = document.createElement('script'); s.src = files[i] + '?v=' + v; s.onload = () => next(i + 1); document.body.appendChild(s); })(0);
   })();
