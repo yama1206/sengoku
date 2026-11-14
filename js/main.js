@@ -848,7 +848,7 @@
     openTown(false); toggleMenu(false); c.classList.remove('hidden'); charHtml = ''; renderChar(); setFocus(c, currentFocus(c));
   }
   function setCTab(t) { charTab = t; charHtml = ''; renderChar(); setFocus($('char'), $('ctab-' + t)); }
-  function cycleCTab(d) { const t = ['eq', 'skill', 'stat', 'perk', 'army', 'rank', 'pol', 'mon', 'hyo'].filter((x) => !$('ctab-' + x).classList.contains('hidden')); setCTab(t[(t.indexOf(charTab) + d + t.length) % t.length]); }
+  function cycleCTab(d) { const t = ['eq', 'inv', 'skill', 'stat', 'perk', 'army', 'rank', 'pol', 'mon', 'hyo'].filter((x) => !$('ctab-' + x).classList.contains('hidden')); setCTab(t[(t.indexOf(charTab) + d + t.length) % t.length]); }
   function renderChar() {
     const P = G.priv; if (!P || !P.me.char || P.battle) return openChar(false);
     const me = P.me, C = me.char, TR = SIM.TROOPS, m = G.view && G.view.players.find((x) => x.id === G.myPid);
@@ -856,7 +856,8 @@
     $('ctab-stat').classList.toggle('hidden', !!C.off); $('ctab-perk').classList.toggle('hidden', !!C.off); if (C.off && (charTab === 'perk' || charTab === 'stat')) charTab = 'eq'; // 0.74.0 装備は専用タブ
     document.querySelectorAll('#char [data-ctab]').forEach((b) => b.classList.toggle('on', b.dataset.ctab === charTab));
     let html = '';
-    if (charTab === 'eq') { // 0.74.0 装備タブ：付ける・外す・売る、荷の重さ
+    if (charTab === 'inv') html += invHtml(me); /* 1.6.31 持っている物資 */
+    else if (charTab === 'eq') { // 0.74.0 装備タブ：付ける・外す・売る、荷の重さ
       const EQ = SIM.EQUIP, E = me.equip || {}, G2 = me.gear || {};
       const desc = (sl, e) => [sl === 'wep' ? `${EQ.kindName[e.kind]}${e.atk ? `・攻撃+${e.atk}` : ''}` : sl === 'arm' ? `守り+${e.da}` : `1日の移動+${e.km}km・荷+${e.cw}kg`, e.wt ? `${e.wt}kg` : ''].filter(Boolean).join('・');
       { const H = SIM.TROOPS.hero, wp = E.wep && EQ.wep[E.wep], ar = E.arm && EQ.arm[E.arm], pl = (b, a) => a ? `${b}<span style="color:#6fbf73">+${a}</span>` : `${b}`;
@@ -1034,6 +1035,7 @@
   });
   document.querySelectorAll('#char [data-ctab]').forEach((b) => (b.onclick = () => setCTab(b.dataset.ctab)));
   $('charClose').onclick = () => openChar(false);
+  $('hudL').onclick = () => { if ($('char').classList.contains('hidden')) openChar(true); else openChar(false); }; /* 1.6.31 左上の窓をタップで人物 */
   // 0.54.10 ウインドウの上で右クリック：そのウインドウを閉じる（マウスだけで操作できるように）
   $('char').addEventListener('contextmenu', (e) => { e.preventDefault(); openChar(false); });
   $('town').addEventListener('contextmenu', (e) => { e.preventDefault(); openTown(false); });

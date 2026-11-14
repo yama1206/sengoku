@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="1.6.30">
+<meta name="sgk-ver" content="1.6.31">
 <title>戦国出世</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -173,7 +173,7 @@
   <canvas id="map"></canvas>
   <div class="hud hidden" id="warBoard"></div>
   <div class="hud hidden" id="captive"><b>捕らえた武将</b><div id="captiveBody"></div></div>
-  <div class="hud" id="hudL"><div id="date"></div><div id="hpBar"></div><div id="status"></div><div id="quests"></div></div>
+  <div class="hud" id="hudL" style="cursor:pointer"><div id="date"></div><div id="hpBar"></div><div id="status"></div><div id="quests"></div></div>
   <div id="hudR">
     <div class="row">
       <button id="joinBtn" class="hidden">合戦に加わる</button>
@@ -194,7 +194,7 @@
   </div>
   <div class="hud hidden" id="char">
     <div class="townHead"><span id="charName"></span><button id="charClose">閉じる</button></div>
-    <div class="row tabs"><button id="ctab-eq" data-ctab="eq">装備</button><button id="ctab-skill" data-ctab="skill">技能</button><button id="ctab-stat" data-ctab="stat">能力・技能</button><button id="ctab-perk" data-ctab="perk">特技</button><button id="ctab-army" data-ctab="army">部隊・昇格</button><button id="ctab-rank" data-ctab="rank">身分</button><button id="ctab-pol" data-ctab="pol">政策</button><button id="ctab-mon" data-ctab="mon">家紋</button><button id="ctab-hyo" data-ctab="hyo" class="hidden">評定</button></div>
+    <div class="row tabs"><button id="ctab-eq" data-ctab="eq">装備</button><button id="ctab-inv" data-ctab="inv">物資</button><button id="ctab-skill" data-ctab="skill">技能</button><button id="ctab-stat" data-ctab="stat">能力・技能</button><button id="ctab-perk" data-ctab="perk">特技</button><button id="ctab-army" data-ctab="army">部隊・昇格</button><button id="ctab-rank" data-ctab="rank">身分</button><button id="ctab-pol" data-ctab="pol">政策</button><button id="ctab-mon" data-ctab="mon">家紋</button><button id="ctab-hyo" data-ctab="hyo" class="hidden">評定</button></div>
     <div id="charBody"></div>
   </div>
   <div class="hud hidden" id="battle"><div class="bh"><b id="battleTitle"></b><span id="battleInfo"></span></div><div id="battleBody"></div></div>
