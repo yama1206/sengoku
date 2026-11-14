@@ -647,7 +647,7 @@
         if (E.wep2) html += `<div class="row" style="margin:4px 0"><button id="eqSwap" data-act="swapWep">主の武器と副武器を入れ替える</button></div>`;
         for (const [sl, id] of h.shop) {
           const e = EQ[sl][id], have = E[sl] === id;
-          const ex = SIM.eqFxText(e), eff = (sl === 'wep' ? `${EQ.kindName[e.kind]}・${EQ.groupName[e.kind]}に入る${e.am ? `・本人の攻撃+${Math.round(e.am * 100)}%` : ''}` : sl === 'arm' ? `守り+${e.da}` : `1日の移動+${e.km}km`) + (ex ? `<br><b style="color:#e8c46a">${ex}</b>` : '');
+          const ex = SIM.eqFxText(e), eff = (sl === 'wep' ? `${EQ.kindName[e.kind]}・${EQ.groupName[e.kind]}に入る${e.atk ? `・攻撃+${e.atk}` : ''}` : sl === 'arm' ? `守り+${e.da}` : `1日の移動+${e.km}km`) + (ex ? `<br><b style="color:#e8c46a">${ex}</b>` : '');
           const own2 = sl === 'wep' && E.wep2 === id;
           const b2 = sl === 'wep' ? `<button id="eq2-${id}" data-act="buyEquip" data-kind="wep2" data-id="${id}" ${have || own2 || me.money < e.cost ? 'disabled' : ''}>${own2 ? '副で装備中' : '副武器に買う'}</button>` : '';
           html += `<div class="card"><div><b>${e.name}</b>　<span class="muted">${EQ.slotName[sl]}　${SIM.money(e.cost)}${e.wt ? `　${e.wt}kg` : e.cw ? `　荷+${e.cw}kg` : ''}<br>${eff}</span></div><div class="row"><button id="eq-${id}" data-act="buyEquip" data-kind="${sl}" data-id="${id}" ${have || own2 || me.money < e.cost ? 'disabled' : ''}>${have ? '装備中' : sl === 'wep' ? '主に買う' : '買う'}</button>${b2}</div></div>`;
@@ -801,7 +801,7 @@
     openTown(false); toggleMenu(false); c.classList.remove('hidden'); charHtml = ''; renderChar(); setFocus(c, currentFocus(c));
   }
   function setCTab(t) { charTab = t; charHtml = ''; renderChar(); setFocus($('char'), $('ctab-' + t)); }
-  function cycleCTab(d) { const t = ['eq', 'stat', 'perk', 'army', 'rank', 'pol', 'mon', 'hyo'].filter((x) => !$('ctab-' + x).classList.contains('hidden')); setCTab(t[(t.indexOf(charTab) + d + t.length) % t.length]); }
+  function cycleCTab(d) { const t = ['eq', 'zukan', 'stat', 'perk', 'army', 'rank', 'pol', 'mon', 'hyo'].filter((x) => !$('ctab-' + x).classList.contains('hidden')); setCTab(t[(t.indexOf(charTab) + d + t.length) % t.length]); }
   function renderChar() {
     const P = G.priv; if (!P || !P.me.char || P.battle) return openChar(false);
     const me = P.me, C = me.char, TR = SIM.TROOPS, m = G.view && G.view.players.find((x) => x.id === G.myPid);
@@ -811,7 +811,9 @@
     let html = '';
     if (charTab === 'eq') { // 0.74.0 装備タブ：付ける・外す・売る、荷の重さ
       const EQ = SIM.EQUIP, E = me.equip || {}, G2 = me.gear || {};
-      const desc = (sl, e) => [sl === 'wep' ? `${EQ.kindName[e.kind]}${e.am ? `・本人の攻撃+${Math.round(e.am * 100)}%` : ''}` : sl === 'arm' ? `守り+${e.da}` : `1日の移動+${e.km}km・荷+${e.cw}kg`, e.wt ? `${e.wt}kg` : ''].filter(Boolean).join('・');
+      const desc = (sl, e) => [sl === 'wep' ? `${EQ.kindName[e.kind]}${e.atk ? `・攻撃+${e.atk}` : ''}` : sl === 'arm' ? `守り+${e.da}` : `1日の移動+${e.km}km・荷+${e.cw}kg`, e.wt ? `${e.wt}kg` : ''].filter(Boolean).join('・');
+      { const H = SIM.TROOPS.hero, wp = E.wep && EQ.wep[E.wep], ar = E.arm && EQ.arm[E.arm], pl = (b, a) => a ? `${b}<span style="color:#6fbf73">+${a}</span>` : `${b}`;
+        html += `<div class="card" style="display:block"><b>本人の強さ</b>　体力 ${H.hp}　攻撃 ${pl(H.atk, wp && wp.atk)}　守り ${pl(H.def, ar && ar.da)}<br><span class="muted">兵士と比べるときは人物の「兵士図鑑」タブを見てください</span></div>`; } // 0.74.2
       html += `<div class="muted" style="margin-bottom:6px">${loadTxt(me)}<br>目安＝本人${EQ.carry.self}kg＋兵1人${EQ.carry.man}kg（騎馬${EQ.carry.cav}kg）＋馬。超えると移動が遅くなります</div>`;
       html += '<div class="muted">装備中</div>';
       for (const sl of ['wep', 'wep2', 'arm', 'horse']) {
@@ -828,6 +830,18 @@
         html += `<div class="card"><div><b>${e.name}</b>${G2[id] > 1 ? ` ×${G2[id]}` : ''}　<span class="muted">${EQ.slotName[sl]}<br>${desc(sl, e)}</span></div><div class="row">${bt}${me.canSell ? `<button id="gs-${id}" data-cact="sellGear" data-id="${id}">売る ${SIM.money(Math.floor(e.cost * EQ.sell))}</button>` : ''}</div></div>`;
       }
       if (C.off) html += '<div class="muted" style="margin-top:8px">いまは能力値・技能・特技はありません。本人の強さは装備で変わります（武具は町・城で買えます）</div>';
+    } else if (charTab === 'zukan') { // 0.74.2 兵士図鑑：兵種ごとの実数
+      const TRS = SIM.TROOPS, EQ = SIM.EQUIP, E = me.equip || {}, wp = E.wep && EQ.wep[E.wep], ar = E.arm && EQ.arm[E.arm], H = TRS.hero;
+      const WN = { yari: '槍', nagayari: '槍', yarigashira: '槍', kiba: '槍', horo: '槍', yumi: '弓（近いと刀）', teppo: '鉄砲（近いと刀）', teppogashira: '鉄砲（近いと刀）', banditBow: '弓（近いと刀）' };
+      html += '<div class="muted" style="margin-bottom:6px">数値は兵1人あたり。費用は1人を雇う値段、日当は1人1日の給金。速さは戦場での速さ</div>';
+      html += `<div class="card" style="display:block"><b>本人</b>　<span class="muted">いまの装備込み</span><br>体力 ${H.hp}　攻撃 ${Math.round((H.atk + ((wp && wp.atk) || 0)) * 10) / 10}　守り ${H.def + ((ar && ar.da) || 0)}　速さ ${H.spd}${E.horse ? '（馬）' : ''}　武器 ${wp ? wp.name : 'なし'}</div>`;
+      const row = (k) => { const t = TRS[k], up = (t.up || []).map((u) => TRS[u] && TRS[u].name).filter(Boolean);
+        return `<div class="card" style="display:block"><b>${t.name}</b>${t.tier ? `　<span class="muted">${t.tier}段</span>` : ''}${t.cav ? '　<span class="muted">騎馬（林で遅い）</span>' : ''}<br>体力 ${t.hp}　攻撃 ${t.atk}　守り ${t.def}　速さ ${t.spd}　${t.ranged ? `射程 ${t.range}m` : '近接'}　武器 ${WN[k] || '刀'}`
+          + (t.cost ? `<br><span class="muted">費用 ${SIM.money(t.cost)}　日当 ${t.wage}文${up.length ? `　昇格先 ${up.join('・')}` : ''}</span>` : '') + '</div>'; };
+      html += '<div class="muted" style="margin-top:8px">味方の兵</div>';
+      for (const k in TRS) if (TRS[k].cost) html += row(k);
+      html += '<div class="muted" style="margin-top:8px">敵だけの兵</div>';
+      for (const k in TRS) if (k !== 'hero' && !TRS[k].cost) html += row(k);
     } else if (charTab === 'stat') {
       if (me.grow) html += `<div class="muted" style="margin-bottom:4px">成長の型：<b>${me.grow}</b></div>`;
       html += `<div class="muted" style="margin-bottom:6px">能力値（上げられる点：${C.points}）　技能は使うほど伸び、元の能力値が高いほど伸びやすくなります</div>`;

@@ -2,21 +2,21 @@
 (function () {
   const SIM = SGK.SIM, TR = () => SIM.TROOPS;
 
-  // 数値はここで調整。am＝本人の攻撃の上乗せ、da＝守り、hm＝体力の上乗せ、km＝1日の移動距離の上乗せ
+  // 数値はここで調整。atk＝本人の攻撃に足す実数（0.74.2 以前は am＝割合）、da＝守り、hm＝体力の上乗せ、km＝1日の移動距離の上乗せ
   const EQ = SIM.EQUIP = {
     wep: {
-      yari1: { name: '素槍', kind: 'yari', cost: 0, am: 0, wt: 3 },
-      yari2: { name: '大身槍', kind: 'yari', cost: 3000, am: 0.25, wt: 4 },
-      yari3: { name: '名槍', kind: 'yari', cost: 12000, am: 0.5, castle: true, wt: 3.5 },
-      tachi1: { name: '太刀', kind: 'tachi', cost: 1500, am: 0.1, wt: 1.5 },
-      tachi2: { name: '大太刀', kind: 'tachi', cost: 4000, am: 0.3, wt: 4 },
-      tachi3: { name: '名刀', kind: 'tachi', cost: 14000, am: 0.55, castle: true, wt: 1.5 },
-      yumi1: { name: '半弓', kind: 'yumi', cost: 1000, am: 0, wt: 1.5 },
-      yumi2: { name: '重籐弓', kind: 'yumi', cost: 3500, am: 0.25, wt: 2 },
-      yumi3: { name: '名弓', kind: 'yumi', cost: 12000, am: 0.5, castle: true, wt: 2 },
-      teppo1: { name: '火縄銃', kind: 'teppo', cost: 3000, am: 0.1, wt: 4 },
-      teppo2: { name: '堺筒', kind: 'teppo', cost: 7000, am: 0.3, wt: 5 },
-      teppo3: { name: '国友の名銃', kind: 'teppo', cost: 16000, am: 0.55, castle: true, wt: 5 },
+      yari1: { name: '素槍', kind: 'yari', cost: 0, atk: 0, wt: 3 },
+      yari2: { name: '大身槍', kind: 'yari', cost: 3000, atk: 1, wt: 4 },
+      yari3: { name: '名槍', kind: 'yari', cost: 12000, atk: 2, castle: true, wt: 3.5 },
+      tachi1: { name: '太刀', kind: 'tachi', cost: 1500, atk: 0.5, wt: 1.5 },
+      tachi2: { name: '大太刀', kind: 'tachi', cost: 4000, atk: 1.5, wt: 4 },
+      tachi3: { name: '名刀', kind: 'tachi', cost: 14000, atk: 2.5, castle: true, wt: 1.5 },
+      yumi1: { name: '半弓', kind: 'yumi', cost: 1000, atk: 0, wt: 1.5 },
+      yumi2: { name: '重籐弓', kind: 'yumi', cost: 3500, atk: 1, wt: 2 },
+      yumi3: { name: '名弓', kind: 'yumi', cost: 12000, atk: 2, castle: true, wt: 2 },
+      teppo1: { name: '火縄銃', kind: 'teppo', cost: 3000, atk: 0.5, wt: 4 },
+      teppo2: { name: '堺筒', kind: 'teppo', cost: 7000, atk: 1.5, wt: 5 },
+      teppo3: { name: '国友の名銃', kind: 'teppo', cost: 16000, atk: 2.5, castle: true, wt: 5 },
     },
     arm: {
       arm1: { name: '胴丸', cost: 1500, da: 1, wt: 10 }, // 0.73.8 防具は守りだけ（体力の上乗せは無し）
@@ -64,7 +64,7 @@
     const m = baseMods(w, pid, type), p = w.players[pid];
     if (type !== 'hero' || !p) return m;
     const e = eqOf(p), wp = item('wep', e.wep), ar = item('arm', e.arm);
-    return Object.assign({}, m, { am: m.am * (1 + ((wp && wp.am) || 0)), da: m.da + ((ar && ar.da) || 0), hm: m.hm });
+    return Object.assign({}, m, { am: m.am * (1 + ((wp && wp.atk) || 0) / TR().hero.atk), da: m.da + ((ar && ar.da) || 0), hm: m.hm }); // 0.74.2 武器の攻撃は実数で足す
   };
   const baseSpd = SIM.speedBonus;
   SIM.speedBonus = (p) => { const h = item('horse', eqOf(p).horse); return baseSpd(p) + ((h && h.km) || 0); };
