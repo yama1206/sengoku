@@ -54,7 +54,6 @@
   };
   const COOL = 180; // やめてから同じ政策をまた使えるまでの日数
   const has = (fid, id) => { const f = W && fid && W.factions[fid]; return !!(f && f.pol && f.pol[id] != null); };
-  const slots = (w, fid) => { const n = w.settlements.filter((s) => s.type === 'castle' && s.owner === fid && !s.site).length; return n <= 3 ? 2 : n <= 8 ? 3 : 4; };
   const canUse = (w, fid, id) => { const f = w.factions[fid], q = P[id]; return !!(f && q && (q.only ? q.only === fid : q.mine ? f.player && f.mine === id : true)); };
 
   // ---- 効き目（ほかのファイルの式にかける） ----
@@ -103,8 +102,12 @@
   const news = (w, m) => SIM.newsTo && SIM.newsTo(w, m);
   const tell = (w, s, m) => { const h = s.holder && w.players[s.holder]; if (h) SIM.say(h.id, m); news(w, m); };
   const ryo = (w, c) => [c].concat(SIM.landsOf ? SIM.landsOf(w, c) : []);
+  // 0.72.0 田植え（5月）：農民は田に出ていて戦に加われない
+  SIM.taue = (w) => monthOf(dayIdx(w)) === 5;
   function season(w, di) {
     const m = monthOf(di), castles = w.settlements.filter((s) => s.type === 'castle' && !s.site);
+    if (m === 5) news(w, '田植えの季節です。今月は農民が田に出ていて、農兵は戦に加われません（雇うこともできません）');
+    if (m === 6) news(w, '田植えが終わり、農兵がまた戦に加われるようになりました');
     if (m === 7) for (const c of castles) { // 夏：台風の洪水
       const ch = has(c.owner, 'chisui') || has(c.owner, 'shingenzutsumi');
       if (rnd(w) >= SZ.flood * (ch ? 0.5 : 1)) continue;
@@ -166,7 +169,7 @@
   function start(w, fid, f, k, di) { pay(w, f, -P[k].cost); f.pol = f.pol || {}; f.pol[k] = di; }
   // CPUの大名：蔵に余裕があれば政策を始める（固有を先に）
   function npcPolicy(w, fid, f, di) {
-    if (Object.keys(f.pol).length >= slots(w, fid) || rnd(w) > 0.4) return;
+    if (rnd(w) > 0.4) return; // 0.72.0 枠はなし（蔵の余裕だけで決める）
     const ids = Object.keys(P).filter((k) => canUse(w, fid, k) && f.pol[k] == null && !((f.cool || {})[k] > di));
     const uniq = ids.filter((k) => P[k].only), pick = uniq.length ? uniq[0] : ids[Math.floor(rnd(w) * ids.length)];
     if (!pick) return;
@@ -193,7 +196,6 @@
     if (!q || !canUse(w, p.clan, k)) return SIM.say(p.id, 'その政策は使えません');
     if (f.pol[k] != null) { stop(w, f, k, di); return SIM.say(p.id, `政策「${q.name}」をやめました（${COOL}日たつとまた使えます）`); }
     if ((f.cool || {})[k] > di) return SIM.say(p.id, `「${q.name}」はやめたばかりです。あと${f.cool[k] - di}日で使えます`);
-    if (Object.keys(f.pol).length >= slots(w, p.clan)) return SIM.say(p.id, `政策は${slots(w, p.clan)}つまでです（城が増えると枠も増えます）`);
     if (p.money < q.cost) return SIM.say(p.id, `お金が足りません（${SIM.money(q.cost)}）`);
     start(w, p.clan, f, k, di); SIM.say(p.id, `政策「${q.name}」を始めました（${SIM.money(q.cost)}・毎月${SIM.money(q.up)}）`);
   };
@@ -216,7 +218,7 @@
     if (r && r.me && f) {
       const di = dayIdx(w), lead = f.player && f.leader === p.id;
       r.me.pol = {
-        house: f.name, lead, jono: Math.round(jonoOf(w, p.clan) * 100), slots: slots(w, p.clan), kura: lead ? p.money : null,
+        house: f.name, lead, jono: Math.round(jonoOf(w, p.clan) * 100), kura: lead ? p.money : null,
         on: Object.keys(f.pol || {}).filter((k) => P[k]).map((k) => [k, P[k].name, P[k].text, P[k].up]),
         list: lead ? Object.keys(P).filter((k) => canUse(w, p.clan, k) && !(f.pol || {})[k]).map((k) => [k, P[k].name, P[k].text, P[k].cost, P[k].up, Math.max(0, ((f.cool || {})[k] || 0) - di)]) : [],
         mine: lead && !f.mine ? Object.keys(P).filter((k) => P[k].mine).map((k) => [k, P[k].name, P[k].text]) : null,

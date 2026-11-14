@@ -331,7 +331,7 @@
       const { src, tgt } = best, need = Math.max(N.min, Math.ceil(best.guard * KOU.ratio[K]));
       // 近くの城（3つまで）から兵を集め、足りなければ陣触れで農兵を足す
       const near = mine.slice().sort((a2, b2) => dist(a2, tgt) - dist(b2, tgt)).slice(0, 3);
-      const can = near.reduce((s2, x) => s2 + Math.floor(SIM.garrison(x) * N.take), 0), levyCap = Math.min(N.levyMax, mine.length * N.levyPer);
+      const can = near.reduce((s2, x) => s2 + Math.floor(SIM.garrison(x) * N.take), 0), levyCap = SIM.taue && SIM.taue(w) ? 0 : Math.min(N.levyMax, mine.length * N.levyPer); // 0.72.0 田植えの月は陣触れで農兵を集められない
       if (can + levyCap < need) continue; // 集めても足りない：攻めない
       let n = 0; const gens = [];
       for (const x of near) {

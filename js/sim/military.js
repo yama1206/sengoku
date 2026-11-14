@@ -215,7 +215,8 @@
   // ---- 戦闘の開始 ----
   const BATTLE_PACE = 0.5, UNIT_HP = 2; // 0.32.0 戦場の進み方は半分の速さ・兵の体力は2倍（本人はそのまま）
   function addUnits(w, b, side, owner, army) {
-    const list = Object.entries(army).filter(([, n]) => n > 0);
+    let list = Object.entries(army).filter(([, n]) => n > 0);
+    if (owner && SIM.taue && SIM.taue(w) && list.some(([k]) => k !== 'nohei')) list = list.filter(([k]) => k !== 'nohei'); // 0.72.0 田植えの月は農兵が出ない
     const fx = side === 'A' ? 1 : -1, base = side === 'A' ? FIELD.ax : FIELD.bx;
     const mo = owner ? SIM.moraleBase(w, owner) : (army.bandit || army.banditBow) ? 75 : 55; // 野盗は少々の損害では崩れない
     list.forEach(([type, n], i) => {
@@ -492,6 +493,7 @@
     move(w, p, c) { if (p.battle) return; baseMove(w, p, c); },
     recruit(w, p, c) {
       const s = inTown(w, p), t = TR[c.kind]; if (!s || !t || !SIM.HIRE.includes(c.kind)) return;
+      if (c.kind === 'nohei' && SIM.taue && SIM.taue(w)) return SIM.say(p.id, '田植えの季節なので、農民は雇えません（6月から）');
       if (t.fame && p.fame < t.fame) return SIM.say(p.id, `${t.name}を雇うには名声${t.fame}が必要です`);
       const cost = Math.round(t.cost * SIM.costMod(p));
       const q = Math.min(Math.max(1, +c.qty || 1), Math.floor(s.pool[c.kind] || 0), SIM.troopCap(p) - SIM.troopCount(p.troops), Math.floor(p.money / cost));
