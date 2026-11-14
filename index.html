@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="0.68.2">
+<meta name="sgk-ver" content="0.69.0">
 <title>戦国出世</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -56,6 +56,7 @@
   #infoName { font-family:"Hiragino Mincho ProN","Yu Mincho",serif; font-size:20px; color:var(--gold); }
   #infoBody { margin:4px 0 8px; font-size:14px; line-height:1.6; }
   #mSet { width:min(480px,94vw); max-height:88vh; overflow:auto; }
+  #title #mSet { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
   .setTabs { display:flex; gap:6px; flex-wrap:wrap; }
   .setTabs button { flex:1; }
   .setPane { font-size:13px; line-height:1.6; }
@@ -137,6 +138,7 @@
     <button id="btnFriend">フレンド（コードなしで参加）</button>
     <button id="btnJoin">部屋コードで参加する</button>
     <button id="btnImport">セーブファイルを読み込む</button>
+    <button id="btnSettings">設定（音・操作説明）</button>
     <button id="btnYear" class="yearBtn"></button>
   </div>
   <div class="menu hidden" id="namePanel" style="width:min(520px,94vw)">
@@ -205,6 +207,7 @@
           <div class="row" style="gap:6px;align-items:center"><button id="vSfx-" data-vol="sfx" data-d="-1">－</button><span class="volLbl" id="vSfx"></span><button id="vSfx+" data-vol="sfx" data-d="1">＋</button></div>
         </div>
         <p class="muted">－／＋で 0〜10 の11段階に調整できます（0 で消音。この端末に記憶されます）</p>
+        <button id="mAct3d" style="margin-top:8px"></button>
         <button id="mPad" style="margin-top:8px"></button>
         <p class="muted">操作説明のボタン名を、お使いのコントローラーに合わせます（設定はこの端末に記憶されます）</p>
       </div>

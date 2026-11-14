@@ -27,7 +27,7 @@
   const focusMem = {};
   function activeMenuNotBattle() { const m = activeMenu(); return m && m !== $('battle'); }
   function activeMenu() {
-    if (G.mode === 'title') return !$('mapPanel').classList.contains('hidden') ? $('mapPanel') : !$('createPanel').classList.contains('hidden') ? $('createPanel') : !$('slotPanel').classList.contains('hidden') ? $('slotPanel') : !$('friendPanel').classList.contains('hidden') ? $('friendPanel') : !$('namePanel').classList.contains('hidden') ? $('namePanel') : $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
+    if (G.mode === 'title') return $('mSet').parentNode === $('title') && !$('mSet').classList.contains('hidden') ? $('mSet') : !$('mapPanel').classList.contains('hidden') ? $('mapPanel') : !$('createPanel').classList.contains('hidden') ? $('createPanel') : !$('slotPanel').classList.contains('hidden') ? $('slotPanel') : !$('friendPanel').classList.contains('hidden') ? $('friendPanel') : !$('namePanel').classList.contains('hidden') ? $('namePanel') : $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
     if (!$('gameMenu').classList.contains('hidden')) return $('gameMenu');
     if (!$('char').classList.contains('hidden')) return $('char');
     if (!$('town').classList.contains('hidden')) return $('town');
@@ -132,7 +132,7 @@
     ci.value = b.dataset.ck === 'del' ? ci.value.slice(0, -1) : (ci.value + b.dataset.ck).slice(0, CL);
     if (ci.value.length === CL && b.dataset.ck !== 'del') setFocus($('joinPanel'), $('btnJoinGo'));
   });
-  function titleBack() { if (probe) { probe.close(); probe = null; } $('slotPanel').classList.add('hidden'); $('friendPanel').classList.add('hidden'); $('joinPanel').classList.add('hidden'); $('namePanel').classList.add('hidden'); $('createPanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); setFocus($('titleMenu'), currentFocus($('titleMenu'))); }
+  function titleBack() { if (probe) { probe.close(); probe = null; } if ($('mSet').parentNode === $('title')) { $('mSet').classList.add('hidden'); $('gameMenu').insertBefore($('mSet'), $('mMain')); } $('slotPanel').classList.add('hidden'); $('friendPanel').classList.add('hidden'); $('joinPanel').classList.add('hidden'); $('namePanel').classList.add('hidden'); $('createPanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); setFocus($('titleMenu'), currentFocus($('titleMenu'))); }
   $('btnJoinBack').onclick = titleBack;
   // ---------- フレンド ----------
   let probe = null; const fstat = {};
@@ -1035,8 +1035,13 @@
     [['stSound', 'spSound'], ['stMap', 'spMap'], ['stBattle', 'spBattle']].forEach(([b, p]) => { $(b).classList.toggle('on', b === id); $(p).classList.toggle('hidden', b !== id); });
   }
   ['stSound', 'stMap', 'stBattle'].forEach((id) => ($(id).onclick = () => setSetTab(id)));
-  $('mSettings').onclick = () => { $('mMain').classList.add('hidden'); $('mSet').classList.remove('hidden'); setSetTab(G.priv && G.priv.battle ? 'stBattle' : 'stMap'); setFocus($('gameMenu'), $(G.priv && G.priv.battle ? 'stBattle' : 'stMap')); };
-  $('stBack').onclick = menuBack;
+  $('mSettings').onclick = () => { act3dLbl(); $('mMain').classList.add('hidden'); $('mSet').classList.remove('hidden'); setSetTab(G.priv && G.priv.battle ? 'stBattle' : 'stMap'); setFocus($('gameMenu'), $(G.priv && G.priv.battle ? 'stBattle' : 'stMap')); };
+  $('stBack').onclick = () => (G.mode === 'title' ? titleBack() : menuBack());
+  // 0.69.0 タイトル画面からも設定を開く（ゲーム内メニューの設定画面をタイトルへ移して使う）
+  $('btnSettings').onclick = () => { $('title').insertBefore($('mSet'), $('titleMsg')); $('mSet').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); setSetTab('stSound'); act3dLbl(); setFocus($('mSet'), $('stSound')); };
+  const act3dLbl = () => ($('mAct3d').textContent = `戦闘の表示：${!R.act3d || R.act3d.on ? '3D' : '2D'}（T キーでも切替）`);
+  $('mAct3d').onclick = () => { if (R.act3d) R.act3d.toggle(); act3dLbl(); };
+  act3dLbl();
   const VOL = { all: 'vAll', bgm: 'vBgm', sfx: 'vSfx' };
   for (const k in VOL) $(VOL[k]).textContent = SGK.AUDIO.label(k);
   document.querySelectorAll('[data-vol]').forEach((b) => (b.onclick = () => { const k = b.dataset.vol; $(VOL[k]).textContent = SGK.AUDIO.step(k, +b.dataset.d); if (k !== 'bgm') SGK.AUDIO.sfx('coin'); }));
