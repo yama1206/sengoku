@@ -55,6 +55,7 @@
       if (score < bs2) { bs2 = score; best = b; }
     }
     setFocus(m, best || cur);
+    if (best) try { best.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {} // 0.84.1 カーソルに合わせてスクロール
     if (best && m.onNav) m.onNav(best);
     return true;
   }
