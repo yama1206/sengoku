@@ -612,10 +612,11 @@
   let townTab = 'market', townHtml = '';
   const dayLeft = (dl) => { const d = (dl - G.view.t) / 1440; return d >= 1 ? `あと${Math.floor(d)}日` : 'まもなく期限'; };
   const sName = (id) => (G.view.settlements.find((x) => x.id === id) || {}).name || '?';
-  function openTown(open) {
+  function openTown(open, keep) {
     const t = $('town');
     if (open === false || !G.priv || !G.priv.here) { t.classList.add('hidden'); return; }
-    t.classList.remove('hidden'); townHtml = ''; renderTown(); setFocus(t, currentFocus(t));
+    if (!keep) townTab = 'market'; // 0.75.2 拠点に入ったら市場のタブにカーソルを合わせる
+    t.classList.remove('hidden'); townHtml = ''; renderTown(); setFocus(t, keep ? currentFocus(t) : $('tab-market'));
   }
   function setTab(tab) { townTab = tab; townHtml = ''; renderTown(); const t = $('town'); setFocus(t, $('tab-' + tab)); }
   function renderTown() {
@@ -763,7 +764,7 @@
   // 依頼の届け先を地図で見る（「依頼に戻る」で拠点の画面へ戻れる）
   function lookAt(id) {
     const to = G.view.settlements.find((x) => x.id === id); if (!to) return;
-    const back = { label: '依頼の画面に戻る', fn: () => { selectSettlement(null); R.cam.follow = true; openTown(true); } };
+    const back = { label: '依頼の画面に戻る', fn: () => { selectSettlement(null); R.cam.follow = true; openTown(true, true); } };
     openTown(false); R.cam.follow = false; R.cam.x = to.x; R.cam.y = to.y; G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; selectSettlement(to);
     G.infoCmd = back.fn; $('infoAct').textContent = back.label; $('infoAct').classList.remove('hidden');
     setFocus($('info'), $('infoAct'));
