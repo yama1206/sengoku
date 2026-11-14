@@ -103,13 +103,14 @@
   // ---- 0.38.0 はじめに作る人物：能力値の割り振り・成長の型・家紋 ----
   const CREATE = SIM.CREATE = { base: 1, points: 10, max: 7 };
   // 0.76.1 技能（刀・槍・弓・鉄砲・馬術・商業）用に作り直し
-  const wq = (main) => Object.assign({ tachi: 1.1, yari: 1.1, yumi: 1.1, teppo: 1.1, bajutsu: 1.1, shogyo: 0.8 }, { [main]: 1.6 });
+  const wq = (main) => Object.assign({ tachi: 1.1, yari: 1.1, yumi: 1.1, teppo: 1.1, shuri: 1.1, bajutsu: 1.1, shogyo: 0.8 }, { [main]: 1.6 });
   const GROW = SIM.GROW = {
     bal: { name: '万能型', desc: 'どの技能もほどほどに伸びる（すべて+15%）', mul: {}, all: 1.15 },
     war: { name: '武人型（刀）', desc: '刀が大きく伸びやすい（+60%）。ほかの武器・馬術も少し伸びやすい（+10%）。商業は伸びにくい（-20%）', mul: wq('tachi') },
     yari: { name: '武人型（槍）', desc: '槍が大きく伸びやすい（+60%）。ほかの武器・馬術も少し伸びやすい（+10%）。商業は伸びにくい（-20%）', mul: wq('yari') },
     yumi: { name: '武人型（弓）', desc: '弓が大きく伸びやすい（+60%）。ほかの武器・馬術も少し伸びやすい（+10%）。商業は伸びにくい（-20%）', mul: wq('yumi') },
     teppo: { name: '武人型（鉄砲）', desc: '鉄砲が大きく伸びやすい（+60%）。ほかの武器・馬術も少し伸びやすい（+10%）。商業は伸びにくい（-20%）', mul: wq('teppo') },
+    nin: { name: '忍者型', desc: '手裏剣と刀が大きく伸びやすい（+50%）。商業はかなり伸びにくい（-40%）', mul: { shuri: 1.5, tachi: 1.5, shogyo: 0.6 } }, // 0.82.0
     kiba: { name: '騎馬武者型', desc: '馬術が大きく伸びやすい（+60%）。武器も少し伸びやすい（+10%）。商業は伸びにくい（-20%）', mul: wq('bajutsu') },
     shou: { name: '商人型', desc: '商業が大きく伸びやすい（+60%）。武器・馬術は伸びにくい（-15%）。はじめの所持金+2000文', mul: { shogyo: 1.6 }, all: 0.85, money: 2000 },
   };

@@ -15,7 +15,7 @@
       yumi: { name: '弓', shot: 45, cd: 1, dmg: 3, spd: 45 },
       teppo: { name: '鉄砲', shot: 60, cd: 3, dmg: 9, spd: 140 },
       waki: { name: '脇差', reach: 1.7, arc: 0.55, cd: 0.32, sw: 0.11, dmg: 1.7, sk: 'tachi' }, // 0.81.0 短くて速い（刀の技能で伸びる）
-      shuri: { name: '手裏剣', shot: 22, cd: 0.4, dmg: 1.7, spd: 38, sk: 'yumi' }, // 0.81.0 近い間合いで速く投げる。まっすぐ飛ぶ（弓の技能で伸びる）
+      shuri: { name: '手裏剣', shot: 22, cd: 0.4, dmg: 1.7, spd: 38, sk: 'shuri' }, // 0.81.0 近い間合いで速く投げる。まっすぐ飛ぶ（0.82.0 手裏剣の技能で伸びる）
     },
     ENGAGE: 12,      // 待機中の兵が自分から向かっていく距離
     SOLDIER_R: 0.5,
