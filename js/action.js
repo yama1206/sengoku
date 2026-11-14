@@ -278,7 +278,7 @@
     }
     for (const h of heroes) if (h.sw) { h.sw.t -= dt; if (h.sw.t <= 0) h.sw = null; }
     // 兵
-    const foeHeroes = all.filter((s) => s.hero), hc = {}, sideC = {};
+    const foeHeroes = all.filter((s) => s.hero), hc = {}, sideC = {}, foeRanged = all.filter((s) => !s.hero && s.type && TR[s.type] && TR[s.type].ranged && live(s)); /* 1.6.21 */
     for (const s of all) if (!s.hero) { const q = sideC[s.side] || (sideC[s.side] = { x: 0, y: 0, n: 0 }); q.x += s.x; q.y += s.y; q.n++; }
     for (const k in sideC) { sideC[k].x /= sideC[k].n; sideC[k].y /= sideC[k].n; }
     for (const s of all) {
@@ -300,11 +300,13 @@
       if (aiHero) look = 7;
       let e = nearestFoe(g, s, T.ranged ? Math.max(look, reach) : look);
       if (T.ranged && u.nofire && e && dist(s, e) >= 5) e = null; // 0.75.0 射撃をやめよ（近づかれたら刀で戦う）
-      if (u.isAI && !T.ranged && !s.hero && !u.kite) { // 0.64.0 近くの本人（武将）を何人かで囲んで狙う
-        let h = null, hd = 14;
-        for (const x of foeHeroes) if (x.side !== s.side && live(x)) { const dd = dist(s, x); if (dd < hd && (hc[x.id] || 0) < 6) { hd = dd; h = x; } }
-        if (h && (!e || dist(s, e) > reach || hd < 5)) { e = h; hc[h.id] = (hc[h.id] || 0) + 1; }
+      const hunter = u.isAI && !T.ranged && !s.hero && !u.kite && (T.cav || s.id % 3 === 0); // 1.6.21 騎馬と3人に1人は弓・鉄砲を狙いに行く
+      if (u.isAI && !T.ranged && !s.hero && !u.kite && !hunter) { // 0.64.0 近くの本人（武将）を何人かで囲んで狙う（1.6.21 14m・6人→9m・3人）
+        let h = null, hd = 9;
+        for (const x of foeHeroes) if (x.side !== s.side && live(x)) { const dd = dist(s, x); if (dd < hd && (hc[x.id] || 0) < 3) { hd = dd; h = x; } }
+        if (h && (!e || dist(s, e) > reach || hd < 4)) { e = h; hc[h.id] = (hc[h.id] || 0) + 1; }
       }
+      if (hunter && (!e || dist(s, e) > reach)) { let r = null, rd = 35; for (const x of foeRanged) if (x.side !== s.side) { const dd = Math.abs(x.x - s.x) + Math.abs(x.y - s.y); if (dd < rd) { rd = dd; r = x; } } if (r) e = r; }
       if (u.kite && T.ranged && e && dist(s, e) < 8) e = null; // 下がっている間は撃たずに離れる
       if (!u.isAI && o === 'move') e = null; // 0.73.8 移動の指示は敵にかまわず最優先
       const close = T.ranged && e && dist(s, e) < 5, R = close ? ACT.WEP.tachi.reach : reach; s.kat = close ? 1 : 0; // 0.73.8 弓・鉄砲は近づかれたら刀に持ち替える
