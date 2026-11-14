@@ -213,9 +213,9 @@
     const C = SIM.CREATE, g = SIM.GROW[prof.grow];
     let h = `<div class="muted" style="text-align:center">新しく始める人物です（すでに遊んでいるワールドの人物は変わりません）</div>`;
     h += `<div style="margin-top:6px"><b>名前</b>　${(($('nameInput').value.trim()) || '浪人').replace(/[<&]/g, '')}</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:4px 0">${crNames.map((n, i) => `<button id="cn-${i}" data-cr="nm" data-v="${n}">${n}</button>`).join('')}</div><div class="row"><button id="cr-more" data-cr="more">ほかの候補</button></div>`;
-    h += `<div style="margin-top:8px"><b>能力値</b>　<span class="muted">残り ${crLeft()}点（1つ${C.max}まで）</span></div>`;
-    for (const k of ATK) h += `<div class="row" style="align-items:center;gap:6px;margin:3px 0"><span style="width:4em">${SIM.ATTRS[k]}</span><button id="ca-${k}-m" data-cr="at" data-k="${k}" data-md="-1">◀</button><span style="min-width:3em;text-align:center">${prof.attrs[k]}</span><button id="ca-${k}-p" data-cr="at" data-k="${k}" data-md="1">▶</button></div>`;
-    h += `<div style="margin-top:8px"><b>成長の型</b></div><div class="row" style="align-items:center;gap:6px"><button id="cg-m" data-cr="gr" data-md="-1">◀</button><span style="min-width:6em;text-align:center">${g.name}</span><button id="cg-p" data-cr="gr" data-md="1">▶</button></div><div class="muted">${g.desc}</div>`;
+    if (!SIM.GROWTH_OFF) h += `<div style="margin-top:8px"><b>能力値</b>　<span class="muted">残り ${crLeft()}点（1つ${C.max}まで）</span></div>`; // 0.73.7 能力値・成長の型はいったん無し
+    if (!SIM.GROWTH_OFF) for (const k of ATK) h += `<div class="row" style="align-items:center;gap:6px;margin:3px 0"><span style="width:4em">${SIM.ATTRS[k]}</span><button id="ca-${k}-m" data-cr="at" data-k="${k}" data-md="-1">◀</button><span style="min-width:3em;text-align:center">${prof.attrs[k]}</span><button id="ca-${k}-p" data-cr="at" data-k="${k}" data-md="1">▶</button></div>`;
+    if (!SIM.GROWTH_OFF) h += `<div style="margin-top:8px"><b>成長の型</b></div><div class="row" style="align-items:center;gap:6px"><button id="cg-m" data-cr="gr" data-md="-1">◀</button><span style="min-width:6em;text-align:center">${g.name}</span><button id="cg-p" data-cr="gr" data-md="1">▶</button></div><div class="muted">${g.desc}</div>`;
     const si = Math.max(0, START.findIndex((t) => t.id === prof.start)), st = START[si], nl = nearLord(st);
     h += `<div style="margin-top:8px"><b>開始地点</b>　<span class="muted">${si + 1}/${START.length}（東から西の順）</span></div><div class="row" style="align-items:center;gap:6px"><button id="cs-mm" data-cr="st" data-md="-5">◀◀</button><button id="cs-m" data-cr="st" data-md="-1">◀</button><span style="min-width:5em;text-align:center">${st.name}</span><button id="cs-p" data-cr="st" data-md="1">▶</button><button id="cs-pp" data-cr="st" data-md="5">▶▶</button><button id="cs-r" data-cr="sr">おまかせ</button></div><div class="row"><button id="cs-map" data-cr="map">地図から選ぶ</button></div><div class="muted">${nl ? `近くの大名：${nl}` : ''}</div>`;
     h += `<div style="margin-top:8px"><b>家紋</b></div>` + monEditorHtml(prof.mon, 'crMon');
@@ -647,7 +647,7 @@
         if (E.wep2) html += `<div class="row" style="margin:4px 0"><button id="eqSwap" data-act="swapWep">主の武器と副武器を入れ替える</button></div>`;
         for (const [sl, id] of h.shop) {
           const e = EQ[sl][id], have = E[sl] === id, old = E[sl] && EQ[sl][E[sl]], back = old ? Math.floor(old.cost * EQ.sell) : 0;
-          const eff = sl === 'wep' ? `${EQ.kindName[e.kind]}・${EQ.groupName[e.kind]}に入る${e.am ? `・本人の攻撃+${Math.round(e.am * 100)}%` : ''}` : sl === 'arm' ? `守り+${e.da}・体力+${Math.round(e.hm * 100)}%` : `1日の移動+${e.km}km`;
+          const ex = SIM.eqFxText(e), eff = (sl === 'wep' ? `${EQ.kindName[e.kind]}・${EQ.groupName[e.kind]}に入る${e.am ? `・本人の攻撃+${Math.round(e.am * 100)}%` : ''}` : sl === 'arm' ? `守り+${e.da}・体力+${Math.round(e.hm * 100)}%` : `1日の移動+${e.km}km`) + (ex ? `<br><b style="color:#e8c46a">${ex}</b>` : '');
           const own2 = sl === 'wep' && E.wep2 === id, o2 = sl === 'wep' && E.wep2 && EQ.wep[E.wep2], back2 = o2 ? Math.floor(o2.cost * EQ.sell) : 0;
           const b2 = sl === 'wep' ? `<button id="eq2-${id}" data-act="buyEquip" data-kind="wep2" data-id="${id}" ${have || own2 || me.money + back2 < e.cost ? 'disabled' : ''}>${own2 ? '副で装備中' : '副武器に買う'}</button>` : '';
           html += `<div class="card"><div><b>${e.name}</b>　<span class="muted">${EQ.slotName[sl]}　${SIM.money(e.cost)}${back && !have ? `（下取り${SIM.money(back)}）` : ''}<br>${eff}</span></div><div class="row"><button id="eq-${id}" data-act="buyEquip" data-kind="${sl}" data-id="${id}" ${have || own2 || me.money + back < e.cost ? 'disabled' : ''}>${have ? '装備中' : sl === 'wep' ? '主に買う' : '買う'}</button>${b2}</div></div>`;
@@ -803,10 +803,20 @@
   function renderChar() {
     const P = G.priv; if (!P || !P.me.char || P.battle) return openChar(false);
     const me = P.me, C = me.char, TR = SIM.TROOPS, m = G.view && G.view.players.find((x) => x.id === G.myPid);
-    $('charName').textContent = `${m ? m.name : ''}　格${C.level}　名声${C.fame}`;
+    $('charName').textContent = C.off ? `${m ? m.name : ''}　名声${C.fame}` : `${m ? m.name : ''}　格${C.level}　名声${C.fame}`;
+    $('ctab-stat').textContent = C.off ? '装備' : '能力・技能'; $('ctab-perk').classList.toggle('hidden', !!C.off); if (C.off && charTab === 'perk') charTab = 'stat';
     document.querySelectorAll('#char [data-ctab]').forEach((b) => b.classList.toggle('on', b.dataset.ctab === charTab));
     let html = '';
-    if (charTab === 'stat') {
+    if (C.off && (charTab === 'stat' || charTab === 'perk')) { // 0.73.7 能力値・特技はいったん無し。装備の能力を見せる
+      const EQ = SIM.EQUIP, E = me.equip || {};
+      html += '<div class="muted" style="margin-bottom:6px">いまは能力値・技能・特技はありません。本人の強さは装備で変わります（武具は町・城で買えます）</div>';
+      for (const [sl, id] of [['wep', E.wep], ['wep', E.wep2], ['arm', E.arm], ['horse', E.horse]]) {
+        const e = id && EQ[sl][id], lab = id && id === E.wep2 && sl === 'wep' && id !== E.wep ? '副武器（持ち替えると効く）' : EQ.slotName[sl];
+        if (!e) { if (id !== E.wep2) html += `<div class="card"><div><b>${lab}</b>　<span class="muted">なし</span></div></div>`; continue; }
+        const base = sl === 'wep' ? (e.am ? `本人の攻撃+${Math.round(e.am * 100)}%` : '') : sl === 'arm' ? `守り+${e.da}・体力+${Math.round(e.hm * 100)}%` : `1日の移動+${e.km}km`, ex = SIM.eqFxText(e);
+        html += `<div class="card" style="display:block"><b>${lab}</b>　${e.name}<br><span class="muted">${[base, ex].filter(Boolean).join('・') || '特になし'}</span></div>`;
+      }
+    } else if (charTab === 'stat') {
       if (me.grow) html += `<div class="muted" style="margin-bottom:4px">成長の型：<b>${me.grow}</b></div>`;
       html += `<div class="muted" style="margin-bottom:6px">能力値（上げられる点：${C.points}）　技能は使うほど伸び、元の能力値が高いほど伸びやすくなります</div>`;
       for (const a in SIM.ATTRS) html += `<div class="card"><div><b>${SIM.ATTRS[a]}</b>　${C.attrs[a]}<span class="muted">/10</span></div><button id="at-${a}" data-cact="addAttr" data-attr="${a}" ${C.points > 0 && C.attrs[a] < 10 ? '' : 'disabled'}>＋1</button></div>`;

@@ -11,15 +11,15 @@
   };
   const NEAR_KM = 15;
   SIM.devCost = (p, s, k) => Math.round(((800 + Math.floor(s.dev[k]) * 500) * (1 + fx(p, 'devCost'))) / 10) * 10;
-  SIM.devGain = (p, s, k) => { const D = DEV[k]; return (0.25 * (1 + lv(p, D.skill) * 0.015 + (p.attrs[D.attr] - 3) * 0.05) * (1 + fx(p, D.fxKey))) / (1 + Math.floor(s.dev[k]) * 0.15); };
-  SIM.tax = (p, s) => Math.round(((800 + Math.floor(s.dev.agri) * 250 + Math.floor(s.dev.com) * 350) * (1 + lv(p, 'naisei') * 0.005 + (p.attrs.sei - 3) * 0.03 + fx(p, 'tax'))) / 10) * 10;
+  SIM.devGain = (p, s, k) => { const D = DEV[k]; return (0.25 * (1 + lv(p, D.skill) * 0.015 + (SIM.at(p, D.attr) - 3) * 0.05) * (1 + fx(p, D.fxKey))) / (1 + Math.floor(s.dev[k]) * 0.15); };
+  SIM.tax = (p, s) => Math.round(((800 + Math.floor(s.dev.agri) * 250 + Math.floor(s.dev.com) * 350) * (1 + lv(p, 'naisei') * 0.005 + (SIM.at(p, 'sei') - 3) * 0.03 + fx(p, 'tax'))) / 10) * 10;
   const heldAll = (w, pid) => w.settlements.filter((s) => s.holder === pid);
   const heldBy = (w, pid) => heldAll(w, pid)[0];
   SIM.heldCastle = heldBy;
   const nearHeld = (w, p) => heldAll(w, p.id).filter((s) => Math.hypot(s.x - p.x, s.y - p.y) < NEAR_KM).sort((a, b) => b.dev.wall - a.dev.wall)[0] || null;
   // 築城（新しく城を築く）：数値は仮
   const BUILD = SIM.BUILD = { cost: 40000, minRank: 4, minKm: 5, hours: 16 };
-  SIM.siteGain = (p) => 0.12 * (1 + lv(p, 'chikujo') * 0.02 + (p.attrs.chi - 3) * 0.05) * (1 + fx(p, 'wallFx'));
+  SIM.siteGain = (p) => 0.12 * (1 + lv(p, 'chikujo') * 0.02 + (SIM.at(p, 'chi') - 3) * 0.05) * (1 + fx(p, 'wallFx'));
 
   // 米の生産を農業の段階に合わせる
   function syncProd(s) {

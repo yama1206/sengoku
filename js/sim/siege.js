@@ -196,7 +196,7 @@
   // ---- 調略・褒美 ----
   SIM.persuadeChance = (w, p, s) => {
     const pr = s.lord && w.people[s.lord]; if (!pr) return 0;
-    return Math.max(0.03, Math.min(0.7, (65 - pr.loyal) / 80 + (p.attrs.chi - 3) * 0.04 + p.fame / 1000));
+    return Math.max(0.03, Math.min(0.7, (65 - pr.loyal) / 80 + (SIM.at(p, 'chi') - 3) * 0.04 + p.fame / 1000));
   };
   SIM.commands.persuade = (w, p) => {
     const s = here(w, p); if (!s || s.type !== 'castle' || !s.lord || p.battle || p.busy) return;

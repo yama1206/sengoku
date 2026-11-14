@@ -1,6 +1,9 @@
 // 第4段階：成長要素（本人の能力値・技能・特技／兵の経験と昇格）
 (function () {
   const SIM = SGK.SIM, TR = SIM.TROOPS;
+  // 0.73.7 本人の能力値・技能・特技をいったん無くす（true の間は能力値は全部3、技能0、特技なし。強さは装備で変わる）。データは残してあるので false に戻せば元どおり
+  const OFF = SIM.GROWTH_OFF = true;
+  const at = SIM.at = (p, k) => (OFF ? 3 : p.attrs[k]);
 
   // ---- 能力値と技能（技能は使うほど伸び、元になる能力値が高いほど伸びやすい） ----
   const ATTRS = SIM.ATTRS = { bu: '武勇', tou: '統率', chi: '知略', sei: '政務', mi: '魅力' };
@@ -45,14 +48,14 @@
   SIM.skillNeed = (lv) => 20 + lv * 6; // 次の段階までに必要な経験
   SIM.upNeed = (tier) => [0, 30, 60, 120, 240][tier]; // 兵が1段階上がるのに必要な経験
   SIM.upCost = (p, to) => Math.round(TR[to].tier * 150 * (1 + fx(p, 'upCost')));
-  const lvOf = (p, k) => (p.skills[k] || [0])[0];
-  const fx = SIM.fx = (p, key) => (p.perks || []).reduce((a, id) => a + ((PERK[id] && PERK[id].fx[key]) || 0), 0);
+  const lvOf = (p, k) => (OFF ? 0 : (p.skills[k] || [0])[0]);
+  const fx = SIM.fx = (p, key) => OFF ? (SIM.eqFx ? SIM.eqFx(p, key) : 0) : (p.perks || []).reduce((a, id) => a + ((PERK[id] && PERK[id].fx[key]) || 0), 0);
   SIM.charLevel = (p) => 1 + Math.floor(Object.keys(SKILLS).reduce((a, k) => a + lvOf(p, k), 0) / 15);
   SIM.attrPoints = (p) => SIM.charLevel(p) - 1 - p.spent;
 
   // 技能の経験を得る
   function gain(p, k, amt) {
-    if (!(amt > 0) || !SKILLS[k]) return;
+    if (OFF || !(amt > 0) || !SKILLS[k]) return;
     const s = p.skills[k] = p.skills[k] || [0, 0];
     if (s[0] >= MAX_SKILL) return;
     const before = SIM.charLevel(p);
@@ -79,27 +82,27 @@
 
   // ---- 成長が効くところ（military.js・economy.js の差し込み口を上書き） ----
   const baseCap = SIM.troopCap;
-  SIM.troopCap = (p) => Math.ceil(Math.min(200, baseCap(p) + (p.attrs.tou - 3) * 2 + Math.floor(lvOf(p, 'shiki') / 5) + fx(p, 'troopCap')));
+  SIM.troopCap = (p) => Math.ceil(Math.min(200, baseCap(p) + (at(p, 'tou') - 3) * 2 + Math.floor(lvOf(p, 'shiki') / 5) + fx(p, 'troopCap')));
   const baseWage = SIM.wage;
   SIM.wage = (tr, p) => Math.round(baseWage(tr) * (p ? 1 + fx(p, 'wage') : 1));
-  SIM.costMod = (p) => Math.max(0.5, 1 - (p.attrs.mi - 3) * 0.03 - lvOf(p, 'kosho') * 0.002);
+  SIM.costMod = (p) => Math.max(0.5, 1 - (at(p, 'mi') - 3) * 0.03 - lvOf(p, 'kosho') * 0.002);
   SIM.speedBonus = (p) => lvOf(p, 'bajutsu') * 0.1 + fx(p, 'speed');
   SIM.tradeMod = (p, side) => side === 'buy' ? 1 - lvOf(p, 'sanjutsu') * 0.0015 + fx(p, 'buy') : 1 + lvOf(p, 'sanjutsu') * 0.0015 + fx(p, 'sell');
-  SIM.surviveRate = (w, pid) => { const p = w.players[pid]; return p ? Math.min(0.8, 0.1 + lvOf(p, 'ijutsu') * 0.004 + (p.attrs.chi - 3) * 0.01 + fx(p, 'survive')) : 0.1; };
-  SIM.autoBonus = (w, b) => { const ps = b.pids.map((x) => w.players[x]).filter(Boolean); return ps.length ? 1 + ps.reduce((a, p) => a + (p.attrs.chi - 3) * 0.03 + lvOf(p, 'shiki') * 0.002, 0) / ps.length : 1; };
+  SIM.surviveRate = (w, pid) => { const p = w.players[pid]; return p ? Math.min(0.8, 0.1 + lvOf(p, 'ijutsu') * 0.004 + (at(p, 'chi') - 3) * 0.01 + fx(p, 'survive')) : 0.1; };
+  SIM.autoBonus = (w, b) => { const ps = b.pids.map((x) => w.players[x]).filter(Boolean); return ps.length ? 1 + ps.reduce((a, p) => a + (at(p, 'chi') - 3) * 0.03 + lvOf(p, 'shiki') * 0.002, 0) / ps.length : 1; };
   SIM.unitMods = (w, pid, type) => {
     const p = w.players[pid], t = TR[type];
     if (!p) return { am: 1, da: 0, ra: 0, hm: 1 };
     if (type === 'hero') return {
-      am: (1 + lvOf(p, 'bugei') / 50) * (1 + (p.attrs.bu - 3) * 0.05) * (1 + fx(p, 'heroAtk')),
-      da: fx(p, 'heroDef'), ra: 0, hm: (TR.hero.hp + (p.attrs.bu - 3) * 5 + lvOf(p, 'bugei') + fx(p, 'heroHp')) / TR.hero.hp,
+      am: (1 + lvOf(p, 'bugei') / 50) * (1 + (at(p, 'bu') - 3) * 0.05) * (1 + fx(p, 'heroAtk')),
+      da: fx(p, 'heroDef'), ra: 0, hm: (TR.hero.hp + (at(p, 'bu') - 3) * 5 + lvOf(p, 'bugei') + fx(p, 'heroHp')) / TR.hero.hp,
     };
     let am = 1 + lvOf(p, 'shiki') * 0.003 + fx(p, 'troopAtk');
     if (t.ranged) am *= 1 + lvOf(p, 'kyujutsu') * 0.005 + fx(p, 'rangedAtk');
     if (t.cav) am *= 1 + lvOf(p, 'bajutsu') * 0.004 + fx(p, 'cavAtk');
     return { am, da: fx(p, 'troopDef'), ra: t.ranged ? fx(p, 'rangedRange') : 0, hm: t.ranged ? 1 + fx(p, 'rangedHp') : 1 };
   };
-  SIM.moraleBase = (w, pid) => { const p = w.players[pid]; return p ? Math.min(95, 60 + (p.attrs.tou - 3) * 4 + lvOf(p, 'shiki') * 0.25 + (p.attrs.mi - 3) * 1.5) : 65; };
+  SIM.moraleBase = (w, pid) => { const p = w.players[pid]; return p ? Math.min(95, 60 + (at(p, 'tou') - 3) * 4 + lvOf(p, 'shiki') * 0.25 + (at(p, 'mi') - 3) * 1.5) : 65; };
   SIM.onBattleEnd = (w, b, p, res, after) => {
     const foe = b.foeN || 10, men = SIM.troopCount(b.start[p.id]);
     gain(p, 'bugei', ((b.hd || {})[p.id] || 0) * 0.15 + 2);
@@ -187,11 +190,13 @@
       SIM.say(p.id, `${from.name}${q}人が${to.name}になりました（${SIM.money(q * cost)}）`);
     },
     addAttr(w, p, c) {
+      if (OFF) return;
       if (!ATTRS[c.attr] || SIM.attrPoints(p) <= 0 || p.attrs[c.attr] >= MAX_ATTR) return;
       p.attrs[c.attr]++; p.spent++;
       SIM.say(p.id, `${ATTRS[c.attr]}が${p.attrs[c.attr]}になりました`);
     },
     pickPerk(w, p, c) {
+      if (OFF) return;
       const k = PERK[c.id]; if (!k || p.perks.includes(k.id) || lvOf(p, k.skill) < k.lv) return;
       if (PERKS.some((x) => x.skill === k.skill && x.lv === k.lv && p.perks.includes(x.id))) return;
       p.perks.push(k.id); SIM.say(p.id, `特技「${k.name}」を身につけました`);
@@ -203,7 +208,7 @@
   SIM.privateState = function (w, pid) {
     const r = basePriv(w, pid); if (!r) return r;
     const p = w.players[pid];
-    r.me.char = { attrs: p.attrs, skills: p.skills, perks: p.perks, level: SIM.charLevel(p), points: SIM.attrPoints(p), txp: p.txp, fame: Math.round(p.fame * 10) / 10 };
+    r.me.char = { off: OFF ? 1 : 0, attrs: p.attrs, skills: p.skills, perks: p.perks, level: SIM.charLevel(p), points: SIM.attrPoints(p), txp: p.txp, fame: Math.round(p.fame * 10) / 10 };
     return r;
   };
 })();

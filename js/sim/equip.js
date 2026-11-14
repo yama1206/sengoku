@@ -6,27 +6,27 @@
   const EQ = SIM.EQUIP = {
     wep: {
       yari1: { name: '素槍', kind: 'yari', cost: 0, am: 0 },
-      yari2: { name: '大身槍', kind: 'yari', cost: 3000, am: 0.25 },
-      yari3: { name: '名槍', kind: 'yari', cost: 12000, am: 0.5, castle: true },
-      tachi1: { name: '太刀', kind: 'tachi', cost: 1500, am: 0.1 },
-      tachi2: { name: '大太刀', kind: 'tachi', cost: 4000, am: 0.3 },
-      tachi3: { name: '名刀', kind: 'tachi', cost: 14000, am: 0.55, castle: true },
+      yari2: { name: '大身槍', kind: 'yari', cost: 3000, am: 0.25, fx: { troopAtk: 0.05 } },
+      yari3: { name: '名槍', kind: 'yari', cost: 12000, am: 0.5, castle: true, fx: { troopAtk: 0.1, troopDef: 0.5 } },
+      tachi1: { name: '太刀', kind: 'tachi', cost: 1500, am: 0.1, fx: { heroHp: 5 } },
+      tachi2: { name: '大太刀', kind: 'tachi', cost: 4000, am: 0.3, fx: { cavAtk: 0.1 } },
+      tachi3: { name: '名刀', kind: 'tachi', cost: 14000, am: 0.55, castle: true, fx: { cavAtk: 0.2, heroDef: 1 } },
       yumi1: { name: '半弓', kind: 'yumi', cost: 1000, am: 0 },
-      yumi2: { name: '重籐弓', kind: 'yumi', cost: 3500, am: 0.25 },
-      yumi3: { name: '名弓', kind: 'yumi', cost: 12000, am: 0.5, castle: true },
+      yumi2: { name: '重籐弓', kind: 'yumi', cost: 3500, am: 0.25, fx: { rangedAtk: 0.08 } },
+      yumi3: { name: '名弓', kind: 'yumi', cost: 12000, am: 0.5, castle: true, fx: { rangedAtk: 0.15, rangedRange: 5 } },
       teppo1: { name: '火縄銃', kind: 'teppo', cost: 3000, am: 0.1 },
-      teppo2: { name: '堺筒', kind: 'teppo', cost: 7000, am: 0.3 },
-      teppo3: { name: '国友の名銃', kind: 'teppo', cost: 16000, am: 0.55, castle: true },
+      teppo2: { name: '堺筒', kind: 'teppo', cost: 7000, am: 0.3, fx: { rangedAtk: 0.1 } },
+      teppo3: { name: '国友の名銃', kind: 'teppo', cost: 16000, am: 0.55, castle: true, fx: { rangedAtk: 0.2, rangedRange: 5 } },
     },
     arm: {
       arm1: { name: '胴丸', cost: 1500, da: 0.5, hm: 0.1 },
-      arm2: { name: '当世具足', cost: 5000, da: 1, hm: 0.25 },
-      arm3: { name: '名甲冑', cost: 16000, da: 1.6, hm: 0.4, castle: true },
+      arm2: { name: '当世具足', cost: 5000, da: 1, hm: 0.25, fx: { troopCap: 5 } },
+      arm3: { name: '名甲冑', cost: 16000, da: 1.6, hm: 0.4, castle: true, fx: { troopCap: 10, troopDef: 0.5 } },
     },
     horse: {
       horse1: { name: '駄馬', cost: 2000, km: 4 },
-      horse2: { name: '駿馬', cost: 6000, km: 7 },
-      horse3: { name: '名馬', cost: 18000, km: 10, castle: true },
+      horse2: { name: '駿馬', cost: 6000, km: 7, fx: { cavAtk: 0.05 } },
+      horse3: { name: '名馬', cost: 18000, km: 10, castle: true, fx: { cavAtk: 0.1, troopCap: 5 } },
     },
     slotName: { wep: '武器', wep2: '副武器', arm: '防具', horse: '馬' },
     kindName: { yari: '槍', tachi: '太刀', yumi: '弓', teppo: '鉄砲' },
@@ -36,6 +36,10 @@
     lead: { am: 1.1, mo: 5 }, // 本人のいる隊：攻撃+10%・士気+5（兵種の相性は覆らない程度）
     sell: 0.5,                // 買い替えたとき、前の装備は半値で引き取り
   };
+  // 0.73.7 装備についている能力（能力値・特技の代わり）。主の武器・防具・馬の分が効く（副武器は持ち替えるまで効かない）
+  EQ.fxName = { troopAtk: ['兵の攻撃', '%'], troopDef: ['兵の守り', ''], heroHp: ['本人の体力', ''], heroDef: ['本人の守り', ''], cavAtk: ['騎馬の攻撃', '%'], rangedAtk: ['弓・鉄砲の攻撃', '%'], rangedRange: ['弓・鉄砲の射程', 'm'], troopCap: ['率いる人数', '人'] };
+  SIM.eqFxText = (e) => Object.entries((e && e.fx) || {}).map(([k, v]) => { const n = EQ.fxName[k] || [k, '']; return `${n[0]}+${n[1] === '%' ? Math.round(v * 100) + '%' : v + n[1]}`; }).join('・');
+  SIM.eqFx = (p, key) => { const e = p.equip || {}; let v = 0; for (const [sl, id] of [['wep', e.wep], ['arm', e.arm], ['horse', e.horse]]) { const it = id && EQ[sl][id]; if (it && it.fx && it.fx[key]) v += it.fx[key]; } return v; };
   EQ.wep2 = EQ.wep; // 0.64.0 副武器（戦場へ2つ持ち込み、△・Qで持ち替える）
   const eqOf = (p) => { p.equip = p.equip || { wep: 'yari1', arm: null, horse: null }; if (p.equip.wep2 === undefined) p.equip.wep2 = null; return p.equip; };
   const item = (slot, id) => id && EQ[slot][id];
