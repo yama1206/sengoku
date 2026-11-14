@@ -832,7 +832,7 @@
     openTown(false); toggleMenu(false); c.classList.remove('hidden'); charHtml = ''; renderChar(); setFocus(c, currentFocus(c));
   }
   function setCTab(t) { charTab = t; charHtml = ''; renderChar(); setFocus($('char'), $('ctab-' + t)); }
-  function cycleCTab(d) { const t = ['eq', 'zukan', 'skill', 'stat', 'perk', 'army', 'rank', 'pol', 'mon', 'hyo'].filter((x) => !$('ctab-' + x).classList.contains('hidden')); setCTab(t[(t.indexOf(charTab) + d + t.length) % t.length]); }
+  function cycleCTab(d) { const t = ['eq', 'skill', 'stat', 'perk', 'army', 'rank', 'pol', 'mon', 'hyo'].filter((x) => !$('ctab-' + x).classList.contains('hidden')); setCTab(t[(t.indexOf(charTab) + d + t.length) % t.length]); }
   function renderChar() {
     const P = G.priv; if (!P || !P.me.char || P.battle) return openChar(false);
     const me = P.me, C = me.char, TR = SIM.TROOPS, m = G.view && G.view.players.find((x) => x.id === G.myPid);
@@ -844,7 +844,7 @@
       const EQ = SIM.EQUIP, E = me.equip || {}, G2 = me.gear || {};
       const desc = (sl, e) => [sl === 'wep' ? `${EQ.kindName[e.kind]}${e.atk ? `・攻撃+${e.atk}` : ''}` : sl === 'arm' ? `守り+${e.da}` : `1日の移動+${e.km}km・荷+${e.cw}kg`, e.wt ? `${e.wt}kg` : ''].filter(Boolean).join('・');
       { const H = SIM.TROOPS.hero, wp = E.wep && EQ.wep[E.wep], ar = E.arm && EQ.arm[E.arm], pl = (b, a) => a ? `${b}<span style="color:#6fbf73">+${a}</span>` : `${b}`;
-        html += `<div class="card" style="display:block"><b>本人の強さ</b>　体力 ${H.hp}　攻撃 ${pl(H.atk, wp && wp.atk)}　守り ${pl(H.def, ar && ar.da)}<br><span class="muted">兵士と比べるときは人物の「兵士図鑑」タブを見てください</span></div>`; } // 0.74.2
+        html += `<div class="card" style="display:block"><b>本人の強さ</b>　体力 ${H.hp}　攻撃 ${pl(H.atk, wp && wp.atk)}　守り ${pl(H.def, ar && ar.da)}<br><span class="muted">兵士と比べるときはメニューの「兵士図鑑」を見てください</span></div>`; } // 0.74.2
       html += `<div class="muted" style="margin-bottom:6px">${loadTxt(me)}<br>目安＝本人${EQ.carry.self}kg＋兵1人${EQ.carry.man}kg（騎馬${EQ.carry.cav}kg）＋馬。超えると移動が遅くなります</div>`;
       html += '<div class="muted">装備中</div>';
       for (const sl of ['wep', 'wep2', 'arm', 'horse']) {
@@ -870,18 +870,6 @@
         const pk = SIM.WPERKS.filter((x) => x.sk === k).map((x) => `<span style="${lv >= x.lv ? 'color:#ffe070' : 'opacity:.5'}">${x.lv} ${x.name}（${x.desc}）</span>`).join('<br>');
         html += `<div class="card" style="display:block"><b>${WS[k].name}</b>　${lv}<span class="muted">　${WS[k].desc}</span><div style="height:6px;background:rgba(0,0,0,.4);margin:4px 0"><div style="height:6px;width:${Math.round(pr * 100)}%;background:#c9a64a"></div></div><span style="font-size:12px">${pk}</span></div>`;
       }
-    } else if (charTab === 'zukan') { // 0.74.2 兵士図鑑：兵種ごとの実数
-      const TRS = SIM.TROOPS, EQ = SIM.EQUIP, E = me.equip || {}, wp = E.wep && EQ.wep[E.wep], ar = E.arm && EQ.arm[E.arm], H = TRS.hero;
-      const WN = { yari: '槍', nagayari: '槍', yarigashira: '槍', kiba: '槍', horo: '槍', yumi: '弓（近いと刀）', teppo: '鉄砲（近いと刀）', teppogashira: '鉄砲（近いと刀）', banditBow: '弓（近いと刀）' };
-      html += '<div class="muted" style="margin-bottom:6px">数値は兵1人あたり。費用は1人を雇う値段、日当は1人1日の給金。速さは戦場での速さ</div>';
-      html += `<div class="card" style="display:block"><b>本人</b>　<span class="muted">いまの装備込み</span><br>体力 ${H.hp}　攻撃 ${Math.round((H.atk + ((wp && wp.atk) || 0)) * 10) / 10}　守り ${H.def + ((ar && ar.da) || 0)}　速さ ${H.spd}${E.horse ? '（馬）' : ''}　武器 ${wp ? wp.name : 'なし'}</div>`;
-      const row = (k) => { const t = TRS[k], up = (t.up || []).map((u) => TRS[u] && TRS[u].name).filter(Boolean);
-        return `<div class="card" style="display:block"><b>${t.name}</b>${t.tier ? `　<span class="muted">${t.tier}段</span>` : ''}${t.cav ? '　<span class="muted">騎馬（林で遅い）</span>' : ''}<br>体力 ${t.hp}　攻撃 ${t.atk}　守り ${t.def}　速さ ${t.spd}　${t.ranged ? `射程 ${t.range}m` : '近接'}　武器 ${WN[k] || '刀'}`
-          + (t.cost ? `<br><span class="muted">費用 ${SIM.money(t.cost)}　日当 ${t.wage}文${up.length ? `　昇格先 ${up.join('・')}` : ''}</span>` : '') + '</div>'; };
-      html += '<div class="muted" style="margin-top:8px">味方の兵</div>';
-      for (const k in TRS) if (TRS[k].cost) html += row(k);
-      html += '<div class="muted" style="margin-top:8px">敵だけの兵</div>';
-      for (const k in TRS) if (k !== 'hero' && !TRS[k].cost) html += row(k);
     } else if (charTab === 'stat') {
       if (me.grow) html += `<div class="muted" style="margin-bottom:4px">成長の型：<b>${me.grow}</b></div>`;
       html += `<div class="muted" style="margin-bottom:6px">能力値（上げられる点：${C.points}）　技能は使うほど伸び、元の能力値が高いほど伸びやすくなります</div>`;
@@ -1133,14 +1121,45 @@
   });
 
   // ---------- ゲーム内メニュー ----------
+  // 1.3.0 兵士図鑑（メニューから開く）
+  function zukanHtml(me) {
+    let html = '';
+      const TRS = SIM.TROOPS, EQ = SIM.EQUIP, E = me.equip || {}, wp = E.wep && EQ.wep[E.wep], ar = E.arm && EQ.arm[E.arm], H = TRS.hero;
+      const WN = { yari: '槍', nagayari: '槍', yarigashira: '槍', kiba: '槍', horo: '槍', yumi: '弓（近いと刀）', teppo: '鉄砲（近いと刀）', teppogashira: '鉄砲（近いと刀）', banditBow: '弓（近いと刀）' };
+      html += '<div class="muted" style="margin-bottom:6px">数値は兵1人あたり。費用は1人を雇う値段、日当は1人1日の給金。速さは戦場での速さ</div>';
+      html += `<div class="card" style="display:block"><b>本人</b>　<span class="muted">いまの装備込み</span><br>体力 ${H.hp}　攻撃 ${Math.round((H.atk + ((wp && wp.atk) || 0)) * 10) / 10}　守り ${H.def + ((ar && ar.da) || 0)}　速さ ${H.spd}${E.horse ? '（馬）' : ''}　武器 ${wp ? wp.name : 'なし'}</div>`;
+      const row = (k) => { const t = TRS[k], up = (t.up || []).map((u) => TRS[u] && TRS[u].name).filter(Boolean);
+        return `<div class="card" style="display:block"><b>${t.name}</b>${t.tier ? `　<span class="muted">${t.tier}段</span>` : ''}${t.cav ? '　<span class="muted">騎馬（林で遅い）</span>' : ''}<br>体力 ${t.hp}　攻撃 ${t.atk}　守り ${t.def}　速さ ${t.spd}　${t.ranged ? `射程 ${t.range}m` : '近接'}　武器 ${WN[k] || '刀'}`
+          + (t.cost ? `<br><span class="muted">費用 ${SIM.money(t.cost)}　日当 ${t.wage}文${up.length ? `　昇格先 ${up.join('・')}` : ''}</span>` : '') + '</div>'; };
+      html += '<div class="muted" style="margin-top:8px">味方の兵</div>';
+      for (const k in TRS) if (TRS[k].cost) html += row(k);
+      html += '<div class="muted" style="margin-top:8px">敵だけの兵</div>';
+      for (const k in TRS) if (k !== 'hero' && !TRS[k].cost) html += row(k);
+    return html;
+  }
+  // 1.3.0 持っている物資（地図で△）
+  function invHtml(me) {
+    const IT = SGK.DATA.items, inv = Object.entries(me.inv || {}).filter(([, n]) => n > 0);
+    let html = `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　${loadTxt(me)}</div>`;
+    if (!inv.length) html += '<div class="card">何も持っていません</div>';
+    for (const [k, n] of inv) { const it = IT[k]; if (!it) continue; html += `<div class="card"><div><b>${it.name}</b>　${n}${it.unit}</div><span class="muted">相場 約${SIM.money(it.base * n)}</span></div>`; }
+    return html;
+  }
   function toggleMenu(open) {
     const m = $('gameMenu'); const o = open ?? m.classList.contains('hidden');
     if (o !== !m.classList.contains('hidden')) SGK.AUDIO.sfx(o ? 'open' : 'close');
-    m.classList.toggle('hidden', !o); $('mMain').classList.remove('hidden'); $('mSet').classList.add('hidden');
+    m.classList.toggle('hidden', !o); $('mMain').classList.remove('hidden'); $('mSet').classList.add('hidden'); $('mSub').classList.add('hidden');
     if (o) setFocus(m, currentFocus(m));
   }
   // B・Esc：設定を開いていればメニューへ戻る、そうでなければ閉じる
-  function menuBack() { if (!$('mSet').classList.contains('hidden')) { $('mSet').classList.add('hidden'); $('mMain').classList.remove('hidden'); setFocus($('gameMenu'), $('mSettings')); } else toggleMenu(false); }
+  // 1.3.0 メニューの中の小さな画面（兵士図鑑・物資）
+  function openSub(kind) {
+    const m = G.priv && G.priv.me; if (!m) return;
+    $('gameMenu').classList.remove('hidden'); $('mMain').classList.add('hidden'); $('mSet').classList.add('hidden'); $('mSub').classList.remove('hidden');
+    G.sub = kind; $('mSubT').textContent = kind === 'inv' ? '持っている物資' : '兵士図鑑'; $('mSubB').innerHTML = kind === 'inv' ? invHtml(m) : zukanHtml(m); $('mSubB').scrollTop = 0;
+    SGK.AUDIO.sfx('open'); setFocus($('gameMenu'), $('mSubBack'));
+  }
+  function menuBack() { if (!$('mSub').classList.contains('hidden')) { if (G.sub === 'inv') toggleMenu(false); else { $('mSub').classList.add('hidden'); $('mMain').classList.remove('hidden'); setFocus($('gameMenu'), $('mZukan')); } return; } if (!$('mSet').classList.contains('hidden')) { $('mSet').classList.add('hidden'); $('mMain').classList.remove('hidden'); setFocus($('gameMenu'), $('mSettings')); } else toggleMenu(false); }
   // ---------- 設定（音・表示／操作説明：地図／操作説明：戦闘） ----------
   const PADS = {
     xbox: { name: 'Xbox系', k: { A: 'A', B: 'B', X: 'X', Y: 'Y', LB: 'LB', RB: 'RB', L3: 'L3（左スティック押し込み）', BACK: 'BACK', START: 'START' } },
@@ -1197,6 +1216,8 @@
   const anyZoom = (k, sx, sy) => (inB() ? bZoom(k, sx, sy) : R.zoom(k, sx, sy));
   $('zoomIn').onclick = () => anyZoom(1.2);
   $('zoomOut').onclick = () => anyZoom(1 / 1.2);
+  $('mZukan').onclick = () => openSub('zukan');
+  $('mSubBack').onclick = () => menuBack();
   $('mFollow').onclick = () => { const m = me(), d = m && (G.disp[m.id] || m); if (d) { R.cam.x = d.x; R.cam.y = d.y; } R.cam.follow = true; if (G.pcurOn) G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; }; // 0.75.0 自分の所へ移って追いかける（カーソルや地図を動かすと解除）
   $('mTitle').onclick = () => backToTitle();
   // テスト用（ホストだけ）
@@ -1319,6 +1340,7 @@
     keys.add(k.toLowerCase());
     if (k === 'Escape') toggleMenu();
     else if (k === 'f' || k === 'F') $('mFollow').click();
+    else if (k === 'i' || k === 'I') openSub('inv'); // 1.3.0 I：持っている物資
     else if (k === 'Tab') { e.preventDefault(); cycleNear(); }
     else if (k === 'e' || k === 'E') openTown(true);
     else if (k === 'p' || k === 'P') openChar(true);
@@ -1446,6 +1468,7 @@
         const m = activeMenu(), sc = [m, ...m.querySelectorAll('*')].find((e) => e.scrollHeight > e.clientHeight + 2 && /(auto|scroll)/.test(getComputedStyle(e).overflowY));
         if (sc) sc.scrollTop += ry * Math.abs(ry) * dt * 900;
       }
+      if (down(3) && !inBattle && !$('mSub').classList.contains('hidden') && G.sub === 'inv') toggleMenu(false);
       if (down(9) && G.mode !== 'title') toggleMenu(inBattle);
     } else if (G.mode === 'host' || G.mode === 'client') {
       // 左スティック：画面のカーソルを動かす（端まで行くと地図が動く）。右スティック：視点
@@ -1483,7 +1506,7 @@
       if (down(8)) openChar(true);
       if (G.mode === 'host' && !infoOpen && (down(14) || down(15))) { const S = [0, 1, 2, 4], i = S.indexOf(G.speed); G.autoPause = 0; G.speed = S[Math.max(0, Math.min(3, i + (down(15) ? 1 : -1)))]; toast(G.speed ? `時間の速さ ×${G.speed}` : '時間を止めました', 900); }
       if (down(2)) cycleNear();
-      if (down(3)) $('mFollow').click();
+      if (down(3)) openSub('inv'); // 1.3.0 △：持っている物資
       if (down(10)) { // L3：カーソルを自分の場所へ戻す（地図も自分に合わせて追従）
         const m = me(), d = m && (G.disp[m.id] || m);
         if (d) { R.cam.x = d.x; R.cam.y = d.y; R.cam.follow = true; G.pcurOn = true; G.pcur = [W / 2, H / 2]; }

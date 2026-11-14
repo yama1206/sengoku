@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="1.2.0">
+<meta name="sgk-ver" content="1.3.0">
 <title>戦国出世</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -56,6 +56,7 @@
   #infoName { font-family:"Hiragino Mincho ProN","Yu Mincho",serif; font-size:20px; color:var(--gold); }
   #infoBody { margin:4px 0 8px; font-size:14px; line-height:1.6; }
   #mSet { width:min(480px,94vw); max-height:88vh; overflow:auto; }
+  #mSub { width:min(520px,94vw); }
   #title #mSet { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
   .setTabs { display:flex; gap:6px; flex-wrap:wrap; }
   .setTabs button { flex:1; }
@@ -192,7 +193,7 @@
   </div>
   <div class="hud hidden" id="char">
     <div class="townHead"><span id="charName"></span><button id="charClose">閉じる</button></div>
-    <div class="row tabs"><button id="ctab-eq" data-ctab="eq">装備</button><button id="ctab-zukan" data-ctab="zukan">兵士図鑑</button><button id="ctab-skill" data-ctab="skill">技能</button><button id="ctab-stat" data-ctab="stat">能力・技能</button><button id="ctab-perk" data-ctab="perk">特技</button><button id="ctab-army" data-ctab="army">部隊・昇格</button><button id="ctab-rank" data-ctab="rank">身分</button><button id="ctab-pol" data-ctab="pol">政策</button><button id="ctab-mon" data-ctab="mon">家紋</button><button id="ctab-hyo" data-ctab="hyo" class="hidden">評定</button></div>
+    <div class="row tabs"><button id="ctab-eq" data-ctab="eq">装備</button><button id="ctab-skill" data-ctab="skill">技能</button><button id="ctab-stat" data-ctab="stat">能力・技能</button><button id="ctab-perk" data-ctab="perk">特技</button><button id="ctab-army" data-ctab="army">部隊・昇格</button><button id="ctab-rank" data-ctab="rank">身分</button><button id="ctab-pol" data-ctab="pol">政策</button><button id="ctab-mon" data-ctab="mon">家紋</button><button id="ctab-hyo" data-ctab="hyo" class="hidden">評定</button></div>
     <div id="charBody"></div>
   </div>
   <div class="hud hidden" id="battle"><div class="bh"><b id="battleTitle"></b><span id="battleInfo"></span></div><div id="battleBody"></div></div>
@@ -222,9 +223,9 @@
         <div class="setTabs" style="margin-top:8px"><button id="stMap">地図での操作</button><button id="stBattle">戦闘での操作</button></div>
       <div id="spMap">
         <h4>キーボード・マウス</h4>
-        <p>左クリック：移動／拠点の情報<br>右クリック：拠点へ移動（自分の上で右クリック：人物）<br>WASD：歩く<br>ドラッグ：地図を動かす　ホイール：拡大<br>Tab：近くの拠点　E：拠点に入る　F：自分へ（追いかける）<br>Esc：メニュー　P：人物</p>
+        <p>左クリック：移動／拠点の情報<br>右クリック：拠点へ移動（自分の上で右クリック：人物）<br>WASD：歩く<br>ドラッグ：地図を動かす　ホイール：拡大<br>Tab：近くの拠点　E：拠点に入る　F：自分へ（追いかける）　I：持っている物資<br>Esc：メニュー　P：人物</p>
         <h4>コントローラー</h4>
-        <p>左スティック：カーソル<br><span class="pk" data-k="A">A</span>：クリック（地面→移動／拠点→選ぶ・もう一度で向かう）<br><span class="pk" data-k="B">B</span>：取消・カーソルを消す<br><span class="pk" data-k="L3">L3</span>：カーソルを自分の場所へ（自分を追いかける。スティックを動かすと解除）<br>右スティック：視点　<span class="pk" data-k="LB">LB</span>/<span class="pk" data-k="RB">RB</span>：拡大<br><span class="pk" data-k="X">X</span>：近くの拠点　<span class="pk" data-k="Y">Y</span>：自分へ<br>十字←→：時間の速さ<br>情報ウインドウ表示中：十字キーでボタンを選ぶ→<span class="pk" data-k="A">A</span><br><span class="pk" data-k="BACK">BACK</span>：人物　<span class="pk" data-k="START">START</span>：メニュー<br>拠点内 <span class="pk" data-k="LB">LB</span>/<span class="pk" data-k="RB">RB</span>：タブ切替</p>
+        <p>左スティック：カーソル<br><span class="pk" data-k="A">A</span>：クリック（地面→移動／拠点→選ぶ・もう一度で向かう）<br><span class="pk" data-k="B">B</span>：取消・カーソルを消す<br><span class="pk" data-k="L3">L3</span>：カーソルを自分の場所へ（自分を追いかける。スティックを動かすと解除）<br>右スティック：視点　<span class="pk" data-k="LB">LB</span>/<span class="pk" data-k="RB">RB</span>：拡大<br><span class="pk" data-k="X">X</span>：近くの拠点　<span class="pk" data-k="Y">Y</span>：持っている物資<br>十字←→：時間の速さ<br>情報ウインドウ表示中：十字キーでボタンを選ぶ→<span class="pk" data-k="A">A</span><br><span class="pk" data-k="BACK">BACK</span>：人物　<span class="pk" data-k="START">START</span>：メニュー<br>拠点内 <span class="pk" data-k="LB">LB</span>/<span class="pk" data-k="RB">RB</span>：タブ切替</p>
       </div>
       <div class="hidden" id="spBattle">
         <h4>キーボード・マウス（3D：画面をクリックしてマウスで視点）</h4>
@@ -235,11 +236,13 @@
       </div>
       <button id="stBack">戻る</button>
     </div>
+    <div class="menu hidden" id="mSub"><h3 id="mSubT"></h3><div id="mSubB" style="max-height:65vh;overflow-y:auto;text-align:left"></div><button id="mSubBack">戻る</button></div>
     <div class="menu" id="mMain">
       <div id="roomInfo"></div>
       <button id="mClose">ゲームに戻る</button>
       <button id="mSettings">設定（音・操作説明）</button>
       <button id="mChar">人物・部隊</button>
+      <button id="mZukan">兵士図鑑</button>
       <button id="mFollow" class="hidden">自分へ</button>
       <button id="mSave" class="hostOnly">セーブ</button>
       <button id="mExport" class="hostOnly">セーブをファイルに書き出す</button>
