@@ -10,15 +10,15 @@
     // tier：兵の格。up：昇格先（兵種ツリー）
     nohei: { name: '農兵', short: '農', tier: 1, hp: 8, atk: 1.4, def: 0, spd: 4, range: 2.5, cost: 150, wage: 6, up: ['yari', 'yumi'] },
     yari: { name: '足軽（槍）', short: '槍', tier: 2, hp: 10, atk: 2, def: 1, spd: 4, range: 2.5, cost: 300, wage: 10, up: ['nagayari', 'kiba'] },
-    yumi: { name: '弓足軽', short: '弓', tier: 2, hp: 8, atk: 1.5, def: 0, spd: 4, range: 35, ranged: true, cost: 500, wage: 15, up: ['teppo'] },
+    yumi: { name: '弓足軽', short: '弓', tier: 2, hp: 7, atk: 1.5, def: 0, spd: 4, range: 35, ranged: true, cost: 500, wage: 15, up: ['teppo'] },
     nagayari: { name: '長槍足軽', short: '長槍', tier: 3, hp: 12, atk: 2.6, def: 1.5, spd: 4, range: 3.5, cost: 700, wage: 18, up: ['yarigashira'] },
     kiba: { name: '騎馬武者', short: '騎', tier: 3, hp: 18, atk: 4, def: 2, spd: 12, range: 4, cav: true, cost: 750, wage: 40, fame: 5, up: ['horo'] },
-    teppo: { name: '鉄砲足軽', short: '鉄砲', tier: 3, hp: 8, atk: 3, def: 0, spd: 3.5, range: 40, ranged: true, cost: 1000, wage: 25, up: ['teppogashira'] },
+    teppo: { name: '鉄砲足軽', short: '鉄砲', tier: 3, hp: 7, atk: 3, def: 0, spd: 3.5, range: 40, ranged: true, cost: 1000, wage: 25, up: ['teppogashira'] },
     yarigashira: { name: '槍組頭', short: '組頭', tier: 4, hp: 15, atk: 3.4, def: 2.2, spd: 4.2, range: 3.5, cost: 1200, wage: 30 },
-    teppogashira: { name: '鉄砲頭', short: '鉄砲頭', tier: 4, hp: 10, atk: 4, def: 0.5, spd: 3.5, range: 45, ranged: true, cost: 1800, wage: 40 },
+    teppogashira: { name: '鉄砲頭', short: '鉄砲頭', tier: 4, hp: 9, atk: 4, def: 0.5, spd: 3.5, range: 45, ranged: true, cost: 1800, wage: 40 },
     horo: { name: '母衣衆', short: '母衣', tier: 4, hp: 24, atk: 5, def: 3, spd: 13, range: 4, cav: true, cost: 3000, wage: 70, fame: 15 },
     bandit: { name: '野盗', hp: 10, atk: 2.0, def: 0, spd: 4.5, range: 2.5 },
-    banditBow: { name: '野盗（弓）', hp: 7, atk: 1.4, def: 0, spd: 4.5, range: 30, ranged: true },
+    banditBow: { name: '野盗（弓）', hp: 6, atk: 1.4, def: 0, spd: 4.5, range: 30, ranged: true },
   };
   SIM.HIRE = ['nohei', 'yari', 'yumi', 'kiba'];
   // 拠点ごとに雇える兵（1日の補充数・上限）
@@ -282,7 +282,7 @@
     const goTo = (u, x, y, spd) => { const d = Math.hypot(x - u.x, y - u.y); if (d < 0.3) return true; const s = Math.min(spd * dt, d); u.x += ((x - u.x) / d) * s; u.y += ((y - u.y) / d) * s; u.f = Math.atan2(y - u.y, x - u.x); return false; };
     for (const u of us) {
       const t = TR[u.type], tu = terAt(b, u);
-      const spd = t.spd * (t.cav && tu.f ? SIM.CAV_FOREST : 1) * (tu.h ? 0.85 : 1) * (tu.m ? 0.4 : 1) * (tu.s ? (t.cav ? 0.3 : 0.5) : 1);
+      const gen = u.type === 'hero' && !u.owner && !u.cmd, spd = (gen ? TR.kiba.spd : t.spd) * ((t.cav || gen) && tu.f ? SIM.CAV_FOREST : 1) // 0.73.8 CPUの武将は騎馬 * (tu.h ? 0.85 : 1) * (tu.m ? 0.4 : 1) * (tu.s ? (t.cav ? 0.3 : 0.5) : 1);
       if (u.order === 'retreat' || u.order === 'rout') {
         const ex = u.side === 'A' ? -4 : FIELD.w + 4; u.x += Math.sign(ex - u.x) * spd * (u.order === 'rout' ? 1.1 : 1) * dt; u.f = u.side === 'A' ? Math.PI : 0;
         if ((u.side === 'A' && u.x < FIELD.ax - 120) || (u.side === 'B' && u.x > FIELD.bx + 120) || u.x < 1 || u.x > FIELD.w - 1) u.gone = true; // 120m 退けば戦場を離れる
@@ -310,7 +310,7 @@
       }
       // 攻撃
       turnTo(u, Math.atan2(e.y - u.y, e.x - u.x), (t.cav ? 1.6 : 0.9) * dt);
-      if (angDiff(u.f, Math.atan2(e.y - u.y, e.x - u.x)) > atkHalf(u) + Math.atan2(rad(e), ed || 1)) { if (u.order === 'move' && goTo(u, u.mx, u.my, spd * 0.7)) u.order = 'hold'; continue; } // 0.33.1 攻撃は前方の扇形だけ（向き直ってから）
+      if (angDiff(u.f, Math.atan2(e.y - u.y, e.x - u.x)) > atkHalf(u) + Math.atan2(rad(e), ed || 1)) { if (u.order === 'move' && goTo(u, u.mx, u.my, spd)) u.order = 'hold'; continue; } // 0.33.1 攻撃は前方の扇形だけ（向き直ってから）
       const te = terAt(b, e), T2 = TR[e.type];
       const per = Math.max(0.25, t.atk * (u.am || 1) - (T2.def + (e.da || 0)) * 0.5);
       let mul = 1;
@@ -336,7 +336,7 @@
       if (dir !== 'front' || unseen) hit.set(e, Math.max(hit.get(e) || 0, dir === 'rear' || unseen ? 2 : 1));
       if (t.ranged) u.shot = b.t;
       if (u.owner) { const key = u.type === 'hero' ? 'hd' : t.ranged ? 'rd' : null; if (key) { b[key] = b[key] || {}; b[key][u.owner] = (b[key][u.owner] || 0) + d; } }
-      if (u.order === 'move' && goTo(u, u.mx, u.my, spd * 0.7)) u.order = 'hold'; // 移動中も届く敵には自動で攻撃する
+      if (u.order === 'move' && goTo(u, u.mx, u.my, spd)) u.order = 'hold'; // 移動中も届く敵には自動で攻撃する（0.73.8 移動の指示を優先して速さは落とさない）
     }
     // 味方同士が重ならないように押し合う
     for (let i = 0; i < us.length; i++) for (let j = i + 1; j < us.length; j++) {

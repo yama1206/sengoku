@@ -6,27 +6,27 @@
   const EQ = SIM.EQUIP = {
     wep: {
       yari1: { name: '素槍', kind: 'yari', cost: 0, am: 0 },
-      yari2: { name: '大身槍', kind: 'yari', cost: 3000, am: 0.25, fx: { troopAtk: 0.05 } },
-      yari3: { name: '名槍', kind: 'yari', cost: 12000, am: 0.5, castle: true, fx: { troopAtk: 0.1, troopDef: 0.5 } },
-      tachi1: { name: '太刀', kind: 'tachi', cost: 1500, am: 0.1, fx: { heroHp: 5 } },
-      tachi2: { name: '大太刀', kind: 'tachi', cost: 4000, am: 0.3, fx: { cavAtk: 0.1 } },
-      tachi3: { name: '名刀', kind: 'tachi', cost: 14000, am: 0.55, castle: true, fx: { cavAtk: 0.2, heroDef: 1 } },
+      yari2: { name: '大身槍', kind: 'yari', cost: 3000, am: 0.25 },
+      yari3: { name: '名槍', kind: 'yari', cost: 12000, am: 0.5, castle: true },
+      tachi1: { name: '太刀', kind: 'tachi', cost: 1500, am: 0.1 },
+      tachi2: { name: '大太刀', kind: 'tachi', cost: 4000, am: 0.3 },
+      tachi3: { name: '名刀', kind: 'tachi', cost: 14000, am: 0.55, castle: true },
       yumi1: { name: '半弓', kind: 'yumi', cost: 1000, am: 0 },
-      yumi2: { name: '重籐弓', kind: 'yumi', cost: 3500, am: 0.25, fx: { rangedAtk: 0.08 } },
-      yumi3: { name: '名弓', kind: 'yumi', cost: 12000, am: 0.5, castle: true, fx: { rangedAtk: 0.15, rangedRange: 5 } },
+      yumi2: { name: '重籐弓', kind: 'yumi', cost: 3500, am: 0.25 },
+      yumi3: { name: '名弓', kind: 'yumi', cost: 12000, am: 0.5, castle: true },
       teppo1: { name: '火縄銃', kind: 'teppo', cost: 3000, am: 0.1 },
-      teppo2: { name: '堺筒', kind: 'teppo', cost: 7000, am: 0.3, fx: { rangedAtk: 0.1 } },
-      teppo3: { name: '国友の名銃', kind: 'teppo', cost: 16000, am: 0.55, castle: true, fx: { rangedAtk: 0.2, rangedRange: 5 } },
+      teppo2: { name: '堺筒', kind: 'teppo', cost: 7000, am: 0.3 },
+      teppo3: { name: '国友の名銃', kind: 'teppo', cost: 16000, am: 0.55, castle: true },
     },
     arm: {
-      arm1: { name: '胴丸', cost: 1500, da: 0.5, hm: 0.1 },
-      arm2: { name: '当世具足', cost: 5000, da: 1, hm: 0.25, fx: { troopCap: 5 } },
-      arm3: { name: '名甲冑', cost: 16000, da: 1.6, hm: 0.4, castle: true, fx: { troopCap: 10, troopDef: 0.5 } },
+      arm1: { name: '胴丸', cost: 1500, da: 1 }, // 0.73.8 防具は守りだけ（体力の上乗せは無し）
+      arm2: { name: '当世具足', cost: 5000, da: 2 },
+      arm3: { name: '名甲冑', cost: 16000, da: 3, castle: true },
     },
     horse: {
       horse1: { name: '駄馬', cost: 2000, km: 4 },
-      horse2: { name: '駿馬', cost: 6000, km: 7, fx: { cavAtk: 0.05 } },
-      horse3: { name: '名馬', cost: 18000, km: 10, castle: true, fx: { cavAtk: 0.1, troopCap: 5 } },
+      horse2: { name: '駿馬', cost: 6000, km: 7 },
+      horse3: { name: '名馬', cost: 18000, km: 10, castle: true },
     },
     slotName: { wep: '武器', wep2: '副武器', arm: '防具', horse: '馬' },
     kindName: { yari: '槍', tachi: '太刀', yumi: '弓', teppo: '鉄砲' },
@@ -55,7 +55,7 @@
     const m = baseMods(w, pid, type), p = w.players[pid];
     if (type !== 'hero' || !p) return m;
     const e = eqOf(p), wp = item('wep', e.wep), ar = item('arm', e.arm);
-    return Object.assign({}, m, { am: m.am * (1 + ((wp && wp.am) || 0)), da: m.da + ((ar && ar.da) || 0), hm: m.hm * (1 + ((ar && ar.hm) || 0)) });
+    return Object.assign({}, m, { am: m.am * (1 + ((wp && wp.am) || 0)), da: m.da + ((ar && ar.da) || 0), hm: m.hm });
   };
   const baseSpd = SIM.speedBonus;
   SIM.speedBonus = (p) => { const h = item('horse', eqOf(p).horse); return baseSpd(p) + ((h && h.km) || 0); };

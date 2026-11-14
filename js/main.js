@@ -647,7 +647,7 @@
         if (E.wep2) html += `<div class="row" style="margin:4px 0"><button id="eqSwap" data-act="swapWep">主の武器と副武器を入れ替える</button></div>`;
         for (const [sl, id] of h.shop) {
           const e = EQ[sl][id], have = E[sl] === id, old = E[sl] && EQ[sl][E[sl]], back = old ? Math.floor(old.cost * EQ.sell) : 0;
-          const ex = SIM.eqFxText(e), eff = (sl === 'wep' ? `${EQ.kindName[e.kind]}・${EQ.groupName[e.kind]}に入る${e.am ? `・本人の攻撃+${Math.round(e.am * 100)}%` : ''}` : sl === 'arm' ? `守り+${e.da}・体力+${Math.round(e.hm * 100)}%` : `1日の移動+${e.km}km`) + (ex ? `<br><b style="color:#e8c46a">${ex}</b>` : '');
+          const ex = SIM.eqFxText(e), eff = (sl === 'wep' ? `${EQ.kindName[e.kind]}・${EQ.groupName[e.kind]}に入る${e.am ? `・本人の攻撃+${Math.round(e.am * 100)}%` : ''}` : sl === 'arm' ? `守り+${e.da}` : `1日の移動+${e.km}km`) + (ex ? `<br><b style="color:#e8c46a">${ex}</b>` : '');
           const own2 = sl === 'wep' && E.wep2 === id, o2 = sl === 'wep' && E.wep2 && EQ.wep[E.wep2], back2 = o2 ? Math.floor(o2.cost * EQ.sell) : 0;
           const b2 = sl === 'wep' ? `<button id="eq2-${id}" data-act="buyEquip" data-kind="wep2" data-id="${id}" ${have || own2 || me.money + back2 < e.cost ? 'disabled' : ''}>${own2 ? '副で装備中' : '副武器に買う'}</button>` : '';
           html += `<div class="card"><div><b>${e.name}</b>　<span class="muted">${EQ.slotName[sl]}　${SIM.money(e.cost)}${back && !have ? `（下取り${SIM.money(back)}）` : ''}<br>${eff}</span></div><div class="row"><button id="eq-${id}" data-act="buyEquip" data-kind="${sl}" data-id="${id}" ${have || own2 || me.money + back < e.cost ? 'disabled' : ''}>${have ? '装備中' : sl === 'wep' ? '主に買う' : '買う'}</button>${b2}</div></div>`;
@@ -813,7 +813,7 @@
       for (const [sl, id] of [['wep', E.wep], ['wep', E.wep2], ['arm', E.arm], ['horse', E.horse]]) {
         const e = id && EQ[sl][id], lab = id && id === E.wep2 && sl === 'wep' && id !== E.wep ? '副武器（持ち替えると効く）' : EQ.slotName[sl];
         if (!e) { if (id !== E.wep2) html += `<div class="card"><div><b>${lab}</b>　<span class="muted">なし</span></div></div>`; continue; }
-        const base = sl === 'wep' ? (e.am ? `本人の攻撃+${Math.round(e.am * 100)}%` : '') : sl === 'arm' ? `守り+${e.da}・体力+${Math.round(e.hm * 100)}%` : `1日の移動+${e.km}km`, ex = SIM.eqFxText(e);
+        const base = sl === 'wep' ? (e.am ? `本人の攻撃+${Math.round(e.am * 100)}%` : '') : sl === 'arm' ? `守り+${e.da}` : `1日の移動+${e.km}km`, ex = SIM.eqFxText(e);
         html += `<div class="card" style="display:block"><b>${lab}</b>　${e.name}<br><span class="muted">${[base, ex].filter(Boolean).join('・') || '特になし'}</span></div>`;
       }
     } else if (charTab === 'stat') {
