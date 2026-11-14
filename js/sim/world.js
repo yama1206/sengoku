@@ -33,7 +33,7 @@
     };
     const towns = w.settlements.filter((s) => s.type !== 'castle');
     const castles = w.settlements.filter((s) => s.type === 'castle');
-    towns.forEach((s) => SIM.spawnNpc(w, 'merchant', null, s));
+    towns.filter((s) => !s.castle).forEach((s) => SIM.spawnNpc(w, 'merchant', null, s)); // 1.6.24 城ごとに足した村には行商人を出さない（重くならないように）
     castles.forEach((s) => SIM.spawnNpc(w, 'patrol', s.owner, s));
     return SIM.ensure(w);
   };

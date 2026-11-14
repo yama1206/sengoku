@@ -52,13 +52,13 @@
     for (const k in D.people) if (!w.people[k]) w.people[k] = JSON.parse(JSON.stringify(D.people[k]));
     for (const d of D.settlements) {
       let s = w.settlements.find((x) => x.id === d.id);
-      if (!s) { s = JSON.parse(JSON.stringify(d)); w.settlements.push(s); SIM.spawnNpc(w, s.type === 'castle' ? 'patrol' : 'merchant', s.type === 'castle' ? s.owner : null, s); }
+      if (!s) { s = JSON.parse(JSON.stringify(d)); w.settlements.push(s); const cs = d.castle && w.settlements.find((x) => x.id === d.castle); if (cs) s.owner = cs.owner; /* 1.6.24 足した村は今の城の持ち主に。行商人は増やさない */ if (!d.castle) SIM.spawnNpc(w, s.type === 'castle' ? 'patrol' : 'merchant', s.type === 'castle' ? s.owner : null, s); }
       s.x = d.x; s.y = d.y;
     }
   }
   SIM.ensurePlayer = (p) => { if (p.money == null) p.money = 3000; p.inv = p.inv || {}; p.quests = p.quests || []; if (p.fame == null) p.fame = 0; if (p.busy === undefined) p.busy = null; };
 
-  const pm = (s, k) => (s.prod[k] || 0) * (s.type === 'village' ? 1.5 : 1) * /* 1.6.23 村の生産1.5倍 */ (SIM.prodMul ? SIM.prodMul(s) : 1) * (SIM.prodItemMul ? SIM.prodItemMul(s, k) : 1); // 0.71.0 政策・豊作凶作 // 0.41.0 投資で生産が増える
+  const pm = (s, k) => (s.prod[k] || 0) * (s.type === 'village' ? 0.6 : 1) * /* 1.6.24 村が増えたので村1つの生産は0.6倍 */ (SIM.prodMul ? SIM.prodMul(s) : 1) * (SIM.prodItemMul ? SIM.prodItemMul(s, k) : 1); // 0.71.0 政策・豊作凶作 // 0.41.0 投資で生産が増える
   // 0.70.0 人が多い拠点ほどよく使う（人口の比の平方根で増える）
   const sz = (s) => s.size * Math.sqrt(SIM.popF ? SIM.popF(s) : 1);
   function target(s, k) { return (I()[k].cons * sz(s) + pm(s, k)) * 12 + 4; }
