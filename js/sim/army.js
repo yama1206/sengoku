@@ -211,6 +211,10 @@
     if (!SIM.troopCount(tally)) { SIM.say(p.id, `加勢の兵は討たれるか散り散りになりました（${p.allies.gens.join('・')}は城へ戻りました）`); p.allies = null; }
   }
   function garLeft(b) { const g = {}; for (const u of b.units) if (u.gar && u.hp > 0 && !u.gone) g[u.type] = (g[u.type] || 0) + u.n; return g; }
+  function reliefDone(w, b, n, p) { // 1.6.30 援軍との野戦に負けた・退いた
+    for (const q of [p, ...(b.pids || []).map((i) => w.players[i])]) { if (q && q.siege) { const s = SIM.settlement(w, q.siege.sid); q.siege = null; SIM.say(q.id, `援軍に敗れ、${s ? s.name : ''}の攻城戦の準備が崩れました`); } }
+    if (w.npcs[n.id]) { n.battle = null; goHome(w, n); }
+  }
   const baseEnd = SIM.onBattleEnd;
   SIM.onBattleEnd = (w, b, p, res, after) => {
     baseEnd(w, b, p, res, after);
@@ -224,6 +228,7 @@
     if (b.siege && res === 'win') p.siege = null;
     if (!b.war || b.siege) return;
     const n = w.npcs[b.npc];
+    if (n && n.mode === 'relief' && res !== 'win') reliefDone(w, b, n, p); /* 1.6.30 援軍に負けたら攻城戦の準備は崩れ、援軍は帰る */
     if (res === 'win' && p.clan) { SIM.addMerit && SIM.addMerit(w, p, 40 + b.foeN * 0.8, b.defend ? '城を守り抜いた' : `${b.foe}を打ち破った`); p.fame += 2; }
     if (b.sDone) return; b.sDone = 1;
     if (b.defend) {
@@ -244,7 +249,10 @@
   SIM.commands.battleFlee = (w, p, c) => {
     const b = w.battles[p.battle]; if (!b) return;
     const al = p.allies ? scale(allyTally(b, p.id), 0.7) : null;
+    const rn = w.npcs[b.npc];
     baseFlee(w, p, c);
+    if (rn && rn.mode === 'relief' && p.siege) { p.siege = null; SIM.say(p.id, '援軍から退いたため、攻城戦の準備が崩れました'); } /* 1.6.30 */
+    if (rn && rn.mode === 'relief' && !w.battles[b.id] && w.npcs[rn.id]) { rn.battle = null; goHome(w, rn); }
     if (al) allyBack(p, al);
     p.camp = null;
     if (b.allyArmy && !w.battles[b.id]) { // 0.50.0 参陣した人がみな退いた：軍勢だけで攻め直す
