@@ -1031,11 +1031,16 @@
   if (!PADS[padStyle]) padStyle = 'xbox';
   function applyPad() { const P = PADS[padStyle]; $('mPad').textContent = `コントローラー表示：${P.name}`; document.querySelectorAll('.pk').forEach((e) => (e.textContent = P.k[e.dataset.k] || e.dataset.k)); }
   $('mPad').onclick = () => { const ks = Object.keys(PADS); padStyle = ks[(ks.indexOf(padStyle) + 1) % ks.length]; try { localStorage.setItem('sgk-pad', padStyle); } catch (e) {} applyPad(); };
+  // 0.69.1 タブ：サウンド／ビデオ／操作（操作の中は 地図／戦闘 の小タブ）
   function setSetTab(id) {
-    [['stSound', 'spSound'], ['stMap', 'spMap'], ['stBattle', 'spBattle']].forEach(([b, p]) => { $(b).classList.toggle('on', b === id); $(p).classList.toggle('hidden', b !== id); });
+    if (id === 'stMap' || id === 'stBattle') { setCtrlTab(id); id = 'stCtrl'; }
+    [['stSound', 'spSound'], ['stVideo', 'spVideo'], ['stCtrl', 'spCtrl']].forEach(([b, p]) => { $(b).classList.toggle('on', b === id); $(p).classList.toggle('hidden', b !== id); });
   }
-  ['stSound', 'stMap', 'stBattle'].forEach((id) => ($(id).onclick = () => setSetTab(id)));
-  $('mSettings').onclick = () => { act3dLbl(); $('mMain').classList.add('hidden'); $('mSet').classList.remove('hidden'); setSetTab(G.priv && G.priv.battle ? 'stBattle' : 'stMap'); setFocus($('gameMenu'), $(G.priv && G.priv.battle ? 'stBattle' : 'stMap')); };
+  function setCtrlTab(id) { [['stMap', 'spMap'], ['stBattle', 'spBattle']].forEach(([b, p]) => { $(b).classList.toggle('on', b === id); $(p).classList.toggle('hidden', b !== id); }); }
+  ['stSound', 'stVideo', 'stCtrl'].forEach((id) => ($(id).onclick = () => setSetTab(id)));
+  ['stMap', 'stBattle'].forEach((id) => ($(id).onclick = () => setCtrlTab(id)));
+  setCtrlTab('stMap');
+  $('mSettings').onclick = () => { act3dLbl(); $('mMain').classList.add('hidden'); $('mSet').classList.remove('hidden'); setSetTab(G.priv && G.priv.battle ? 'stBattle' : 'stMap'); setFocus($('gameMenu'), $('stCtrl')); };
   $('stBack').onclick = () => (G.mode === 'title' ? titleBack() : menuBack());
   // 0.69.0 タイトル画面からも設定を開く（ゲーム内メニューの設定画面をタイトルへ移して使う）
   $('btnSettings').onclick = () => { $('title').insertBefore($('mSet'), $('titleMsg')); $('mSet').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); setSetTab('stSound'); act3dLbl(); setFocus($('mSet'), $('stSound')); };
