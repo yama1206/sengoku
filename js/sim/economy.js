@@ -60,7 +60,12 @@
   SIM.ensurePlayer = (p) => { if (p.money == null) p.money = 3000; p.inv = p.inv || {}; p.quests = p.quests || []; if (p.fame == null) p.fame = 0; if (p.busy === undefined) p.busy = null; };
 
   const pm = (s, k) => (s.prod[k] || 0) * (SIM.prodMul ? SIM.prodMul(s) : 1); // 0.41.0 投資で生産が増える
-  function target(s, k) { return (I()[k].cons * s.size + pm(s, k)) * 12 + 4; }
+  // 0.70.0 人が多い拠点ほどよく使う（人口の比の平方根で増える）
+  const sz = (s) => s.size * Math.sqrt(SIM.popF ? SIM.popF(s) : 1);
+  function target(s, k) { return (I()[k].cons * sz(s) + pm(s, k)) * 12 + 4; }
+  SIM.stockTarget = target;
+  // 0.70.0 物資のそろい具合（0〜1.3）。品ごとに 在庫÷目安 を1.3までで平均。米は2倍に数える
+  SIM.supplyF = (s) => { if (!s || !s.stock) return 1; let a = 0, n = 0; for (const k in I()) { const wt = k === 'rice' ? 2 : 1; a += Math.min(1.3, s.stock[k] / target(s, k)) * wt; n += wt; } return n ? a / n : 1; };
   SIM.price = (s, k) => { const b = I()[k].base; return Math.max(b * 0.4, Math.min(b * 3, b * Math.sqrt(target(s, k) / (s.stock[k] + 1)))); };
   SIM.cargoPrice = (k, p) => Math.ceil(I()[k].base * 0.95 * (p && SIM.tradeMod ? SIM.tradeMod(p, 'buy') : 1));
   SIM.buyPrice = (s, k, p) => Math.ceil(SIM.price(s, k) * 1.1 * (p && SIM.tradeMod ? SIM.tradeMod(p, 'buy') : 1));
@@ -89,7 +94,7 @@
   // ---- 1日ごとの処理 ----
   function daily(w) {
     const now = w.time.min;
-    for (const s of w.settlements) for (const k in I()) { const t = target(s, k); s.stock[k] = Math.max(0, s.stock[k] + pm(s, k) - I()[k].cons * s.size); if (s.stock[k] > t * 1.3) s.stock[k] -= (s.stock[k] - t * 1.3) * 0.25; } // 目安の1.3倍を超えた分は傷んだり蔵からよそへ流れたりして減る
+    for (const s of w.settlements) for (const k in I()) { const t = target(s, k); s.stock[k] = Math.max(0, s.stock[k] + pm(s, k) - I()[k].cons * sz(s)); if (s.stock[k] > t * 1.3) s.stock[k] -= (s.stock[k] - t * 1.3) * 0.25; } // 目安の1.3倍を超えた分は傷んだり蔵からよそへ流れたりして減る
     share(w);
     for (const j of Object.values(w.jobs)) if (j.expires < now) delete w.jobs[j.id];
     for (const s of w.settlements) {

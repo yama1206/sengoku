@@ -167,7 +167,7 @@
   const mineInc = (m) => KN.mineInc[m.k];
 
   // ---- 0.52.0 人口：拠点ごとの人の数。増えると年貢・兵の集まりが増える ----
-  KN.popGrow = 0.006; KN.popGrowInv = 0.003; KN.popCapInv = 0.3; KN.popSiege = 0.04; KN.popWar = 0.002; KN.popCapture = 0.15;
+  KN.popGrow = 0.006; KN.popGrowInv = 0.003; KN.popCapInv = 0.3; KN.popSiege = 0.04; KN.popWar = 0.002; KN.popCapture = 0.15; KN.popSup = 0.02; KN.popSupCap = 0.5;
   SIM.popBase = (s) => {
     let h = 0; for (const c of String(s.id)) h = (h * 31 + c.charCodeAt(0)) % 9973;
     if (s.id === 'kyo') return 30000;
@@ -180,8 +180,10 @@
     const warring = new Set(); for (const k of Object.keys(w.wars || {})) for (const x of k.split('|')) warring.add(x);
     for (const s of w.settlements) {
       if (s.site) continue;
-      const base = SIM.popBase(s), cap = base * (1 + (s.inv || 0) * KN.popCapInv);
-      let g = KN.popGrow + (s.inv || 0) * KN.popGrowInv - (warring.has(s.owner) ? KN.popWar : 0);
+      // 0.70.0 物資が多いほど早く増え、上限も上がる（行商で物を運ぶと国が育つ）。足りないと減る
+      const sf = SIM.supplyF ? SIM.supplyF(s) : 1;
+      const base = SIM.popBase(s), cap = base * (1 + (s.inv || 0) * KN.popCapInv) * (0.75 + KN.popSupCap * sf);
+      let g = KN.popGrow + (s.inv || 0) * KN.popGrowInv + KN.popSup * (sf - 0.7) - (warring.has(s.owner) ? KN.popWar : 0);
       if (s.pop > cap) g = Math.min(g, -0.02);
       if (SIM.besieged && SIM.besieged(w, s.id)) g = -KN.popSiege;
       s.pop = Math.max(Math.round(base * 0.3), Math.round(s.pop * (1 + g)));
@@ -190,7 +192,7 @@
   const baseEnsure = SIM.ensure;
   SIM.ensure = (w) => { baseEnsure(w); for (const s of w.settlements) if (s.pop == null && !s.site) s.pop = SIM.popBase(s); return w; };
   const baseDyn = SIM.dynamicState;
-  SIM.dynamicState = (w, pid) => { const d = baseDyn(w, pid); if (Math.floor(w.time.min / 15) % 40 === 0 || !w._ppSent) { w._ppSent = 1; d.pp = Object.fromEntries(w.settlements.filter((s) => s.pop).map((s) => [s.id, s.pop])); } return d; };
+  SIM.dynamicState = (w, pid) => { const d = baseDyn(w, pid); if (Math.floor(w.time.min / 15) % 40 === 0 || !w._ppSent) { w._ppSent = 1; d.pp = Object.fromEntries(w.settlements.filter((s) => s.pop).map((s) => [s.id, s.pop])); d.ps = Object.fromEntries(w.settlements.filter((s) => s.pop && s.stock).map((s) => [s.id, Math.round(SIM.supplyF(s) * 100)])); } return d; };
 
   // ---- 0.53.0 湊：海や川の船着き場のある町。領内の年貢・町を治めたときの年貢が多めに入る ----
   KN.minatoMul = { 1: 1.5, 2: 2 }; // 1=湊町 2=大湊（南蛮・明との商いでにぎわう）

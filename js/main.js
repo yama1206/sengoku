@@ -428,7 +428,7 @@
           extra: n.kind === 'bushou' ? n.purpose : n.kind === 'ronin' ? [n.need, n.fee] : null, lead: SIM.npcLead ? SIM.npcLead(w, n) : null })) };
     } else if (G.mode === 'client' && G.dyn) {
       const d = G.dyn, s = G.stat;
-      if (d.pp) G.pp = d.pp; // 0.52.0 人口
+      if (d.pp) G.pp = d.pp; if (d.ps) G.ps = d.ps; // 0.52.0 人口（0.70.0 物資のそろい具合も）
       if ((d.rv || 0) !== (G.rv || 0)) { G.rv = d.rv || 0; SIM.applyRoads(d.ra || []); } // 0.40.0 普請でできた道
       G.view = {
         t: d.t, sr: d.sr, settlements: withOwners(d.ns && d.ns.length ? s.settlements.filter((x) => !d.ns.some((n) => n.id === x.id)).concat(d.ns) : s.settlements, d.ow),
@@ -459,7 +459,7 @@
     const ho = holders()[s.id];
     $('infoBody').innerHTML = `${kind}${s.site ? `（普請中 ${Math.floor(s.site.prog * 100)}%）` : ''}　勢力：<b style="color:${f ? f.color : '#ccc'}">${f ? f.name : 'なし'}</b>${(() => { const fb = SIM.factionBuff(G.view.factions, s.owner); return fb ? `<span class="muted">（得意：${fb.name}・${fb.text}）</span>` : ''; })()}<br>城主・代官：${ho ? `<b>${ho}</b>（プレイヤー）` : lord || '（不明）'}`;
     { const ry = SIM.ryoOf && SIM.ryoOf(s.id), rc = ry && G.view.settlements.find((x) => x.id === ry); // 0.52.0 城と村・町のつながり
-      { const pop = (G.mode === 'client' ? G.pp && G.pp[s.id] : ((G.world && G.world.settlements.find((x) => x.id === s.id)) || {}).pop); if (pop) $('infoBody').innerHTML += `<br>人口 約${(Math.round(pop / 10) * 10).toLocaleString()}人`; }
+      { const pop = (G.mode === 'client' ? G.pp && G.pp[s.id] : ((G.world && G.world.settlements.find((x) => x.id === s.id)) || {}).pop); if (pop) { const ws = G.world && G.world.settlements.find((x) => x.id === s.id), sf = G.mode === 'client' ? (G.ps && G.ps[s.id]) / 100 : ws && SIM.supplyF ? SIM.supplyF(ws) : null; const sl = sf == null || isNaN(sf) ? '' : sf >= 1.05 ? '　物資：豊富（人が増えやすい）' : sf >= 0.75 ? '　物資：ふつう' : sf >= 0.45 ? '　物資：不足（人が増えにくい）' : '　物資：困窮（人が減る）'; $('infoBody').innerHTML += `<br>人口 約${(Math.round(pop / 10) * 10).toLocaleString()}人${sl}`; } }
       if (SIM.minato && SIM.minato(s)) $('infoBody').innerHTML += `<br>⚓ ${SIM.minatoName(s)}（年貢×${SIM.minatoMul(s)}）`;
       if (rc) $('infoBody').innerHTML += `<br>${rc.name}の領内`;
       if (s.type === 'castle') { const ls = G.view.settlements.filter((v) => SIM.ryoOf(v.id) === s.id); if (ls.length) $('infoBody').innerHTML += `<br>領内：${ls.map((v) => v.name + (SIM.minato(v) ? '⚓' : '') + (v.owner !== s.owner ? '（他家）' : '')).join('・')}`; const ms = SIM.minesOf(s); if (ms.length) $('infoBody').innerHTML += `<br>鉱山：${ms.map((m) => m.name + `（月+${SIM.money(SIM.KUNI.mineInc[m.k])}）`).join('・')}`; } }
