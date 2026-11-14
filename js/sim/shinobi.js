@@ -16,6 +16,7 @@
     jobs: {
       sabo: { name: '破壊工作', desc: '兵糧蔵に火を付ける。成功すると城の守備兵が2割減る', reward: 1600, merit: 30 },
       raid: { name: '襲撃', desc: '武器蔵を壊す。成功すると30日のあいだ城の守りが15%下がる', reward: 2000, merit: 36 },
+      gate: { name: '門の破壊', desc: '城門に細工をして傷める。成功すると門の強さが4割減る（普請で直すまでそのまま）。攻城戦で門を破りやすくなり、守りも弱まる', reward: 1500, merit: 28 },
       rumor: { name: '流言', desc: '城下の町人3人に噂を流す。成功すると守備兵が1割減り、30日のあいだ城の守りが8%下がる', reward: 1100, merit: 22 },
     },
     km: 100,
@@ -95,6 +96,7 @@
     if (c.ok) {
       const now = w.time.min;
       if (q.k === 'sabo' || q.k === 'rumor') for (const k in s.gar || {}) s.gar[k] = Math.floor(s.gar[k] * (q.k === 'sabo' ? 0.8 : 0.9));
+      if (q.k === 'gate') { s.gate = Math.max(0, SIM.gateF(s) - 0.4); if (s.holder && w.players[s.holder]) SIM.say(s.holder, `${s.name}の門が何者かに壊されました（門の強さ${Math.round(s.gate * 100)}%）。普請で修理できます`); }
       if (q.k === 'raid' || q.k === 'rumor') { s.ninDeb = q.k === 'raid' ? 0.15 : 0.08; s.ninT = now + 30 * 1440; }
       p.money += q.reward; p.fame += 2; if (SIM.addMerit) SIM.addMerit(w, p, q.merit, `${q.toName}での${J.name}`);
       SIM.say(p.id, `${J.name}に成功しました！ 報酬${SIM.money(q.reward)}・名声+2`);

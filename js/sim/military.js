@@ -379,7 +379,7 @@
 
   function autoResolve(w, b) {
     const pw = (side) => b.units.filter((u) => u.side === side && alive(u)).reduce((a, u) => a + u.hp * TR[u.type].atk, 0);
-    const cm = b.cside ? 1 + ({ yama: 0.8, mizu: 0.6 }[b.ck] || 0.45) * (b.kf == null ? 1 : b.kf) : 1; // 0.37.0 城の守り手は自動決着でも有利
+    const cm = b.cside ? 1 + ({ yama: 0.8, mizu: 0.6 }[b.ck] || 0.45) * (b.kf == null ? 1 : b.kf) * (0.5 + 0.5 * (b.gf == null ? 1 : b.gf)) : 1; /* 1.6.39 門が傷んでいると守りの効きが下がる */ // 0.37.0 城の守り手は自動決着でも有利
     const rA = pw('A') * SIM.autoBonus(w, b) * (b.cside === 'A' ? cm : 1) * (0.75 + rnd(w) * 0.5), rB = pw('B') * (b.cside === 'B' ? cm : 1) * (0.75 + rnd(w) * 0.5);
     const win = rA >= rB, loss = Math.min(0.9, (win ? rB / rA : rA / rB) * 0.6);
     for (const u of b.units) {

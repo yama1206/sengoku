@@ -85,7 +85,8 @@
     }
     roads.sort((a, b) => a.len - b.len);
     const wk = s.work && { label: s.work.label, left: Math.max(0, Math.ceil((s.work.until - w.time.min) / 1440)) };
-    return { id: s.id, kai: lv, kaiName: FU.kai[lv].name, kf: FU.kai[lv].kf, next: nx ? { lv: lv + 1, name: nx.name, cost: nx.cost, days: nx.days, kf: nx.kf } : null, work: wk, widen, roads: roads.slice(0, 8) };
+    const gf = SIM.gateF(s), gate = gf < 1 ? { f: gf, cost: r10((1 - gf) * (3000 + 1500 * lv)), days: 1 + Math.ceil((1 - gf) * 5) } : null;
+    return { id: s.id, gate, gf, kai: lv, kaiName: FU.kai[lv].name, kf: FU.kai[lv].kf, next: nx ? { lv: lv + 1, name: nx.name, cost: nx.cost, days: nx.days, kf: nx.kf } : null, work: wk, widen, roads: roads.slice(0, 8) };
   };
 
   SIM.commands.fushin = (w, p, c) => {
@@ -93,7 +94,8 @@
     if (s.work) return SIM.say(p.id, `いまは${s.work.label}の最中です`);
     const info = SIM.fushinInfo(w, p), now = w.time.min;
     let job = null;
-    if (c.kind === 'kai' && info.next) job = { kind: 'kai', label: `改築（${info.next.name}）`, cost: info.next.cost, days: info.next.days, lv: info.next.lv };
+    if (c.kind === 'gate' && info.gate) job = { kind: 'gate', label: '門の修理', cost: info.gate.cost, days: info.gate.days };
+    else if (c.kind === 'kai' && info.next) job = { kind: 'kai', label: `改築（${info.next.name}）`, cost: info.next.cost, days: info.next.days, lv: info.next.lv };
     else if (c.kind === 'widen') {
       const g = info.widen.find((x) => x.to === c.id), seg = g && segsFrom(w, s)[c.id];
       if (g && seg) job = { kind: 'road', label: `${g.name}への道を広げる`, cost: g.cost, days: g.days, road: { name: g.rank === 2 ? '大街道（普請）' : '街道（普請）', rank: g.rank - 1, pts: seg.pts } };
@@ -112,8 +114,35 @@
     for (const s of w.settlements) {
       const k = s.work; if (!k || w.time.min < k.until) continue;
       s.work = null;
-      if (k.kind === 'kai') { s.kai = Math.max(s.kai || 0, k.lv); SIM.say(k.by, `${s.name}の改築が終わりました：${FU.kai[s.kai].name}`); }
+      if (k.kind === 'gate') { s.gate = 1; if (k.by) SIM.say(k.by, `${s.name}の門の修理が終わりました`); }
+      else if (k.kind === 'kai') { s.kai = Math.max(s.kai || 0, k.lv); SIM.say(k.by, `${s.name}の改築が終わりました：${FU.kai[s.kai].name}`); }
       else if (k.kind === 'road') { w.roadAdd.push(k.road); w.roadVer = (w.roadVer || 0) + 1; SIM.applyRoads(w.roadAdd); SIM.say(k.by, `${k.label}が終わりました`); }
+    }
+  });
+
+  /* 1.6.39 CPUの破壊工作と修理（1日ごと）。CPUの大名は戦の相手の城へ忍びを送り、プレイヤーが任されていない城は傷んだ門を直す */
+  const besieged = (w, s) => Object.values(w.battles || {}).some((b) => b.siege === s.id);
+  SIM.systems.push(function gateTick(w) {
+    const d = Math.floor(w.time.min / 1440); if (w.gday == null) w.gday = d;
+    while (w.gday < d) {
+      w.gday++;
+      const rnd = () => Math.random();
+      for (const f of Object.values(w.factions || {})) {
+        if (!f || w.players[f.leader] || rnd() > 0.04) continue;
+        const fid = Object.keys(w.factions).find((k) => w.factions[k] === f), mine = w.settlements.filter((s) => s.type === 'castle' && s.owner === fid);
+        const tg = w.settlements.filter((t) => t.type === 'castle' && !t.site && t.owner && t.owner !== fid && SIM.atWar && SIM.atWar(w, fid, t.owner) && mine.some((m) => dist(m, t) <= 100));
+        if (!tg.length) continue;
+        const t = tg[Math.floor(rnd() * tg.length)]; if (rnd() < 0.35) continue; /* 見つかって失敗 */
+        t.gate = Math.max(0, SIM.gateF(t) - 0.3 - rnd() * 0.15);
+        for (const p of Object.values(w.players)) if (p.id === t.holder || (p.clan === t.owner && p.at === t.id)) SIM.say(p.id, `${t.name}の門が${f.name || '敵'}の忍びに壊されました（門の強さ${Math.round(t.gate * 100)}%）`);
+      }
+      for (const s of w.settlements) {
+        if (s.type !== 'castle' || s.site || s.work || SIM.gateF(s) >= 1 || besieged(w, s)) continue;
+        const f = w.factions[s.owner];
+        if ((s.holder && w.players[s.holder]) || (f && w.players[f.leader])) continue; /* プレイヤーが任されている城は自分で普請する */
+        if (rnd() < 0.5) continue;
+        s.work = { kind: 'gate', label: '門の修理', days: 1 + Math.ceil((1 - SIM.gateF(s)) * 5), until: w.time.min + (1 + Math.ceil((1 - SIM.gateF(s)) * 5)) * 1440, by: null };
+      }
     }
   });
 

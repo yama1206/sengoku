@@ -29,7 +29,7 @@
     const free = (x, y, m = 18) => x > 20 && x < W - 20 && y > 20 && y < H - 20 && !S.walls.concat(S.water).some((r) => x > r.x - m && x < r.x + r.w + m && y > r.y - m && y < r.y + r.h + m);
     const spot = (y0, y1) => { for (let i = 0; i < 400; i++) { const x = rnd(60, W - 60), y = rnd(y0, y1); if (free(x, y, 26)) return { x, y }; } return { x: W / 2, y: (y0 + y1) / 2 }; };
     if (k === 'rumor') for (let i = 0; i < 3; i++) { const p = spot(505, 625); S.folk.push({ x: p.x, y: p.y, a: rnd(0, 6), told: 0 }); }
-    else S.tg.push(Object.assign(spot(110, k === 'raid' ? 260 : 330), { name: k === 'raid' ? '武器蔵' : '兵糧蔵' }));
+    else S.tg.push(Object.assign(spot(110, k === 'raid' ? 260 : 330), { name: k === 'raid' ? '武器蔵' : k === 'gate' ? '城門' : '兵糧蔵' }));
     // 見張り：壁にぶつからない直線を行き来する
     const range = (130 + d.lv * 14) * (d.night ? 0.62 : 1), spd = 38 + d.lv * 7;
     const ng = k === 'rumor' ? Math.max(2, Math.ceil(d.guards / 2)) : d.guards;
@@ -74,7 +74,7 @@
       if (S.k === 'rumor') near = S.folk.find((f) => !f.told && Math.hypot(f.x - P.x, f.y - P.y) < 26);
       else near = S.tg.find((t) => !t.done && Math.hypot(t.x - P.x, t.y - P.y) < 30);
     }
-    if (near && I.act) { S.hold += dt; const need = S.k === 'raid' ? 2.5 : S.k === 'sabo' ? 1.8 : 1.1; if (S.hold >= need) { S.hold = 0; if (S.k === 'rumor') near.told = 1; else near.done = 1; S.done++; S.msg = S.done >= S.need ? '果たした！ 入ってきた所（下の緑）へ戻れ' : `噂を流した（${S.done}/${S.need}）`; } } else S.hold = 0;
+    if (near && I.act) { S.hold += dt; const need = S.k === 'raid' ? 2.5 : S.k === 'rumor' ? 1.1 : 1.8; if (S.hold >= need) { S.hold = 0; if (S.k === 'rumor') near.told = 1; else near.done = 1; S.done++; S.msg = S.done >= S.need ? '果たした！ 入ってきた所（下の緑）へ戻れ' : `噂を流した（${S.done}/${S.need}）`; } } else S.hold = 0;
     if (S.done >= S.need && inR(P.x, P.y, S.exit)) { S.end = 'ok'; S.endT = 1.2; S.msg = '工作に成功した！'; return; }
     // 町人はゆっくり歩く
     for (const f of S.folk) { f.a += rnd(-0.6, 0.6) * dt; move(S, f, Math.cos(f.a) * 15 * dt, Math.sin(f.a) * 15 * dt, 8); if (f.y < 505) f.a = Math.PI / 2; }
@@ -112,7 +112,7 @@
     for (const f of S.folk) { ctx.fillStyle = f.told ? '#999' : '#e8c040'; ctx.beginPath(); ctx.arc(f.x, f.y, 7, 0, 7); ctx.fill(); if (!f.told) { ctx.fillStyle = '#fff'; ctx.fillText('町人', f.x, f.y - 11); } }
     for (const g of S.guards) { ctx.fillStyle = '#7a2a20'; ctx.beginPath(); ctx.arc(g.x, g.y, 8, 0, 7); ctx.fill(); if (g.see) { ctx.fillStyle = '#ff4'; ctx.fillText('！', g.x, g.y - 12); } }
     const P = S.p; ctx.fillStyle = '#0c0c10'; ctx.strokeStyle = '#9cf'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(P.x, P.y, P.crouch ? 6 : 7, 0, 7); ctx.fill(); ctx.stroke();
-    if (S.hold > 0) { ctx.strokeStyle = '#ffe070'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(P.x, P.y, 14, -1.57, -1.57 + 6.28 * Math.min(1, S.hold / (S.k === 'raid' ? 2.5 : S.k === 'sabo' ? 1.8 : 1.1))); ctx.stroke(); }
+    if (S.hold > 0) { ctx.strokeStyle = '#ffe070'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(P.x, P.y, 14, -1.57, -1.57 + 6.28 * Math.min(1, S.hold / (S.k === 'raid' ? 2.5 : S.k === 'rumor' ? 1.1 : 1.8))); ctx.stroke(); }
     ctx.restore();
     // 上の帯
     ctx.fillStyle = '#f4ead0'; ctx.font = '14px sans-serif'; ctx.textAlign = 'left';

@@ -250,7 +250,7 @@
   SIM.actStep = (w, b, dt) => {
     const A = b.act; if (!A) return;
     const F = SIM.FIELD; b.t += dt;
-    const CW = SIM.castleWalls(b.ter); if (CW && !A.gt) A.gt = SIM.gateInit(CW); if (CW && b.cside && !A.posted) setPosts(A, b, CW);
+    const CW = SIM.castleWalls(b.ter); if (CW && !A.gt) A.gt = SIM.gateInit(CW, b.gf); if (CW && b.cside && !A.posted) setPosts(A, b, CW);
     const all = A.s.filter(live), g = grid(all);
     const center = {};
     for (const s of all) if (!s.hero) { const c = center[s.g] || (center[s.g] = { x: 0, y: 0, n: 0 }); c.x += s.x; c.y += s.y; c.n++; }

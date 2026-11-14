@@ -48,7 +48,10 @@
   const gOpen = (id, G) => !id || !G || !G.gs || !(G.gs[id] > 0) || (G.side && G.side === G.cs && !/[ok]$/.test(id)); /* 守り手は内側の門（本丸の門など）は開けて通れる。外の門（大手・搦手）は破られるまで閉じたまま */
   const inGap = (q, a, m, G) => q.gaps.some(([ga, gw, id]) => Math.abs(nrm(a - ga)) < gw - m / q.r && gOpen(id, G));
   SIM.wallInGap = inGap;
-  SIM.gateInit = (cw) => { const gs = {}; for (const c of cw || []) for (const q of c.rings) for (const g of q.gaps) if (g[2]) gs[g[2]] = SIM.GATE_HP[g[2].slice(-1)] || 600; return gs; };
+  SIM.gateInit = (cw, f) => { const gs = {}; f = f == null ? 1 : f; for (const c of cw || []) for (const q of c.rings) for (const g of q.gaps) if (g[2]) gs[g[2]] = Math.round((SIM.GATE_HP[g[2].slice(-1)] || 600) * f); return gs; };
+  /* 1.6.39 城の門の傷み（s.gate：1＝無傷、0＝壊れている）。忍びの破壊工作で減り、普請の修理で戻る */
+  SIM.gateF = (s) => (s && s.gate != null ? Math.max(0, Math.min(1, s.gate)) : 1);
+  SIM.gateLeft = (b) => { const A = b.act, cw = SIM.castleWalls(b.ter); if (!A || !A.gt || !cw) return null; let n = 0, m = 0; for (const id in A.gt) { n += A.gt[id]; m += SIM.GATE_HP[id.slice(-1)] || 600; } return m ? n / m : null; };
   /* 門の真ん中の位置 */
   SIM.gatePts = (cw) => { const o = []; for (const c of cw || []) for (const q of c.rings) for (const [ga, gw, id] of q.gaps) if (id) o.push({ id, x: c.x + Math.cos(ga) * q.r, y: c.y + Math.sin(ga) * q.r, a: ga, w: gw * q.r * 2 }); return o; };
   /* 飛び道具が塀・閉じた門に当たるか（堀は関係なし） */
@@ -147,7 +150,7 @@
       b.ter.push({ k: 'm', x: cx, y: cy, r: kr + 22, ri: kr + 6 }); // 堀
     }
     b.ter.push({ k: 'k', x: cx, y: cy, r: kr }); // 曲輪
-    b.cside = cside; b.ck = ck; b.kf = SIM.kaiF ? SIM.kaiF(s) : 1; b.cx = cx; b.cy = cy; // 0.40.0 改築の段階で守りの強さが変わる
+    b.cside = cside; b.ck = ck; b.kf = SIM.kaiF ? SIM.kaiF(s) : 1; b.gf = SIM.gateF(s); b.cx = cx; b.cy = cy; // 0.40.0 改築の段階で守りの強さが変わる
     // 守り手を曲輪の中に並べる（城兵は動かず守る。弓・鉄砲は塀の上から少し遠くまで届く）
     const defs = b.units.filter((u) => u.side === cside && (cside === 'B' || u.gar));
     const front = cside === 'B' ? -1 : 1;

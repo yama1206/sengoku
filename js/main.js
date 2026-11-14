@@ -796,6 +796,7 @@
     const F = me.fushin; if (!F) return '';
     let h = `<div class="muted" style="margin-top:10px"><b>普請</b>　城の構え：${F.kaiName}（${F.kai}/5段階・守りの効き ${Math.round(F.kf * 100)}%）</div>`;
     if (F.work) return h + `<div class="card" style="display:block">${F.work.label}の最中です（あと${F.work.left}日）</div>`;
+    if (F.gate) h += `<div class="card"><div><b>門の修理</b>：門の強さ ${Math.round(F.gate.f * 100)}%（忍びや戦で傷んでいる）<br><span class="muted">${SIM.money(F.gate.cost)}・${F.gate.days}日。門を元の強さに戻す</span></div><button id="fg" data-act="fushin" data-kind="gate" ${me.money >= F.gate.cost ? '' : 'disabled'}>修理する</button></div>`;
     if (F.next) h += `<div class="card"><div><b>改築</b>：${F.next.name}<br><span class="muted">${SIM.money(F.next.cost)}・${F.next.days}日。城を守る戦で有利になる（守りの効き ${Math.round(F.next.kf * 100)}%）${SIM.kaiMapText && SIM.kaiMapText(F.kai + 1) ? '・' + SIM.kaiMapText(F.kai + 1) : ''}</span></div><button id="fk" data-act="fushin" data-kind="kai" ${me.money >= F.next.cost ? '' : 'disabled'}>改築する</button></div>`;
     else h += '<div class="muted">これ以上の改築はできません</div>';
     const RN = ['', '大街道', '街道', '脇道'];

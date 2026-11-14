@@ -46,7 +46,7 @@
     if (f.kou == null) { const h = [...fid].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) % 997, 7); f.kou = KOU.fixed[fid] || [2, 3, 3, 3, 4][h % 5]; }
     return f.kou;
   };
-  const defPow = (s) => SIM.garrison(s) * (1 + 0.5 * (SIM.kaiF ? SIM.kaiF(s) : 0.5)) * (SIM.castleKind && ({ yama: 1.15, mizu: 1.08 }[SIM.castleKind(s)] || 1)) * (1 - (SIM.ninDeb ? SIM.ninDeb(s, SIM._now || 0) : 0)); // 0.77.0 忍びの工作 // 守備兵×城の堅さ（0.51.0 水城）
+  const defPow = (s) => SIM.garrison(s) * (1 + 0.5 * (SIM.kaiF ? SIM.kaiF(s) : 0.5)) * (SIM.castleKind && ({ yama: 1.15, mizu: 1.08 }[SIM.castleKind(s)] || 1)) * (1 - (SIM.ninDeb ? SIM.ninDeb(s, SIM._now || 0) : 0)) * (0.85 + 0.15 * (SIM.gateF ? SIM.gateF(s) : 1)); // 0.77.0 忍びの工作 // 守備兵×城の堅さ（0.51.0 水城）
   // ---- 守備兵 ----
   function garMax(w, s) {
     const f = w.factions[s.owner], home = f && w.people[f.leader] && s.lord === f.leader;
@@ -180,6 +180,7 @@
     const s = SIM.settlement(w, b.siege); if (!s) return;
     if (!b.sDone) {
       b.sDone = 1;
+      { const gl = SIM.gateLeft(b); s.gate = gl != null ? gl : res === 'win' ? Math.min(SIM.gateF(s), 0.4) : SIM.gateF(s); } /* 1.6.39 戦で傷んだ門はそのまま残る */
       if (res === 'win') {
         s.gar = garOf(Math.round(garMax(w, s) * 0.3));
         if (s.owner !== p.clan && SIM.atWar(w, p.clan, s.owner)) capture(w, s, p.clan, { by: p.id });
@@ -288,7 +289,7 @@
     const kf = SIM.kaiF ? SIM.kaiF(s) : 1, ck = 1 + ({ yama: 0.35, mizu: 0.25 }[SIM.castleKind(s)] || 0.1) * kf; // 0.37.0 山城ほど守りやすい／0.40.0 改築の段階で変わる
     let dPow = M.power(s.gar) * (1 + 0.25 * kf + wall * 0.12) * ck;
     for (const p of defs) dPow += (M.power(p.troops) + TR.hero.hp * TR.hero.atk) * (1 + 0.3 * kf + wall * 0.1) * ck;
-    dPow *= 0.75 + rnd(w) * 0.5;
+    dPow *= (0.75 + rnd(w) * 0.5) * (0.75 + 0.25 * SIM.gateF(s)); /* 1.6.39 門の傷み */
     const win = aPow > dPow, loss = Math.min(0.85, (win ? dPow / aPow : aPow / dPow) * 0.6);
     for (const p of defs) {
       const lost = {}; let ln = 0;
