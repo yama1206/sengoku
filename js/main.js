@@ -1531,8 +1531,16 @@
 
   // ---------- 毎フレーム ----------
   let lastFrame = performance.now(), dirSendAcc = 0, wasDirMoving = false;
+  function hitShow(wn, d) { /* 1.6.18 攻撃が当たったら画面の上に武器の名前とダメージ */
+    let el = document.getElementById('hitLog');
+    if (!el) { el = document.createElement('div'); el.id = 'hitLog'; el.style.cssText = 'position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:50;pointer-events:none;text-align:center;font-weight:bold;text-shadow:0 0 4px #000,0 0 2px #000;color:#fff'; document.body.appendChild(el); }
+    const r = document.createElement('div'); r.style.cssText = 'font-size:18px;transition:opacity .6s'; r.innerHTML = `${wn || '武器'}　<span style="color:#ffd24a">${d}</span>`;
+    el.prepend(r); while (el.children.length > 4) el.lastChild.remove();
+    setTimeout(() => { r.style.opacity = '0'; }, 1200); setTimeout(() => r.remove(), 1900);
+  }
   function actInput(AB) {
     const h = AB.act.s.find((s) => s.pc === G.myPid), pm = G.padMv || [0, 0];
+    if (h && h.hn !== G.lastHn) { if (G.lastHn != null && h.hn) hitShow(h.hw, h.hd); G.lastHn = h.hn; } /* 1.6.18 */
     const inp = { mx: pm[0] + (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0), my: pm[1] + (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0), atk: !!(G.actAtk || G.padAtk), dash: !!G.actDash, aim: null };
     G.actDash = false;
     if (ML()) { const y = R.acam.yaw || 0, f = -inp.my, r = inp.mx; inp.mx = Math.cos(y) * f - Math.sin(y) * r; inp.my = Math.sin(y) * f + Math.cos(y) * r; inp.aim = y; inp.blk = !!(G.actBlk || G.padBlk); inp.sw = !!G.actSw; inp.jmp = !!G.actJmp; inp.ride = !!G.actRide; G.actSw = G.actJmp = G.actRide = false; return inp; }
