@@ -301,7 +301,8 @@
       s.cd -= dt;
       if (!u) continue;
       if (u.order === 'rout' || u.order === 'retreat') {
-        const ex = s.side === 'A' ? -6 : F.w + 6; s.f = s.side === 'A' ? Math.PI : 0; s.x += Math.sign(ex - s.x) * spd * (u.order === 'rout' ? 1.1 : 0.9) * dt;
+        const ex = s.side === 'A' ? -6 : F.w + 6, wy = SIM.castleWalls(b.ter) && SIM.wallWay(SIM.castleWalls(b.ter), s, ex, s.y); s.f = s.side === 'A' ? Math.PI : 0; /* 1.6.25 城の中からは門を通って逃げる */
+        if (wy) { const l = Math.hypot(wy[0] - s.x, wy[1] - s.y) || 1, st = spd * (u.order === 'rout' ? 1.1 : 0.9) * dt; s.x += (wy[0] - s.x) / l * st; s.y += (wy[1] - s.y) / l * st; s.f = Math.atan2(wy[1] - s.y, wy[0] - s.x); } else s.x += Math.sign(ex - s.x) * spd * (u.order === 'rout' ? 1.1 : 0.9) * dt;
         if (s.x < 2 || s.x > F.w - 2) s.gone = true;
         continue;
       }
@@ -358,6 +359,7 @@
       } else if (u.tgt && (o === 'charge' || o === 'flank')) {
         gx = u.tgt.x + s.oy * 0.6 * (o === 'flank' ? 3 : 1); gy = u.tgt.y + s.oy * (o === 'flank' ? 2.5 : 1);
       } else { const c = Math.cos(u.af), n = Math.sin(u.af); gx = u.ax + s.ox * c - s.oy * n; gy = u.ay + s.ox * n + s.oy * c; }
+      if (SIM.castleWalls(b.ter)) { const wy = SIM.wallWay(SIM.castleWalls(b.ter), s, gx, gy); if (wy) { gx = wy[0]; gy = wy[1]; } } /* 1.6.25 塀は門を通って回り込む */
       const d = Math.hypot(gx - s.x, gy - s.y);
       if (d > 0.3) { const st = Math.min(d, spd * terMul(b, s, gx - s.x, gy - s.y, cav) * dt * (d < 2 ? 0.6 : 1)); s.x += ((gx - s.x) / d) * st; s.y += ((gy - s.y) / d) * st; s.f = Math.atan2(gy - s.y, gx - s.x); s.mv = 1; }
       else { s.f = u.af; s.mv = 0; }
@@ -389,6 +391,7 @@
         s.x -= (o.x - s.x) * k * wa; s.y -= (o.y - s.y) * k * wa; o.x += (o.x - s.x) * k * wb; o.y += (o.y - s.y) * k * wb;
       });
       s.y = Math.max(1, Math.min(F.h - 1, s.y)); if (!s.gone) s.x = Math.max(1, Math.min(F.w - 1, s.x));
+      if (SIM.castleWalls(b.ter)) SIM.wallPush(SIM.castleWalls(b.ter), s, r(s)); /* 1.6.25 塀の当たり判定 */
     }
     // 潰走
     for (const u of b.units) {

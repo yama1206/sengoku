@@ -239,25 +239,29 @@
     }
     grassM = grass; grass.userData.full = gi; X.applyVid(); rocks.count = ri; rocks.castShadow = true; rocks.receiveShadow = true; grass.receiveShadow = false;
     scene.add(grass, rocks); trees.push(grass, rocks);
-    // 1.6.11 攻城戦：曲輪のまわりに石垣と白壁の塀（ところどころ切れ目＝門）、奥に天守
-    for (const t of ter) if (t.k === 'k') {
-      const segN = Math.round(t.r * 2 * Math.PI / 4), seg = (t.r * 2 * Math.PI) / segN;
-      const stone = new T.InstancedMesh(new T.BoxGeometry(seg * 0.98, 1.2, 1.4), new T.MeshLambertMaterial({ color: 0x7d786c }), segN);
-      const wallM = new T.InstancedMesh(new T.BoxGeometry(seg * 0.98, 1.1, 0.5), new T.MeshLambertMaterial({ color: 0xece6d6 }), segN);
-      const roofM = new T.InstancedMesh(new T.BoxGeometry(seg * 0.98, 0.18, 0.95), new T.MeshLambertMaterial({ color: 0x3a3f46 }), segN);
-      const o3 = new T.Object3D(); let k = 0;
-      for (let i = 0; i < segN; i++) {
-        if (i % 6 === 3) continue; // 門（通り道）
-        const a = (i + 0.5) / segN * Math.PI * 2, x = t.x + Math.cos(a) * t.r, y = t.y + Math.sin(a) * t.r, g = hgt(x, y);
-        o3.rotation.set(0, -a + Math.PI / 2, 0);
+    // 1.6.25 攻城戦：塀（当たり判定と同じ形。門＝切れ目・枡形・仕切り）と、本丸の真ん中に天守
+    const CWs = SGK.SIM.castleWalls ? SGK.SIM.castleWalls(ter) || [] : [], segs = [];
+    for (const c of CWs) {
+      for (const q of c.rings) { const n = Math.max(8, Math.round(q.r * 2 * Math.PI / 4)), sl = q.r * 2 * Math.PI / n; for (let i = 0; i < n; i++) { const a = (i + 0.5) / n * Math.PI * 2; if (SGK.SIM.wallInGap(q, a, -sl / 2)) continue; segs.push([c.x + Math.cos(a) * q.r, c.y + Math.sin(a) * q.r, -a + Math.PI / 2, sl]); } }
+      for (const w of c.rad) { const n = Math.max(1, Math.round((w.r1 - w.r0) / 4)), sl = (w.r1 - w.r0) / n; for (let i = 0; i < n; i++) { const d = w.r0 + (i + 0.5) * sl; segs.push([c.x + Math.cos(w.a) * d, c.y + Math.sin(w.a) * d, -w.a, sl]); } }
+    }
+    if (segs.length) {
+      const N = segs.length, stone = new T.InstancedMesh(new T.BoxGeometry(1, 1.2, 1.4), new T.MeshLambertMaterial({ color: 0x7d786c }), N);
+      const wallM = new T.InstancedMesh(new T.BoxGeometry(1, 1.5, 0.5), new T.MeshLambertMaterial({ color: 0xece6d6 }), N);
+      const roofM = new T.InstancedMesh(new T.BoxGeometry(1, 0.18, 0.95), new T.MeshLambertMaterial({ color: 0x3a3f46 }), N);
+      const o3 = new T.Object3D();
+      segs.forEach(([x, y, r, l], k) => {
+        const g = hgt(x, y); o3.rotation.set(0, r, 0); o3.scale.set(l * 1.02, 1, 1);
         o3.position.set(x, g + 0.5, y); o3.updateMatrix(); stone.setMatrixAt(k, o3.matrix);
-        o3.position.set(x, g + 1.65, y); o3.updateMatrix(); wallM.setMatrixAt(k, o3.matrix);
-        o3.position.set(x, g + 2.28, y); o3.updateMatrix(); roofM.setMatrixAt(k, o3.matrix); k++;
-      }
-      for (const m of [stone, wallM, roofM]) { m.count = k; m.castShadow = true; m.receiveShadow = true; scene.add(m); trees.push(m); }
-      const back = t.x > F.w / 2 ? 1 : -1, tx = t.x + back * t.r * 0.62, ty = t.y, g0 = hgt(tx, ty);
-      const lv = [[14, 4, 0xece6d6], [11, 3.5, 0xece6d6], [8, 3.2, 0xece6d6]]; let yy = g0;
-      const base = new T.Mesh(new T.BoxGeometry(17, 3, 17), new T.MeshLambertMaterial({ color: 0x7d786c })); base.position.set(tx, yy + 1.5, ty); yy += 3;
+        o3.position.set(x, g + 1.85, y); o3.updateMatrix(); wallM.setMatrixAt(k, o3.matrix);
+        o3.position.set(x, g + 2.68, y); o3.updateMatrix(); roofM.setMatrixAt(k, o3.matrix);
+      });
+      for (const m of [stone, wallM, roofM]) { m.castShadow = true; m.receiveShadow = true; scene.add(m); trees.push(m); }
+    }
+    for (const c of CWs) if (c.main) {
+      const tx = c.x, ty = c.y, g0 = hgt(tx, ty);
+      const lv = [[12, 4, 0xece6d6], [9.5, 3.5, 0xece6d6], [7, 3.2, 0xece6d6]]; let yy = g0;
+      const base = new T.Mesh(new T.BoxGeometry(15, 3, 15), new T.MeshLambertMaterial({ color: 0x7d786c })); base.position.set(tx, yy + 1.5, ty); yy += 3;
       base.castShadow = base.receiveShadow = true; scene.add(base); trees.push(base);
       for (const [w2, h2, col] of lv) {
         const body = new T.Mesh(new T.BoxGeometry(w2, h2, w2), new T.MeshLambertMaterial({ color: col })); body.position.set(tx, yy + h2 / 2, ty);
