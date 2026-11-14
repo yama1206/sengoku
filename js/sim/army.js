@@ -292,13 +292,21 @@
   };
   SIM.commands.liftSiege = (w, p) => { if (p.siege && !p.battle) { SIM.say(p.id, '攻城戦の準備をやめました'); p.siege = null; } };
   SIM.commands.attackArmy = (w, p, c) => {
-    const n = w.npcs[c.id]; if (!n || !['army', 'patrol', 'bushou'].includes(n.kind) || n.battle || n.fight || p.battle) return;
+    const n = w.npcs[c.id]; if (!n || !['army', 'patrol', 'bushou'].includes(n.kind) || n.battle || p.battle) return;
+    const ally = n.fight && w.npcs[n.fight]; /* 1.6.35 武将どうしの戦に加勢 */
+    if (n.fight && (!ally || ally.kind === 'bandit' || ally.battle || (p.clan && SIM.atWar(w, p.clan, ally.faction)))) return SIM.say(p.id, 'いまは攻めかかれません');
     if (n.loot == null) n.loot = Math.round((200 + (n.size || 0) * 30) / 10) * 10;
     if (!SIM.atWar(w, p.clan, n.faction)) return SIM.say(p.id, `${fName(w, n.faction)}とは戦をしていません`);
     if (dist(p, n) > AR.fightKm) return SIM.say(p.id, `もっと近づいてください（${AR.fightKm}km以内）`);
     if (inCastle(n)) return SIM.say(p.id, `${armyName(w, n)}は城に逃げ込んでいます`); /* 1.6.33 */
     if (p.busy) p.busy = null;
-    fieldBattle(w, n, p, `${armyName(w, n)}（${n.size}人）に攻めかかります！`);
+    fieldBattle(w, n, p, ally ? `${armyName(w, ally)}に加勢し、${armyName(w, n)}（${n.size}人）に攻めかかります！` : `${armyName(w, n)}（${n.size}人）に攻めかかります！`);
+    const b = ally && w.battles[p.battle];
+    if (b && SIM.troopCount(ally.army)) { // 1.6.35 戦っていた味方の隊も戦場に出る（自動で突撃）
+      const k = b.units.length; M.addUnits(w, b, 'A', null, ally.army);
+      for (const u of b.units.slice(k)) { u.ally = ally.id; u.order = 'charge'; }
+      ally.battle = b.id; b.ally = ally.id; ally.tx = ally.ty = null;
+    }
   };
 
   // ---- 陣触れ：近くの城の武将が兵を連れて加わる ----

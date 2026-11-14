@@ -564,7 +564,7 @@
     const jf = u.battle && u.battle !== 2 && Number(km) <= 2 ? { label: '攻めかかる', cmd: { type: 'joinFight', id: u.id } } : null; /* 1.6.22 戦闘中の相手 → 合戦に加わる */
     const R0 = G.priv && G.priv.me && G.priv.me.rank, myC = R0 && R0.clan, wars0 = G.view.wars || [];
     const atWar = myC && u.faction && wars0.includes(myC < u.faction ? `${myC}|${u.faction}` : `${u.faction}|${myC}`);
-    const atk = atWar && !u.battle && Number(km) <= 2 ? { label: '攻めかかる', cmd: { type: 'attackArmy', id: u.id } } : null;
+    const atk = atWar && u.battle !== 1 && Number(km) <= 2 ? { label: u.battle === 2 ? '加勢して攻めかかる' : '攻めかかる', cmd: { type: 'attackArmy', id: u.id } } : null;
     const leadTxt = u.lead && u.lead.length ? '<br>' + (u.kind === 'army' ? '武将' : '大将') + '：' + u.lead.map(([nm, t, b]) => `${nm}<span class="muted">（統率${t}・武勇${b}）</span>`).join('・') : '';
     const warNote = atWar ? '<br><b style="color:#ff6a4a">戦をしている家の武将です</b>（こちらと互角以上なら攻めかかってきます）' : '';
     // 0.54.0 取引（1.5km以内・戦をしていない家の、武将が率いる隊）
@@ -580,7 +580,7 @@
       const t = G.mode === 'host' ? SIM.armyText(G.world, G.world.npcs[u.id]) : ((G.dyn && G.dyn.ar) || {})[u.id];
       const R = G.priv && G.priv.me && G.priv.me.rank, mine = R && R.clan, wars = G.view.wars || [];
       const war = mine && u.faction && wars.includes(mine < u.faction ? `${mine}|${u.faction}` : `${u.faction}|${mine}`);
-      const act = war && !u.battle && Number(km) <= ((G.priv.me.war && G.priv.me.war.ar) ? G.priv.me.war.ar.fightKm : 2) ? { label: '攻めかかる', cmd: { type: 'attackArmy', id: u.id } } : null;
+      const act = war && u.battle !== 1 && Number(km) <= ((G.priv.me.war && G.priv.me.war.ar) ? G.priv.me.war.ar.fightKm : 2) ? { label: u.battle === 2 ? '加勢して攻めかかる' : '攻めかかる', cmd: { type: 'attackArmy', id: u.id } } : null; /* 1.6.35 */
       return { name: `${t ? t.name : '軍勢'} ${u.size}人`, act: act || jf, body: `${u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}${war ? '　<b style="color:#e06050">交戦中</b>' : ''}<br>${t ? t.text : ''}${spdTxt}<br>兵：${ar}<br><span class="muted">${war ? `敵の軍勢。${(G.priv.me.war && G.priv.me.war.ar ? G.priv.me.war.ar.fightKm : 2)}km以内まで近づくと攻めかかれます。打ち破れば攻城戦の準備が崩れます` : '武将たちが率いる軍勢'}</span>${war ? '' : trade}`, go: '追いかける' };
     }
     if (u.kind === 'bandit') {
