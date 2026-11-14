@@ -27,7 +27,7 @@
     town: { nohei: [1, 8], yari: [1, 8], yumi: [0.5, 6] },
     castle: { yari: [1, 10], yumi: [0.5, 6], kiba: [0.25, 3] },
   };
-  const FIELD = { w: 700, h: 460, ax: 200, bx: 500 }; // 戦場（m）。ax/bx：味方・敵の初めの位置
+  const FIELD = { w: 700, h: 460, ax: 120, bx: 580 }; // 0.79.1 離れて始める（300m→460m） // 戦場（m）。ax/bx：味方・敵の初めの位置
   const MAX_BANDITS = 200; // 地図の広さに合わせて（全国）
 
   SIM.troopCount = (tr) => Object.values(tr || {}).reduce((a, b) => a + b, 0);
