@@ -6,11 +6,12 @@
     SQUEEZE: 0.55,   // 両軍の初めの間合いを縮める
     SPD: 0.9,        // 移動の速さの倍率（0.61.2 1.5→0.9）
     HERO_HP: 2.5,
+    MULTI: [1, 0.6, 0.4, 0.3, 0.25], // 0.73.9 一振りで何人かに当たるとき：近い順に 1人目100%・2人目60%・3人目40%…（5人目以降25%）
     MEN_HP: 2.5,     // 0.73.4 兵の体力の倍率（しっかり斬り合うように）    // 本人の体力の倍率（直接戦うので）0.61.0 4→2.5
     DASH: { t: 0.2, cd: 1.6, mul: 3 },
     WEP: { // 本人の武器：reach 届く距離、arc 振りの幅（片側）、cd 間隔、dmg 威力の倍率、shot 飛び道具
-      tachi: { name: '刀', reach: 1.9, arc: 0.45, cd: 0.55, dmg: 2.4, max: 1 }, // 0.73.4 範囲を狭く・当たるのは1人（以前は reach2.6・arc0.95・max3）
-      yari: { name: '槍', reach: 2.7, arc: 0.3, cd: 0.7, dmg: 2.7, max: 1 }, // 0.73.4 以前は reach3.6・arc0.5・max2
+      tachi: { name: '刀', reach: 1.9, arc: 0.45, cd: 0.55, dmg: 2.4 }, // 0.73.9 振りの範囲にいる敵には全員当たる（2人目から減る ACT.MULTI）
+      yari: { name: '槍', reach: 2.7, arc: 0.3, cd: 0.7, dmg: 2.7 },
       yumi: { name: '弓', shot: 45, cd: 1, dmg: 3, spd: 45 },
       teppo: { name: '鉄砲', shot: 60, cd: 3, dmg: 9, spd: 140 },
     },
@@ -80,6 +81,16 @@
     const per = Math.max(0.6, atk * 2.2 - (T2.def || 0) * 0.8);
     damage(b, A, t, per * (0.7 + rr() * 0.6), s);
   }
+  // 0.73.9 一振り：向いている方向の reach・arc の中の敵に全員当たる。近い順に ACT.MULTI で減らす。hit(o, k) が実際のダメージ
+  const multK = (i) => ACT.MULTI[Math.min(i, ACT.MULTI.length - 1)];
+  function swing(g, s, f, W, hit) {
+    const hits = [];
+    near(g, s.x, s.y, W.reach + 1, (o) => { if (o.side !== s.side && live(o) && dist(s, o) < W.reach + (o.type && TR[o.type].cav ? 0.9 : 0.5) && angDiff(f, ang(s, o)) < W.arc) hits.push(o); });
+    hits.sort((a, c) => dist(s, a) - dist(s, c)).forEach((o, i) => { hit(o, multK(i)); const a = ang(s, o); o.x += Math.cos(a) * 0.6; o.y += Math.sin(a) * 0.6; });
+    return hits.length;
+  }
+  const YARI_T = { yari: 1, nagayari: 1, yarigashira: 1, kiba: 1, horo: 1 };
+  const cpuWep = (s, close) => (!close && !s.hero && YARI_T[s.type] ? ACT.WEP.yari : ACT.WEP.tachi); // 0.73.9 CPUも本人と同じ刀・槍の範囲
 
   // ---- 0.64.0 隊のAI（敵の隊と「AIに任せる」にした隊）：u.eo が実際に使う指図 ----
   function aiThink(A, b, u, c, center, all, dt) {
@@ -169,9 +180,7 @@
         if (W.shot) { A.pr.push({ x: hero.x, y: hero.y, vx: Math.cos(hero.f) * W.spd, vy: Math.sin(hero.f) * W.spd, side: hero.side, dmg: base * W.dmg * 0.5, life: W.shot / W.spd, gun: W.spd > 100, src: hero }); sfx(hero, W.spd > 100 ? 'gun' : 'bow'); }
         else {
           hero.sw = { t: 0.18, a: hero.f, arc: W.arc, r: W.reach }; sfx(hero, 'slash');
-          const hits = [];
-          near(g, hero.x, hero.y, W.reach + 1, (o) => { if (o.side !== hero.side && live(o) && dist(hero, o) < W.reach + (o.type && TR[o.type].cav ? 0.9 : 0.5) && angDiff(hero.f, ang(hero, o)) < W.arc) hits.push(o); });
-          hits.sort((a, c) => dist(hero, a) - dist(hero, c)).slice(0, W.max).forEach((o) => { damage(b, A, o, base * W.dmg * (0.8 + rr() * 0.4), hero); const a = ang(hero, o); o.x += Math.cos(a) * 0.6; o.y += Math.sin(a) * 0.6; });
+          swing(g, hero, hero.f, W, (o, k) => damage(b, A, o, base * W.dmg * k * (0.8 + rr() * 0.4), hero));
         }
       }
     }
@@ -192,7 +201,7 @@
         if (s.x < 2 || s.x > F.w - 2) s.gone = true;
         continue;
       }
-      const o = u.eo || u.order, reach = T.ranged ? T.range + (u.ra || 0) : (T.range || 2.5) * 0.4 + 0.4 + (cav ? 0.4 : 0); // 0.73.6 騎馬は馬上から長く届く // 0.73.4 近接の間合いを狭く（以前は ×0.5+0.7）
+      const o = u.eo || u.order, reach = T.ranged ? T.range + (u.ra || 0) : cpuWep(s).reach; // 0.73.9 近接の間合いは本人の刀・槍と同じ（以前は range×0.4+0.4、騎馬+0.4）
       let look = o === 'charge' || o === 'flank' ? 22 : o === 'follow' ? 8 : Math.max(ACT.ENGAGE, T.ranged ? reach : 0);
       if (u.kite) look = T.ranged ? reach : 3;
       const aiHero = s.hero && !s.pc && (u.side === 'B' || u.order === 'ai'); // 0.64.0 敵の大将は後ろから兵を励まし、近づかれたら戦う
@@ -205,7 +214,7 @@
       }
       if (u.kite && T.ranged && e && dist(s, e) < 8) e = null; // 下がっている間は撃たずに離れる
       if (!u.isAI && o === 'move') e = null; // 0.73.8 移動の指示は敵にかまわず最優先
-      const close = T.ranged && e && dist(s, e) < 5, R = close ? 1.4 : reach; s.kat = close ? 1 : 0; // 0.73.8 弓・鉄砲は近づかれたら刀に持ち替える
+      const close = T.ranged && e && dist(s, e) < 5, R = close ? ACT.WEP.tachi.reach : reach; s.kat = close ? 1 : 0; // 0.73.8 弓・鉄砲は近づかれたら刀に持ち替える
       let gx, gy;
       if (e) {
         const d = dist(s, e);
@@ -217,7 +226,7 @@
               const sp = s.type === 'teppo' || s.type === 'teppogashira' ? 140 : 45, tt = d / sp, ex = e.x + (rr() - 0.5) * d * 0.12, ey = e.y + (rr() - 0.5) * d * 0.12, a = Math.atan2(ey - s.y, ex - s.x);
               A.pr.push({ x: s.x, y: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, side: s.side, dmg: T.atk * (u.am || 1) * (sp > 100 ? 2.6 : 2.2) * (0.55 + 0.45 * u.mor / 100), life: tt * 1.3, gun: sp > 100, src: s });
               s.cd = (sp > 100 ? 4 : 2.4) + rr(); s.at = performance.now() / 1000; // 0.66.0 3Dの射る・撃つ動き
-            } else { melee(b, A, s, e, T.atk * (u.am || 1) * (close ? 0.8 : 1) * (0.55 + 0.45 * u.mor / 100) * (T.cav && s.mv ? 1.3 : 1)); s.cd = 1.1 + rr() * 0.6; s.at = performance.now() / 1000; }
+            } else { const atk = T.atk * (u.am || 1) * (close ? 0.8 : 1) * (0.55 + 0.45 * u.mor / 100) * (T.cav && s.mv ? 1.3 : 1); if (!swing(g, s, s.f, cpuWep(s, close), (o, k) => melee(b, A, s, o, atk * k))) melee(b, A, s, e, atk); s.cd = 1.1 + rr() * 0.6; s.at = performance.now() / 1000; } // 0.73.9 CPUも一振りで範囲の敵全員に
           }
           s.mv = 0;
           continue;
