@@ -53,7 +53,7 @@
     for (const d of D.settlements) {
       let s = w.settlements.find((x) => x.id === d.id);
       if (!s) { s = JSON.parse(JSON.stringify(d)); w.settlements.push(s); const cs = d.castle && w.settlements.find((x) => x.id === d.castle); if (cs) s.owner = cs.owner; /* 1.6.24 足した村は今の城の持ち主に。行商人は増やさない */ if (!d.castle) SIM.spawnNpc(w, s.type === 'castle' ? 'patrol' : 'merchant', s.type === 'castle' ? s.owner : null, s); }
-      s.x = d.x; s.y = d.y;
+      s.x = d.x; s.y = d.y; if (d.castle) s.name = d.name; /* 1.6.29 村の名前を実在の地名に（古いセーブも） */
     }
   }
   SIM.ensurePlayer = (p) => { if (p.money == null) p.money = 3000; p.inv = p.inv || {}; p.quests = p.quests || []; if (p.fame == null) p.fame = 0; if (p.busy === undefined) p.busy = null; };
