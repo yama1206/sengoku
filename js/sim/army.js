@@ -12,20 +12,15 @@
   // 数値はすべて仮（ここで調整）
   const AR = { siegeDays: 1, marchDays: (n) => Math.min(3.5, 1 + n / 80), speed: 25, reliefKm: 50, fightKm: 2, liftKm: 3, musterRank: 3, musterKm: 40, musterDays: 30, musterCD: 20, musterRate: 0.4 };
   SIM.ARMY = AR;
-  const MEI = ['政', '長', '信', '義', '勝', '秀', '忠', '家', '重', '貞', '元', '光', '直', '康', '盛', '成', '房', '綱'];
 
   // ---- 空いた城に武将を置く（CPUの家） ----
   // 1.1.0 その家の実在の武将から、まだ出ていない人を順に選ぶ（faction が null なら浪人）。onlyReal なら足りない時 null
-  function genName(w, faction, onlyReal) {
+  // 1.5.0 架空の名前は作らない。その家の名簿（浪人は浪人の名簿）に残りがなければ null
+  function genName(w, faction) {
     const used = new Set(Object.values(w.people).map((p) => p.name));
     const RO = (SGK.DATA.roster || {})[faction || 'ronin'] || [];
     for (const n of RO) if (!used.has(n)) return n;
-    if (onlyReal) return null;
-    for (let i = 0; i < 50; i++) {
-      const n = SIM.SEI[Math.floor(rnd(w) * SIM.SEI.length)] + MEI[Math.floor(rnd(w) * MEI.length)] + MEI[Math.floor(rnd(w) * MEI.length)];
-      if (!used.has(n) && n.slice(-1) !== n.slice(-2, -1)) return n;
-    }
-    return '某';
+    return null;
   }
   SIM.genName = genName;
   SIM.assignLord = (w, s, quiet) => {
@@ -33,7 +28,7 @@
     const busy = new Set(w.settlements.filter((x) => x.lord).map((x) => x.lord));
     let id = Object.keys(w.people).find((k) => w.people[k].faction === s.owner && !busy.has(k) && k !== f.leader);
     if (!id && f.leader && w.people[f.leader] && !busy.has(f.leader)) id = f.leader;
-    if (!id) { id = 'g' + w.nextId++; w.people[id] = { name: genName(w, s.owner), faction: s.owner, loyal: 55 + Math.floor(rnd(w) * 20) }; }
+    if (!id) { const nm = genName(w, s.owner); if (!nm) return null; id = 'g' + w.nextId++; w.people[id] = { name: nm, faction: s.owner, loyal: 55 + Math.floor(rnd(w) * 20) }; }
     s.lord = id;
     if (!quiet && false) news(w, `${f.name}は${s.name}に${w.people[id].name}を城主として置きました`);
     return id;

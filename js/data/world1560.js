@@ -869,3 +869,123 @@
     for (const n of X[k].split(' ')) { if (!n || /[.…?？]/.test(n) || used.has(n)) continue; if (all.has(n) && !R[k].includes(n)) continue; if (!R[k].includes(n)) { R[k].push(n); all.add(n); } }
   }
 })();
+
+// 1.5.0 ほかの家の城も史実（永禄3年正月ごろ）に合わせる：独立していた国衆を家として分け、城主を実在の人物にする。小さな家の名簿も足す
+(function () {
+  const D = SGK.DATA, R = D.roster;
+  Object.assign(D.factions, {
+    nasu: { name: '那須家', leader: 'nasu_suketane', color: '#6a7a9a' },
+    sano: { name: '佐野家', leader: 'sano_masatsuna', color: '#8a7a5a' },
+    tamura: { name: '田村家', leader: 'tamura_takaaki', color: '#9a6a7a' },
+    tendo: { name: '天童家', leader: 'tendo_yorisada', color: '#5a8a6a' },
+    tozawa: { name: '戸沢家', leader: 'tozawa_michimori', color: '#7a6a9a' },
+    hienuki: { name: '稗貫家', leader: 'hienuki_teruie', color: '#8a8a6a' },
+    akizuki: { name: '秋月家', leader: 'akizuki_tanezane', color: '#9a5a5a' },
+    goto_h: { name: '後藤家', leader: 'goto_takaaki', color: '#5a6a8a' },
+    hirai: { name: '平井家', leader: 'hirai_tsuneharu', color: '#7a8a7a' },
+    hata: { name: '波多家', leader: 'hata_shigeru', color: '#6a5a6a' },
+    utsunomiya_i: { name: '伊予宇都宮家', leader: 'utsunomiya_toyotsuna', color: '#8a6a5a' },
+  });
+  const P = {
+    nasu_suketane: ['那須資胤', 'nasu'], sano_masatsuna: ['佐野昌綱', 'sano'], tamura_takaaki: ['田村隆顕', 'tamura'], tendo_yorisada: ['天童頼貞', 'tendo'],
+    tozawa_michimori: ['戸沢道盛', 'tozawa'], hienuki_teruie: ['稗貫輝家', 'hienuki'], akizuki_tanezane: ['秋月種実', 'akizuki'], goto_takaaki: ['後藤貴明', 'goto_h'],
+    hirai_tsuneharu: ['平井経治', 'hirai'], hata_shigeru: ['波多鎮', 'hata'], utsunomiya_toyotsuna: ['宇都宮豊綱', 'utsunomiya_i'],
+    nobesawa_mitsunobu: ['延沢満延', 'tendo'], yasumi_munefusa: ['安見宗房', 'hatakeyama'],
+    // 城主
+    obara_shizane: ['小原鎮実', 'imagawa'], asakura_kagenori: ['朝倉景紀', 'asakura'], asakura_kageakira: ['朝倉景鏡', 'asakura'], itami_chikaoki: ['伊丹親興', 'miyoshi'],
+    matsura_mamoru: ['松浦守', 'miyoshi'], kagawa_yukikage: ['香川之景', 'miyoshi'], toyama_naokado: ['遠山直廉', 'toyama'],
+    baba_nobuharu: ['馬場信春', 'takeda'], akiyama_torashige: ['秋山虎繁', 'takeda'], sanada_yukitaka: ['真田幸隆', 'takeda'], oyamada_nobushige: ['小山田信茂', 'takeda'], oyamada_toramitsu: ['小山田虎満', 'takeda'],
+    honjo_sanenori: ['本庄実乃', 'nagao'], shibata_nagaatsu: ['新発田長敦', 'nagao'], naoe_kagetsuna: ['直江景綱', 'nagao'], yamayoshi_toyomori: ['山吉豊守', 'nagao'], irobe_katsunaga: ['色部勝長', 'nagao'], kitajo_takahiro: ['北条高広', 'nagao'],
+    hojo_ujitaka: ['北条氏堯', 'hojo'], kuragano_naoyuki: ['倉賀野直行', 'minowa'], annaka_tadamasa: ['安中忠政', 'minowa'],
+    masaki_tokishige: ['正木時茂', 'satomi'], masaki_tokitada: ['正木時忠', 'satomi'], satomi_yoshihiro: ['里見義弘', 'satomi'], edo_tadamichi: ['江戸忠通', 'satake'],
+    sugaya_katsusada: ['菅谷勝貞', 'odah'], toki_haruhide: ['土岐治英', 'odah'], mibu_tsunatake: ['壬生綱雄', 'utsunomiya'], kasama_tsunaie: ['笠間綱家', 'utsunomiya'],
+    date_sanemoto: ['伊達実元', 'date'], watari_motomune: ['亘理元宗', 'date'], koori_kagenaga: ['桑折景長', 'date'],
+    inawashiro_morikuni: ['猪苗代盛国', 'ashina'], kanagami_morikatsu: ['金上盛備', 'ashina'], naganuma_morihide: ['長沼盛秀', 'ashina'],
+    kaminoyama_mitsukane: ['上山満兼', 'mogami'], ujiie_yoshitsugu: ['氏家吉継', 'osaki'], ishikawa_takanobu: ['石川高信', 'nanbu'], hachinohe_masayoshi: ['八戸政栄', 'nanbu'],
+    kunohe_masazane: ['九戸政実', 'nanbu'], shichinohe_naokuni: ['七戸直国', 'nanbu'], cho_tsugutsura: ['長続連', 'noto'], jinbo_ujiharu: ['神保氏張', 'jinbo'], ema_tokimori: ['江馬時盛', 'mitsuki'],
+    takeda_takanobu: ['武田高信', 'yamana'], otagaki_tomonobu: ['太田垣朝延', 'yamana'], yagi_toyonobu: ['八木豊信', 'yamana'], akamatsu_masahide: ['赤松政秀', 'akamatsu'],
+    ukita_naoie: ['宇喜多直家', 'urakami'], kanemitsu_munetaka: ['金光宗高', 'urakami'], goto_katsumoto: ['後藤勝基', 'urakami'], sho_motosuke: ['庄元祐', 'mimura'], ishikawa_hisatomo: ['石川久智', 'mimura'],
+    honjo_tsunemitsu: ['本城常光', 'amako'], mitoya_hisasuke: ['三刀屋久扶', 'amako'], miura_sadahiro: ['三浦貞広', 'amako'],
+    katsura_motozumi: ['桂元澄', 'mori'], kodama_narikata: ['児玉就方', 'mori'], sugihara_morishige: ['杉原盛重', 'mori'], yoshimi_masayori: ['吉見正頼', 'mori'], masuda_fujikane: ['益田藤兼', 'mori'], naito_takaharu: ['内藤隆春', 'mori'],
+    murakami_michiyasu: ['村上通康', 'kono'], takahashi_akitane: ['高橋鑑種', 'otomo'], kamachi_akimori: ['蒲池鑑盛', 'otomo'], saeki_korenori: ['佐伯惟教', 'otomo'], shiga_chikamori: ['志賀親守', 'otomo'],
+    jo_chikafuyu: ['城親冬', 'otomo'], nawa_yukioki: ['名和行興', 'otomo'], kii_shigefusa: ['城井鎮房', 'otomo'], chiba_tanetsura: ['千葉胤連', 'ryuzoji'],
+    ochiai_kanetomo: ['落合兼朝', 'ito'], mera_shigekata: ['米良重方', 'ito'], kimotsuki_kanemori: ['肝付兼盛', 'shimazu'], iriki_shigetsugu: ['入来院重嗣', 'shimazu'],
+    hongo_tokihisa: ['北郷時久', 'shimazu'], shimazu_tadayoshi: ['島津忠良', 'shimazu'], shimazu_tadachika: ['島津忠親', 'shimazu'], shimazu_yoshitora: ['島津義虎', 'shimazu'],
+  };
+  for (const k in P) D.people[k] = { name: P[k][0], faction: P[k][1] };
+  const own = (id, f, lord) => { const s = D.settlements.find((x) => x.id === id); if (!s) return; if (f) s.owner = f; if (lord !== undefined) s.lord = lord; };
+  // 独立していた国衆
+  own('karasuyama', 'nasu', 'nasu_suketane'); own('karasawa', 'sano', 'sano_masatsuna'); own('miharu', 'tamura', 'tamura_takaaki');
+  own('tendo', 'tendo', 'tendo_yorisada'); own('nobesawa', 'tendo', 'nobesawa_mitsunobu'); own('kakunodate', 'tozawa', 'tozawa_michimori');
+  own('toyasaki', 'hienuki', 'hienuki_teruie'); own('kosho', 'akizuki', 'akizuki_tanezane'); own('tsukazaki', 'goto_h', 'goto_takaaki');
+  own('suko', 'hirai', 'hirai_tsuneharu'); own('kishidake', 'hata', 'hata_shigeru'); own('jizogatake', 'utsunomiya_i', 'utsunomiya_toyotsuna');
+  own('iimori', 'hatakeyama', 'yasumi_munefusa'); // 飯盛山城は永禄3年の秋まで安見宗房
+  // 城主
+  const L = { yoshida: 'obara_shizane', kanegasaki: 'asakura_kagenori', ono: 'asakura_kageakira', itami: 'itami_chikaoki', kishiwada: 'matsura_mamoru', amagiri: 'kagawa_yukikage',
+    naegi: 'toyama_naokado', fukashi: 'baba_nobuharu', iida: 'akiyama_torashige', toishi: 'sanada_yukitaka', iwadono: 'oyamada_nobushige', uchiyama: 'oyamada_toramitsu',
+    tochio: 'honjo_sanenori', shibata: 'shibata_nagaatsu', yoita: 'naoe_kagetsuna', sanjo: 'yamayoshi_toyomori', hirabayashi: 'irobe_katsunaga', kitajo: 'kitajo_takahiro',
+    kozukue: 'hojo_ujitaka', kuragano: 'kuragano_naoyuki', annaka: 'annaka_tadamasa', otaki: 'masaki_tokishige', katsuura: 'masaki_tokitada', sanuki: 'satomi_yoshihiro', mito: 'edo_tadamichi',
+    tsuchiura: 'sugaya_katsusada', edosaki: 'toki_haruhide', mibu: 'mibu_tsunatake', kasama: 'kasama_tsunaie', omori_f: 'date_sanemoto', watari: 'watari_motomune', nishiyama: 'koori_kagenaga',
+    inawashiro: 'inawashiro_morikuni', tsugawa: 'kanagami_morikatsu', shigiyama: 'naganuma_morihide', kaminoyama: 'kaminoyama_mitsukane', iwadeyama: 'ujiie_yoshitsugu',
+    ishikawa_t: 'ishikawa_takanobu', nejo: 'hachinohe_masayoshi', kunohe: 'kunohe_masazane', shichinohe: 'shichinohe_naokuni', anamizu: 'cho_tsugutsura', moriyama_e: 'jinbo_ujiharu', takahara: 'ema_tokimori',
+    tottori: 'takeda_takanobu', takeda_t: 'otagaki_tomonobu', yagi_t: 'yagi_toyonobu', tatsuno: 'akamatsu_masahide', numa: 'ukita_naoie', okayama: 'kanemitsu_munetaka', mitsuboshi: 'goto_katsumoto',
+    sarukake: 'sho_motosuke', btakamatsu: 'ishikawa_hisatomo', yamabuki: 'honjo_tsunemitsu', mitoya: 'mitoya_hisasuke', takada_m: 'miura_sadahiro',
+    sakurao: 'katsura_motozumi', kusatsu_a: 'kodama_narikata', kannabe: 'sugihara_morishige', tsuwano: 'yoshimi_masayori', masuda: 'masuda_fujikane', katsuyama_c: 'naito_takaharu',
+    kurushima: 'murakami_michiyasu', iwaya: 'takahashi_akitane', yanagawa: 'kamachi_akimori', togamure: 'saeki_korenori', okajo: 'shiga_chikamori', kumamoto: 'jo_chikafuyu', uto: 'nawa_yukioki', kiidani: 'kii_shigefusa',
+    ogi: 'chiba_tanetsura', miyazaki: 'ochiai_kanetomo', mitsuyama: 'mera_shigekata', kajiki: 'kimotsuki_kanemori', kiyoshiki: 'iriki_shigetsugu', miyakonojo: 'hongo_tokihisa',
+    kaseda: 'shimazu_tadayoshi', obi: 'shimazu_tadachika', izumi_s: 'shimazu_yoshitora' };
+  for (const id in L) own(id, null, L[id]);
+  // 加治木城にいた島津義久は内城（父のもと）へ
+  if (D.people.shimazu_yoshihisa) D.people.shimazu_yoshihisa.faction = 'shimazu';
+
+  // 新しい家・小さな家の名簿（すでに他の家の名簿にいる人は移す）
+  const X = {
+    nasu: '那須資晴 大関高増 大関高信 大田原綱清 大田原資清 福原資孝 芦野資泰 伊王野資宗 千本資俊 千本資政 興野義国',
+    sano: '佐野宗綱 佐野房綱 山上道及 竹沢定冬 大貫武重',
+    tamura: '田村清顕 田村顕頼 田村顕基 橋本顕徳 大越顕光 常葉清通',
+    tendo: '天童頼澄 天童頼長 東根頼景 楯岡満英 飯田義兼 尾花沢満政',
+    tozawa: '戸沢盛安 戸沢盛重 戸沢政盛 前田薩摩守 白岩盛直',
+    hienuki: '稗貫広忠 稗貫晴家 亀ヶ森光家 大迫家盛',
+    akizuki: '秋月種長 高橋元種 恵利暢尭 内田実久 坂田種貞',
+    goto_h: '後藤惟明 後藤純明 渋江公師',
+    hirai: '平井直秀 平井直茂 平井信治',
+    hata: '日高喜 日高資 鶴田前 鶴田勝 有浦高 草野鎮永',
+    utsunomiya_i: '宇都宮房綱 大野直昌 曽根宣高 菅田直之',
+    toyama: '遠山友信 遠山景行 遠山利景 遠山友政 遠山直景',
+    nagano: '長野藤定 分部光高 雲林院祐基 草生顕盛',
+    seki: '関盛信 関一政 鹿伏兎定長 峯盛祐 神戸利盛 国府盛種',
+    minowa: '長野業正 藤井友忠 八木原信忠 内藤昌月 大戸真楽斎 和田信業 長野業通 長野業固 上原... 浜川左衛門 羽田藤兵衛 青柳忠家 小幡信実',
+    iwaki: '岩城重隆 岩城常隆 白土隆良 志賀甘釣斎 船尾隆直 上遠野秀宗 植田... 窪田... 好間...',
+    muto: '大宝寺義増 砂越氏維 中山朝正 竹井時友 池田盛周 前森蔵人 東禅寺勝正',
+    kasai: '葛西晴胤 江刺重恒 柏山明吉 薄衣清貞 浜田基綱 寺崎時胤 本吉... 岩淵... 富沢直綱 黒沢... 大原信明',
+    onodera: '小野寺義道 小野寺康道 西馬音内茂道 稲庭道勝 大森康道 八柏道為 黒沢道家',
+    ando: '安東愛季 安東舜季 浅利勝頼 浅利則頼 豊島玄蕃 大高筑前守 嘉成重盛 三浦盛永',
+    shiina: '椎名康胤 土肥政繁 寺崎盛永 小出... 河上... 弓庄... 魚津...',
+    motoyama: '本山茂辰 本山貞茂 本山親茂 大石... 森... 中島... 吉良宣直 本山茂定',
+    aki: '安芸国虎 黒岩越前守 畑山元明 安岡... 小谷... 有沢... 横山... 専当... 安芸千寿丸',
+    kimotsuki: '肝付兼続 肝付良兼 肝付兼亮 薬丸兼将 安楽兼寛 伊地知重興 禰寝重長 野崎... 岸良...',
+    ota: '太田氏資 梶原政景 太田資房 宮城泰業 内山弥右衛門 恒岡長門守 春日行元 細谷資満 渋江... 野本...',
+    akai: '冨岡秀高 富岡直光 赤井照景 小泉... 赤井文六 茂林光興',
+    yura: '由良国繁 長尾顕長 長尾当長 藤生紀伊守 金谷因幡守 矢場内匠助 林... 大沢...',
+    kiryuh: '桐生親綱 里見勝広 津久井... 荒巻... 谷... 桐生直綱 彦部信勝 石原... 小曽根...',
+    kokubun: '国分盛重 国分... 馬場... 宮沢... 秋保... 沖野... 国分盛顕 秋保定重 馬場定経',
+    rusu: '留守政景 村岡... 余目... 佐藤... 留守景宗 余目家明 村岡兵衛 佐藤為信',
+    namioka_k: '北畠顕村 北畠具統 北畠顕忠 北畠顕範 水木御所... 北畠具永',
+    tsuchimochi: '土持親佐 土持高信 長井... 新名... 甲斐... 土持親信 土持親綱',
+    jinbo: '神保長城 寺島盛徳 水越職勝 二宮長恒 菊池武勝 小島職鎮',
+    shiina: '椎名景直 椎名慶胤',
+    akamatsu: '赤松則房 赤松政範 上月景貞 宇野祐清 赤松広英',
+    ito: '伊東祐松 荒武宗並 稲津重政 山田宗昌 川崎祐長 木脇祐守 伊東祐審',
+    yukih: '結城朝勝 山川朝信 岩上朝堅 多賀谷政経 多賀谷重経 山川氏重 水谷勝俊',
+    nikaido: '二階堂行親 須田盛秀 須田盛秋 保土原行藤 箭部安房守 守屋俊重 浜尾盛泰 遠藤雅楽頭',
+    soma: '相馬盛胤 相馬隆胤 相馬郷胤 岡田胤景 泉胤政 門馬... 木幡... 新館胤治 黒木... 水谷... 中村... 熊川...',
+    shirakawa: '白河義顕 白河隆綱 和知直頼 船尾昭直 小峰義親 石川晴光 石川昭光 芳賀左衛門尉 赤坂... 浅川...',
+    osaki: '大崎義隆 氏家隆継 黒川晴氏 古川持熈 一栗高春 中新田... 新井田... 宮崎隆親 高泉直堅',
+  };
+  // 名前のない家臣（「...」付き）は使わない
+  const moveTo = (k, n) => { for (const o in R) if (o !== k) { const i = R[o].indexOf(n); if (i >= 0) R[o].splice(i, 1); } R[k] = R[k] || []; if (!R[k].includes(n)) R[k].push(n); };
+  for (const k in X) for (const n of X[k].split(' ')) { if (!n || /[.…?？]/.test(n)) continue; moveTo(k, n); }
+  // 新しい家の当主・城主は元の家の名簿から外す（名前が2度出ないように）
+  const placed = new Set(Object.values(D.people).map((p) => p.name));
+  for (const k in R) R[k] = R[k].filter((n) => !placed.has(n));
+})();

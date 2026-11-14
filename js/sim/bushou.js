@@ -3,7 +3,7 @@
   const SIM = SGK.SIM, rnd = (w) => SIM.rand(w);
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const MAX_TRAVEL = 30, MAX_RONIN = 14, TALK_KM = 1.5, MAX_RET = 3, RET_CAP = 6;
-  const newPerson = (w, faction, extra) => { const id = 'g' + w.nextId++; w.people[id] = Object.assign({ name: SIM.genName(w, faction), faction, loyal: 55 + Math.floor(rnd(w) * 25) }, extra || {}); return id; };
+  const newPerson = (w, faction, extra) => { const nm = SIM.genName(w, faction); if (!nm) return null; const id = 'g' + w.nextId++; w.people[id] = Object.assign({ name: nm, faction, loyal: 55 + Math.floor(rnd(w) * 25) }, extra || {}); return id; }; // 1.5.0 名簿が尽きたら null
   SIM.npcName = (w, n) => (n && n.person && w.people[n.person] ? w.people[n.person].name : null);
 
   // ---- 1. 巡回兵の隊長 ----
@@ -36,7 +36,8 @@
     const ts = w.settlements.filter((s) => s.type !== 'castle'); const s = ts[Math.floor(rnd(w) * ts.length)]; if (!s) return;
     const id = 'n' + w.nextId++, need = 6 + Math.floor(rnd(w) * 25);
     const army = { yari: 3 + Math.floor(rnd(w) * 6) }; if (rnd(w) < 0.5) army.yumi = 2 + Math.floor(rnd(w) * 3); if (need > 22 && rnd(w) < 0.5) army.kiba = 2;
-    w.npcs[id] = { id, kind: 'ronin', faction: null, person: newPerson(w, null, { role: 'ronin' }), x: s.x, y: s.y, tx: null, ty: null, path: null, dest: null, at: s.id, home: s.id,
+    const rp = newPerson(w, null, { role: 'ronin' }); if (!rp) return;
+    w.npcs[id] = { id, kind: 'ronin', faction: null, person: rp, x: s.x, y: s.y, tx: null, ty: null, path: null, dest: null, at: s.id, home: s.id,
       need, fee: Math.round((800 + need * 150 + rnd(w) * 1500) / 100) * 100, army, size: SIM.troopCount(army), speed: 28, wait: rnd(w) * 1440 };
   }
   function travelTick(w, dt) {
@@ -126,12 +127,23 @@
   SIM.genStats = (w, pr, lord) => { if (pr.tou == null) { const b = lord ? 50 : 35; pr.tou = b + Math.floor(rnd(w) * 40); pr.bu = b + Math.floor(rnd(w) * 40); } return pr; };
   const cpuCastle = (w, s) => s.type === 'castle' && !s.site && s.owner && w.factions[s.owner] && !w.factions[s.owner].dead && !s.holder;
   const live = (w, id) => w.people[id] && !w.people[id].dead && !w.people[id].captive; // 捕らわれている武将は動けない
-  function newVassal(w, s) { const id = newPerson(w, s.owner, { role: 'vassal', castle: s.id, loyal: 50 + Math.floor(rnd(w) * 30) }); SIM.genStats(w, w.people[id]); s.vass.push(id); return id; }
+  function newVassal(w, s) { const id = newPerson(w, s.owner, { role: 'vassal', castle: s.id, loyal: 50 + Math.floor(rnd(w) * 30) }); if (!id) return null; SIM.genStats(w, w.people[id]); s.vass.push(id); return id; }
   function ensureVassals(w) {
     // 1.1.0 これまでの架空の武将を、その家の実在の武将の名前に置き換える（1回だけ）
     if (!w.realNames) {
       w.realNames = 1;
       for (const id in w.people) { const pr = w.people[id]; if (id[0] !== 'g' || pr.player || pr.pid) continue; const n = SIM.genName(w, pr.role === 'ronin' ? null : pr.faction, true); if (n) pr.name = n; }
+    }
+    // 1.5.0 まだ残っている架空の武将は実在の名前に。名前が足りなければ（城主・大将でない人は）いなくなる
+    if ((w.realNames || 0) < 2) {
+      w.realNames = 2;
+      const real = new Set(Object.values(SGK.DATA.people).map((p) => p.name)); for (const k in SGK.DATA.roster) for (const n of SGK.DATA.roster[k]) real.add(n);
+      const lordsN = new Set(w.settlements.filter((x) => x.lord).map((x) => x.lord)), lead = new Set(); for (const n of Object.values(w.npcs)) { if (n.person) lead.add(n.person); for (const g of n.gens || []) lead.add(g); }
+      for (const id in w.people) {
+        const pr = w.people[id]; if (id[0] !== 'g' || pr.player || pr.pid || pr.dead || real.has(pr.name)) continue;
+        const n = SIM.genName(w, pr.role === 'ronin' ? null : pr.faction); if (n) { pr.name = n; continue; }
+        if (!lordsN.has(id) && !lead.has(id)) pr.dead = true;
+      }
     }
     for (const pr of Object.values(w.people)) SIM.genStats(w, pr, true);
     const lords = new Set(w.settlements.filter((x) => x.lord).map((x) => x.lord));
@@ -172,7 +184,7 @@
     const busy = leading(w);
     for (const n of Object.values(w.npcs)) if (n.kind === 'patrol' && (!n.person || !live(w, n.person)) && n.faction) {
       const h = SIM.settlement(w, n.home), v = h && h.vass && pickVassal(w, h, busy);
-      if (v) { n.person = v; busy.add(v); } else { n.person = newPerson(w, n.faction, { role: 'vassal', castle: n.home }); SIM.genStats(w, w.people[n.person]); if (h && h.vass) h.vass.push(n.person); }
+      if (v) { n.person = v; busy.add(v); } else { n.person = newPerson(w, n.faction, { role: 'vassal', castle: n.home }); if (n.person) { SIM.genStats(w, w.people[n.person]); if (h && h.vass) h.vass.push(n.person); } }
     }
   };
   // ===== 0.78.0 大名・城主・家臣は身分に応じて、はじめから質のよい兵を連れている =====
