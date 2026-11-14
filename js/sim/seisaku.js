@@ -52,7 +52,7 @@
     gunyaku: { name: '軍役の定め', mine: true, cost: 2500, up: 250, text: '集まる兵+25%' },
     jinsei: { name: '仁政', mine: true, cost: 2000, up: 150, text: '人口の増え方が上がる・城主の忠誠が上がる' },
   };
-  const COOL = 180; // やめてから同じ政策をまた使えるまでの日数
+  const COOL = 30; // やめてから同じ政策をまた使えるまでの日数（0.73.1 180→30）
   const has = (fid, id) => { const f = W && fid && W.factions[fid]; return !!(f && f.pol && f.pol[id] != null); };
   const canUse = (w, fid, id) => { const f = w.factions[fid], q = P[id]; return !!(f && q && (q.only ? q.only === fid : q.mine ? f.player && f.mine === id : true)); };
 
