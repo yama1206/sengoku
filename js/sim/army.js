@@ -440,8 +440,9 @@
   const isGen = (n) => (n.kind === 'patrol' || n.kind === 'bushou') && n.faction && n.army && !n.battle && !n.fight;
   const need = (p) => (M.power(p.troops) + heroPow()) * HUNT.ratio;
   const foeOf = (w, n, p) => p.clan && SIM.atWar(w, n.faction, p.clan) && M.inField(p) && !p.battle;
+  const huntKm = (p) => HUNT.km * (p.nin && SIM.NIN ? SIM.NIN.armySeen : 1); // 0.78.0 忍びは大名の軍勢からも見つかりにくい
   function huntable(w, n, p) {
-    return foeOf(w, n, p) && dist(n, p) < HUNT.km && M.power(n.army) >= need(p);
+    return foeOf(w, n, p) && dist(n, p) < huntKm(p) && M.power(n.army) >= need(p);
   }
   // ---- 0.57.0 1隊では負けそうでも、近くの同じ家の隊と合わせて勝てそうなら、いっしょに攻めかかる ----
   const PACK = { km: 3, joinKm: 3 };
@@ -504,7 +505,7 @@
         if (p) { n.hunt = p.id; SIM.say(p.id, `${armyName(w, n)}（${fName(w, n.faction)}・${n.size}人）がこちらへ向かってきます！`); }
         else { // 1隊では足りない：近くの仲間と合わせて足りるなら、いっしょに攻めかかる
           for (const q of ps) {
-            if (!foeOf(w, n, q) || dist(n, q) >= HUNT.km) continue;
+            if (!foeOf(w, n, q) || dist(n, q) >= huntKm(q)) continue;
             const pk = packFor(w, n, q); if (!pk) continue;
             p = q; n.hunt = q.id; n.pack = pk.map((m) => m.id);
             for (const m of pk) { m.packOf = n.id; m.hunt = q.id; m.flee = null; m.dest = null; }

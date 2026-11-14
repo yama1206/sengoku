@@ -170,6 +170,25 @@
       if (v) { n.person = v; busy.add(v); } else { n.person = newPerson(w, n.faction, { role: 'vassal', castle: n.home }); SIM.genStats(w, w.people[n.person]); if (h && h.vass) h.vass.push(n.person); }
     }
   };
+  // ===== 0.78.0 大名・城主・家臣は身分に応じて、はじめから質のよい兵を連れている =====
+  const GQ = SIM.GEN_QUAL = { daimyo: { up: 0.45, top: 0.35, kiba: 4, horo: 2 }, lord: { up: 0.3, top: 0.2, kiba: 2, horo: 0 }, vassal: { up: 0.15, top: 0.1, kiba: 1, horo: 0 } };
+  const UPG = { nohei: 'yari', yari: 'nagayari', yumi: 'teppo', nagayari: 'yarigashira', teppo: 'teppogashira', kiba: 'horo' };
+  SIM.genStatus = (w, pid, fid) => { const f = w.factions[fid]; if (!pid || !f) return 'vassal'; if (f.leader === pid) return 'daimyo'; return w.settlements.some((s) => s.lord === pid) ? 'lord' : 'vassal'; };
+  SIM.qualArmy = (w, army, st) => {
+    const q = GQ[st] || GQ.vassal, a = Object.assign({}, army);
+    for (const k of ['yari', 'yumi', 'nohei']) { const m = Math.round((a[k] || 0) * q.up); if (!m) continue; a[k] -= m; const u = UPG[k]; a[u] = (a[u] || 0) + m; }
+    for (const k of ['nagayari', 'teppo']) { const m = Math.round((a[k] || 0) * q.top); if (!m) continue; a[k] -= m; const u = UPG[k]; a[u] = (a[u] || 0) + m; }
+    if (q.kiba) a.kiba = (a.kiba || 0) + q.kiba; if (q.horo) a.horo = (a.horo || 0) + q.horo;
+    for (const k in a) if (!a[k]) delete a[k];
+    return a;
+  };
+  SIM.systems.push(function genQual(w) {
+    for (const n of Object.values(w.npcs)) {
+      if (n.q || !n.army || !n.person || !(n.kind === 'patrol' || n.kind === 'bushou') || n.battle || n.fight) continue;
+      const f = w.factions[n.faction]; n.q = 1; if (!f || f.player || f.dead) continue;
+      n.army = SIM.qualArmy(w, n.army, SIM.genStatus(w, n.person, n.faction)); n.size = SIM.troopCount(n.army); if (n.kind === 'patrol') n.cap = Math.max(n.cap || 0, n.size);
+    }
+  });
   SIM.systems.push(function vassalTick(w) { const d = Math.floor(w.time.min / 1440); if (w.vday === d) return; w.vday = d; vassalDaily(w); });
   // 軍勢には出陣元の城の家臣も加わる
   const baseLaunch = SIM.launchArmy;
