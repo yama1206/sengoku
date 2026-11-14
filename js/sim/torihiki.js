@@ -64,9 +64,8 @@
 
   // ===== プレイヤー同士の取引：渡す（お金・荷・兵）と、売りに出す（相手が受けると代金と品が入れ替わる） =====
   TH.pKm = 1.5; TH.offerMin = 120; // 申し出はゲーム内2時間で消える
-  const CAPN = 30;
   const near = (w, p, c) => { const q = w.players[c.to]; if (!q || q === p) return null; if (dist(p, q) > TH.pKm) { SIM.say(p.id, `もっと近づかないと渡せません（${TH.pKm}km以内）`); return null; } if (p.battle || q.battle) { SIM.say(p.id, '戦の最中は取引できません'); return null; } return q; };
-  const room = (q, k) => (k === 'rice' ? (SIM.riceCap ? SIM.riceCap(q) : 999) - ((q.inv && q.inv.rice) || 0) : CAPN - SIM.cargo(q));
+  const room = () => Infinity; // 0.74.0 荷は重さで管理（個数の上限なし）
   const moveItem = (a, b, k, n) => { a.inv[k] -= n; b.inv[k] = (b.inv[k] || 0) + n; };
   SIM.commands.pGive = (w, p, c) => {
     const q = near(w, p, c); if (!q) return;

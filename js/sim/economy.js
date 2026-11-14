@@ -3,7 +3,7 @@
   const SIM = SGK.SIM;
   const I = () => SGK.DATA.items;
   const SIZE = { castle: 1, town: 1.5, village: 0.6 };
-  const CAP = 30; // 徒歩で運べる荷の量（馬などは後日）
+  // 0.74.0 荷は個数の上限なし。重さ(kg)で管理し、重いほど移動が遅くなる（SIM.loadKg・SIM.loadSpeed は equip.js）
 
   // ---- プレイヤーへのお知らせ（セーブには入れない） ----
   SIM.out = {};
@@ -13,9 +13,8 @@
   // 持ち物の平均買値（p.cost[品] = 1つあたりの文）。買うたびに加重平均、手放して0になったら消す
   function addCost(p, k, q, unit) { p.cost = p.cost || {}; const have = p.inv[k] || 0, old = p.cost[k] != null ? p.cost[k] : unit; p.cost[k] = (old * have + unit * q) / (have + q); }
   function dropCost(p, k) { if (!p.inv[k] && p.cost) delete p.cost[k]; }
-  SIM.cargo = (p) => Object.entries(p.inv).reduce((a, [k, b]) => a + (k === 'rice' ? 0 : b), 0); // 0.29.0 米は別枠
-  SIM.riceCap = (p) => 30 + Math.ceil((SIM.riceNeed ? SIM.riceNeed(p) : 0) * 30); // 米の枠：30俵＋兵30日分
-  SIM.room = (p, k) => k === 'rice' ? SIM.riceCap(p) - ((p.inv && p.inv.rice) || 0) : CAP - SIM.cargo(p);
+  SIM.invKg = (p) => Object.entries(p.inv || {}).reduce((a, [k, b]) => a + b * ((I()[k] && I()[k].wt) || 0), 0); // 0.74.0 荷の重さ
+  SIM.room = () => Infinity; // 0.74.0 個数の上限はなし
   const fullMsg = (k) => k === 'rice' ? '米はこれ以上持てません' : 'これ以上は持てません';
   const pick = (w, arr) => arr[Math.floor(SIM.rand(w) * arr.length)];
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -117,7 +116,7 @@
         p.busy = null;
         if (b.kind === 'labor') { p.money += b.pay; SIM.say(p.id, `人足仕事を終えました（${SIM.money(b.pay)}）`); }
         if (b.kind === 'gather') {
-          const n = Math.min(b.amount, CAP - SIM.cargo(p));
+          const n = b.amount;
           if (n > 0) { addCost(p, 'firewood', n, 0); p.inv.firewood = (p.inv.firewood || 0) + n; SIM.say(p.id, `薪を${n}束集めました`); } else SIM.say(p.id, '荷がいっぱいで薪を持てませんでした');
         }
       }
@@ -264,7 +263,7 @@
     const p = w.players[pid]; if (!p) return null;
     const s = here(w, p);
     return {
-      me: { money: p.money, inv: p.inv, cost: p.cost || {}, quests: p.quests, fame: Math.round(p.fame * 10) / 10, busy: p.busy, meet: p.meet || null, cap: CAP, riceCap: SIM.riceCap(p) },
+      me: { money: p.money, inv: p.inv, cost: p.cost || {}, quests: p.quests, fame: Math.round(p.fame * 10) / 10, busy: p.busy, meet: p.meet || null, },
       here: s ? { id: s.id, noBuy: [...SIM.noBuy(w, s)], market: Object.keys(I()).map((k) => [k, SIM.buyPrice(s, k, p), SIM.sellPrice(s, k, p), Math.floor(s.stock[k])]), jobs: Object.values(w.jobs).filter((j) => j.from === s.id && SIM.jobOk(w, p, j)) } : null,
     };
   };

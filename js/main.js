@@ -627,13 +627,13 @@
     document.querySelectorAll('#town [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === townTab));
     let html = '';
     if (townTab === 'market') {
-      html += `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　荷 ${SIM.cargo(me)}/${me.cap}　米 ${(me.inv && me.inv.rice) || 0}/${me.riceCap}俵（別枠）</div><div class="grid">`;
+      html += `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　${loadTxt(me)}</div><div class="grid">`;
       html += '<span class="h">品</span><span class="h">買値</span><span class="h">売値</span><span class="h">在庫</span><span class="h">所持</span><span></span><span></span><span></span><span></span>';
       for (const [k, buy, sell, stock] of h.market) {
         const it = IT[k], have = me.inv[k] || 0;
         const mm = me.memo && me.memo[k], ago = (x) => (x[2] <= 0 ? '今日' : x[2] + '日前');
         const memo = mm ? `<br><span style="font-size:11px;color:#9ab">${mm.sell && mm.sell[1] > sell ? `高く売れる：${sName(mm.sell[0])} ${mm.sell[1]}文(${ago(mm.sell)})` : ''}${mm.buy && mm.buy[1] < buy ? `${mm.sell && mm.sell[1] > sell ? '<br>' : ''}安く買える：${sName(mm.buy[0])} ${mm.buy[1]}文(${ago(mm.buy)})` : ''}</span>` : '';
-        html += `<span>${it.name}<span class="muted">/${it.unit}<br>相場${it.base}文</span>${memo}</span><span style="color:${priceCol(buy / 1.1 / it.base)}">${buy}文</span><span style="color:${priceCol(sell / 0.9 / it.base)}">${sell}文</span><span>${stock}</span><span>${have}${have && me.cost && me.cost[k] != null ? `<br><span style="font-size:11px;color:${sell >= me.cost[k] ? '#6fbf73' : '#e07a6a'}">平均${Math.round(me.cost[k])}文</span>` : ''}</span>`
+        html += `<span>${it.name}<span class="muted">/${it.unit}・${it.wt}kg<br>相場${it.base}文</span>${memo}</span><span style="color:${priceCol(buy / 1.1 / it.base)}">${buy}文</span><span style="color:${priceCol(sell / 0.9 / it.base)}">${sell}文</span><span>${stock}</span><span>${have}${have && me.cost && me.cost[k] != null ? `<br><span style="font-size:11px;color:${sell >= me.cost[k] ? '#6fbf73' : '#e07a6a'}">平均${Math.round(me.cost[k])}文</span>` : ''}</span>`
           + ((h.noBuy || []).includes(k) ? `<button id="b1-${k}" disabled title="調達の依頼が出ているので買えない">依頼品</button><button id="b10-${k}" disabled>－</button>` : `<button id="b1-${k}" data-act="buy" data-item="${k}" data-qty="1">買1</button><button id="b10-${k}" data-act="buy" data-item="${k}" data-qty="10">買10</button>`)
           + `<button id="s1-${k}" data-act="sell" data-item="${k}" data-qty="1" ${have ? '' : 'disabled'}>売1</button><button id="sa-${k}" data-act="sell" data-item="${k}" data-qty="999" ${have ? '' : 'disabled'}>全部</button>`;
       }
@@ -643,14 +643,14 @@
       if (E && (h.shop || []).length) {
         const cur = (sl) => (E[sl] && EQ[sl][E[sl]]) ? EQ[sl][E[sl]].name : 'なし';
         const wk = E.wep && EQ.wep[E.wep] ? EQ.wep[E.wep].kind : null;
-        html += `<div class="muted" style="margin-top:10px">武具　いまの装備：武器 ${cur('wep')}${wk ? `（${EQ.groupName[wk]}に入る）` : ''}・副武器 ${E.wep2 ? EQ.wep[E.wep2].name : 'なし'}・防具 ${cur('arm')}・馬 ${cur('horse')}</div>`;
+        html += `<div class="muted" style="margin-top:10px">武具（前の装備は荷に入ります。人物の装備タブで付け替え・売却）　いまの装備：武器 ${cur('wep')}${wk ? `（${EQ.groupName[wk]}に入る）` : ''}・副武器 ${E.wep2 ? EQ.wep[E.wep2].name : 'なし'}・防具 ${cur('arm')}・馬 ${cur('horse')}</div>`;
         if (E.wep2) html += `<div class="row" style="margin:4px 0"><button id="eqSwap" data-act="swapWep">主の武器と副武器を入れ替える</button></div>`;
         for (const [sl, id] of h.shop) {
-          const e = EQ[sl][id], have = E[sl] === id, old = E[sl] && EQ[sl][E[sl]], back = old ? Math.floor(old.cost * EQ.sell) : 0;
+          const e = EQ[sl][id], have = E[sl] === id;
           const ex = SIM.eqFxText(e), eff = (sl === 'wep' ? `${EQ.kindName[e.kind]}・${EQ.groupName[e.kind]}に入る${e.am ? `・本人の攻撃+${Math.round(e.am * 100)}%` : ''}` : sl === 'arm' ? `守り+${e.da}` : `1日の移動+${e.km}km`) + (ex ? `<br><b style="color:#e8c46a">${ex}</b>` : '');
-          const own2 = sl === 'wep' && E.wep2 === id, o2 = sl === 'wep' && E.wep2 && EQ.wep[E.wep2], back2 = o2 ? Math.floor(o2.cost * EQ.sell) : 0;
-          const b2 = sl === 'wep' ? `<button id="eq2-${id}" data-act="buyEquip" data-kind="wep2" data-id="${id}" ${have || own2 || me.money + back2 < e.cost ? 'disabled' : ''}>${own2 ? '副で装備中' : '副武器に買う'}</button>` : '';
-          html += `<div class="card"><div><b>${e.name}</b>　<span class="muted">${EQ.slotName[sl]}　${SIM.money(e.cost)}${back && !have ? `（下取り${SIM.money(back)}）` : ''}<br>${eff}</span></div><div class="row"><button id="eq-${id}" data-act="buyEquip" data-kind="${sl}" data-id="${id}" ${have || own2 || me.money + back < e.cost ? 'disabled' : ''}>${have ? '装備中' : sl === 'wep' ? '主に買う' : '買う'}</button>${b2}</div></div>`;
+          const own2 = sl === 'wep' && E.wep2 === id;
+          const b2 = sl === 'wep' ? `<button id="eq2-${id}" data-act="buyEquip" data-kind="wep2" data-id="${id}" ${have || own2 || me.money < e.cost ? 'disabled' : ''}>${own2 ? '副で装備中' : '副武器に買う'}</button>` : '';
+          html += `<div class="card"><div><b>${e.name}</b>　<span class="muted">${EQ.slotName[sl]}　${SIM.money(e.cost)}${e.wt ? `　${e.wt}kg` : e.cw ? `　荷+${e.cw}kg` : ''}<br>${eff}</span></div><div class="row"><button id="eq-${id}" data-act="buyEquip" data-kind="${sl}" data-id="${id}" ${have || own2 || me.money < e.cost ? 'disabled' : ''}>${have ? '装備中' : sl === 'wep' ? '主に買う' : '買う'}</button>${b2}</div></div>`;
         }
       }
     } else if (townTab === 'jobs') {
@@ -791,7 +791,9 @@
   function cycleTab(d) { const tabs = ['market', 'jobs', 'work', 'army', 'talk', 'castle'].filter((t) => !$('tab-' + t).classList.contains('hidden')); setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
 
   // ---------- 人物（能力・技能・特技・部隊の昇格） ----------
-  let charTab = 'stat', charHtml = '';
+  let charTab = 'eq', charHtml = '';
+  // 0.74.0 荷の重さの表示
+  const loadTxt = (me) => me.loadKg == null ? '' : `荷 <b style="color:${me.loadSpd < 1 ? '#e07a6a' : 'inherit'}">${me.loadKg}kg</b>/目安${me.carryKg}kg${me.loadSpd < 1 ? `（重くて移動×${me.loadSpd}）` : ''}`;
   function openChar(open) {
     const c = $('char');
     if (open === false || !G.priv) { c.classList.add('hidden'); return; }
@@ -799,23 +801,33 @@
     openTown(false); toggleMenu(false); c.classList.remove('hidden'); charHtml = ''; renderChar(); setFocus(c, currentFocus(c));
   }
   function setCTab(t) { charTab = t; charHtml = ''; renderChar(); setFocus($('char'), $('ctab-' + t)); }
-  function cycleCTab(d) { const t = ['stat', 'perk', 'army', 'rank', 'pol', 'mon', 'hyo'].filter((x) => !$('ctab-' + x).classList.contains('hidden')); setCTab(t[(t.indexOf(charTab) + d + t.length) % t.length]); }
+  function cycleCTab(d) { const t = ['eq', 'stat', 'perk', 'army', 'rank', 'pol', 'mon', 'hyo'].filter((x) => !$('ctab-' + x).classList.contains('hidden')); setCTab(t[(t.indexOf(charTab) + d + t.length) % t.length]); }
   function renderChar() {
     const P = G.priv; if (!P || !P.me.char || P.battle) return openChar(false);
     const me = P.me, C = me.char, TR = SIM.TROOPS, m = G.view && G.view.players.find((x) => x.id === G.myPid);
     $('charName').textContent = C.off ? `${m ? m.name : ''}　名声${C.fame}` : `${m ? m.name : ''}　格${C.level}　名声${C.fame}`;
-    $('ctab-stat').textContent = C.off ? '装備' : '能力・技能'; $('ctab-perk').classList.toggle('hidden', !!C.off); if (C.off && charTab === 'perk') charTab = 'stat';
+    $('ctab-stat').classList.toggle('hidden', !!C.off); $('ctab-perk').classList.toggle('hidden', !!C.off); if (C.off && (charTab === 'perk' || charTab === 'stat')) charTab = 'eq'; // 0.74.0 装備は専用タブ
     document.querySelectorAll('#char [data-ctab]').forEach((b) => b.classList.toggle('on', b.dataset.ctab === charTab));
     let html = '';
-    if (C.off && (charTab === 'stat' || charTab === 'perk')) { // 0.73.7 能力値・特技はいったん無し。装備の能力を見せる
-      const EQ = SIM.EQUIP, E = me.equip || {};
-      html += '<div class="muted" style="margin-bottom:6px">いまは能力値・技能・特技はありません。本人の強さは装備で変わります（武具は町・城で買えます）</div>';
-      for (const [sl, id] of [['wep', E.wep], ['wep', E.wep2], ['arm', E.arm], ['horse', E.horse]]) {
-        const e = id && EQ[sl][id], lab = id && id === E.wep2 && sl === 'wep' && id !== E.wep ? '副武器（持ち替えると効く）' : EQ.slotName[sl];
-        if (!e) { if (id !== E.wep2) html += `<div class="card"><div><b>${lab}</b>　<span class="muted">なし</span></div></div>`; continue; }
-        const base = sl === 'wep' ? (e.am ? `本人の攻撃+${Math.round(e.am * 100)}%` : '') : sl === 'arm' ? `守り+${e.da}` : `1日の移動+${e.km}km`, ex = SIM.eqFxText(e);
-        html += `<div class="card" style="display:block"><b>${lab}</b>　${e.name}<br><span class="muted">${[base, ex].filter(Boolean).join('・') || '特になし'}</span></div>`;
+    if (charTab === 'eq') { // 0.74.0 装備タブ：付ける・外す・売る、荷の重さ
+      const EQ = SIM.EQUIP, E = me.equip || {}, G2 = me.gear || {};
+      const desc = (sl, e) => [sl === 'wep' ? `${EQ.kindName[e.kind]}${e.am ? `・本人の攻撃+${Math.round(e.am * 100)}%` : ''}` : sl === 'arm' ? `守り+${e.da}` : `1日の移動+${e.km}km・荷+${e.cw}kg`, e.wt ? `${e.wt}kg` : ''].filter(Boolean).join('・');
+      html += `<div class="muted" style="margin-bottom:6px">${loadTxt(me)}<br>目安＝本人${EQ.carry.self}kg＋兵1人${EQ.carry.man}kg（騎馬${EQ.carry.cav}kg）＋馬。超えると移動が遅くなります</div>`;
+      html += '<div class="muted">装備中</div>';
+      for (const sl of ['wep', 'wep2', 'arm', 'horse']) {
+        const id = E[sl], e = id && EQ[sl === 'wep2' ? 'wep' : sl][id];
+        const off = e && (sl !== 'wep' || E.wep2) ? `<button id="uq-${sl}" data-cact="unequip" data-to="${sl}">外す</button>` : '';
+        html += `<div class="card"><div><b>${EQ.slotName[sl]}</b>　${e ? `${e.name}<br><span class="muted">${desc(sl === 'wep2' ? 'wep' : sl, e)}${sl === 'wep2' ? '（持ち替えると効く）' : ''}</span>` : '<span class="muted">なし</span>'}</div>${sl === 'wep2' && e ? '<button id="uq-swap" data-cact="swapWep">主と入れ替え</button>' : ''}${off}</div>`;
       }
+      const ids = Object.keys(G2).filter((k) => G2[k] > 0);
+      html += `<div class="muted" style="margin-top:10px">荷の中の武具${me.canSell ? '（ここで半値で売れます）' : '（売るのは町・城で）'}</div>`;
+      if (!ids.length) html += '<div class="muted" style="margin:4px 0">なし</div>';
+      for (const id of ids) {
+        const sl = EQ.slotOf(id), e = EQ[sl][id];
+        const bt = sl === 'wep' ? `<button id="gq-${id}" data-cact="equipGear" data-id="${id}" data-to="wep">主に</button><button id="gq2-${id}" data-cact="equipGear" data-id="${id}" data-to="wep2">副に</button>` : `<button id="gq-${id}" data-cact="equipGear" data-id="${id}" data-to="${sl}">付ける</button>`;
+        html += `<div class="card"><div><b>${e.name}</b>${G2[id] > 1 ? ` ×${G2[id]}` : ''}　<span class="muted">${EQ.slotName[sl]}<br>${desc(sl, e)}</span></div><div class="row">${bt}${me.canSell ? `<button id="gs-${id}" data-cact="sellGear" data-id="${id}">売る ${SIM.money(Math.floor(e.cost * EQ.sell))}</button>` : ''}</div></div>`;
+      }
+      if (C.off) html += '<div class="muted" style="margin-top:8px">いまは能力値・技能・特技はありません。本人の強さは装備で変わります（武具は町・城で買えます）</div>';
     } else if (charTab === 'stat') {
       if (me.grow) html += `<div class="muted" style="margin-bottom:4px">成長の型：<b>${me.grow}</b></div>`;
       html += `<div class="muted" style="margin-bottom:6px">能力値（上げられる点：${C.points}）　技能は使うほど伸び、元の能力値が高いほど伸びやすくなります</div>`;
@@ -1506,7 +1518,7 @@
       { // 0.73.0 評定が開かれたら人物画面の「評定」を開く
         const hy = P && P.me && P.me.hyo; $('ctab-hyo').classList.toggle('hidden', !hy);
         if (hy && G.hyoSeen !== hy.id) { G.hyoSeen = hy.id; SGK.AUDIO.sfx('arrive'); openChar(true); setCTab('hyo'); }
-        else if (!hy && charTab === 'hyo') { charTab = 'stat'; charHtml = ''; }
+        else if (!hy && charTab === 'hyo') { charTab = 'eq'; charHtml = ''; }
       }
       if (!$('town').classList.contains('hidden')) renderTown();
       if (!$('char').classList.contains('hidden')) renderChar();
@@ -1520,7 +1532,7 @@
         { const wb = P.me.warBoard || [], el = $('warBoard'), h = wb.length ? '<b>戦況</b>' + wb.map((x) => `<div style="color:${x.atk ? '#e0c060' : '#ff6a4a'}">${x.atk ? '⚔' : '⚠'} ${x.text}</div>`).join('') : '';
           el.classList.toggle('hidden', !h || !!(G.priv && G.priv.battle)); if (el.dataset.h !== h) { el.innerHTML = h; el.dataset.h = h; } }
         renderCaptive(P.me.captives);
-        $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　荷 ${SIM.cargo(P.me)}/${P.me.cap}　名声 ${P.me.fame}${P.me.infamy ? `　<span style="color:#e07a6a">悪名 ${P.me.infamy}</span>` : ''}${P.me.rank && P.me.rank.clan ? `　功績 ${P.me.rank.merit}${(() => { const n = SIM.RANKS[P.me.rank.rank + 1]; return n && !n.indep ? '/' + n.merit : ''; })()}` : ''}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.wage ? `<br>兵の給金 ${SIM.money(P.me.wage)}/日${P.me.money < P.me.wage ? '　<b style="color:#e07a6a">払えません</b>' : '（約' + Math.floor(P.me.money / P.me.wage) + '日分）'}` : '') + (P.me.riceNeed ? `<br>士気 <b style="color:${P.me.morale < 35 ? '#e07a6a' : P.me.morale < 60 ? '#e0c060' : '#6fbf73'}">${P.me.morale}</b>　兵糧 米${(P.me.inv && P.me.inv.rice) || 0}/${P.me.riceCap}俵（1日${P.me.riceNeed}俵・${P.me.hungry ? '<b style="color:#e07a6a">米が足りません</b>' : '約' + P.me.riceDays + '日分'}）` : '') + (P.me.follow ? `<br>追跡中：${P.me.follow}` : '') + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
+        $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　${loadTxt(P.me)}　名声 ${P.me.fame}${P.me.infamy ? `　<span style="color:#e07a6a">悪名 ${P.me.infamy}</span>` : ''}${P.me.rank && P.me.rank.clan ? `　功績 ${P.me.rank.merit}${(() => { const n = SIM.RANKS[P.me.rank.rank + 1]; return n && !n.indep ? '/' + n.merit : ''; })()}` : ''}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.wage ? `<br>兵の給金 ${SIM.money(P.me.wage)}/日${P.me.money < P.me.wage ? '　<b style="color:#e07a6a">払えません</b>' : '（約' + Math.floor(P.me.money / P.me.wage) + '日分）'}` : '') + (P.me.riceNeed ? `<br>士気 <b style="color:${P.me.morale < 35 ? '#e07a6a' : P.me.morale < 60 ? '#e0c060' : '#6fbf73'}">${P.me.morale}</b>　兵糧 米${(P.me.inv && P.me.inv.rice) || 0}俵（1日${P.me.riceNeed}俵・${P.me.hungry ? '<b style="color:#e07a6a">米が足りません</b>' : '約' + P.me.riceDays + '日分'}）` : '') + (P.me.follow ? `<br>追跡中：${P.me.follow}` : '') + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
           + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.where || (q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品')}・${dayLeft(q.deadline)}）</div>`).join('');
       }
       // HUD

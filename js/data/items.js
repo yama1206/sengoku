@@ -1,13 +1,14 @@
 // 商品と各拠点の生産（1日あたり）。値段の単位は文（1000文 = 1貫）。数値はすべて仮
 (function () {
   SGK.DATA.items = {
-    rice: { name: '米', unit: '俵', base: 12, cons: 2 },
-    salt: { name: '塩', unit: '俵', base: 400, cons: 1 },
-    cotton: { name: '木綿', unit: '反', base: 300, cons: 1 },
-    sake: { name: '酒', unit: '樽', base: 500, cons: 1 },
-    firewood: { name: '薪', unit: '束', base: 40, cons: 3 },
-    iron: { name: '鉄', unit: '貫', base: 800, cons: 0.5 },
-    tea: { name: '茶', unit: '斤', base: 350, cons: 0.5 },
+    // 0.74.0 wt＝1つの重さ(kg)。荷は重さで管理（遊びやすさ優先で、俵・樽は本物より軽め）
+    rice: { name: '米', unit: '俵', base: 12, cons: 2, wt: 15 },
+    salt: { name: '塩', unit: '俵', base: 400, cons: 1, wt: 12 },
+    cotton: { name: '木綿', unit: '反', base: 300, cons: 1, wt: 2 },
+    sake: { name: '酒', unit: '樽', base: 500, cons: 1, wt: 10 },
+    firewood: { name: '薪', unit: '束', base: 40, cons: 3, wt: 5 },
+    iron: { name: '鉄', unit: '貫', base: 800, cons: 0.5, wt: 4 },
+    tea: { name: '茶', unit: '斤', base: 350, cons: 0.5, wt: 2 },
   };
   const prod = {
     inabayama: { rice: 3, iron: 1, tea: 1 }, ogaki: { rice: 4 }, inuyama: { firewood: 4, sake: 1 },

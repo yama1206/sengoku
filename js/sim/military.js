@@ -484,7 +484,7 @@
   SIM.sizeSpeed = (n) => (n ? 1 - Math.min(0.4, 0.04 + Math.sqrt(n) * 0.03) : 1);
   SIM.systems.push(
     function militaryDay(w) { const d = Math.floor(w.time.min / 1440); while (w.mday < d) { w.mday++; daily(w); } },
-    function partySpeed(w) { for (const p of Object.values(w.players)) p.speed = (CFG.WALK_KM_PER_DAY + SIM.speedBonus(p)) * SIM.sizeSpeed(SIM.troopCount(p.troops)) * SIM.mixSpeed(p.troops); },
+    function partySpeed(w) { for (const p of Object.values(w.players)) p.speed = (CFG.WALK_KM_PER_DAY + SIM.speedBonus(p)) * SIM.sizeSpeed(SIM.troopCount(p.troops)) * SIM.mixSpeed(p.troops) * (SIM.loadSpeed ? SIM.loadSpeed(p) : 1); }, // 0.74.0 荷が重いと遅い
     // 0.60.1 武将・巡回隊・浪人もプレイヤーと同じ式（人数と騎馬の割合）で速さを決める。以前は人数に関係なく35km/日だった
     function npcSpeed(w) {
       for (const n of Object.values(w.npcs)) {

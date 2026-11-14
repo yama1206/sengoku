@@ -5,28 +5,28 @@
   // 数値はここで調整。am＝本人の攻撃の上乗せ、da＝守り、hm＝体力の上乗せ、km＝1日の移動距離の上乗せ
   const EQ = SIM.EQUIP = {
     wep: {
-      yari1: { name: '素槍', kind: 'yari', cost: 0, am: 0 },
-      yari2: { name: '大身槍', kind: 'yari', cost: 3000, am: 0.25 },
-      yari3: { name: '名槍', kind: 'yari', cost: 12000, am: 0.5, castle: true },
-      tachi1: { name: '太刀', kind: 'tachi', cost: 1500, am: 0.1 },
-      tachi2: { name: '大太刀', kind: 'tachi', cost: 4000, am: 0.3 },
-      tachi3: { name: '名刀', kind: 'tachi', cost: 14000, am: 0.55, castle: true },
-      yumi1: { name: '半弓', kind: 'yumi', cost: 1000, am: 0 },
-      yumi2: { name: '重籐弓', kind: 'yumi', cost: 3500, am: 0.25 },
-      yumi3: { name: '名弓', kind: 'yumi', cost: 12000, am: 0.5, castle: true },
-      teppo1: { name: '火縄銃', kind: 'teppo', cost: 3000, am: 0.1 },
-      teppo2: { name: '堺筒', kind: 'teppo', cost: 7000, am: 0.3 },
-      teppo3: { name: '国友の名銃', kind: 'teppo', cost: 16000, am: 0.55, castle: true },
+      yari1: { name: '素槍', kind: 'yari', cost: 0, am: 0, wt: 3 },
+      yari2: { name: '大身槍', kind: 'yari', cost: 3000, am: 0.25, wt: 4 },
+      yari3: { name: '名槍', kind: 'yari', cost: 12000, am: 0.5, castle: true, wt: 3.5 },
+      tachi1: { name: '太刀', kind: 'tachi', cost: 1500, am: 0.1, wt: 1.5 },
+      tachi2: { name: '大太刀', kind: 'tachi', cost: 4000, am: 0.3, wt: 4 },
+      tachi3: { name: '名刀', kind: 'tachi', cost: 14000, am: 0.55, castle: true, wt: 1.5 },
+      yumi1: { name: '半弓', kind: 'yumi', cost: 1000, am: 0, wt: 1.5 },
+      yumi2: { name: '重籐弓', kind: 'yumi', cost: 3500, am: 0.25, wt: 2 },
+      yumi3: { name: '名弓', kind: 'yumi', cost: 12000, am: 0.5, castle: true, wt: 2 },
+      teppo1: { name: '火縄銃', kind: 'teppo', cost: 3000, am: 0.1, wt: 4 },
+      teppo2: { name: '堺筒', kind: 'teppo', cost: 7000, am: 0.3, wt: 5 },
+      teppo3: { name: '国友の名銃', kind: 'teppo', cost: 16000, am: 0.55, castle: true, wt: 5 },
     },
     arm: {
-      arm1: { name: '胴丸', cost: 1500, da: 1 }, // 0.73.8 防具は守りだけ（体力の上乗せは無し）
-      arm2: { name: '当世具足', cost: 5000, da: 2 },
-      arm3: { name: '名甲冑', cost: 16000, da: 3, castle: true },
+      arm1: { name: '胴丸', cost: 1500, da: 1, wt: 10 }, // 0.73.8 防具は守りだけ（体力の上乗せは無し）
+      arm2: { name: '当世具足', cost: 5000, da: 2, wt: 18 },
+      arm3: { name: '名甲冑', cost: 16000, da: 3, castle: true, wt: 18 },
     },
     horse: {
-      horse1: { name: '駄馬', cost: 2000, km: 4 },
-      horse2: { name: '駿馬', cost: 6000, km: 7 },
-      horse3: { name: '名馬', cost: 18000, km: 10, castle: true },
+      horse1: { name: '駄馬', cost: 2000, km: 4, cw: 150 },
+      horse2: { name: '駿馬', cost: 6000, km: 7, cw: 90 },
+      horse3: { name: '名馬', cost: 18000, km: 10, castle: true, cw: 110 },
     },
     slotName: { wep: '武器', wep2: '副武器', arm: '防具', horse: '馬' },
     kindName: { yari: '槍', tachi: '太刀', yumi: '弓', teppo: '鉄砲' },
@@ -34,15 +34,24 @@
     group: { yari: ['yarigashira', 'nagayari', 'yari', 'nohei'], tachi: ['horo', 'kiba'], yumi: ['yumi'], teppo: ['teppogashira', 'teppo'] },
     groupName: { yari: '槍の隊', tachi: '騎馬の隊', yumi: '弓の隊', teppo: '鉄砲の隊' },
     lead: { am: 1.1, mo: 5 }, // 本人のいる隊：攻撃+10%・士気+5（兵種の相性は覆らない程度）
-    sell: 0.5,                // 買い替えたとき、前の装備は半値で引き取り
+    sell: 0.5,                // 武具を売ると半値
+    // 0.74.0 荷の重さ：目安(kg)＝本人＋兵1人ごと＋馬。目安を超えると遅くなる（2倍で約0.57倍、下限0.25倍）
+    carry: { self: 100, man: 15, cav: 40, minSpd: 0.25, pow: 0.8 },
   };
   // 0.73.7 装備についている能力（能力値・特技の代わり）。主の武器・防具・馬の分が効く（副武器は持ち替えるまで効かない）
   EQ.fxName = { troopAtk: ['兵の攻撃', '%'], troopDef: ['兵の守り', ''], heroHp: ['本人の体力', ''], heroDef: ['本人の守り', ''], cavAtk: ['騎馬の攻撃', '%'], rangedAtk: ['弓・鉄砲の攻撃', '%'], rangedRange: ['弓・鉄砲の射程', 'm'], troopCap: ['率いる人数', '人'] };
   SIM.eqFxText = (e) => Object.entries((e && e.fx) || {}).map(([k, v]) => { const n = EQ.fxName[k] || [k, '']; return `${n[0]}+${n[1] === '%' ? Math.round(v * 100) + '%' : v + n[1]}`; }).join('・');
   SIM.eqFx = (p, key) => { const e = p.equip || {}; let v = 0; for (const [sl, id] of [['wep', e.wep], ['arm', e.arm], ['horse', e.horse]]) { const it = id && EQ[sl][id]; if (it && it.fx && it.fx[key]) v += it.fx[key]; } return v; };
   EQ.wep2 = EQ.wep; // 0.64.0 副武器（戦場へ2つ持ち込み、△・Qで持ち替える）
-  const eqOf = (p) => { p.equip = p.equip || { wep: 'yari1', arm: null, horse: null }; if (p.equip.wep2 === undefined) p.equip.wep2 = null; return p.equip; };
+  const eqOf = (p) => { p.equip = p.equip || { wep: 'yari1', arm: null, horse: null }; if (p.equip.wep2 === undefined) p.equip.wep2 = null; p.gear = p.gear || {}; return p.equip; };
   const item = (slot, id) => id && EQ[slot][id];
+  // 0.74.0 持っている武具（装備していない分）p.gear = { id: 個数 }
+  EQ.slotOf = (id) => (EQ.wep[id] ? 'wep' : EQ.arm[id] ? 'arm' : EQ.horse[id] ? 'horse' : null);
+  const gAdd = (p, id, n = 1) => { if (!id) return; p.gear[id] = (p.gear[id] || 0) + n; if (p.gear[id] <= 0) delete p.gear[id]; };
+  const wtOf = (id) => { const sl = EQ.slotOf(id); return (sl && EQ[sl][id].wt) || 0; };
+  SIM.loadKg = (p) => { const e = eqOf(p); let kg = SIM.invKg(p) + wtOf(e.wep) + wtOf(e.wep2) + wtOf(e.arm); for (const id in p.gear) if (EQ.slotOf(id) !== 'horse') kg += wtOf(id) * p.gear[id]; return kg; };
+  SIM.carryKg = (p) => { const C = EQ.carry, h = item('horse', eqOf(p).horse); let kg = C.self + ((h && h.cw) || 0); for (const k in p.troops || {}) { const T = SIM.TROOPS[k]; if (T && k !== 'hero') kg += (p.troops[k] || 0) * (T.cav ? C.cav : C.man); } for (const id in p.gear) if (EQ.slotOf(id) === 'horse') kg += (EQ.horse[id].cw || 0) * p.gear[id]; return kg; }; // 連れている替え馬も荷を運ぶ
+  SIM.loadSpeed = (p) => { const r = SIM.loadKg(p) / Math.max(1, SIM.carryKg(p)); return r <= 1 ? 1 : Math.max(EQ.carry.minSpd, Math.pow(r, -EQ.carry.pow)); };
   SIM.heroKind = (p) => { const e = item('wep', eqOf(p).wep); return e ? e.kind : null; };
   SIM.heroKind2 = (p) => { const e = item('wep', eqOf(p).wep2); return e ? e.kind : null; };
 
@@ -80,10 +89,27 @@
   SIM.commands.buyEquip = (w, p, c) => {
     const s = here(w, p), ok = shopList(s).some(([sl, id]) => sl === (c.kind === 'wep2' ? 'wep' : c.kind) && id === c.id); if (!ok) return;
     const e = EQ[c.kind][c.id], eq = eqOf(p); if (eq[c.kind] === c.id || (c.kind.startsWith('wep') && (eq.wep === c.id || eq.wep2 === c.id))) return SIM.say(p.id, 'もう持っています');
-    const old = item(c.kind, eq[c.kind]), back = old ? Math.floor(old.cost * EQ.sell) : 0;
-    if (p.money + back < e.cost) return SIM.say(p.id, `お金が足りません（${SIM.money(e.cost)}）`);
-    p.money += back - e.cost; eq[c.kind] = c.id;
-    SIM.say(p.id, `${e.name}を手に入れました${old ? `（${old.name}は${SIM.money(back)}で引き取ってもらいました）` : ''}`);
+    const old = item(c.kind, eq[c.kind]);
+    if (p.money < e.cost) return SIM.say(p.id, `お金が足りません（${SIM.money(e.cost)}）`);
+    p.money -= e.cost; gAdd(p, eq[c.kind]); eq[c.kind] = c.id; // 0.74.0 前の装備は売らずに荷へ
+    SIM.say(p.id, `${e.name}を手に入れました${old ? `（${old.name}は荷に入れました。人物の装備タブで付け替え・売却できます）` : ''}`);
+  };
+  // 0.74.0 人物の装備タブ：付ける・外す・売る
+  SIM.commands.equipGear = (w, p, c) => {
+    const e = eqOf(p), sl = EQ.slotOf(c.id), to = c.to || sl; if (p.battle || !sl || !(p.gear[c.id] > 0)) return;
+    if (!(to === sl || (sl === 'wep' && to === 'wep2'))) return;
+    gAdd(p, c.id, -1); gAdd(p, e[to]); e[to] = c.id;
+    SIM.say(p.id, `${EQ[sl][c.id].name}を${EQ.slotName[to]}にしました`);
+  };
+  SIM.commands.unequip = (w, p, c) => {
+    const e = eqOf(p), to = c.to; if (p.battle || !['wep2', 'arm', 'horse', 'wep'].includes(to) || !e[to]) return;
+    if (to === 'wep') { if (!e.wep2) return SIM.say(p.id, '主の武器は外せません（副武器があれば入れ替えになります）'); gAdd(p, e.wep); e.wep = e.wep2; e.wep2 = null; return SIM.say(p.id, `主の武器を外し、${item('wep', e.wep).name}を主にしました`); }
+    const nm = item(to === 'wep2' ? 'wep' : to, e[to]).name; gAdd(p, e[to]); e[to] = null; SIM.say(p.id, `${nm}を外しました`);
+  };
+  SIM.commands.sellGear = (w, p, c) => {
+    const s = here(w, p); if (!shopList(s).length) return SIM.say(p.id, '武具は町か城でしか売れません');
+    const sl = EQ.slotOf(c.id); if (!sl || !(p.gear[c.id] > 0)) return;
+    const v = Math.floor(EQ[sl][c.id].cost * EQ.sell); gAdd(p, c.id, -1); p.money += v; SIM.say(p.id, `${EQ[sl][c.id].name}を${SIM.money(v)}で売りました`);
   };
 
   SIM.commands.swapWep = (w, p) => { const e = eqOf(p); if (p.battle || !e.wep2) return; [e.wep, e.wep2] = [e.wep2, e.wep]; SIM.say(p.id, `主の武器を${item('wep', e.wep).name}にしました`); };
@@ -92,7 +118,8 @@
   SIM.privateState = (w, pid) => {
     const r = basePriv(w, pid), p = w.players[pid]; if (!r || !p) return r;
     const e = eqOf(p);
-    r.me.equip = { wep: e.wep, wep2: e.wep2, arm: e.arm, horse: e.horse };
+    r.me.equip = { wep: e.wep, wep2: e.wep2, arm: e.arm, horse: e.horse }; r.me.gear = p.gear;
+    r.me.loadKg = Math.round(SIM.loadKg(p) * 10) / 10; r.me.carryKg = Math.round(SIM.carryKg(p)); r.me.loadSpd = Math.round(SIM.loadSpeed(p) * 100) / 100; r.me.canSell = !!(r.here && shopList(SIM.settlement(w, r.here.id)).length);
     if (r.here) r.here.shop = shopList(SIM.settlement(w, r.here.id)).map(([sl, id]) => [sl, id]);
     return r;
   };
