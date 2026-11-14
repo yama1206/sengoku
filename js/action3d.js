@@ -102,6 +102,7 @@
       [new T.CylinderGeometry(0.06, 0.06, 0.02, 10).rotateZ(Math.PI / 2).translate(0.12, 0, 0), 0x3a3020],
       [new T.BoxGeometry(0.55, 0.06, 0.022).translate(0.4, 0, 0), 0xdfe4e8],
     ]), vc, CAP.body);
+    { const tk = []; for (let i = 0; i < 7; i++) tk.push([new T.CylinderGeometry(0.05, 0.05, 1.35, 6).translate(0.48, 0.82, -0.42 + i * 0.1), i % 2 ? 0x8a9a4a : 0x9aa858]); tk.push([new T.BoxGeometry(0.03, 0.05, 0.72).translate(0.43, 1.2, -0.12), 0x5a4020], [new T.BoxGeometry(0.03, 0.05, 0.72).translate(0.43, 0.5, -0.12), 0x5a4020]); mk('take', merge(tk), vc, CAP.body); } /* 1.6.40 竹束（体の左前に構える） */
     mk('shuri', merge([ // 0.81.0 手裏剣
       [new T.BoxGeometry(0.22, 0.01, 0.05).translate(0.06, 0, 0), 0x50555a],
       [new T.BoxGeometry(0.05, 0.01, 0.22).translate(0.06, 0, 0), 0x50555a],
@@ -342,6 +343,7 @@
   function weaponOf(s) {
     if (s.hero) { const n = s.wep && s.wep.name; return n === '槍' ? 'spearL' : n === '弓' ? 'bow' : n === '鉄砲' ? 'gun' : n === '脇差' ? 'waki' : n === '手裏剣' ? 'shuri' : 'sword'; }
     const t = s.type; if (!t || s.kat) return 'sword'; // 0.73.8 近づかれた弓・鉄砲は刀
+    if (t === 'take') return 'waki';
     if (t === 'yumi') return 'bow'; if (t === 'teppo' || t === 'teppogashira') return 'gun';
     if (t === 'nagayari' || t === 'yarigashira') return 'spearL'; if (t === 'bandit') return 'sword';
     return 'spearS';
@@ -395,7 +397,7 @@
     const r = rigs.get(id); if (!r) return; rigs.delete(id);
     scene.remove(r.holder); r.mixer.stopAllAction();
     for (const k in r.G) { scene.remove(r.G[k]); r.G[k].geometry.dispose(); r.G[k].material.dispose(); }
-    if (r.wep) scene.remove(r.wep); if (r.flash) scene.remove(r.flash);
+    if (r.wep) scene.remove(r.wep); if (r.flash) scene.remove(r.flash); if (r.tate) scene.remove(r.tate);
     for (const m of r.mats) m.material.dispose();
   }
   // 骨 bone を、子の骨 child の方向が dir（世界の向き）になるように回す
@@ -453,6 +455,7 @@
       if (!r.flash) { r.flash = new T.Mesh(M.flash.geometry, M.flash.material); r.flash.matrixAutoUpdate = false; scene.add(r.flash); }
       r.flash.visible = !!ps.fl; if (ps.fl) placeAt(r.flash, hp, qw, 1.25, 0, 0, 1.2);
     }
+    if (s.tate) { if (!r.tate) { r.tate = new T.Mesh(M.take.geometry, M.take.material); r.tate.matrixAutoUpdate = false; r.tate.castShadow = true; scene.add(r.tate); } r.tate.visible = true; r.tate.matrix.copy(r.holder.matrixWorld); r.tate.matrixWorldNeedsUpdate = true; } else if (r.tate) r.tate.visible = false; /* 1.6.40 本人の竹束 */
     // 具足を骨の位置に置く
     const P = (n) => B[n] && B[n].getWorldPosition(new T.Vector3());
     const sp1 = P('Spine1'), sp2 = P('Spine2'), hip = P('Hips'), head = P('Head'), aR = P('RightArm'), aL = P('LeftArm');
@@ -532,6 +535,7 @@
       else if (tr <= 3) put('hat', Mu, C.setHex(hatC)); // 足軽：陣笠
       else { put('kabutoS', Mu, C.setHex(s.hero ? 0x1a1a1a : 0x2a2622)); put('fuki', Mu, C.setHex(bc).multiplyScalar(0.5)); if (!s.hero) put('mae', Mu); } // 兜と吹返し
       if (tr >= 2) { put('flag', Mu, C.setHex(flagC)); put('pole', Mu); }
+      if (s.type === 'take') put('take', Mu); /* 1.6.40 */
       if (s.type === 'horo') put('horoB', Mu, C.setHex(flagC)); // 母衣衆：背中の母衣
       if (s.hero) put('crest', Mu);
       C.setHex(bc).multiplyScalar(0.7);

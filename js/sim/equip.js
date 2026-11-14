@@ -19,6 +19,7 @@
       teppo3: { name: '国友の名銃', kind: 'teppo', cost: 16000, atk: 2.5, castle: true, wt: 5 },
       waki1: { name: '脇差', kind: 'waki', cost: 600, atk: 0.3, wt: 0.8 }, // 0.81.0
       waki2: { name: '名脇差', kind: 'waki', cost: 9000, atk: 1.5, castle: true, wt: 0.8 },
+      take1: { name: '竹束', kind: 'tate', cost: 800, atk: 0, wt: 6, sub: true }, /* 1.6.40 副武器の盾。主が脇差のときだけ効く：矢・弾の被害が半分、走るのが少し遅い */
       shuri1: { name: '棒手裏剣', kind: 'shuri', cost: 800, atk: 0, wt: 0.5 },
       shuri2: { name: '十字手裏剣', kind: 'shuri', cost: 3000, atk: 0.8, wt: 0.6 },
     },
@@ -33,7 +34,7 @@
       horse3: { name: '名馬', cost: 18000, km: 10, castle: true, cw: 110 },
     },
     slotName: { wep: '武器', wep2: '副武器', arm: '防具', horse: '馬' },
-    kindName: { yari: '槍', tachi: '太刀', yumi: '弓', teppo: '鉄砲', waki: '脇差', shuri: '手裏剣' },
+    kindName: { yari: '槍', tachi: '太刀', yumi: '弓', teppo: '鉄砲', waki: '脇差', shuri: '手裏剣', tate: '盾' },
     // 武器ごとに入る隊（左ほど優先。そのうち人数の多い隊に入る）
     group: { yari: ['yarigashira', 'nagayari', 'yari', 'nohei'], tachi: ['horo', 'kiba'], yumi: ['yumi'], teppo: ['teppogashira', 'teppo'], waki: ['horo', 'kiba'], shuri: ['yumi'] },
     groupName: { yari: '槍の隊', tachi: '騎馬の隊', yumi: '弓の隊', teppo: '鉄砲の隊', waki: '騎馬の隊', shuri: '弓の隊' },
@@ -92,7 +93,7 @@
   }
   SIM.commands.buyEquip = (w, p, c) => {
     const s = here(w, p), ok = shopList(s).some(([sl, id]) => sl === (c.kind === 'wep2' ? 'wep' : c.kind) && id === c.id); if (!ok) return;
-    const e = EQ[c.kind][c.id], eq = eqOf(p); if (eq[c.kind] === c.id || (c.kind.startsWith('wep') && (eq.wep === c.id || eq.wep2 === c.id))) return SIM.say(p.id, 'もう持っています');
+    const e = EQ[c.kind === 'wep2' ? 'wep' : c.kind][c.id], eq = eqOf(p); if (e.sub && c.kind !== 'wep2') return SIM.say(p.id, `${e.name}は副武器にしかできません（主の武器が脇差のときに効きます）`); if (eq[c.kind] === c.id || (c.kind.startsWith('wep') && (eq.wep === c.id || eq.wep2 === c.id))) return SIM.say(p.id, 'もう持っています');
     const old = item(c.kind, eq[c.kind]);
     if (p.money < e.cost) return SIM.say(p.id, `お金が足りません（${SIM.money(e.cost)}）`);
     p.money -= e.cost; gAdd(p, eq[c.kind]); eq[c.kind] = c.id; // 0.74.0 前の装備は売らずに荷へ
@@ -102,12 +103,13 @@
   SIM.commands.equipGear = (w, p, c) => {
     const e = eqOf(p), sl = EQ.slotOf(c.id), to = c.to || sl; if (p.battle || !sl || !(p.gear[c.id] > 0)) return;
     if (!(to === sl || (sl === 'wep' && to === 'wep2'))) return;
+    if (to === 'wep' && EQ.wep[c.id].sub) return SIM.say(p.id, `${EQ.wep[c.id].name}は副武器にしかできません`);
     gAdd(p, c.id, -1); gAdd(p, e[to]); e[to] = c.id;
     SIM.say(p.id, `${EQ[sl][c.id].name}を${EQ.slotName[to]}にしました`);
   };
   SIM.commands.unequip = (w, p, c) => {
     const e = eqOf(p), to = c.to; if (p.battle || !['wep2', 'arm', 'horse', 'wep'].includes(to) || !e[to]) return;
-    if (to === 'wep') { if (!e.wep2) return SIM.say(p.id, '主の武器は外せません（副武器があれば入れ替えになります）'); gAdd(p, e.wep); e.wep = e.wep2; e.wep2 = null; return SIM.say(p.id, `主の武器を外し、${item('wep', e.wep).name}を主にしました`); }
+    if (to === 'wep') { if (!e.wep2 || item('wep', e.wep2).sub) return SIM.say(p.id, '主の武器は外せません（副武器があれば入れ替えになります）'); gAdd(p, e.wep); e.wep = e.wep2; e.wep2 = null; return SIM.say(p.id, `主の武器を外し、${item('wep', e.wep).name}を主にしました`); }
     const nm = item(to === 'wep2' ? 'wep' : to, e[to]).name; gAdd(p, e[to]); e[to] = null; SIM.say(p.id, `${nm}を外しました`);
   };
   SIM.commands.sellGear = (w, p, c) => {
@@ -116,7 +118,7 @@
     const v = Math.floor(EQ[sl][c.id].cost * EQ.sell); gAdd(p, c.id, -1); p.money += v; SIM.say(p.id, `${EQ[sl][c.id].name}を${SIM.money(v)}で売りました`);
   };
 
-  SIM.commands.swapWep = (w, p) => { const e = eqOf(p); if (p.battle || !e.wep2) return; [e.wep, e.wep2] = [e.wep2, e.wep]; SIM.say(p.id, `主の武器を${item('wep', e.wep).name}にしました`); };
+  SIM.commands.swapWep = (w, p) => { const e = eqOf(p); if (p.battle || !e.wep2) return; if (item('wep', e.wep2).sub) return SIM.say(p.id, '竹束は主の武器にできません'); [e.wep, e.wep2] = [e.wep2, e.wep]; SIM.say(p.id, `主の武器を${item('wep', e.wep).name}にしました`); };
 
   const basePriv = SIM.privateState;
   SIM.privateState = (w, pid) => {

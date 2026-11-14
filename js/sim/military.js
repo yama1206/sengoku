@@ -8,7 +8,8 @@
   const TR = SIM.TROOPS = {
     hero: { name: '本人', hp: 35, atk: 4.5, def: 2, spd: 5, range: 2 },
     // tier：兵の格。up：昇格先（兵種ツリー）
-    nohei: { name: '農兵', short: '農', tier: 1, hp: 8, atk: 1.4, def: 0, spd: 4, range: 2.5, cost: 150, wage: 6, up: ['yari', 'yumi'] },
+    nohei: { name: '農兵', short: '農', tier: 1, hp: 8, atk: 1.4, def: 0, spd: 4, range: 2.5, cost: 150, wage: 6, up: ['yari', 'yumi', 'take'] },
+    take: { name: '竹束足軽', short: '竹束', tier: 2, hp: 11, atk: 1.5, def: 1.5, spd: 3, range: 2, cost: 400, wage: 12, shield: true }, /* 1.6.40 脇差と竹束。足は遅いが矢・弾の被害が半分 */
     yari: { name: '足軽（槍）', short: '槍', tier: 2, hp: 10, atk: 2, def: 1, spd: 4, range: 2.5, cost: 300, wage: 10, up: ['nagayari', 'kiba'] },
     yumi: { name: '弓足軽', short: '弓', tier: 2, hp: 7, atk: 1.5, def: 0, spd: 4, range: 35, ranged: true, cost: 500, wage: 15, up: ['teppo'] },
     nagayari: { name: '長槍足軽', short: '長槍', tier: 3, hp: 12, atk: 2.6, def: 1.5, spd: 4, range: 3.5, cost: 700, wage: 18, up: ['yarigashira'] },
@@ -20,12 +21,12 @@
     bandit: { name: '野盗', hp: 10, atk: 2.0, def: 0, spd: 4.5, range: 2.5 },
     banditBow: { name: '野盗（弓）', hp: 6, atk: 1.4, def: 0, spd: 4.5, range: 30, ranged: true },
   };
-  SIM.HIRE = ['nohei', 'yari', 'yumi', 'kiba'];
+  SIM.HIRE = ['nohei', 'yari', 'yumi', 'kiba', 'take'];
   // 拠点ごとに雇える兵（1日の補充数・上限）
   const POOL = {
     village: { nohei: [2, 12] },
-    town: { nohei: [1, 8], yari: [1, 8], yumi: [0.5, 6] },
-    castle: { yari: [1, 10], yumi: [0.5, 6], kiba: [0.25, 3] },
+    town: { nohei: [1, 8], yari: [1, 8], yumi: [0.5, 6], take: [0.5, 5] },
+    castle: { yari: [1, 10], yumi: [0.5, 6], kiba: [0.25, 3], take: [0.5, 6] },
   };
   const FIELD = { w: 700, h: 460, ax: 120, bx: 580 }; // 0.79.1 離れて始める（300m→460m） // 戦場（m）。ax/bx：味方・敵の初めの位置
   const MAX_BANDITS = 400; // 1.6.9 200→400 // 地図の広さに合わせて（全国）
@@ -179,7 +180,7 @@
   }
 
   // ---- 兵種の区分・視界・地形（数値はすべて仮・ここで調整） ----
-  const CLS = { nohei: 'spear', yari: 'spear', nagayari: 'spear', yarigashira: 'spear', bandit: 'spear',
+  const CLS = { nohei: 'spear', yari: 'spear', nagayari: 'spear', yarigashira: 'spear', bandit: 'spear', take: 'spear',
     yumi: 'bow', teppo: 'bow', teppogashira: 'bow', banditBow: 'bow', kiba: 'cav', horo: 'cav' };
   for (const k in CLS) TR[k].cls = CLS[k];
   SIM.CLS_NAME = { spear: '槍', cav: '騎馬', bow: '弓' };
@@ -322,6 +323,7 @@
       if (t.cav && T2.cls === 'spear' && dir === 'front') mul *= 0.7; // 槍衾への正面突撃
       const melee = ed < rad(u) + rad(e) + 3.5;
       if (t.ranged && melee) mul *= 0.45; // 弓・鉄砲は接近戦に弱い
+      if (t.ranged && !melee && T2.shield) mul *= 0.5; /* 1.6.40 竹束は矢・弾を半分にする */
       if (t.ranged && te.f) mul *= 0.6; // 林の中の敵は射ちにくい
       if (t.cav && tu.f) mul *= 0.7;
       if (tu.h && !te.h) mul *= 1.15; // 高所から
