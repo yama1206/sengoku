@@ -114,7 +114,7 @@
   // 0.80.0 勢い：攻撃したときの走る速さで威力が変わる（本人+30%・騎馬+50%／止まった騎馬-20%・歩兵+15%、後ずさりは-10%）
   function mom(s, t) {
     const T = s.hero ? TR.hero : TR[s.type]; if (!T) return 1;
-    const cav = T.cav || s.genCav, vmax = (cav ? TR.kiba.spd : T.spd) * ACT.SPD * (s.hero && !s.genCav ? 1.1 : 1), v = s.vel || 0, r = Math.min(1, v / (vmax || 1));
+    const cav = T.cav || s.genCav || s.rd, vmax = (cav ? TR.kiba.spd : T.spd) * ACT.SPD * (s.hero && !s.genCav ? 1.1 : 1), v = s.vel || 0, r = Math.min(1, v / (vmax || 1));
     if (r > 0.2 && s.vx != null) { const a = ang(s, t), dot = (s.vx * Math.cos(a) + s.vy * Math.sin(a)) / (v || 1); if (dot < -0.3) return 0.9; }
     if (cav) return r < 0.15 ? 0.8 : 1 + 0.5 * r;
     return 1 + (s.hero ? 0.3 : 0.15) * r;
@@ -258,9 +258,10 @@
       hero.cd -= dt; hero.dcd -= dt; hero.dash -= dt; hero.blk = !!inp.blk && hero.dash <= 0;
       let mx = inp.mx || 0, my = inp.my || 0; const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }
       if (inp.dash && hero.dcd <= 0 && (mx || my)) { hero.dash = ACT.DASH.t; hero.dcd = ACT.DASH.cd; hero.dx = mx; hero.dy = my; }
-      const sp = TR.hero.spd * ACT.SPD * 1.1 * (hero.blk ? 0.5 : 1) * (pl && pl.nin ? SIM.NIN.actSpd : 1); // 0.77.0 忍びは速い
+      hero.rd = pl && pl.equip && pl.equip.horse ? 1 : 0; // 1.6.16 馬を装備していれば本人も馬に乗る
+      const sp = (hero.rd ? TR.kiba.spd : TR.hero.spd) * ACT.SPD * 1.1 * (hero.blk ? 0.5 : 1) * (pl && pl.nin ? SIM.NIN.actSpd : 1); // 0.77.0 忍びは速い
       if (hero.dash > 0) { hero.x += hero.dx * sp * ACT.DASH.mul * dt; hero.y += hero.dy * sp * ACT.DASH.mul * dt; }
-      else { const tm = terMul(b, hero, mx, my, false); hero.x += mx * sp * tm * dt; hero.y += my * sp * tm * dt; }
+      else { const tm = terMul(b, hero, mx, my, !!hero.rd); hero.x += mx * sp * tm * dt; hero.y += my * sp * tm * dt; }
       if (inp.aim != null) hero.f = inp.aim; else if (mx || my) hero.f = Math.atan2(my, mx);
       if (inp.atk && !hero.blk && hero.cd <= 0) {
         const pa = A.byG[hero.g], am = (pa && pa.am) || 1, base = TR.hero.atk * am;
@@ -418,7 +419,7 @@
     const A = b.act, L = A.s.filter(live), o = { id: b.id, s: [], pr: [], dc: A.dc, dead: A.dead.slice(-40).map((d) => [q10(d.x), q10(d.y), d.side === 'A' ? 0 : 1]) };
     for (const s of L) o.s.push(s.id, q10(s.x), q10(s.y), Math.round((s.f || 0) * 100), Math.round((s.hp / s.mh) * 100), (s.fl ? 1 : 0) | (s.at && performance.now() / 1000 - s.at < 0.3 ? 2 : 0) | (s.kat ? 4 : 0));
     for (const p of A.pr) o.pr.push(q10(p.x), q10(p.y), Math.round(p.vx), Math.round(p.vy), p.gun ? 1 : 0, q10(p.h || 0));
-    o.h = A.s.filter((s) => s.pc && live(s)).map((s) => [s.id, s.sw ? [Math.round(s.sw.t * 100), Math.round(s.sw.a * 100), Math.round(s.sw.arc * 100), q10(s.sw.r), Math.round((s.sw.d || 0.18) * 100)] : null, s.wep ? s.wep.name : '', s.blk ? 1 : 0, Math.round((s.jp || 0) * 100)]);
+    o.h = A.s.filter((s) => s.pc && live(s)).map((s) => [s.id, s.sw ? [Math.round(s.sw.t * 100), Math.round(s.sw.a * 100), Math.round(s.sw.arc * 100), q10(s.sw.r), Math.round((s.sw.d || 0.18) * 100)] : null, s.wep ? s.wep.name : '', s.blk ? 1 : 0, Math.round((s.jp || 0) * 100), s.rd ? 1 : 0]);
     o.u = b.units.filter((u) => u.hp > 0 && !u.gone).map((u) => [u.id, u.side, u.owner || u.cmd || null, u.type, u.n, u.order, u.idx || 0, u.gname || '']);
     if (full) o.st = A.s.filter(live).map((s) => [s.id, s.side === 'A' ? 0 : 1, s.g, s.type || '', s.hero ? 1 : 0, s.pc || 0]);
     return o;
@@ -440,7 +441,7 @@
     A.s = list; A.pr = [];
     for (let i = 0; i < o.pr.length; i += 6) A.pr.push({ x: o.pr[i] / 10, y: o.pr[i + 1] / 10, vx: o.pr[i + 2], vy: o.pr[i + 3], gun: !!o.pr[i + 4], h: o.pr[i + 5] / 10 });
     const nd = o.dc - A.dc; if (nd > 0) { for (const [x, y, sd] of o.dead.slice(-Math.min(nd, o.dead.length))) A.dead.push({ x: x / 10, y: y / 10, side: sd ? 'B' : 'A' }); if (A.dead.length > 500) A.dead.splice(0, A.dead.length - 500); } A.dc = o.dc;
-    for (const [id, sw, wn, bl, jp] of o.h) { const s = V.byId[id]; if (!s) continue; s.wep = { name: wn }; s.blk = !!bl; if (jp && !(s.jp > 0)) s.jp = jp / 100; const was = s.sw; s.sw = sw ? { t: sw[0] / 100, a: sw[1] / 100, arc: sw[2] / 100, r: sw[3] / 10, d: (sw[4] || 18) / 100 } : null; if (sw && !was && s.pc === SIM.localPid) SGK.AUDIO.sfx('slash'); }
+    for (const [id, sw, wn, bl, jp, rd] of o.h) { const s = V.byId[id]; if (!s) continue; s.rd = rd ? 1 : 0; s.wep = { name: wn }; s.blk = !!bl; if (jp && !(s.jp > 0)) s.jp = jp / 100; const was = s.sw; s.sw = sw ? { t: sw[0] / 100, a: sw[1] / 100, arc: sw[2] / 100, r: sw[3] / 10, d: (sw[4] || 18) / 100 } : null; if (sw && !was && s.pc === SIM.localPid) SGK.AUDIO.sfx('slash'); }
     V.units = o.u.map(([id, side, owner, type, n, order, idx, gname]) => ({ id, side, owner, type, n, order, idx, gname: gname || undefined, hp: n > 0 ? 1 : 0, gone: false }));
     A.byG = {}; for (const u of V.units) A.byG[u.id] = u;
     return V;

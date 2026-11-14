@@ -459,7 +459,7 @@
     const mats = {};
     for (const s of A.s) {
       if (!live(s)) continue;
-      const u = A.byG[s.g], own = u && u.owner === myPid, cav = (s.type && TR[s.type] && TR[s.type].cav) || (s.hero && u && !u.owner && !u.cmd); // 0.73.8 CPUの武将は馬に乗る
+      const u = A.byG[s.g], own = u && u.owner === myPid, cav = (s.type && TR[s.type] && TR[s.type].cav) || (s.hero && u && !u.owner && !u.cmd) || !!s.rd; // 0.73.8 CPUの武将は馬に乗る
       // 歩くと少し上下に揺れる
       const p = last.get(s.id); let mv = 0; if (p) { mv = Math.hypot(s.x - p[0], s.y - p[1]) / Math.max(dt, 0.001); p[0] = s.x; p[1] = s.y; } else last.set(s.id, [s.x, s.y]);
       const bob = mv > 0.6 ? Math.abs(Math.sin(clock * (cav ? 9 : 11) + s.id)) * (cav ? 0.18 : 0.1) : 0;
