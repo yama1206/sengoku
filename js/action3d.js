@@ -4,6 +4,14 @@
   const R = SGK.RENDER, SIM = SGK.SIM, TR = SIM.TROOPS;
   const X = R.act3d = { on: true, ready: false, failed: false };
   try { const v = localStorage.getItem('sgk-act3d'); if (v === '0') X.on = false; } catch (e) { /* 保存できない環境 */ }
+  // 0.75.0 ビデオ設定：影（0切・1低・2高）、草の量（0なし・1少なめ・2普通・3多め）
+  X.vid = { sh: 2, gr: 2 }; try { Object.assign(X.vid, JSON.parse(localStorage.getItem('sgk-vid') || '{}')); } catch (e) { /* 無視 */ }
+  let grassM = null;
+  X.setVid = (k, v) => { X.vid[k] = v; try { localStorage.setItem('sgk-vid', JSON.stringify(X.vid)); } catch (e) { /* 無視 */ } X.applyVid(); };
+  X.applyVid = () => {
+    if (sun) { const sh = X.vid.sh, sz = sh === 1 ? 1024 : 2048; sun.castShadow = sh > 0; if (sun.shadow.mapSize.x !== sz) { sun.shadow.mapSize.set(sz, sz); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } } }
+    if (grassM) grassM.count = Math.floor(grassM.userData.full * [0, 0.2, 0.55, 1][X.vid.gr]);
+  };
   X.toggle = () => { X.on = !X.on; try { localStorage.setItem('sgk-act3d', X.on ? '1' : '0'); } catch (e) { /* 無視 */ } if (!X.on && cv) cv.style.display = 'none'; return X.on; };
 
   let T, rd, scene, cam3, cv, sun, hideT, W = 0, H = 0, clock = 0;
@@ -60,7 +68,7 @@
     }));
     sky.frustumCulled = false; sky.renderOrder = -1; scene.add(sky);
     sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -70; sc.right = 70; sc.top = 70; sc.bottom = -70; sc.near = 1; sc.far = 300;
-    sun.shadow.bias = -0.0008; scene.add(sun); scene.add(sun.target);
+    sun.shadow.bias = -0.0008; X.applyVid(); scene.add(sun); scene.add(sun.target);
     // 戦場の外の広い地面
     const out = new T.Mesh(new T.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), new T.MeshLambertMaterial({ color: 0x6d7c44 }));
     out.position.set(350, -0.3, 230); out.receiveShadow = true; scene.add(out);
@@ -206,7 +214,7 @@
     }
     // 0.65.0 草むらと石（戦場の中に散らす。水・曲輪の中には置かない）
     if (!texGrass) texGrass = grassTex();
-    const NG = 15000, grass = new T.InstancedMesh((() => { const g1 = new T.PlaneGeometry(0.9, 0.55).translate(0, 0.27, 0), g2 = g1.clone().rotateY(Math.PI / 3), g3 = g1.clone().rotateY(-Math.PI / 3); const pos = [], uv = [], nor = []; for (const g of [g1, g2, g3]) { const ng = g.toNonIndexed(); pos.push(...ng.attributes.position.array); uv.push(...ng.attributes.uv.array); for (let k = 0; k < ng.attributes.position.count; k++) nor.push(0, 1, 0); } const bg = new T.BufferGeometry(); bg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); bg.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); bg.setAttribute('normal', new T.Float32BufferAttribute(nor, 3)); return bg; })(),
+    const NG = 27000, grass = new T.InstancedMesh((() => { const g1 = new T.PlaneGeometry(0.9, 0.55).translate(0, 0.27, 0), g2 = g1.clone().rotateY(Math.PI / 3), g3 = g1.clone().rotateY(-Math.PI / 3); const pos = [], uv = [], nor = []; for (const g of [g1, g2, g3]) { const ng = g.toNonIndexed(); pos.push(...ng.attributes.position.array); uv.push(...ng.attributes.uv.array); for (let k = 0; k < ng.attributes.position.count; k++) nor.push(0, 1, 0); } const bg = new T.BufferGeometry(); bg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); bg.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); bg.setAttribute('normal', new T.Float32BufferAttribute(nor, 3)); return bg; })(),
       new T.MeshLambertMaterial({ map: texGrass, alphaTest: 0.45, side: T.DoubleSide }), NG);
     const rocks = new T.InstancedMesh(new T.DodecahedronGeometry(0.45, 0).scale(1, 0.6, 1), new T.MeshLambertMaterial({ color: 0x8a877c, flatShading: true }), 260);
     const o2 = new T.Object3D(), c2 = new T.Color(), rg = rng(String(id).length * 31 + 17);
@@ -220,7 +228,7 @@
       grass.setMatrixAt(gi, o2.matrix); grass.setColorAt(gi, c2.setHSL(0.2 + rg() * 0.07, 0.45, (inF ? 0.22 : 0.3) + rg() * 0.1)); gi++;
       if (ri < 260 && rg() < 0.018) { o2.scale.set(0.5 + rg() * 1.4, 0.5 + rg(), 0.5 + rg() * 1.2); o2.rotation.set(rg(), rg() * 6.28, 0); o2.position.y = hgt(x, y) + 0.05; o2.updateMatrix(); rocks.setMatrixAt(ri++, o2.matrix); }
     }
-    grass.count = gi; rocks.count = ri; rocks.castShadow = true; rocks.receiveShadow = true; grass.receiveShadow = false;
+    grassM = grass; grass.userData.full = gi; X.applyVid(); rocks.count = ri; rocks.castShadow = true; rocks.receiveShadow = true; grass.receiveShadow = false;
     scene.add(grass, rocks); trees.push(grass, rocks);
     last.clear();
     for (const id of [...rigs.keys()]) dropRig(id);

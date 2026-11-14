@@ -525,9 +525,11 @@
       SIM.say(p.id, `${TR[c.kind].name}を${q}人解き放ちました`);
     },
     order(w, p, c) {
-      const b = w.battles[p.battle]; if (!b || !['charge', 'hold', 'retreat', 'flank', 'move', 'follow', 'face', 'ai'].includes(c.order)) return;
+      const b = w.battles[p.battle]; if (!b || !['charge', 'hold', 'retreat', 'flank', 'move', 'follow', 'face', 'ai', 'form', 'fire'].includes(c.order)) return;
       if (c.order === 'ai' && !b.act) c.order = 'charge'; // 0.64.0 AIに任せる（自分で戦うときだけ）
       for (const u of b.units) if ((u.owner === p.id || u.cmd === p.id) && u.order !== 'rout' && (c.unit === 'all' || u.id === +c.unit)) {
+        if (c.order === 'form') { if (SIM.ACT && SIM.ACT.FORMS[c.fm]) { u.fm = c.fm; if (SIM.actForm) SIM.actForm(b, u); } continue; } // 0.75.0 隊形
+        if (c.order === 'fire') { u.nofire = !c.on; continue; } // 0.75.0 射撃の許可
         if (c.order === 'face') { if (Number.isFinite(+c.f)) u.mf = +c.f; continue; } // 0.59.0 着いたら（止まっているなら今）この向きを向く
         u.order = c.order; if (c.order !== 'hold') u.mf = null;
         if (c.order === 'move') { u.mx = Math.max(2, Math.min(FIELD.w - 2, +c.x || 0)); u.my = Math.max(2, Math.min(FIELD.h - 2, +c.y || 0)); }

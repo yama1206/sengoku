@@ -37,18 +37,30 @@
         A.s.push({ id: A.next++, g: u.id, side: u.side, x: u.x - (u.side === 'A' ? 6 : -6), y: u.y, f: u.f, hp: u.hp * ACT.HERO_HP, mh: u.mh * ACT.HERO_HP, hero: 1, pc: u.owner && A.pids.includes(u.owner) ? u.owner : 0, cd: 0, dash: 0, dcd: 0 }); // pc = 操る人のid
         continue;
       }
-      const m = Math.max(1, Math.ceil(u.n / A.k)), cols = Math.ceil(Math.sqrt(m * 2.2)), sp = TR[u.type].cav ? 2.2 : 1.5;
+      const m = Math.max(1, Math.ceil(u.n / A.k));
       u.m0 = m; u.nA = u.n; u.ax = u.x; u.ay = u.y; u.af = u.f;
+      const L = [];
       for (let i = 0; i < m; i++) {
-        const r = Math.floor(i / cols), c = i % cols, ox = -r * sp, oy = (c - (cols - 1) / 2) * sp;
-        const s = { id: A.next++, g: u.id, side: u.side, ox, oy, hp: u.hp / m * ACT.MEN_HP, mh: u.hp / m * ACT.MEN_HP, cd: rr() * 1.5, type: u.type };
-        place(s, u); A.s.push(s);
+        const s = { id: A.next++, g: u.id, side: u.side, ox: 0, oy: 0, hp: u.hp / m * ACT.MEN_HP, mh: u.hp / m * ACT.MEN_HP, cd: rr() * 1.5, type: u.type };
+        L.push(s); A.s.push(s);
       }
+      layout(u, L); for (const s of L) place(s, u);
     }
     A.byG = {}; for (const u of b.units) A.byG[u.id] = u;
     const ix = {}; for (const u of b.units) { const o = u.owner || u.cmd; if (o && A.pids.includes(o) && u.type !== 'hero' && u.m0) { ix[o] = ix[o] || 2; u.idx = ix[o]++; } }
     for (const q of A.pids) if (q !== pid) SIM.say(q, `${(w.players[pid] || {}).name || '仲間'}が「自分で戦う」にしました。あなたも本人を直接動かせます`);
   };
+  // 0.75.0 隊形：兵の持ち場（ox 前後・oy 左右）を並べ直す
+  ACT.FORMS = { norm: '通常', line: '横隊', col: '縦隊', loose: '散開', square: '方陣', wedge: '鋒矢' };
+  function layout(u, L) {
+    const m = L.length, fm = u.fm || 'norm'; if (!m) return;
+    let sp = TR[u.type].cav ? 2.2 : 1.5; if (fm === 'loose') sp *= 2;
+    if (fm === 'wedge') { let k = 0; for (let r = 0; k < m; r++) for (let c = 0; c <= r * 2 && k < m; c++, k++) { L[k].ox = -r * sp; L[k].oy = (c - r) * sp; } return; }
+    const cols = Math.max(1, Math.ceil(Math.sqrt(m * ({ line: 7, col: 0.35, square: 1 }[fm] || 2.2))));
+    const rows = Math.ceil(m / cols), ox0 = fm === 'square' ? (rows - 1) / 2 * sp : 0;
+    L.forEach((s, i) => { const r = Math.floor(i / cols), c = i % cols; s.ox = ox0 - r * sp; s.oy = (c - (cols - 1) / 2) * sp; });
+  }
+  SIM.actForm = (b, u) => { const A = b.act; if (!A || u.type === 'hero') return; layout(u, A.s.filter((s) => s.g === u.id && s.hp > 0 && !s.gone && !s.hero).sort((p, q) => p.id - q.id)); };
   function place(s, u) { const c = Math.cos(u.af), n = Math.sin(u.af); s.x = u.ax + s.ox * c - s.oy * n; s.y = u.ay + s.ox * n + s.oy * c; s.f = u.af; }
 
   // ---- 空間の格子（近くの相手をすばやく探す） ----
@@ -207,6 +219,7 @@
       const aiHero = s.hero && !s.pc && (u.side === 'B' || u.order === 'ai'); // 0.64.0 敵の大将は後ろから兵を励まし、近づかれたら戦う
       if (aiHero) look = 7;
       let e = nearestFoe(g, s, T.ranged ? Math.max(look, reach) : look);
+      if (T.ranged && u.nofire && e && dist(s, e) >= 5) e = null; // 0.75.0 射撃をやめよ（近づかれたら刀で戦う）
       if (u.isAI && !T.ranged && !s.hero && !u.kite) { // 0.64.0 近くの本人（武将）を何人かで囲んで狙う
         let h = null, hd = 14;
         for (const x of foeHeroes) if (x.side !== s.side && live(x)) { const dd = dist(s, x); if (dd < hd && (hc[x.id] || 0) < 6) { hd = dd; h = x; } }
@@ -512,7 +525,7 @@
     const WH = R.wheel;
     if (WH && WH.L.length) {
       const n = WH.L.length, r = 120; ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(cx, cy, r + 46, 0, 7); ctx.fill();
-      const as = WH.i * Math.PI * 2 / n; ctx.strokeStyle = '#ffe070'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(as) * (r - 30), cy - Math.cos(as) * (r - 30)); ctx.stroke();
+      const as = WH.i * Math.PI * 2 / n; if (WH.i >= 0) { ctx.strokeStyle = '#ffe070'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(as) * (r - 30), cy - Math.cos(as) * (r - 30)); ctx.stroke(); }
       ctx.textAlign = 'center'; ctx.font = '14px sans-serif';
       WH.L.forEach(([, t], i) => { const a = i * Math.PI * 2 / n, x = cx + Math.sin(a) * r, y = cy - Math.cos(a) * r, on = i === WH.i, tw = ctx.measureText(t).width + 16;
         ctx.fillStyle = on ? 'rgba(120,90,20,.95)' : 'rgba(20,16,10,.85)'; ctx.fillRect(x - tw / 2, y - 14, tw, 28); ctx.strokeStyle = on ? '#ffe070' : '#8a7448'; ctx.lineWidth = on ? 2 : 1; ctx.strokeRect(x - tw / 2, y - 14, tw, 28);
@@ -520,8 +533,8 @@
     }
     // 操作の案内
     ctx.textAlign = 'left'; ctx.font = '12px sans-serif'; const lk = document.pointerLockElement;
-    const lines = lk ? ['WASD 移動　マウス 視点　左クリック 攻撃　右クリック 防御　Space 回避　E ジャンプ　Q 武器持ち替え', '0〜9 隊を選ぶ　F1 移動の指図　F2 向きの指図　ホイール 寄る・引く　Esc マウスを離す　T 2D表示']
-      : ['画面をクリックするとマウスで視点を動かせます（Esc で離す）', 'コントローラー：R1攻撃 L1防御 L2隊選び R2そこへ移動 十字↑突撃↓停止→向き←AI任せ ✕ジャンプ ○回避 △持ち替え □随行'];
+    const lines = lk ? ['WASD 移動　マウス 視点　左クリック 攻撃　右クリック 防御　Space 回避　E ジャンプ　Q 武器持ち替え', '0〜9 隊を選ぶ　F1 移動　F2 向き　F3 隊形　F4 射撃　ホイール 寄る・引く　Esc マウスを離す　T 2D表示']
+      : ['画面をクリックするとマウスで視点を動かせます（Esc で離す）', 'コントローラー：R1攻撃 L1防御 L2隊選び R2そこへ移動（長押し 隊形） 十字↑突撃↓停止→向き←AI任せ ✕ジャンプ ○回避 △持ち替え □随行'];
     const tw2 = Math.max(...lines.map((t) => ctx.measureText(t).width)) + 12; ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(W - tw2 - 8, 8, tw2, 40); ctx.fillStyle = '#f4ead0';
     lines.forEach((t, i) => ctx.fillText(t, W - tw2 - 2, 24 + i * 16));
   }

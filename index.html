@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="0.74.4">
+<meta name="sgk-ver" content="0.75.0">
 <title>戦国出世</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -209,8 +209,12 @@
         <p class="muted">－／＋で 0〜10 の11段階に調整できます（0 で消音。この端末に記憶されます）</p>
       </div>
       <div class="setPane hidden" id="spVideo">
+        <button id="mYear" class="yearBtn" style="margin-top:8px;width:100%"></button>
         <button id="mAct3d" style="margin-top:8px;width:100%"></button>
         <p class="muted">合戦の画面を 3D か 2D で表示します。重いときは 2D にしてください（この端末に記憶されます）</p>
+        <button id="mShadow" style="margin-top:8px;width:100%"></button>
+        <button id="mGrass" style="margin-top:8px;width:100%"></button>
+        <p class="muted">3D表示の影と草の量です。重いときは下げてください（「多め」は次の合戦から）</p>
       </div>
       <div class="setPane hidden" id="spCtrl">
         <button id="mPad" style="margin-top:8px;width:100%"></button>
@@ -218,15 +222,15 @@
         <div class="setTabs" style="margin-top:8px"><button id="stMap">地図での操作</button><button id="stBattle">戦闘での操作</button></div>
       <div id="spMap">
         <h4>キーボード・マウス</h4>
-        <p>左クリック：移動／拠点の情報<br>右クリック：拠点へ移動（自分の上で右クリック：人物）<br>WASD：歩く<br>ドラッグ：地図を動かす　ホイール：拡大<br>Tab：近くの拠点　E：拠点に入る　F：追従<br>Esc：メニュー　P：人物</p>
+        <p>左クリック：移動／拠点の情報<br>右クリック：拠点へ移動（自分の上で右クリック：人物）<br>WASD：歩く<br>ドラッグ：地図を動かす　ホイール：拡大<br>Tab：近くの拠点　E：拠点に入る　F：自分へ（追いかける）<br>Esc：メニュー　P：人物</p>
         <h4>コントローラー</h4>
-        <p>左スティック：カーソル<br><span class="pk" data-k="A">A</span>：クリック（地面→移動／拠点→選ぶ・もう一度で向かう）<br><span class="pk" data-k="B">B</span>：取消・カーソルを消す<br><span class="pk" data-k="L3">L3</span>：カーソルを自分の場所へ<br>右スティック：視点　<span class="pk" data-k="LB">LB</span>/<span class="pk" data-k="RB">RB</span>：拡大<br><span class="pk" data-k="X">X</span>：近くの拠点　<span class="pk" data-k="Y">Y</span>：追従<br>十字←→：時間の速さ<br>情報ウインドウ表示中：十字キーでボタンを選ぶ→<span class="pk" data-k="A">A</span><br><span class="pk" data-k="BACK">BACK</span>：人物　<span class="pk" data-k="START">START</span>：メニュー<br>拠点内 <span class="pk" data-k="LB">LB</span>/<span class="pk" data-k="RB">RB</span>：タブ切替</p>
+        <p>左スティック：カーソル<br><span class="pk" data-k="A">A</span>：クリック（地面→移動／拠点→選ぶ・もう一度で向かう）<br><span class="pk" data-k="B">B</span>：取消・カーソルを消す<br><span class="pk" data-k="L3">L3</span>：カーソルを自分の場所へ（自分を追いかける。スティックを動かすと解除）<br>右スティック：視点　<span class="pk" data-k="LB">LB</span>/<span class="pk" data-k="RB">RB</span>：拡大<br><span class="pk" data-k="X">X</span>：近くの拠点　<span class="pk" data-k="Y">Y</span>：自分へ<br>十字←→：時間の速さ<br>情報ウインドウ表示中：十字キーでボタンを選ぶ→<span class="pk" data-k="A">A</span><br><span class="pk" data-k="BACK">BACK</span>：人物　<span class="pk" data-k="START">START</span>：メニュー<br>拠点内 <span class="pk" data-k="LB">LB</span>/<span class="pk" data-k="RB">RB</span>：タブ切替</p>
       </div>
       <div class="hidden" id="spBattle">
         <h4>キーボード・マウス（3D：画面をクリックしてマウスで視点）</h4>
-        <p>WASD：移動　マウス：視点<br>左クリック：攻撃　右クリック：防御<br>Space：回避　E：ジャンプ　Q：武器の持ち替え<br>0〜9：隊を選ぶ　F1：移動の指図　F2：向きの指図<br>Z：全軍突撃　V：全軍回り込み　X：全軍待機　C：全軍後退<br>ホイール：寄る・引く　Esc：マウスを離す　T：2D／3D切替</p>
+        <p>WASD：移動　マウス：視点<br>左クリック：攻撃　右クリック：防御<br>Space：回避　E：ジャンプ　Q：武器の持ち替え<br>0〜9：隊を選ぶ　F1：移動　F2：向き　F3：隊形　F4：射撃<br>Z：全軍突撃　V：全軍回り込み　X：全軍待機　C：全軍後退<br>ホイール：寄る・引く　Esc：マウスを離す　T：2D／3D切替</p>
         <h4>コントローラー</h4>
-        <p>R1：攻撃　L1：防御<br>L2：隊を選ぶ　R2：選んだ隊をそこへ移動<br>十字↑：突撃　↓：停止　→：照準の方を向く　←：AIに任せる<br>✕：ジャンプ　○：回避　△：武器の持ち替え　□：随行<br><span class="pk" data-k="START">START</span>：メニュー</p>
+        <p>R1：攻撃　L1：防御<br>L2：隊を選ぶ　R2：選んだ隊をそこへ移動（長押し：隊形・射撃のホイール、右スティックで選んで離す）<br>十字↑：突撃　↓：停止　→：照準の方を向く　←：AIに任せる<br>✕：ジャンプ　○：回避　△：武器の持ち替え　□：随行<br><span class="pk" data-k="START">START</span>：メニュー</p>
       </div>
       </div>
       <button id="stBack">戻る</button>
@@ -236,8 +240,7 @@
       <button id="mClose">ゲームに戻る</button>
       <button id="mSettings">設定（音・操作説明）</button>
       <button id="mChar">人物・部隊</button>
-      <button id="mFollow">自分を追いかける（切替）</button>
-      <button id="mYear" class="yearBtn"></button>
+      <button id="mFollow" class="hidden">自分へ</button>
       <button id="mSave" class="hostOnly">セーブ</button>
       <button id="mExport" class="hostOnly">セーブをファイルに書き出す</button>
       <button id="mTitle">タイトルへ戻る</button>

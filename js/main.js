@@ -1007,8 +1007,8 @@
     const b = G.mode === 'host' && G.world.battles[BT.id]; return b && b.act ? b : null; };
   // 0.63.0 3D表示の自分で戦う（マウント＆ブレイド2風の操作）
   const ML = () => !!(R.act3dOn && actB());
-  const ORDM = { root: [['F1', '移動'], ['F2', '向き']], move: [['F1', 'ここへ移動'], ['F2', 'ついて来い'], ['F3', '突撃'], ['F4', '回り込み'], ['F5', '後退'], ['F6', '停止'], ['F7', '退却'], ['F8', 'AIに任せる']], face: [['F1', 'この方向を向け'], ['F2', '敵の方を向け']] };
-  const ORDK = { move: ['move', 'follow', 'charge', 'flank', 'back', 'hold', 'retreat', 'ai'], face: ['faceHere', 'faceFoe'] };
+  const ORDM = { root: [['F1', '移動'], ['F2', '向き'], ['F3', '隊形'], ['F4', '射撃']], form: [['F1', '通常'], ['F2', '横隊'], ['F3', '縦隊'], ['F4', '散開'], ['F5', '方陣'], ['F6', '鋒矢']], fire: [['F1', '自由に射て'], ['F2', '射撃をやめよ']], move: [['F1', 'ここへ移動'], ['F2', 'ついて来い'], ['F3', '突撃'], ['F4', '回り込み'], ['F5', '後退'], ['F6', '停止'], ['F7', '退却'], ['F8', 'AIに任せる']], face: [['F1', 'この方向を向け'], ['F2', '敵の方を向け']] };
+  const ORDK = { form: ['form:norm', 'form:line', 'form:col', 'form:loose', 'form:square', 'form:wedge'], fire: ['fire:1', 'fire:0'], move: ['move', 'follow', 'charge', 'flank', 'back', 'hold', 'retreat', 'ai'], face: ['faceHere', 'faceFoe'] };
   function ordMenu(m) { R.ordMenu = m; R.ordItems = m ? ORDM[m] : null; }
   function myUnits3(AB) { return AB.units.filter((u) => u.idx && (u.owner === G.myPid || u.cmd === G.myPid) && u.hp > 0 && !u.gone && u.order !== 'rout'); }
   function cen3(AB, f) { let x = 0, y = 0, n = 0; for (const s of AB.act.s) if (s.hp > 0 && !s.gone && f(s)) { x += s.x; y += s.y; n++; } return n ? { x: x / n, y: y / n } : null; }
@@ -1016,6 +1016,11 @@
     const AB = actB(); if (!AB) return; ordMenu(null);
     const all = G.selUnit == null || G.selUnit === 'all', L = myUnits3(AB).filter((u) => all || u.id === G.selUnit);
     if (!L.length) { toast('指図できる隊がありません', 1000); return; }
+    const fk = /^(form|fire):(\w+)$/.exec(kind); // 0.75.0 隊形・射撃
+    if (fk) { const each = (f) => (all ? ['all'] : [G.selUnit]).forEach(f);
+      if (fk[1] === 'form') { if (all) L.forEach((u) => command({ type: 'order', unit: u.id, order: 'form', fm: fk[2] })); else command({ type: 'order', unit: G.selUnit, order: 'form', fm: fk[2] }); toast(`${SIM.ACT.FORMS[fk[2]]}に組め！`, 900); }
+      else { each((un) => command({ type: 'order', unit: un, order: 'fire', on: fk[2] === '1' })); toast(fk[2] === '1' ? '自由に射て！' : '射撃をやめよ！', 900); }
+      return; }
     if (!['move', 'back', 'faceHere', 'faceFoe'].includes(kind)) { command({ type: 'order', unit: all ? 'all' : G.selUnit, order: kind }); toast({ follow: 'ついて来い！', charge: '突撃！', flank: '回り込め！', hold: 'その場で止まれ！', retreat: '退却！', ai: '各自の判断で戦え！（AIに任せる）' }[kind] || '', 900); return; }
     const cs = L.map((u) => [u, cen3(AB, (s) => s.g === u.id)]).filter((a) => a[1]); if (!cs.length) return;
     const mx = cs.reduce((a, c) => a + c[1].x, 0) / cs.length, my = cs.reduce((a, c) => a + c[1].y, 0) / cs.length;
@@ -1121,6 +1126,11 @@
   const act3dLbl = () => ($('mAct3d').textContent = `戦闘の表示：${!R.act3d || R.act3d.on ? '3D' : '2D'}（T キーでも切替）`);
   $('mAct3d').onclick = () => { if (R.act3d) R.act3d.toggle(); act3dLbl(); };
   act3dLbl();
+  // 0.75.0 ビデオ設定（影・草の量）
+  const vidLbl = () => { const V = R.act3d && R.act3d.vid; if (!V) return; $('mShadow').textContent = `影：${['切', '低', '高'][V.sh]}`; $('mGrass').textContent = `草の量：${['なし', '少なめ', '普通', '多め'][V.gr]}`; };
+  $('mShadow').onclick = () => { if (R.act3d) R.act3d.setVid('sh', (R.act3d.vid.sh + 1) % 3); vidLbl(); };
+  $('mGrass').onclick = () => { if (R.act3d) R.act3d.setVid('gr', (R.act3d.vid.gr + 1) % 4); vidLbl(); };
+  vidLbl();
   const VOL = { all: 'vAll', bgm: 'vBgm', sfx: 'vSfx' };
   for (const k in VOL) $(VOL[k]).textContent = SGK.AUDIO.label(k);
   document.querySelectorAll('[data-vol]').forEach((b) => (b.onclick = () => { const k = b.dataset.vol; $(VOL[k]).textContent = SGK.AUDIO.step(k, +b.dataset.d); if (k !== 'bgm') SGK.AUDIO.sfx('coin'); }));
@@ -1146,7 +1156,7 @@
   const anyZoom = (k, sx, sy) => (inB() ? bZoom(k, sx, sy) : R.zoom(k, sx, sy));
   $('zoomIn').onclick = () => anyZoom(1.2);
   $('zoomOut').onclick = () => anyZoom(1 / 1.2);
-  $('mFollow').onclick = () => { R.cam.follow = !R.cam.follow; toast(R.cam.follow ? '自分を追いかけます' : '追いかけを止めました', 1200); };
+  $('mFollow').onclick = () => { const m = me(), d = m && (G.disp[m.id] || m); if (d) { R.cam.x = d.x; R.cam.y = d.y; } R.cam.follow = true; if (G.pcurOn) G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; }; // 0.75.0 自分の所へ移って追いかける（カーソルや地図を動かすと解除）
   $('mTitle').onclick = () => backToTitle();
   // テスト用（ホストだけ）
   $('mTest').onclick = () => { const on = document.querySelector('.testBtn').classList.contains('hidden'); document.querySelectorAll('.testBtn').forEach((b) => b.classList.toggle('hidden', !on)); };
@@ -1231,7 +1241,7 @@
     if (actB() && !activeMenuNotBattle() && k.toLowerCase() === 't') { const on = R.act3d && R.act3d.toggle(); if (!on && document.pointerLockElement) document.exitPointerLock(); toast(on ? '3D表示にしました' : '2D表示にしました', 1000); return; }
     if (ML() && !activeMenuNotBattle()) { // 0.63.0 マウント＆ブレイド2風：0〜9で隊を選び、F1・F2…で指図
       const kl = k.toLowerCase(), fm = /^F([1-9])$/.exec(k);
-      if (fm) { e.preventDefault(); const n = +fm[1]; if (!R.ordMenu) { if (n === 1) ordMenu('move'); else if (n === 2) ordMenu('face'); else toast('隊形などの指図はまだありません', 1000); } else if (R.ordMenu === 'root') { if (n === 1) ordMenu('move'); else if (n === 2) ordMenu('face'); } else { const o = ORDK[R.ordMenu][n - 1]; if (o) ord3(o); } return; }
+      if (fm) { e.preventDefault(); const n = +fm[1]; if (!R.ordMenu || R.ordMenu === 'root') { const m = [null, 'move', 'face', 'form', 'fire'][n]; if (m) ordMenu(m); } else { const o = ORDK[R.ordMenu][n - 1]; if (o) ord3(o); } return; }
       if ('wasd'.includes(kl) && kl.length === 1) { keys.add(kl); G.padUsed = false; return; }
       if (k === ' ') { e.preventDefault(); G.actDash = true; return; }
       if (kl === 'q') { G.actSw = true; return; } // 0.64.0 武器の持ち替え
@@ -1346,19 +1356,25 @@
         if (down(0) && G.bpick) { const b = G.bpick; G.bpick = null; setFocus($('battle'), null); b.click(); }
         else if (ML()) { // 0.64.0 りょうさんの配置：R1攻撃 L1防御 L2ホイールで隊選び R2そこへ移動 十字↑突撃↓停止→照準の方を向く←AI任せ ✕ジャンプ ○回避 △武器持ち替え □随行
           G.padMv = [lx, ly]; G.padAim = null; G.padUsed = true; G.vcurOn = false;
-          const wh = btn(6), AB0 = actB();
+          const wh = btn(6), AB0 = actB(), r2 = btn(7); // 0.75.0 R2：短く押すとそこへ移動、長押しで隊形のホイール
+          if (r2) G.r2t = (G.r2t || 0) + dt;
+          const fw = r2 && G.r2t > 0.35 && !wh;
           if (wh && AB0) { // L2を押している間：右スティックで隊を選ぶ。離すと決定
             const TRs = SIM.TROOPS, L = [['all', '全軍'], ...myUnits3(AB0).sort((a, b) => a.idx - b.idx).map((u) => [u.id, `${u.idx - 1} ${TRs[u.type].short || TRs[u.type].name}${u.n}`])];
-            if (!R.wheel) R.wheel = { L, i: Math.max(0, L.findIndex((x) => x[0] === G.selUnit)) };
+            if (!R.wheel || R.wheel.k) R.wheel = { L, i: Math.max(0, L.findIndex((x) => x[0] === G.selUnit)) };
             R.wheel.L = L; if (R.wheel.i >= L.length) R.wheel.i = 0;
             if (Math.hypot(rx, ry) > 0.5) { const a = (Math.atan2(rx, -ry) + Math.PI * 2) % (Math.PI * 2); R.wheel.i = Math.round(a / (Math.PI * 2 / L.length)) % L.length; }
+          } else if (fw && AB0) {
+            if (!R.wheel || R.wheel.k !== 'form') R.wheel = { k: 'form', L: [...ORDK.form.map((o, i) => [o, ORDM.form[i][1]]), ['fire:1', '自由に射て'], ['fire:0', '射撃をやめよ']], i: -1 };
+            if (Math.hypot(rx, ry) > 0.5) { const n = R.wheel.L.length, a = (Math.atan2(rx, -ry) + Math.PI * 2) % (Math.PI * 2); R.wheel.i = Math.round(a / (Math.PI * 2 / n)) % n; }
           } else {
-            if (R.wheel) { const it = R.wheel.L[R.wheel.i]; R.wheel = null; if (it) { G.selUnit = it[0]; battleHtml = ''; toast(`${it[1]}を選びました`, 800); } }
+            if (R.wheel && R.wheel.k === 'form') { const it = R.wheel.L[R.wheel.i]; R.wheel = null; if (it) ord3(it[0]); }
+            else if (R.wheel) { const it = R.wheel.L[R.wheel.i]; R.wheel = null; if (it) { G.selUnit = it[0]; battleHtml = ''; toast(`${it[1]}を選びました`, 800); } }
             const c = R.acam; c.yaw = (c.yaw || 0) + rx * 2.6 * dt; c.pitch = Math.max(-0.5, Math.min(1.2, (c.pitch || 0) + ry * 1.6 * dt));
           }
           G.padAtk = btn(5); G.padBlk = btn(4);
           if (down(0)) G.actJmp = true; if (down(1)) G.actDash = true; if (down(3)) G.actSw = true; if (down(2)) ord3('follow');
-          if (down(7)) ord3('move'); if (down(12)) ord3('charge'); if (down(13)) ord3('hold'); if (down(15)) ord3('faceHere'); if (down(14)) ord3('ai');
+          if (!r2 && G.r2t) { if (G.r2t <= 0.35) ord3('move'); G.r2t = 0; } if (down(12)) ord3('charge'); if (down(13)) ord3('hold'); if (down(15)) ord3('faceHere'); if (down(14)) ord3('ai');
           if (btn(10)) bZoom(1 - dt * 1.5); if (btn(11)) bZoom(1 + dt * 1.5);
         } else if (actB()) { // 0.56.0 アクション戦闘：左スティック移動・右スティック狙い・RT/A攻撃・Bかわす・LB/RB隊を選ぶ・X突撃・Y随行・十字↑待機↓後退
           // 0.61.0 右スティックはマウスのようにカーソルを動かす（狙いもカーソルの方）。Aでカーソルの隊を選ぶ、LTでそこへ動かす（押したまま動かすと向き）
@@ -1394,6 +1410,7 @@
       const W = cv.clientWidth, H = cv.clientHeight;
       if (lx || ly) {
         if (!G.pcurOn) { G.pcurOn = true; G.pcur = [W / 2, H / 2]; }
+        R.cam.follow = false; // 0.75.0 カーソルを自分で動かしたら追いかけをやめる
         const sp = 650 * dt;
         G.pcur[0] = Math.max(0, Math.min(W, G.pcur[0] + lx * Math.abs(lx) * sp * 1.3));
         G.pcur[1] = Math.max(0, Math.min(H, G.pcur[1] + ly * Math.abs(ly) * sp * 1.3));
