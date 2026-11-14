@@ -8,8 +8,8 @@
     HERO_HP: 2.5,    // 本人の体力の倍率（直接戦うので）0.61.0 4→2.5
     DASH: { t: 0.2, cd: 1.6, mul: 3 },
     WEP: { // 本人の武器：reach 届く距離、arc 振りの幅（片側）、cd 間隔、dmg 威力の倍率、shot 飛び道具
-      tachi: { name: '刀', reach: 2.6, arc: 0.95, cd: 0.55, dmg: 2.4, max: 3 }, // 0.61.0 弱めた（以前は dmg5・max4）
-      yari: { name: '槍', reach: 3.6, arc: 0.5, cd: 0.7, dmg: 2.7, max: 2 },
+      tachi: { name: '刀', reach: 1.9, arc: 0.45, cd: 0.55, dmg: 2.4, max: 1 }, // 0.73.4 範囲を狭く・当たるのは1人（以前は reach2.6・arc0.95・max3）
+      yari: { name: '槍', reach: 2.7, arc: 0.3, cd: 0.7, dmg: 2.7, max: 1 }, // 0.73.4 以前は reach3.6・arc0.5・max2
       yumi: { name: '弓', shot: 45, cd: 1, dmg: 3, spd: 45 },
       teppo: { name: '鉄砲', shot: 60, cd: 3, dmg: 9, spd: 140 },
     },
@@ -189,7 +189,7 @@
         if (s.x < 2 || s.x > F.w - 2) s.gone = true;
         continue;
       }
-      const o = u.eo || u.order, reach = T.ranged ? T.range + (u.ra || 0) : (T.range || 2.5) * 0.5 + 0.7;
+      const o = u.eo || u.order, reach = T.ranged ? T.range + (u.ra || 0) : (T.range || 2.5) * 0.4 + 0.4; // 0.73.4 近接の間合いを狭く（以前は ×0.5+0.7）
       let look = o === 'charge' || o === 'flank' ? 22 : o === 'follow' ? 8 : Math.max(ACT.ENGAGE, T.ranged ? reach : 0);
       if (u.kite) look = T.ranged ? reach : 3;
       const aiHero = s.hero && !s.pc && (u.side === 'B' || u.order === 'ai'); // 0.64.0 敵の大将は後ろから兵を励まし、近づかれたら戦う
