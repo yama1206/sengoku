@@ -631,8 +631,7 @@
       html += '<span class="h">品</span><span class="h">買値</span><span class="h">売値</span><span class="h">在庫</span><span class="h">所持</span><span></span><span></span><span></span><span></span>';
       for (const [k, buy, sell, stock] of h.market) {
         const it = IT[k], have = me.inv[k] || 0;
-        const mm = me.memo && me.memo[k], ago = (x) => (x[2] <= 0 ? '今日' : x[2] + '日前');
-        const memo = mm ? `<br><span style="font-size:11px;color:#9ab">${mm.sell && mm.sell[1] > sell ? `高く売れる：${sName(mm.sell[0])} ${mm.sell[1]}文(${ago(mm.sell)})` : ''}${mm.buy && mm.buy[1] < buy ? `${mm.sell && mm.sell[1] > sell ? '<br>' : ''}安く買える：${sName(mm.buy[0])} ${mm.buy[1]}文(${ago(mm.buy)})` : ''}</span>` : '';
+        const memo = ''; // 0.74.4 相場の記録（高く売れる・安く買える）は表示しない
         html += `<span>${it.name}<span class="muted">/${it.unit}・${it.wt}kg<br>相場${it.base}文</span>${memo}</span><span style="color:${priceCol(buy / 1.1 / it.base)}">${buy}文</span><span style="color:${priceCol(sell / 0.9 / it.base)}">${sell}文</span><span>${stock}</span><span>${have}${have && me.cost && me.cost[k] != null ? `<br><span style="font-size:11px;color:${sell >= me.cost[k] ? '#6fbf73' : '#e07a6a'}">平均${Math.round(me.cost[k])}文</span>` : ''}</span>`
           + ((h.noBuy || []).includes(k) ? `<button id="b1-${k}" disabled title="調達の依頼が出ているので買えない">依頼品</button><button id="b10-${k}" disabled>－</button>` : `<button id="b1-${k}" data-act="buy" data-item="${k}" data-qty="1">買1</button><button id="b10-${k}" data-act="buy" data-item="${k}" data-qty="10">買10</button>`)
           + `<button id="s1-${k}" data-act="sell" data-item="${k}" data-qty="1" ${have ? '' : 'disabled'}>売1</button><button id="sa-${k}" data-act="sell" data-item="${k}" data-qty="999" ${have ? '' : 'disabled'}>全部</button>`;
