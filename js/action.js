@@ -10,8 +10,8 @@
     MEN_HP: 2.5,     // 0.73.4 兵の体力の倍率（しっかり斬り合うように）    // 本人の体力の倍率（直接戦うので）0.61.0 4→2.5
     DASH: { t: 0.2, cd: 1.6, mul: 3 },
     WEP: { // 本人の武器：reach 届く距離、arc 振りの幅（片側）、cd 間隔、dmg 威力の倍率、shot 飛び道具
-      tachi: { name: '刀', reach: 1.9, arc: 0.45, cd: 0.55, dmg: 2.4 }, // 0.73.9 振りの範囲にいる敵には全員当たる（2人目から減る ACT.MULTI）
-      yari: { name: '槍', reach: 2.7, arc: 0.3, cd: 0.7, dmg: 2.7 },
+      tachi: { name: '刀', reach: 2.3, arc: 0.45, cd: 0.5, sw: 0.16, dmg: 2.4 }, // 0.73.9 振りの範囲にいる敵には全員当たる（2人目から減る ACT.MULTI）0.73.10 届く長さ 1.9→2.3、速く振れる
+      yari: { name: '槍', reach: 3.2, arc: 0.3, cd: 0.8, sw: 0.24, dmg: 2.7 }, // 0.73.10 届く長さ 2.7→3.2、振りは遅い
       yumi: { name: '弓', shot: 45, cd: 1, dmg: 3, spd: 45 },
       teppo: { name: '鉄砲', shot: 60, cd: 3, dmg: 9, spd: 140 },
     },
@@ -179,7 +179,7 @@
         hero.cd = W.cd;
         if (W.shot) { A.pr.push({ x: hero.x, y: hero.y, vx: Math.cos(hero.f) * W.spd, vy: Math.sin(hero.f) * W.spd, side: hero.side, dmg: base * W.dmg * 0.5, life: W.shot / W.spd, gun: W.spd > 100, src: hero }); sfx(hero, W.spd > 100 ? 'gun' : 'bow'); }
         else {
-          hero.sw = { t: 0.18, a: hero.f, arc: W.arc, r: W.reach }; sfx(hero, 'slash');
+          hero.sw = { t: W.sw || 0.18, a: hero.f, arc: W.arc, r: W.reach }; sfx(hero, 'slash');
           swing(g, hero, hero.f, W, (o, k) => damage(b, A, o, base * W.dmg * k * (0.8 + rr() * 0.4), hero));
         }
       }
@@ -226,7 +226,7 @@
               const sp = s.type === 'teppo' || s.type === 'teppogashira' ? 140 : 45, tt = d / sp, ex = e.x + (rr() - 0.5) * d * 0.12, ey = e.y + (rr() - 0.5) * d * 0.12, a = Math.atan2(ey - s.y, ex - s.x);
               A.pr.push({ x: s.x, y: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, side: s.side, dmg: T.atk * (u.am || 1) * (sp > 100 ? 2.6 : 2.2) * (0.55 + 0.45 * u.mor / 100), life: tt * 1.3, gun: sp > 100, src: s });
               s.cd = (sp > 100 ? 4 : 2.4) + rr(); s.at = performance.now() / 1000; // 0.66.0 3Dの射る・撃つ動き
-            } else { const atk = T.atk * (u.am || 1) * (close ? 0.8 : 1) * (0.55 + 0.45 * u.mor / 100) * (T.cav && s.mv ? 1.3 : 1); if (!swing(g, s, s.f, cpuWep(s, close), (o, k) => melee(b, A, s, o, atk * k))) melee(b, A, s, e, atk); s.cd = 1.1 + rr() * 0.6; s.at = performance.now() / 1000; } // 0.73.9 CPUも一振りで範囲の敵全員に
+            } else { const atk = T.atk * (u.am || 1) * (close ? 0.8 : 1) * (0.55 + 0.45 * u.mor / 100) * (T.cav && s.mv ? 1.3 : 1); const CW = cpuWep(s, close); if (!swing(g, s, s.f, CW, (o, k) => melee(b, A, s, o, atk * k))) melee(b, A, s, e, atk); s.cd = CW.cd * 2.2 + rr() * 0.6; s.at = performance.now() / 1000; } // 0.73.10 武器ごとの振りの速さ（刀1.1秒・槍1.76秒＋ゆらぎ） // 0.73.9 CPUも一振りで範囲の敵全員に
           }
           s.mv = 0;
           continue;
