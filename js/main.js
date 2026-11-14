@@ -697,7 +697,7 @@
       }
       html += '<div class="muted" style="margin-top:10px">この拠点の依頼</div>';
       if (!h.jobs.length) html += '<div class="muted" style="margin-top:4px">いまは依頼がありません</div>';
-      { const hs = G.view.settlements.find((x) => x.id === h.id); if (hs && hs.type === 'castle' && !(G.priv.me && G.priv.me.rank && G.priv.me.rank.clan === hs.owner)) html += '<div class="muted" style="margin-top:4px">偵察・兵糧の運び込み・調略の使いは、この家に仕えると受けられます</div>'; }
+      { const hs = G.view.settlements.find((x) => x.id === h.id); if (hs && hs.type === 'castle' && !(G.priv.me && G.priv.me.rank && G.priv.me.rank.clan === hs.owner)) html += '<div class="muted" style="margin-top:4px">兵糧の運び込み・調略の使いは、この家に仕えると受けられます（偵察は忍びとして仕えると受けられます）</div>'; }
       for (const j of h.jobs) {
         const to = j.type === 'deliver' && G.view.settlements.find((x) => x.id === j.to), fr = G.view.settlements.find((x) => x.id === j.from);
         const km = to && fr ? Math.round(Math.hypot(to.x - fr.x, to.y - fr.y)) : null;
