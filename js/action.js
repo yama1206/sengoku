@@ -59,8 +59,12 @@
     return out;
   }
   // 0.75.0 隊形：兵の持ち場（ox 前後・oy 左右）を並べ直す
-  ACT.FORMS = { norm: '通常', line: '横隊', col: '縦隊', loose: '散開', square: '方陣', wedge: '鋒矢' };
+  ACT.FORMS = { norm: '通常', line: '横隊', loose: '散開', square: '方陣', wedge: '鋒矢' };
+  // 0.79.0 隊形の得手不得手：spd 移動・ma 近接の攻撃・ra 弓鉄砲の攻撃・md 近接で受ける被害・rd 矢弾で受ける被害（倍）
+  ACT.FMOD = { line: { spd: 0.85, ra: 1.1 }, loose: { rd: 0.9, md: 1.15 }, square: { spd: 0.85, md: 0.9, rd: 0.9 }, wedge: { ma: 1.1, md: 1.15, rd: 1.15 } };
+  const fmod = (u, k) => { const m = u && ACT.FMOD[u.fm]; return (m && m[k]) || 1; };
   function layout(u, L) {
+    if (u.fm && !ACT.FORMS[u.fm]) u.fm = 'norm'; // 0.79.0 縦隊は廃止
     const m = L.length, fm = u.fm || 'norm'; if (!m) return;
     let sp = TR[u.type].cav ? 2.2 : 1.5; if (fm === 'loose') sp *= 2;
     if (fm === 'wedge') { let k = 0; for (let r = 0; k < m; r++) for (let c = 0; c <= r * 2 && k < m; c++, k++) { L[k].ox = -r * sp; L[k].oy = (c - r) * sp; } return; }
@@ -80,12 +84,13 @@
   }
   function nearestFoe(g, s, r) { let best = null, bd = r; near(g, s.x, s.y, r, (o) => { if (o.side !== s.side && live(o)) { const d = dist(s, o); if (d < bd) { bd = d; best = o; } } }); return best; }
 
-  function damage(b, A, t, d, from) {
+  function damage(b, A, t, d, from, rng) {
     if (!live(t) || (t.hero && t.dash > 0)) return;
     if (t.hero && t.blk && from && angDiff(t.f || 0, ang(t, from)) < 1.3) { d *= 0.15; t.bk = 0.15; } // 0.63.0 防御（正面からの攻撃を大きく減らす）
     const u = A.byG[t.g];
     if (u && u.isAI && !t.hero && from && u.order !== 'rout' && angDiff(t.f || 0, ang(t, from)) < 0.9 && rr() < 0.3) { d *= 0.3; t.bk = 0.15; } // 0.64.0 AIの兵は正面の攻撃をときどき受け止める
     if (u && u.order === 'rout') d *= 1.3;
+    if (u && !t.hero) d *= fmod(u, rng ? 'rd' : 'md'); // 0.79.0 隊形の守り
     if (t.hero && u && u.da) d /= 1 + u.da * 0.15; // 0.73.8 本人の防具の守り（守り3で約3割減）
     if (from) { const dir = angDiff(t.f || 0, ang(t, from)); if (dir > Math.PI * 2 / 3) d *= 1.5; else if (dir > Math.PI / 3) d *= 1.2; if (u && !t.hero && dir > Math.PI / 3) u.mor -= 0.4; }
     if (from && from.pc && from.wk && from.side !== t.side) (A.xq = A.xq || []).push([from.pc, from.wk, Math.min(d, t.hp) / (t.mh || 1), t, d >= t.hp]); // 0.76.0 本人の技能の経験
@@ -170,7 +175,7 @@
       } else u.tgt = null;
       const hero = heroOf(u.owner || u.cmd);
       if (o === 'follow' && hero && live(hero)) { const hf = hero.f || 0; u.ax += (hero.x - Math.cos(hf) * 6 - u.ax) * Math.min(1, dt * 2); u.ay += (hero.y - Math.sin(hf) * 6 - u.ay) * Math.min(1, dt * 2); u.af = hf; }
-      if (o === 'move') { const d = Math.hypot(u.mx - u.ax, u.my - u.ay), sp = TR[u.type].spd * ACT.SPD * dt; if (d > 0.5) { u.af = Math.atan2(u.my - u.ay, u.mx - u.ax); u.ax += ((u.mx - u.ax) / d) * Math.min(d, sp); u.ay += ((u.my - u.ay) / d) * Math.min(d, sp); } else if (u.eo) u.eo = 'hold'; else u.order = 'hold'; }
+      if (o === 'move') { const d = Math.hypot(u.mx - u.ax, u.my - u.ay), sp = TR[u.type].spd * ACT.SPD * fmod(u, 'spd') * dt; if (d > 0.5) { u.af = Math.atan2(u.my - u.ay, u.mx - u.ax); u.ax += ((u.mx - u.ax) / d) * Math.min(d, sp); u.ay += ((u.my - u.ay) / d) * Math.min(d, sp); } else if (u.eo) u.eo = 'hold'; else u.order = 'hold'; }
       if (o === 'hold' && u.ho !== 'hold') { u.ax = c.x; u.ay = c.y; }
       if (o === 'hold' && u.mf != null && !u.isAI) u.af = u.mf; // 0.59.0 決めた向き // 待機を命じた所にとどまる
       u.ho = o;
@@ -216,7 +221,7 @@
       if (s.fl) s.fl = Math.max(0, s.fl - dt);
       if (s.pc) continue;
       const u = A.byG[s.g], T = s.hero ? TR.hero : TR[s.type], gen = s.hero && u && !u.owner && !u.cmd, cav = T.cav || gen; // 0.73.8 CPUの武将は騎馬
-      const spd = (gen ? TR.kiba.spd : T.spd) * ACT.SPD * (cav && b.ter && b.ter.length && SIM.terAt(b, s).f ? SIM.CAV_FOREST : 1); // 0.73.6 林の中の騎馬は遅い
+      const spd = (gen ? TR.kiba.spd : T.spd) * ACT.SPD * (s.hero ? 1 : fmod(u, 'spd')) * (cav && b.ter && b.ter.length && SIM.terAt(b, s).f ? SIM.CAV_FOREST : 1); // 0.73.6 林の中の騎馬は遅い
       s.cd -= dt;
       if (!u) continue;
       if (u.order === 'rout' || u.order === 'retreat') {
@@ -248,9 +253,9 @@
           if (s.cd <= 0) {
             if (T.ranged && !close) {
               const sp = s.type === 'teppo' || s.type === 'teppogashira' ? 140 : 45, tt = d / sp, ex = e.x + (rr() - 0.5) * d * 0.12, ey = e.y + (rr() - 0.5) * d * 0.12, a = Math.atan2(ey - s.y, ex - s.x);
-              A.pr.push({ L: d, x0: s.x, y0: s.y, x: s.x, y: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, side: s.side, dmg: T.atk * (u.am || 1) * (sp > 100 ? 2.6 : 2.2) * (0.55 + 0.45 * u.mor / 100), life: tt * 1.3, gun: sp > 100, src: s });
+              A.pr.push({ L: d, x0: s.x, y0: s.y, x: s.x, y: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, side: s.side, dmg: T.atk * (u.am || 1) * fmod(u, 'ra') * (sp > 100 ? 2.6 : 2.2) * (0.55 + 0.45 * u.mor / 100), life: tt * 1.3, gun: sp > 100, src: s });
               s.cd = (sp > 100 ? 4 : 2.4) + rr(); s.at = performance.now() / 1000; // 0.66.0 3Dの射る・撃つ動き
-            } else { const atk = T.atk * (u.am || 1) * (close ? 0.8 : 1) * (0.55 + 0.45 * u.mor / 100) * (T.cav && s.mv ? 1.3 : 1); const CW = cpuWep(s, close); if (!swing(g, s, s.f, CW, (o, k) => melee(b, A, s, o, atk * k))) melee(b, A, s, e, atk); s.cd = CW.cd * 2.2 + rr() * 0.6; s.at = performance.now() / 1000; } // 0.73.10 武器ごとの振りの速さ（刀1.1秒・槍1.76秒＋ゆらぎ） // 0.73.9 CPUも一振りで範囲の敵全員に
+            } else { const atk = T.atk * (u.am || 1) * fmod(u, 'ma') * (close ? 0.8 : 1) * (0.55 + 0.45 * u.mor / 100) * (T.cav && s.mv ? 1.3 : 1); const CW = cpuWep(s, close); if (!swing(g, s, s.f, CW, (o, k) => melee(b, A, s, o, atk * k))) melee(b, A, s, e, atk); s.cd = CW.cd * 2.2 + rr() * 0.6; s.at = performance.now() / 1000; } // 0.73.10 武器ごとの振りの速さ（刀1.1秒・槍1.76秒＋ゆらぎ） // 0.73.9 CPUも一振りで範囲の敵全員に
           }
           s.mv = 0;
           continue;
@@ -274,7 +279,7 @@
       { const f = p.gun || !p.L || p.x0 == null ? 0 : Math.min(1, Math.hypot(nx - p.x0, ny - p.y0) / p.L); p.h = p.gun ? 0 : 4 * p.L * 0.15 * f * (1 - f); }
       if (p.h < 1.8) near(g, nx, ny, 1.5, (o) => { if (!hit && o.side !== p.side && live(o)) { const d = Math.hypot(o.x - nx, o.y - ny); if (d < (o.hero ? 0.9 : 0.7)) hit = o; } });
       p.x = nx; p.y = ny; p.life -= dt;
-      if (hit) { damage(b, A, hit, p.dmg * (0.7 + rr() * 0.6), p.src); p.life = 0; continue; }
+      if (hit) { damage(b, A, hit, p.dmg * (0.7 + rr() * 0.6), p.src, true); p.life = 0; continue; }
       // 0.75.0 木や味方に当たったら消える（自分の隊の中と、撃ってすぐは通り抜ける）
       const sg = p.src && p.src.g, gone = Math.hypot(nx - p.x0, ny - p.y0), far = gone > 2.5;
       if (far && p.h < 1.5) near(g, nx, ny, 1.5, (o) => { if (p.life > 0 && o.side === p.side && o !== p.src && o.g !== sg && live(o) && Math.hypot(o.x - nx, o.y - ny) < (o.hero ? 0.8 : 0.6)) p.life = 0; });

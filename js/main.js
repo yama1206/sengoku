@@ -1027,8 +1027,8 @@
     const b = G.mode === 'host' && G.world.battles[BT.id]; return b && b.act ? b : null; };
   // 0.63.0 3D表示の自分で戦う（マウント＆ブレイド2風の操作）
   const ML = () => !!(R.act3dOn && actB());
-  const ORDM = { root: [['F1', '移動'], ['F2', '向き'], ['F3', '隊形'], ['F4', '射撃']], form: [['F1', '通常'], ['F2', '横隊'], ['F3', '縦隊'], ['F4', '散開'], ['F5', '方陣'], ['F6', '鋒矢']], fire: [['F1', '自由に射て'], ['F2', '射撃をやめよ']], move: [['F1', 'ここへ移動'], ['F2', 'ついて来い'], ['F3', '突撃'], ['F4', '回り込み'], ['F5', '後退'], ['F6', '停止'], ['F7', '退却'], ['F8', 'AIに任せる']], face: [['F1', 'この方向を向け'], ['F2', '敵の方を向け']] };
-  const ORDK = { form: ['form:norm', 'form:line', 'form:col', 'form:loose', 'form:square', 'form:wedge'], fire: ['fire:1', 'fire:0'], move: ['move', 'follow', 'charge', 'flank', 'back', 'hold', 'retreat', 'ai'], face: ['faceHere', 'faceFoe'] };
+  const ORDM = { root: [['F1', '移動'], ['F2', '向き'], ['F3', '隊形'], ['F4', '射撃']], form: [['F1', '通常'], ['F2', '横隊'], ['F3', '散開'], ['F4', '方陣'], ['F5', '鋒矢']], fire: [['F1', '自由に射て'], ['F2', '射撃をやめよ']], move: [['F1', 'ここへ移動'], ['F2', 'ついて来い'], ['F3', '突撃'], ['F4', '回り込み'], ['F5', '後退'], ['F6', '停止'], ['F7', '退却'], ['F8', 'AIに任せる']], face: [['F1', 'この方向を向け'], ['F2', '敵の方を向け']] };
+  const ORDK = { form: ['form:norm', 'form:line', 'form:loose', 'form:square', 'form:wedge'], fire: ['fire:1', 'fire:0'], move: ['move', 'follow', 'charge', 'flank', 'back', 'hold', 'retreat', 'ai'], face: ['faceHere', 'faceFoe'] };
   function ordMenu(m) { R.ordMenu = m; R.ordItems = m ? ORDM[m] : null; }
   function myUnits3(AB) { return AB.units.filter((u) => u.idx && (u.owner === G.myPid || u.cmd === G.myPid) && u.hp > 0 && !u.gone && u.order !== 'rout'); }
   function cen3(AB, f) { let x = 0, y = 0, n = 0; for (const s of AB.act.s) if (s.hp > 0 && !s.gone && f(s)) { x += s.x; y += s.y; n++; } return n ? { x: x / n, y: y / n } : null; }
