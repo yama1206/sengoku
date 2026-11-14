@@ -179,7 +179,7 @@
         else if (!['f', 'h', 'm', 'k', 's'].includes(t.k) && d < t.r) c.setHex(0x4d6f8e);
       }
       if (x < 0 || y < 0 || x > F.w || y > F.h) c.multiplyScalar(0.85);
-      const n = (0.95 + r() * 0.08) * (0.94 + 0.08 * Math.sin(x * 0.045 + 2) * Math.sin(y * 0.05)); // 0.65.0 広いまだら模様 col[i * 3] = c.r * n; col[i * 3 + 1] = c.g * n; col[i * 3 + 2] = c.b * n;
+      const n = (0.95 + r() * 0.08) * (0.94 + 0.08 * Math.sin(x * 0.045 + 2) * Math.sin(y * 0.05)); col[i * 3] = c.r * n; col[i * 3 + 1] = c.g * n; col[i * 3 + 2] = c.b * n; // 0.65.0 広いまだら模様（0.68.1 色を入れる文がコメントの中に入って地面が黒くなっていたのを直した）
     }
     groundG.setAttribute('color', new T.BufferAttribute(col, 3)); groundG.computeVertexNormals();
     if (!texG) { texG = groundTex(); texG.repeat.set((F.w + 80) / 7, (F.h + 80) / 7); }
