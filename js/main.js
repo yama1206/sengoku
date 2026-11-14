@@ -825,6 +825,7 @@
   document.querySelectorAll('#town [data-tab]').forEach((b) => (b.onclick = () => setTab(b.dataset.tab)));
   $('townClose').onclick = () => openTown(false);
   $('townBtn').onclick = () => openTown(true);
+  $('joinBtn').onclick = () => command({ type: 'joinBattle' }); // 1.6.12 合戦の途中参加
   function cycleTab(d) { const tabs = ['market', 'jobs', 'work', 'army', 'talk', 'castle'].filter((t) => !$('tab-' + t).classList.contains('hidden')); setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
 
   // ---------- 人物（能力・技能・特技・部隊の昇格） ----------
@@ -1610,6 +1611,7 @@
       { const mt = P && P.me && P.me.meet; if (mt && mt !== G.lastMeet && !BT) { const u = findUnit(mt); if (u) { selectUnit(u); toast('追いつきました。話しかけるか、攻めかかるかを選んでください（閉じると相手は動き出します）', 3500); } } G.lastMeet = mt || null; } // 0.73.4
       if (G.selKind === 'u' && !BT) refreshUnitInfo();
       $('townBtn').classList.toggle('hidden', !(P && P.here) || !!BT);
+      $('joinBtn').classList.toggle('hidden', !(P && P.nearBattle) || !!BT); if (P && P.nearBattle) $('joinBtn').textContent = `合戦に加わる（${P.nearBattle.foe}）`;
       // 拠点に着いたら自動で拠点画面を開く
       const hereId = P && P.here && !BT ? P.here.id : null;
       if (hereId && hereId !== G.lastHere && $('char').classList.contains('hidden') && $('gameMenu').classList.contains('hidden')) { SGK.AUDIO.sfx('arrive'); openTown(true); }

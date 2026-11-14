@@ -32,12 +32,18 @@
     const us = b.units.filter((u) => u.hp > 0 && !u.gone);
     const total = us.reduce((a, u) => a + (u.type === 'hero' ? 0 : u.n), 0);
     const A = b.act = { pid, pids: (b.pids || [pid]).slice(), inp: {}, dq: {}, dc: 0, k: Math.max(1, Math.ceil(total / ACT.MAXMEN)), s: [], pr: [], fx: [], dead: [], next: 1 };
-    for (const u of us) {
-      if (!b.cside) u.x = cx + (u.x - cx) * ACT.SQUEEZE; // 攻城戦は城の位置に合わせるので縮めない
+    for (const u of us) { if (!b.cside) u.x = cx + (u.x - cx) * ACT.SQUEEZE; actAdd(A, b, u); }
+    A.byG = {}; for (const u of b.units) A.byG[u.id] = u;
+    A.trees = treePts(b.id, b.ter || []);
+    const ix = {}; for (const u of b.units) { const o = u.owner || u.cmd; if (o && A.pids.includes(o) && u.type !== 'hero' && u.m0) { ix[o] = ix[o] || 2; u.idx = ix[o]++; } }
+    for (const q of A.pids) if (q !== pid) SIM.say(q, `${(w.players[pid] || {}).name || '仲間'}が「自分で戦う」にしました。あなたも本人を直接動かせます`);
+  };
+  // 1.6.12 兵を「自分で戦う」の兵に分ける（途中から加わった隊にも使う）
+  function actAdd(A, b, u) {
       if (u.type === 'hero') {
         if (u.att != null) { const g = b.units.find((x) => x.id === u.att); if (g) g.lead = 0; u.att = null; }
-        A.s.push({ id: A.next++, g: u.id, side: u.side, x: u.x - (u.side === 'A' ? 6 : -6), y: u.y, f: u.f, hp: u.hp * ACT.HERO_HP, mh: u.mh * ACT.HERO_HP, hero: 1, pc: u.owner && A.pids.includes(u.owner) ? u.owner : 0, cd: 0, dash: 0, dcd: 0 }); // pc = 操る人のid
-        continue;
+        A.s.push({ id: A.next++, g: u.id, side: u.side, x: u.x - (u.side === 'A' ? 6 : -6), y: u.y, f: u.f, hp: u.hp * ACT.HERO_HP, mh: u.mh * ACT.HERO_HP, hero: 1, pc: u.owner && A.pids.includes(u.owner) ? u.owner : 0, cd: 0, dash: 0, dcd: 0 });
+        return;
       }
       const m = Math.max(1, Math.ceil(u.n / A.k));
       u.m0 = m; u.nA = u.n; u.ax = u.x; u.ay = u.y; u.af = u.f;
@@ -47,12 +53,43 @@
         L.push(s); A.s.push(s);
       }
       layout(u, L); for (const s of L) place(s, u);
-    }
-    A.byG = {}; for (const u of b.units) A.byG[u.id] = u;
-    A.trees = treePts(b.id, b.ter || []);
-    const ix = {}; for (const u of b.units) { const o = u.owner || u.cmd; if (o && A.pids.includes(o) && u.type !== 'hero' && u.m0) { ix[o] = ix[o] || 2; u.idx = ix[o]++; } }
-    for (const q of A.pids) if (q !== pid) SIM.say(q, `${(w.players[pid] || {}).name || '仲間'}が「自分で戦う」にしました。あなたも本人を直接動かせます`);
+  }
+  // 1.6.12 合戦の途中参加：戦場の地図上の場所（敵の部隊・城・戦っているプレイヤー）
+  const JOIN_KM = 1.5;
+  SIM.battleSpot = (w, b) => {
+    const n = b.npc && w.npcs[b.npc]; if (n) return n;
+    const s = b.siege && SIM.settlement(w, b.siege); if (s) return s;
+    for (const id of b.pids || []) { const q = w.players[id]; if (q && q.battle === b.id) return q; }
+    return null;
   };
+  SIM.joinableBattle = (w, p) => {
+    if (!p || p.battle || (p.hpFrac != null && p.hpFrac <= 0.05)) return null;
+    for (const b of Object.values(w.battles || {})) {
+      if (b.routed || !(b.pids || []).some((id) => w.players[id] && w.players[id].battle === b.id)) continue;
+      if ((b.war || b.siege) && !(p.clan && b.pids.some((id) => w.players[id] && w.players[id].clan === p.clan))) continue; // 戦は同じ家の者だけ
+      const at = SIM.battleSpot(w, b); if (at && Math.hypot(at.x - p.x, at.y - p.y) < JOIN_KM) return b;
+    }
+    return null;
+  };
+  SIM.commands.joinBattle = (w, p) => {
+    const b = SIM.joinableBattle(w, p); if (!b) return SIM.say(p.id, '加われる合戦が近くにありません');
+    const k = b.units.length;
+    b.pids.push(p.id); p.battle = b.id; p.tx = p.ty = null; p.dest = null; p.path = null; p.at = null; p.busy = null; b.start[p.id] = Object.assign({}, p.troops);
+    SIM.addPlayerSide(w, b, p);
+    const nu = b.units.slice(k);
+    for (const u of nu) { u.x -= 20; u.order = u.type === 'hero' ? u.order : 'charge'; } // 後ろから駆けつける
+    const A = b.act;
+    if (A) { A.pids.push(p.id); for (const u of nu) { A.byG[u.id] = u; actAdd(A, b, u); } let ix = 2; for (const u of b.units) if ((u.owner || u.cmd) === p.id && u.type !== 'hero' && u.m0) u.idx = ix++; }
+    SIM.say(p.id, `合戦に加わりました！（相手：${b.foe}）`);
+    for (const q of b.pids) if (q !== p.id) SIM.say(q, `${p.name}が合戦に駆けつけました！`);
+  };
+  const basePrivJ = SIM.privateState;
+  SIM.privateState = function (w, pid) {
+    const r = basePrivJ(w, pid); if (!r) return r;
+    const b = SIM.joinableBattle(w, w.players[pid]); r.nearBattle = b ? { foe: b.foe } : null;
+    return r;
+  };
+
   // 0.75.0 森の木の位置（3D表示の木と同じ並び。action3d.js の build と同じ作り方）
   function treePts(id, ter) {
     let sd = String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0), 3), q = (sd * 9301 + 49297) % 233280 || 1; const r = () => { q = (q * 9301 + 49297) % 233280; return q / 233280; };
