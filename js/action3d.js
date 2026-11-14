@@ -80,13 +80,30 @@
     mk('hat', new T.ConeGeometry(0.42, 0.2, 10).translate(0, 1.52, 0), white(), CAP.body);
     mk('flag', new T.PlaneGeometry(0.42, 0.62).rotateY(Math.PI / 2).translate(-0.3, 1.95, 0), new T.MeshLambertMaterial({ color: 0xffffff, side: T.DoubleSide }), CAP.body, false);
     mk('pole', new T.CylinderGeometry(0.02, 0.02, 1.3, 4).translate(-0.3, 1.6, 0), lam({ color: 0x3b2a18 }), CAP.body, false);
-    // 武器（長さは種類ごとに別の形）
-    const spear = (L) => new T.CylinderGeometry(0.035, 0.035, L, 5).rotateZ(-Math.PI / 2 + 0.32).translate(0.3 + L * 0.22, 1.05 + L * 0.15, 0.22);
-    mk('spearS', spear(2.6), lam({ color: 0x4a3420 }), CAP.body);
-    mk('spearL', spear(4.4), lam({ color: 0x4a3420 }), CAP.body);
-    mk('sword', new T.BoxGeometry(1.0, 0.06, 0.04).translate(0.75, 1.0, 0.25), lam({ color: 0xd8dde2 }), CAP.body);
-    mk('bow', new T.TorusGeometry(0.75, 0.03, 4, 12, Math.PI * 0.9).rotateZ(-Math.PI * 0.45).rotateY(Math.PI / 2).translate(0.32, 1.05, 0), lam({ color: 0x5a3a1c }), CAP.body);
-    mk('gun', new T.BoxGeometry(1.25, 0.08, 0.08).translate(0.55, 1.08, 0.18), lam({ color: 0x2b2420 }), CAP.body);
+    // 0.66.0 腕（肩を軸に回す）と武器（手に持つ。色は部分ごとに塗り分け）
+    mk('armL', new T.BoxGeometry(0.13, 0.6, 0.14).translate(0, -0.3, 0), white(), CAP.body);
+    mk('armR', new T.BoxGeometry(0.13, 0.6, 0.14).translate(0, -0.3, 0), white(), CAP.body);
+    const vc = new T.MeshLambertMaterial({ vertexColors: true });
+    const spear = (L) => merge([
+      [new T.CylinderGeometry(0.03, 0.035, L, 6).rotateZ(-Math.PI / 2).translate(L / 2 - 0.9, 0, 0), 0x4a3420],
+      [new T.ConeGeometry(0.06, 0.38, 6).rotateZ(-Math.PI / 2).translate(L - 0.9 + 0.19, 0, 0), 0xd8dde2],
+    ]);
+    mk('spearS', spear(2.6), vc, CAP.body); mk('spearL', spear(4.4), vc, CAP.body);
+    mk('sword', merge([
+      [new T.BoxGeometry(0.26, 0.05, 0.05).translate(0.02, 0, 0), 0x2a1c14],
+      [new T.CylinderGeometry(0.08, 0.08, 0.02, 10).rotateZ(Math.PI / 2).translate(0.16, 0, 0), 0x3a3020],
+      [new T.BoxGeometry(0.92, 0.065, 0.025).translate(0.63, 0, 0), 0xdfe4e8],
+    ]), vc, CAP.body);
+    const bc = Math.cos(0.4 * Math.PI) * 0.85 - 0.85;
+    mk('bow', merge([
+      [new T.TorusGeometry(0.85, 0.025, 4, 16, Math.PI * 0.8).rotateZ(-Math.PI * 0.4).translate(-0.85, 0, 0), 0x5a3a1c],
+      [new T.BoxGeometry(0.01, Math.sin(0.4 * Math.PI) * 1.7, 0.01).translate(bc, 0, 0), 0xe8e0c8],
+    ]), vc, CAP.body);
+    mk('gun', merge([
+      [new T.BoxGeometry(1.25, 0.065, 0.065).translate(0.4, 0, 0), 0x2b2420],
+      [new T.BoxGeometry(0.45, 0.13, 0.08).translate(-0.38, -0.02, 0), 0x5a3a1c],
+    ]), vc, CAP.body);
+    mk('flash', new T.SphereGeometry(0.16, 6, 4), new T.MeshBasicMaterial({ color: 0xffe080 }), 80, false);
     // 馬
     const horse = new T.BoxGeometry(1.7, 0.75, 0.55).translate(0, 1.15, 0);
     mk('horse', horse, lam({ color: 0x6b4426 }), 200);
@@ -131,6 +148,13 @@
     t.wrapS = t.wrapT = T.ClampToEdgeWrapping; return t;
   }
   const water = (t, x, y) => { const d = Math.hypot(x - t.x, y - t.y); return (t.k === 'm' && d < t.r && d > (t.ri || 0)) || (!['f', 'h', 'm', 'k', 's'].includes(t.k) && d < t.r); };
+
+  // いくつかの形を1つにまとめる（部分ごとに色を付ける）
+  function merge(list) {
+    const pos = [], nor = [], col = [], c = new T.Color();
+    for (const [g, hex] of list) { const ng = g.index ? g.toNonIndexed() : g; c.setHex(hex); pos.push(...ng.attributes.position.array); nor.push(...ng.attributes.normal.array); for (let k = 0; k < ng.attributes.position.count; k++) col.push(c.r, c.g, c.b); }
+    const bg = new T.BufferGeometry(); bg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); bg.setAttribute('normal', new T.Float32BufferAttribute(nor, 3)); bg.setAttribute('color', new T.Float32BufferAttribute(col, 3)); return bg;
+  }
 
   // ---- 戦場ごとの地面と木 ----
   function build(id, list) {
@@ -201,11 +225,41 @@
   }
 
   // ---- 1人分を置く ----
-  let O, Mx, C;
+  let O, Mx, Mu, C;
   const cnt = {};
   function put(name, m, color) { const im = M[name]; const i = cnt[name]++; if (i >= im.instanceMatrix.count) return; im.setMatrixAt(i, m); if (color) im.setColorAt(i, color); }
   // 体の中の一か所（x,y,z）を軸に、前後（Z軸まわり）に a だけ回して置く
-  function putPart(name, base, x, y, z, a) { const L = L4.m.makeRotationZ(a); L.setPosition(x, y, z); Mx.multiplyMatrices(base, L); put(name, Mx); }
+  function putPart(name, base, x, y, z, a, col) { const L = L4.m.makeRotationZ(a); L.setPosition(x, y, z); Mx.multiplyMatrices(base, L); put(name, Mx, col); }
+  // 0.66.0 構え・攻撃の姿勢。aR/aL＝右腕/左腕を前へ上げる角度（0で下ろす）、tilt＝武器の傾き、lean＝前かがみ、tw＝上半身のひねり
+  const ease = (x) => x * x * (3 - 2 * x), lerp = (a, b, k) => a + (b - a) * k;
+  function pose(s, wk, stp, now) {
+    const P = { aR: 0.35, aL: 0.25, tilt: 0.3, lean: 0, tw: 0, fl: false };
+    const sw = stp * 0.45; // 歩くときの腕の振り
+    const at = s.at ? (now - s.at) / (wk === 'gun' || wk === 'bow' ? 0.5 : 0.4) : 9;
+    if (wk === 'sword') { P.aR = 0.55 - sw * 0.5; P.aL = 0.25 + sw; P.tilt = 1.0; }
+    else if (wk === 'spearS' || wk === 'spearL') { P.aR = 0.75; P.aL = 0.95; P.tilt = 0.22 + sw * 0.1; }
+    else if (wk === 'bow') { P.aL = 0.7; P.aR = 0.35 - sw * 0.5; P.tilt = 0.5; }
+    else if (wk === 'gun') { P.aR = 0.9; P.aL = 1.1; P.tilt = 0.55; }
+    if (s.hero && s.blk) { P.aR = 1.3; P.aL = 1.2; P.tilt = 1.5; return P; }
+    if (s.hero && s.sw) { // 本人の振り：横に払う（上半身ごとひねる）
+      const k = 1 - Math.max(0, s.sw.t) / 0.18, a = s.sw.a + s.sw.arc * (1 - 2 * k);
+      P.tw = -(a - (s.f || 0)); P.aR = 1.45; P.aL = 0.5; P.tilt = wk === 'bow' || wk === 'gun' ? 0.2 : 0; P.lean = 0.12; return P;
+    }
+    if (at < 1) {
+      if (wk === 'sword') { // 振りかぶって、振り下ろす
+        if (at < 0.35) { const k = ease(at / 0.35); P.aR = lerp(P.aR, 2.7, k); P.tilt = lerp(1.0, 2.4, k); P.aL = lerp(P.aL, 2.4, k); P.lean = -0.08 * k; }
+        else { const k = ease(Math.min(1, (at - 0.35) / 0.3)); P.aR = lerp(2.7, 0.9, k); P.tilt = lerp(2.4, -0.3, k); P.aL = lerp(2.4, 0.8, k); P.lean = lerp(-0.08, 0.25, k); }
+      } else if (wk === 'spearS' || wk === 'spearL') { // 突く
+        const k = at < 0.3 ? -ease(at / 0.3) * 0.4 : ease(Math.min(1, (at - 0.3) / 0.25)) * (1 - Math.max(0, at - 0.7) / 0.3);
+        P.aR = 0.75 + k * 0.8; P.aL = 0.95 + k * 0.6; P.tilt = 0.2 - k * 0.1; P.lean = k * 0.25;
+      } else if (wk === 'bow') { // 引いて放つ
+        const k = ease(Math.min(1, at / 0.5)); P.aL = lerp(0.7, 1.55, Math.min(1, at * 3)); P.tilt = lerp(0.5, 0, Math.min(1, at * 3)); P.aR = 1.5; P.tw = 0.25 * (1 - k);
+      } else if (wk === 'gun') { // 撃つ（はねかえり）
+        P.aR = 1.45; P.aL = 1.5; P.tilt = at < 0.15 ? 0.3 * (at / 0.15) : 0.3 * (1 - (at - 0.15) / 0.85); P.fl = at < 0.12;
+      }
+    }
+    return P;
+  }
   function weaponOf(s) {
     if (s.hero) { const n = s.wep && s.wep.name; return n === '槍' ? 'spearL' : n === '弓' ? 'bow' : n === '鉄砲' ? 'gun' : 'sword'; }
     const t = s.type; if (!t) return 'sword';
@@ -222,7 +276,8 @@
     if (w !== W || h !== H) { W = w; H = h; rd.setSize(W, H, false); cam3.aspect = W / Math.max(1, H); cam3.updateProjectionMatrix(); }
     if (built !== b.id) build(b.id, terList);
     cv.style.display = 'block'; clearTimeout(hideT); hideT = setTimeout(() => { cv.style.display = 'none'; }, 250);
-    if (!O) { O = new T.Object3D(); O.rotation.order = 'YXZ'; Mx = new T.Matrix4(); C = new T.Color(); }
+    if (!O) { O = new T.Object3D(); O.rotation.order = 'YXZ'; Mx = new T.Matrix4(); Mu = new T.Matrix4(); C = new T.Color(); }
+    const nowS = performance.now() / 1000;
     // カメラ：マウント＆ブレイド2のように本人の肩越し（マウスで向き、ホイールで寄る・引く）
     const hx = cam.hx != null ? cam.hx : cam.x, hy = cam.hy != null ? cam.hy : cam.y;
     if (cam.yaw == null) cam.yaw = 0; if (cam.pitch == null) cam.pitch = 0.28;
@@ -257,20 +312,26 @@
       const jh = s.jp > 0 ? Math.sin(Math.PI * (1 - s.jp / 0.55)) * 1.1 : 0; // 0.64.0 ジャンプ
       O.position.set(s.x, gy + ride + bob + jh, s.y); O.rotation.set(0, -f, 0); O.scale.set(sc, sc, sc); O.updateMatrix();
       const bc = C.getHex();
-      put('body', O.matrix, C); put('head', O.matrix);
-      C.setHex(bc).multiplyScalar(0.55); put('kusa', O.matrix, C); put('sode', O.matrix, C); put('obi', O.matrix);
+      C.setHex(bc).multiplyScalar(0.55); put('kusa', O.matrix, C); put('obi', O.matrix);
       if (!cav) { putPart('legL', O.matrix, 0, 0.56, 0.11, stp * 0.6); putPart('legR', O.matrix, 0, 0.56, -0.11, -stp * 0.6); }
-      const hatC = s.side === 'B' ? 0x3a1a14 : 0x1c2230; put('hat', O.matrix, C.setHex(s.hero ? 0x2a2a2a : hatC));
-      put('flag', O.matrix, C.setHex(s.side === 'B' ? 0xc8402f : own ? 0xf2f2f2 : 0x6fa7d8)); put('pole', O.matrix);
-      if (s.hero) put('crest', O.matrix);
-      // 武器（本人が振るときは横に払う）
-      const wk = weaponOf(s);
-      if (s.hero && s.blk) { O.rotation.set(0.9, -f, 0); O.updateMatrix(); }
-      if (s.sw && s.hero) {
-        const k = 1 - Math.max(0, s.sw.t) / 0.18, a = s.sw.a + s.sw.arc * (1 - 2 * k);
-        O.rotation.set(0, -a, 0); O.updateMatrix();
-      }
-      put(wk, O.matrix);
+      // 0.66.0 上半身（前かがみ・ひねり）を作り、そこに頭・旗・腕・武器を付ける
+      const wk = weaponOf(s), ps = pose(s, wk, stp, nowS);
+      Mu.copy(O.matrix);
+      if (ps.lean || ps.tw) { L4.m.makeTranslation(0, 0.6, 0); Mu.multiply(L4.m); if (ps.tw) Mu.multiply(L4.m.makeRotationY(ps.tw)); if (ps.lean) Mu.multiply(L4.m.makeRotationZ(-ps.lean)); Mu.multiply(L4.m.makeTranslation(0, -0.6, 0)); }
+      put('body', Mu, C.setHex(bc)); put('head', Mu);
+      C.setHex(bc).multiplyScalar(0.55); put('sode', Mu, C);
+      const hatC = s.side === 'B' ? 0x3a1a14 : 0x1c2230; put('hat', Mu, C.setHex(s.hero ? 0x2a2a2a : hatC));
+      put('flag', Mu, C.setHex(s.side === 'B' ? 0xc8402f : own ? 0xf2f2f2 : 0x6fa7d8)); put('pole', Mu);
+      if (s.hero) put('crest', Mu);
+      C.setHex(bc).multiplyScalar(0.7);
+      putPart('armR', Mu, 0.02, 1.12, 0.33, ps.aR, C); putPart('armL', Mu, 0.02, 1.12, -0.33, ps.aL, C);
+      // 武器：持つ手の先に、体に対して ps.tilt の傾きで
+      const left = wk === 'bow', aa = left ? ps.aL : ps.aR;
+      L4.m.makeRotationZ(aa); L4.m.setPosition(0.02, 1.12, left ? -0.33 : 0.33); Mx.multiplyMatrices(Mu, L4.m);
+      Mx.multiply(L4.m.makeTranslation(0, -0.58, 0)); Mx.multiply(L4.m.makeRotationZ(ps.tilt - aa));
+      if (wk === 'spearS' || wk === 'spearL' || wk === 'gun') Mx.multiply(L4.m.makeTranslation(0, 0, -0.14)); // 両手で持つので少し体の中ほどへ
+      put(wk, Mx);
+      if (ps.fl) { Mx.multiply(L4.m.makeTranslation(1.1, 0, 0)); put('flash', Mx); }
       // 足もとの輪：自分の本人・選んだ隊
       const isSel = own && !s.hero && u && (u.id === sel || sel === 'all');
       if (s.pc === myPid || isSel) { O.position.set(s.x, gy, s.y); O.rotation.set(0, 0, 0); O.scale.set(s.hero ? 1.6 : 1, 1, s.hero ? 1.6 : 1); O.updateMatrix(); put('ring', O.matrix, C.setHex(s.pc === myPid ? 0xffe060 : 0xfff2a0)); }
