@@ -193,7 +193,7 @@
       hero.cd -= dt; hero.dcd -= dt; hero.dash -= dt; hero.blk = !!inp.blk && hero.dash <= 0;
       let mx = inp.mx || 0, my = inp.my || 0; const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }
       if (inp.dash && hero.dcd <= 0 && (mx || my)) { hero.dash = ACT.DASH.t; hero.dcd = ACT.DASH.cd; hero.dx = mx; hero.dy = my; }
-      const sp = TR.hero.spd * ACT.SPD * 1.1 * (hero.blk ? 0.5 : 1);
+      const sp = TR.hero.spd * ACT.SPD * 1.1 * (hero.blk ? 0.5 : 1) * (pl && pl.nin ? SIM.NIN.actSpd : 1); // 0.77.0 忍びは速い
       if (hero.dash > 0) { hero.x += hero.dx * sp * ACT.DASH.mul * dt; hero.y += hero.dy * sp * ACT.DASH.mul * dt; }
       else { hero.x += mx * sp * dt; hero.y += my * sp * dt; }
       if (inp.aim != null) hero.f = inp.aim; else if (mx || my) hero.f = Math.atan2(my, mx);

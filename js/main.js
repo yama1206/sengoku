@@ -627,6 +627,8 @@
     $('townName').textContent = sName(h.id);
     document.querySelectorAll('#town [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === townTab));
     let html = '';
+    const NJ = me.nin; // 0.77.0 忍び：工作の城に入ったら「忍び込む」
+    if (NJ && NJ.atTgt && NJ.q) html += `<div class="card" style="display:block;border-color:#c33"><b>${SIM.NIN.jobs[NJ.q.k].name}</b>（${NJ.q.foe}・${NJ.q.toName}）<br><span class="muted">${SIM.NIN.jobs[NJ.q.k].desc}。見張り${NJ.d.guards}人・${NJ.d.ck === 'yama' ? '山城' : NJ.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.d.night ? '夜（見張りの目が届きにくい）' : '昼'}・難しさ${'★'.repeat(NJ.d.lv)}</span><div class="row" style="margin-top:4px"><button id="nj-go" data-nj="go">忍び込む</button></div></div>`;
     if (townTab === 'market') {
       html += `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　${loadTxt(me)}</div><div class="grid">`;
       html += '<span class="h">品</span><span class="h">買値</span><span class="h">売値</span><span class="h">在庫</span><span class="h">所持</span><span></span><span></span><span></span><span></span>';
@@ -712,6 +714,11 @@
       for (const k in me.troops) html += `<div class="card"><div>${TR[k].name}　${me.troops[k]}人</div><button id="dm-${k}" data-act="dismiss" data-kind="${k}" data-qty="1">1人解き放つ</button></div>`;
     } else if (townTab === 'castle') {
       const C = (me.castles || []).find((c) => c.id === h.id);
+      if (NJ) { // 0.77.0 忍びの工作の依頼（主家の城で）
+        if (NJ.q) html += `<div class="card"><div><b>請け負っている工作</b>　${SIM.NIN.jobs[NJ.q.k].name}：${NJ.q.foe}の${NJ.q.toName}<br><span class="muted">報酬${SIM.money(NJ.q.reward)}・${dayLeft(NJ.q.deadline)}</span></div><button id="nj-look" data-look="${NJ.q.to}">地図で見る</button><button id="nj-drop" data-act="ninDrop">取りやめる</button></div>`;
+        else if (NJ.offers.length) for (const o of NJ.offers) html += `<div class="card"><div><b>${SIM.NIN.jobs[o.k].name}</b>　${o.foe}の${o.toName}（${o.km}km・期限${o.days}日）<br><span class="muted">${SIM.NIN.jobs[o.k].desc}。報酬${SIM.money(o.reward)}</span></div><button id="nj-${o.k}" data-act="ninTake" data-id="${o.id}">請け負う</button></div>`;
+        else if (hs && hs.owner === me.rank.clan) html += `<div class="muted" style="margin-bottom:6px">いま工作を頼める敵の城がありません（戦をしている家の100km以内の城が対象）</div>`;
+      }
       if (h.site != null) {
         const B = me.build;
         html += `<div class="card" style="display:block"><b>普請中</b> ${h.site}%<div class="bar"><i style="width:${h.site}%"></i></div><span class="muted">普請を1回（${B.hours}時間）すると約+${B.gain}%進む（築城の技能・知略が高いほど早い）。完成すると、縄張りをした部将以上の人がこの城の城主になります</span></div>`;
@@ -735,7 +742,7 @@
         const R = me.rank; // 0.29.1 城の画面からも仕官できるように
         if (R && !R.clan && R.canServe) {
           const need = R.serveNeed != null ? R.serveNeed : SIM.RANKS[1].fame, ok = me.fame >= need;
-          html += `<div class="card"><div><b>仕官</b>　${R.factionHere}の${R.lordHere}様に仕える<br><span class="muted">名声${need}以上（いま${me.fame}）。仕えると俸禄がもらえ、主家の依頼や戦で功績が積めます${ok ? '' : '。この家の武将や隊長に話しかけて顔をつなぐと名声2で仕官できます'}</span></div><button id="tw-serve" data-act="serve" ${ok ? '' : 'disabled'}>仕官する</button></div>`;
+          html += `<div class="card"><div><b>仕官</b>　${R.factionHere}の${R.lordHere}様に仕える<br><span class="muted">名声${need}以上（いま${me.fame}）。仕えると俸禄がもらえ、主家の依頼や戦で功績が積めます${ok ? '' : '。この家の武将や隊長に話しかけて顔をつなぐと名声2で仕官できます'}</span></div><button id="tw-serve" data-act="serve" ${ok ? '' : 'disabled'}>武士として仕官</button><button id="tw-serve-n" data-act="serve" data-nin="1" ${ok ? '' : 'disabled'}>忍びとして仕官</button></div>`;
         } else if (R && !R.clan) html += `<div class="muted">この城では仕官できません（城主のいる城で仕官できます）</div>`;
       }
     } else {
@@ -772,12 +779,15 @@
   $('townBody').addEventListener('click', (e) => {
     const lb = e.target.closest('button[data-look]'); if (lb) return lookAt(lb.dataset.look);
     const lx = e.target.closest('button[data-lookxy]'); if (lx) { const [x, y] = lx.dataset.lookxy.split(',').map(Number); openTown(false); R.cam.follow = false; R.cam.x = x; R.cam.y = y; G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; return; }
+    const nj = e.target.closest('button[data-nj]'); // 0.77.0 忍び込む
+    if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; openTown(false); SGK.NINJA.start(N.q.k, N.d, (ok) => { if (ok === null) toast('いったん退きました（工作はまだ請け負ったまま）', 1500); else command({ type: 'ninResult', ok: !!ok }); }); return; }
     const b = e.target.closest('button[data-act]'); if (!b) return;
     const c = { type: b.dataset.act };
     if (b.dataset.item) c.item = b.dataset.item;
     if (b.dataset.qty) c.qty = +b.dataset.qty;
     if (b.dataset.id) c.id = b.dataset.id;
     if (b.dataset.kind) c.kind = b.dataset.kind;
+    if (b.dataset.nin) c.nin = 1;
     const job = c.type === 'acceptJob' && G.priv && G.priv.here && (G.priv.here.jobs || []).find((j) => j.id === c.id);
     command(c);
     if (job && job.type === 'deliver' && (G.priv.me.quests || []).length < 3) { // 届け物を受けたら、届け先へカーソルを合わせる
@@ -912,7 +922,7 @@
       html += `<div class="muted" style="margin-bottom:6px">地図のあなたの印と、独立したときの家の紋になります。${me.mon ? '' : '（いまは家紋なし）'}</div>`;
       html += monEditorHtml(d, 'monPrev') + `<div class="row" style="margin-top:6px"><button id="mk-ok" data-mk="ok">この家紋にする</button></div>`;
     } else if (charTab === 'rank') {
-      const R = me.rank, RK = SIM.RANKS, cur = RK[R.rank], nx = R.clan && RK[R.rank + 1] && !RK[R.rank + 1].indep ? RK[R.rank + 1] : null;
+      const R = me.rank, NR = me.nin ? SIM.NRANKS : null, RK = NR ? SIM.RANKS.map((x, i) => (NR[i] ? Object.assign({}, x, NR[i], { cap: 0 }) : x)) : SIM.RANKS, cur = RK[R.rank], nx = R.clan && RK[R.rank + 1] && !RK[R.rank + 1].indep && !(NR && R.rank >= 4) ? RK[R.rank + 1] : null; // 0.77.0 忍びの身分
       if (me.retainers && me.retainers.length) html += `<div class="muted" style="margin-bottom:6px">家臣：${me.retainers.join('・')}（率いる人数+${me.retainers.length * 6}）</div>`;
       html += `<div class="card" style="display:block"><b>${R.clan ? R.clanName + '　' + cur.name : '浪人'}</b><br><span class="muted">${cur.desc}</span>`
         + (R.clan ? `<div class="muted">功績 ${R.merit}　俸禄 ${SIM.money(cur.stipend)}/月　率いる人数+${cur.cap}</div>` : '')
@@ -927,7 +937,7 @@
       }
       if (!R.clan) {
         html += `<div class="muted" style="margin:6px 0">城主のいる城で仕官できます（名声${(R.serveNeed != null ? R.serveNeed : RK[1].fame)}以上）。仕えると俸禄がもらえ、主家の領地の依頼や戦で功績が積めます</div>`;
-        if (R.canServe) html += `<div class="card"><div>${R.factionHere}の${R.lordHere}様に仕える</div><button id="rk-serve" data-cact="serve" ${C.fame >= (R.serveNeed != null ? R.serveNeed : RK[1].fame) ? '' : 'disabled'}>仕官する</button></div>`;
+        if (R.canServe) html += `<div class="card"><div>${R.factionHere}の${R.lordHere}様に仕える</div><button id="rk-serve" data-cact="serve" ${C.fame >= (R.serveNeed != null ? R.serveNeed : RK[1].fame) ? '' : 'disabled'}>武士として仕官</button><button id="rk-serve-n" data-cact="serve" data-nin="1" ${C.fame >= (R.serveNeed != null ? R.serveNeed : RK[1].fame) ? '' : 'disabled'}>忍びとして仕官</button></div>`;
       } else {
         if (nx) html += `<div class="card"><div>次：<b>${nx.name}</b>　<span class="muted">功績${R.merit}/${nx.merit}　名声${C.fame}/${nx.fame}<br>${nx.desc}</span></div><button id="rk-promote" data-cact="promote" ${R.merit >= nx.merit && C.fame >= nx.fame ? '' : 'disabled'}>昇進を願う</button></div>`
           + '';
@@ -993,7 +1003,7 @@
     const b = e.target.closest('button[data-cact]'); if (!b) return;
     if (b.dataset.cact === 'goPol') return setCTab('pol');
     const c = { type: b.dataset.cact };
-    for (const k of ['attr', 'id', 'from', 'to', 'who']) if (b.dataset[k]) c[k] = b.dataset[k];
+    for (const k of ['attr', 'id', 'from', 'to', 'who', 'nin']) if (b.dataset[k]) c[k] = b.dataset[k];
     if (b.dataset.qty) c.qty = +b.dataset.qty;
     command(c);
   });
@@ -1344,6 +1354,7 @@
     }
   }
   function pollPad(dt) {
+    if (SGK.NINJA && SGK.NINJA.on) return [0, 0]; // 0.77.0 潜入中
     // 0.63.1 PCで別の機器（仮想コントローラーなど）が先に並ぶと使えなくなるので、最後に触ったコントローラーを使う（なければ標準配置のもの）
     const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter((p) => p && p.connected !== false) : [];
     for (const p of pads) if (p.buttons.some((b) => b && b.pressed)) { if (G.padIdx !== p.index) { G.padIdx = p.index; for (const k in padPrev) padPrev[k] = true; } break; }
@@ -1573,7 +1584,7 @@
           el.classList.toggle('hidden', !h || !!(G.priv && G.priv.battle)); if (el.dataset.h !== h) { el.innerHTML = h; el.dataset.h = h; } }
         renderCaptive(P.me.captives);
         $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　${loadTxt(P.me)}　名声 ${P.me.fame}${P.me.infamy ? `　<span style="color:#e07a6a">悪名 ${P.me.infamy}</span>` : ''}${P.me.rank && P.me.rank.clan ? `　功績 ${P.me.rank.merit}${(() => { const n = SIM.RANKS[P.me.rank.rank + 1]; return n && !n.indep ? '/' + n.merit : ''; })()}` : ''}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.wage ? `<br>兵の給金 ${SIM.money(P.me.wage)}/日${P.me.money < P.me.wage ? '　<b style="color:#e07a6a">払えません</b>' : '（約' + Math.floor(P.me.money / P.me.wage) + '日分）'}` : '') + (P.me.riceNeed ? `<br>士気 <b style="color:${P.me.morale < 35 ? '#e07a6a' : P.me.morale < 60 ? '#e0c060' : '#6fbf73'}">${P.me.morale}</b>　兵糧 米${(P.me.inv && P.me.inv.rice) || 0}俵（1日${P.me.riceNeed}俵・${P.me.hungry ? '<b style="color:#e07a6a">米が足りません</b>' : '約' + P.me.riceDays + '日分'}）` : '') + (P.me.follow ? `<br>追跡中：${P.me.follow}` : '') + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
-          + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.where || (q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品')}・${dayLeft(q.deadline)}）</div>`).join('');
+          + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.where || (q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品')}・${dayLeft(q.deadline)}）</div>`).join('') + (P.me.nin && P.me.nin.q ? `<div class="q">◆ ${SIM.NIN.jobs[P.me.nin.q.k].name}（${sName(P.me.nin.q.to)}・${dayLeft(P.me.nin.q.deadline)}）</div>` : '');
       }
       // HUD
       $('date').textContent = SIM.formatDate(G.view.t) + (G.speed === 0 ? '（停止中）' : G.speed > 1 ? (G.inBattle ? '（戦闘中のため×1）' : `（×${G.speed}）`) : '');

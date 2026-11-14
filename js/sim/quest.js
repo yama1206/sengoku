@@ -78,7 +78,7 @@
         const to = pick(w, tos), d = dist(s, to);
         return Object.assign(base, { type: 'escort', to: to.id, days: Math.ceil(d / 18) + 4, reward: r10(300 + d * 15), title: `${to.name}まで行商人の護衛`, what: `行商人について${to.name}まで守る（${dirOf(s, to)}へ約${Math.round(d)}km）`, look: to.id });
       }
-      const tos = w.settlements.filter((t) => t.type === 'town' && t !== s && dist(s, t) < 100 && !SIM.foeDest(w, s, t)); // 0.74.3 100km以内・戦の相手の町はなし if (!tos.length) return null;
+      const tos = w.settlements.filter((t) => t.type === 'town' && t !== s && dist(s, t) < 100 && !SIM.foeDest(w, s, t)); if (!tos.length) return null; // 0.74.3 100km以内・戦の相手の町はなし
       const to = pick(w, tos), k = pick(w, Object.keys(I())), it = I()[k], qty = 10 + Math.floor(rnd(w) * 16);
       return Object.assign(base, { type: 'sell', to: to.id, item: k, qty, left: qty, days: 15, reward: r10(it.base * qty * 0.4 + 200), title: `${to.name}で${it.name}${qty}${it.unit}を売る`, what: `${to.name}の市で${it.name}を${qty}${it.unit}売りさばく（売った代金とは別に報酬）`, look: to.id });
     }

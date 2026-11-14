@@ -46,7 +46,7 @@
     if (f.kou == null) { const h = [...fid].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) % 997, 7); f.kou = KOU.fixed[fid] || [2, 3, 3, 3, 4][h % 5]; }
     return f.kou;
   };
-  const defPow = (s) => SIM.garrison(s) * (1 + 0.5 * (SIM.kaiF ? SIM.kaiF(s) : 0.5)) * (SIM.castleKind && ({ yama: 1.15, mizu: 1.08 }[SIM.castleKind(s)] || 1)); // 守備兵×城の堅さ（0.51.0 水城）
+  const defPow = (s) => SIM.garrison(s) * (1 + 0.5 * (SIM.kaiF ? SIM.kaiF(s) : 0.5)) * (SIM.castleKind && ({ yama: 1.15, mizu: 1.08 }[SIM.castleKind(s)] || 1)) * (1 - (SIM.ninDeb ? SIM.ninDeb(s, SIM._now || 0) : 0)); // 0.77.0 忍びの工作 // 守備兵×城の堅さ（0.51.0 水城）
   // ---- 守備兵 ----
   function garMax(w, s) {
     const f = w.factions[s.owner], home = f && w.people[f.leader] && s.lord === f.leader;

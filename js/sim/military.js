@@ -116,7 +116,7 @@
         if (!tp || !inField(tp)) { n.tgt = null; n.calm = now + 6 * 60; n.tx = n.hx; n.ty = n.hy; }
       }
       let tgt = null, td = 5;
-      if (n.calm < now) for (const p of Object.values(w.players)) { const d = dist(n, p); if (inField(p) && d < td) { td = d; tgt = p; } }
+      if (n.calm < now) for (const p of Object.values(w.players)) { const d = dist(n, p); if (inField(p) && d < td && d < 5 * (p.nin ? SIM.NIN.seen : 1)) { td = d; tgt = p; } /* 0.77.0 忍びは見つかりにくい */ }
       n.tgt = tgt ? tgt.id : null;
       if (tgt) {
         if (playerPower(tgt) > power(n.army) * 1.25) { // 勝てそうにない相手からは逃げる（0.54.8 2倍→1.25倍）
