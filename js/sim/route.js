@@ -3,7 +3,7 @@
   const SIM = SGK.SIM;
   // 速さの倍率（数値はここで調整）
   // 0.40.0 道の格ごとの速さ。山の中の道（峠）は pass 倍、海の上の道（渡し船）は ferry
-  const SPEED = { road: 1.8, plain: 1.0, mountain: 0.45, roads: [0, 1.8, 1.45, 1.2], pass: 0.7, ferry: 1.0 };
+  const SPEED = { road: 1.8, plain: 1.0, mountain: 0.45, roads: [0, 1.8, 1.65, 1.5], pass: 0.7, ferry: 1.0 };
   const RANK_NAME = ['', '大街道', '街道', '脇道'];
   const CELL = 2;          // 道筋探しのマス目の大きさ（km）。全国の地図なので2kmマス
   const ROAD_WIDTH = 1.42; // 街道とみなす幅（中心からkm）。道が通るマスはすべて道になるよう √2 より少し広め（1.1.0）
