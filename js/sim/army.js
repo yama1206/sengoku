@@ -15,8 +15,12 @@
   const MEI = ['政', '長', '信', '義', '勝', '秀', '忠', '家', '重', '貞', '元', '光', '直', '康', '盛', '成', '房', '綱'];
 
   // ---- 空いた城に武将を置く（CPUの家） ----
-  function genName(w) {
+  // 1.1.0 その家の実在の武将から、まだ出ていない人を順に選ぶ（faction が null なら浪人）。onlyReal なら足りない時 null
+  function genName(w, faction, onlyReal) {
     const used = new Set(Object.values(w.people).map((p) => p.name));
+    const RO = (SGK.DATA.roster || {})[faction || 'ronin'] || [];
+    for (const n of RO) if (!used.has(n)) return n;
+    if (onlyReal) return null;
     for (let i = 0; i < 50; i++) {
       const n = SIM.SEI[Math.floor(rnd(w) * SIM.SEI.length)] + MEI[Math.floor(rnd(w) * MEI.length)] + MEI[Math.floor(rnd(w) * MEI.length)];
       if (!used.has(n) && n.slice(-1) !== n.slice(-2, -1)) return n;
@@ -29,7 +33,7 @@
     const busy = new Set(w.settlements.filter((x) => x.lord).map((x) => x.lord));
     let id = Object.keys(w.people).find((k) => w.people[k].faction === s.owner && !busy.has(k) && k !== f.leader);
     if (!id && f.leader && w.people[f.leader] && !busy.has(f.leader)) id = f.leader;
-    if (!id) { id = 'g' + w.nextId++; w.people[id] = { name: genName(w), faction: s.owner, loyal: 55 + Math.floor(rnd(w) * 20) }; }
+    if (!id) { id = 'g' + w.nextId++; w.people[id] = { name: genName(w, s.owner), faction: s.owner, loyal: 55 + Math.floor(rnd(w) * 20) }; }
     s.lord = id;
     if (!quiet && false) news(w, `${f.name}は${s.name}に${w.people[id].name}を城主として置きました`);
     return id;

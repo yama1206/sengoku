@@ -3,7 +3,7 @@
   const SIM = SGK.SIM, rnd = (w) => SIM.rand(w);
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const MAX_TRAVEL = 30, MAX_RONIN = 14, TALK_KM = 1.5, MAX_RET = 3, RET_CAP = 6;
-  const newPerson = (w, faction, extra) => { const id = 'g' + w.nextId++; w.people[id] = Object.assign({ name: SIM.genName(w), faction, loyal: 55 + Math.floor(rnd(w) * 25) }, extra || {}); return id; };
+  const newPerson = (w, faction, extra) => { const id = 'g' + w.nextId++; w.people[id] = Object.assign({ name: SIM.genName(w, faction), faction, loyal: 55 + Math.floor(rnd(w) * 25) }, extra || {}); return id; };
   SIM.npcName = (w, n) => (n && n.person && w.people[n.person] ? w.people[n.person].name : null);
 
   // ---- 1. 巡回兵の隊長 ----
@@ -128,6 +128,11 @@
   const live = (w, id) => w.people[id] && !w.people[id].dead && !w.people[id].captive; // 捕らわれている武将は動けない
   function newVassal(w, s) { const id = newPerson(w, s.owner, { role: 'vassal', castle: s.id, loyal: 50 + Math.floor(rnd(w) * 30) }); SIM.genStats(w, w.people[id]); s.vass.push(id); return id; }
   function ensureVassals(w) {
+    // 1.1.0 これまでの架空の武将を、その家の実在の武将の名前に置き換える（1回だけ）
+    if (!w.realNames) {
+      w.realNames = 1;
+      for (const id in w.people) { const pr = w.people[id]; if (id[0] !== 'g' || pr.player || pr.pid) continue; const n = SIM.genName(w, pr.role === 'ronin' ? null : pr.faction, true); if (n) pr.name = n; }
+    }
     for (const pr of Object.values(w.people)) SIM.genStats(w, pr, true);
     const lords = new Set(w.settlements.filter((x) => x.lord).map((x) => x.lord));
     for (const s of w.settlements) {

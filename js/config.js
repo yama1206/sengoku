@@ -1,6 +1,6 @@
 // 基本設定（数値はここで調整）
 window.SGK = window.SGK || {};
-SGK.VERSION = '1.1.0'; // 上げるときは index.html の <meta name="sgk-ver"> も同じ値に
+SGK.VERSION = '1.2.0'; // 上げるときは index.html の <meta name="sgk-ver"> も同じ値に
 SGK.SAVE_SCHEMA = 7; // セーブデータの形式番号（形式を変えたら上げて、save.js の migrate に変換を書く）
 SGK.CFG = {
   MIN_PER_SEC: 15,      // 現実1秒 = ゲーム内15分（1日 = 96秒）
