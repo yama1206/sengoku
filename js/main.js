@@ -1192,6 +1192,11 @@
   $('btnSettings').onclick = () => { $('title').insertBefore($('mSet'), $('titleMsg')); $('mSet').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); setSetTab('stSound'); act3dLbl(); setFocus($('mSet'), $('stSound')); };
   const act3dLbl = () => ($('mAct3d').textContent = `戦闘の表示：${!R.act3d || R.act3d.on ? '3D' : '2D'}（T キーでも切替）`);
   $('mAct3d').onclick = () => { if (R.act3d) R.act3d.toggle(); act3dLbl(); };
+  // 1.6.13 戦の始め方：自分で戦う（基本）／指揮（2D）
+  G.actDef = true; try { if (localStorage.getItem('sgk-actdef') === '0') G.actDef = false; } catch (e) { /* 無視 */ }
+  const actDefLbl = () => ($('mActDef').textContent = `戦の始め方：${G.actDef ? '自分で戦う' : '指揮（2D）'}`);
+  $('mActDef').onclick = () => { G.actDef = !G.actDef; try { localStorage.setItem('sgk-actdef', G.actDef ? '1' : '0'); } catch (e) { /* 無視 */ } actDefLbl(); };
+  actDefLbl();
   act3dLbl();
   // 0.75.0 ビデオ設定（影・草の量）
   const vidLbl = () => { const V = R.act3d && R.act3d.vid; if (!V) return; $('mShadow').textContent = `影：${['切', '低', '高'][V.sh]}`; $('mGrass').textContent = `草の量：${['なし', '少なめ', '普通', '多め'][V.gr]}`; };
@@ -1577,6 +1582,7 @@
           const h = my.find((u) => u[15]) || my.find((u) => u[3] === 'hero' && u[14] == null); G.selUnit = h ? h[0] : my[0] && my[0][0];
         }
         if (G.bcur) { R.bcam.x += (G.bcur[0] - R.bcam.x) * Math.min(1, k * 0.5); R.bcam.y += (G.bcur[1] - R.bcam.y) * Math.min(1, k * 0.5); }
+        if (G.actDef && BT.canAct && !BT.act && G.autoActFor !== BT.id) { G.autoActFor = BT.id; command({ type: 'actStart' }); } // 1.6.13 戦が始まったら自分で戦う
         const AB = actB();
         if (!AB) { R.act3dOn = false; if (R.ordMenu) ordMenu(null); }
         if (AB && G.yawFor !== AB.id) { G.yawFor = AB.id; const h0 = AB.act.s.find((s) => s.pc === G.myPid); R.acam.yaw = h0 && h0.side === 'B' ? Math.PI : 0; R.acam.pitch = 0.28; R.acam.z = 9; G.actBlk = false; }
