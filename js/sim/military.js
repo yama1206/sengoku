@@ -493,7 +493,7 @@
     move(w, p, c) { if (p.battle) return; baseMove(w, p, c); },
     recruit(w, p, c) {
       const s = inTown(w, p), t = TR[c.kind]; if (!s || !t || !SIM.HIRE.includes(c.kind)) return;
-      if (c.kind === 'nohei' && SIM.taue && SIM.taue(w)) return SIM.say(p.id, '田植えの季節なので、農民は雇えません（6月から）');
+      if (c.kind === 'nohei' && SIM.taue && SIM.taue(w)) return SIM.say(p.id, '田植え・稲刈りの季節（5月・9月）なので、農民は雇えません（来月から）');
       if (t.fame && p.fame < t.fame) return SIM.say(p.id, `${t.name}を雇うには名声${t.fame}が必要です`);
       const cost = Math.round(t.cost * SIM.costMod(p));
       const q = Math.min(Math.max(1, +c.qty || 1), Math.floor(s.pool[c.kind] || 0), SIM.troopCap(p) - SIM.troopCount(p.troops), Math.floor(p.money / cost));

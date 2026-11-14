@@ -103,11 +103,13 @@
   const tell = (w, s, m) => { const h = s.holder && w.players[s.holder]; if (h) SIM.say(h.id, m); news(w, m); };
   const ryo = (w, c) => [c].concat(SIM.landsOf ? SIM.landsOf(w, c) : []);
   // 0.72.0 田植え（5月）：農民は田に出ていて戦に加われない
-  SIM.taue = (w) => monthOf(dayIdx(w)) === 5;
+  SIM.taue = (w) => { const m = monthOf(dayIdx(w)); return m === 5 || m === 9; }; // 0.73.2 9月の稲刈りも
   function season(w, di) {
     const m = monthOf(di), castles = w.settlements.filter((s) => s.type === 'castle' && !s.site);
     if (m === 5) news(w, '田植えの季節です。今月は農民が田に出ていて、農兵は戦に加われません（雇うこともできません）');
     if (m === 6) news(w, '田植えが終わり、農兵がまた戦に加われるようになりました');
+    if (m === 9) news(w, '稲刈りの季節です。今月は農民が田に出ていて、農兵は戦に加われません（雇うこともできません）');
+    if (m === 10) news(w, '稲刈りが終わり、農兵がまた戦に加われるようになりました');
     if (m === 7) for (const c of castles) { // 夏：台風の洪水
       const ch = has(c.owner, 'chisui') || has(c.owner, 'shingenzutsumi');
       if (rnd(w) >= SZ.flood * (ch ? 0.5 : 1)) continue;
