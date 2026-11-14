@@ -102,11 +102,16 @@
   SIM.okMon = okMon;
   // ---- 0.38.0 はじめに作る人物：能力値の割り振り・成長の型・家紋 ----
   const CREATE = SIM.CREATE = { base: 1, points: 10, max: 7 };
+  // 0.76.1 技能（刀・槍・弓・鉄砲・馬術・商業）用に作り直し
+  const wq = (main) => Object.assign({ tachi: 1.1, yari: 1.1, yumi: 1.1, teppo: 1.1, bajutsu: 1.1, shogyo: 0.8 }, { [main]: 1.6 });
   const GROW = SIM.GROW = {
-    bal: { name: '万能型', desc: 'どの技能もほどほどに伸びる（すべて+5%）', mul: {}, all: 1.05 },
-    war: { name: '武人型', desc: '武芸・指揮・弓術・馬術・調練が伸びやすい（+40%）。商い・内政は伸びにくい', mul: { bugei: 1.4, shiki: 1.4, kyujutsu: 1.4, bajutsu: 1.4, chouren: 1.4 }, all: 0.85 },
-    shou: { name: '商人型', desc: '算術・交渉が伸びやすい（+50%）。はじめの所持金+2000文', mul: { sanjutsu: 1.5, kosho: 1.5 }, all: 0.9, money: 2000 },
-    sei: { name: '政治型', desc: '内政・築城・医術が伸びやすい（+40%）', mul: { naisei: 1.4, chikujo: 1.4, ijutsu: 1.4 }, all: 0.9 },
+    bal: { name: '万能型', desc: 'どの技能もほどほどに伸びる（すべて+15%）', mul: {}, all: 1.15 },
+    war: { name: '武人型（刀）', desc: '刀が大きく伸びやすい（+60%）。ほかの武器・馬術も少し伸びやすい（+10%）。商業は伸びにくい（-20%）', mul: wq('tachi') },
+    yari: { name: '武人型（槍）', desc: '槍が大きく伸びやすい（+60%）。ほかの武器・馬術も少し伸びやすい（+10%）。商業は伸びにくい（-20%）', mul: wq('yari') },
+    yumi: { name: '武人型（弓）', desc: '弓が大きく伸びやすい（+60%）。ほかの武器・馬術も少し伸びやすい（+10%）。商業は伸びにくい（-20%）', mul: wq('yumi') },
+    teppo: { name: '武人型（鉄砲）', desc: '鉄砲が大きく伸びやすい（+60%）。ほかの武器・馬術も少し伸びやすい（+10%）。商業は伸びにくい（-20%）', mul: wq('teppo') },
+    kiba: { name: '騎馬武者型', desc: '馬術が大きく伸びやすい（+60%）。武器も少し伸びやすい（+10%）。商業は伸びにくい（-20%）', mul: wq('bajutsu') },
+    shou: { name: '商人型', desc: '商業が大きく伸びやすい（+60%）。武器・馬術は伸びにくい（-15%）。はじめの所持金+2000文', mul: { shogyo: 1.6 }, all: 0.85, money: 2000 },
   };
   SIM.growMul = (p, k) => { const g = GROW[p.grow]; return g ? (g.mul[k] || g.all || 1) : 1; };
   SIM.applyProfile = (p, pr) => {
@@ -156,7 +161,7 @@
     r.me.memo = best;
     r.me.infamy = p.infamy || 0;
     r.me.mon = p.mon || null;
-    r.me.grow = p.grow ? GROW[p.grow].name : null;
+    r.me.grow = p.grow && GROW[p.grow] ? GROW[p.grow].name : null;
     if (r.me.captives) r.me.captives = r.me.captives.map((a) => { const q = w.people[a[0]]; return a.concat([q && !q.refused ? Math.round(SIM.recruitChance(p, q) * 100) : null]); });
     const f = fOf(w, p);
     if (f && r.me.rank && r.me.rank.daimyo) {

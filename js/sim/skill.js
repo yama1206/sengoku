@@ -33,7 +33,7 @@
   SIM.wsGain = (p, k, amt) => {
     if (!p || !WS[k] || !(amt > 0)) return;
     const s = sk(p)[k] = sk(p)[k] || [0, 0]; if (s[0] >= MAX) return;
-    s[1] += amt;
+    s[1] += amt * (SIM.growMul ? SIM.growMul(p, k) : 1); // 0.76.1 成長の型
     while (s[0] < MAX && s[1] >= SIM.wsNeed(s[0])) {
       s[1] -= SIM.wsNeed(s[0]); s[0]++;
       const pk = P.find((x) => x.sk === k && x.lv === s[0]);

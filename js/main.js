@@ -215,7 +215,7 @@
     h += `<div style="margin-top:6px"><b>名前</b>　${(($('nameInput').value.trim()) || '浪人').replace(/[<&]/g, '')}</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:4px 0">${crNames.map((n, i) => `<button id="cn-${i}" data-cr="nm" data-v="${n}">${n}</button>`).join('')}</div><div class="row"><button id="cr-more" data-cr="more">ほかの候補</button></div>`;
     if (!SIM.GROWTH_OFF) h += `<div style="margin-top:8px"><b>能力値</b>　<span class="muted">残り ${crLeft()}点（1つ${C.max}まで）</span></div>`; // 0.73.7 能力値・成長の型はいったん無し
     if (!SIM.GROWTH_OFF) for (const k of ATK) h += `<div class="row" style="align-items:center;gap:6px;margin:3px 0"><span style="width:4em">${SIM.ATTRS[k]}</span><button id="ca-${k}-m" data-cr="at" data-k="${k}" data-md="-1">◀</button><span style="min-width:3em;text-align:center">${prof.attrs[k]}</span><button id="ca-${k}-p" data-cr="at" data-k="${k}" data-md="1">▶</button></div>`;
-    if (!SIM.GROWTH_OFF) h += `<div style="margin-top:8px"><b>成長の型</b></div><div class="row" style="align-items:center;gap:6px"><button id="cg-m" data-cr="gr" data-md="-1">◀</button><span style="min-width:6em;text-align:center">${g.name}</span><button id="cg-p" data-cr="gr" data-md="1">▶</button></div><div class="muted">${g.desc}</div>`;
+    h += `<div style="margin-top:8px"><b>成長の型</b></div><div class="row" style="align-items:center;gap:6px"><button id="cg-m" data-cr="gr" data-md="-1">◀</button><span style="min-width:6em;text-align:center">${g.name}</span><button id="cg-p" data-cr="gr" data-md="1">▶</button></div><div class="muted">${g.desc}</div>`;
     const si = Math.max(0, START.findIndex((t) => t.id === prof.start)), st = START[si], nl = nearLord(st);
     h += `<div style="margin-top:8px"><b>開始地点</b>　<span class="muted">${si + 1}/${START.length}（東から西の順）</span></div><div class="row" style="align-items:center;gap:6px"><button id="cs-mm" data-cr="st" data-md="-5">◀◀</button><button id="cs-m" data-cr="st" data-md="-1">◀</button><span style="min-width:5em;text-align:center">${st.name}</span><button id="cs-p" data-cr="st" data-md="1">▶</button><button id="cs-pp" data-cr="st" data-md="5">▶▶</button><button id="cs-r" data-cr="sr">おまかせ</button></div><div class="row"><button id="cs-map" data-cr="map">地図から選ぶ</button></div><div class="muted">${nl ? `近くの大名：${nl}` : ''}</div>`;
     h += `<div style="margin-top:8px"><b>家紋</b></div>` + monEditorHtml(prof.mon, 'crMon');
@@ -832,6 +832,7 @@
       if (C.off) html += '<div class="muted" style="margin-top:8px">いまは能力値・技能・特技はありません。本人の強さは装備で変わります（武具は町・城で買えます）</div>';
     } else if (charTab === 'skill') { // 0.76.0 技能：使うと伸び、25・50・75・100で特技が自動で付く
       const WS = SIM.WSKILL, K = C.wsk || {};
+      if (me.grow) html += `<div class="muted" style="margin-bottom:4px">成長の型：<b>${me.grow}</b></div>`;
       html += `<div class="muted" style="margin-bottom:6px">使うほど伸びます（強い相手ほど・利益が出るほどよく伸びる）。25・50・75・100で特技を自動で覚えます</div>`;
       for (const k in WS) {
         const [lv, xp] = K[k] || [0, 0], need = SIM.wsNeed(lv), pr = lv >= 100 ? 1 : Math.min(1, xp / need);
