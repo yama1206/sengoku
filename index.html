@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="0.83.1">
+<meta name="sgk-ver" content="0.84.0">
 <title>戦国出世</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -140,10 +140,11 @@
     <button id="btnSettings">設定（音・操作説明）</button>
     <button id="btnYear" class="yearBtn"></button>
   </div>
-  <div class="menu hidden" id="namePanel" style="width:min(520px,94vw)">
-    <div class="muted" style="text-align:center">名前を選んでください（コントローラーでも選べます）</div>
-    <div id="nameKeys" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"></div>
-    <div class="row"><button id="btnNameBack">戻る</button><button id="btnNameMore">ほかの候補</button></div>
+  <div class="menu hidden" id="namePanel" style="width:min(560px,96vw)">
+    <div class="muted" style="text-align:center">名前を入力（12文字まで・Bで1字消す）</div>
+    <div id="nameShow" style="text-align:center;font-size:22px;min-height:1.4em;margin:4px 0"></div>
+    <div id="nameKeys" style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px"></div>
+    <div class="row"><button id="nkMode">カタカナへ</button><button id="nkDel">1字消す</button><button id="btnNameBack">やめる</button><button id="nkOk">決定</button></div>
   </div>
   <div class="menu hidden" id="mapPanel"><div id="smInfo"></div><div id="smBox"><canvas id="smCv"></canvas><div id="smLayer"></div></div><div class="row"><button id="smOut">－ 縮小</button><button id="smIn">＋ 拡大</button><button id="smRnd">おまかせ</button><button id="smOk">この町に決める</button></div></div>
   <div class="menu hidden" id="createPanel" style="width:min(560px,96vw);max-height:86vh;overflow:auto"><div id="createBody"></div></div>

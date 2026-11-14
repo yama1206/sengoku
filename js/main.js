@@ -212,7 +212,7 @@
   function renderCreate() {
     const C = SIM.CREATE, g = SIM.GROW[prof.grow];
     let h = `<div class="muted" style="text-align:center">新しく始める人物です（すでに遊んでいるワールドの人物は変わりません）</div>`;
-    h += `<div style="margin-top:6px"><b>名前</b>　${(($('nameInput').value.trim()) || '浪人').replace(/[<&]/g, '')}</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:4px 0">${crNames.map((n, i) => `<button id="cn-${i}" data-cr="nm" data-v="${n}">${n}</button>`).join('')}</div><div class="row"><button id="cr-more" data-cr="more">ほかの候補</button></div>`;
+    h += `<div style="margin-top:6px"><b>名前</b></div><div class="row"><button id="cr-name" data-cr="name">${(($('nameInput').value.trim()) || '浪人').replace(/[<&]/g, '')}　（押して入力）</button></div>`; // 0.84.0 候補をやめ、コントローラーで打てる文字盤に
     if (!SIM.GROWTH_OFF) h += `<div style="margin-top:8px"><b>能力値</b>　<span class="muted">残り ${crLeft()}点（1つ${C.max}まで）</span></div>`; // 0.73.7 能力値・成長の型はいったん無し
     if (!SIM.GROWTH_OFF) for (const k of ATK) h += `<div class="row" style="align-items:center;gap:6px;margin:3px 0"><span style="width:4em">${SIM.ATTRS[k]}</span><button id="ca-${k}-m" data-cr="at" data-k="${k}" data-md="-1">◀</button><span style="min-width:3em;text-align:center">${prof.attrs[k]}</span><button id="ca-${k}-p" data-cr="at" data-k="${k}" data-md="1">▶</button></div>`;
     h += `<div style="margin-top:8px"><b>成長の型</b></div><div class="row" style="align-items:center;gap:6px"><button id="cg-m" data-cr="gr" data-md="-1">◀</button><span style="display:inline-block;width:8.5em;white-space:nowrap;text-align:center">${g.name}</span><button id="cg-p" data-cr="gr" data-md="1">▶</button></div><div class="muted" style="min-height:4.2em">${g.desc}</div>`; // 0.83.1 型を変えてもボタンの位置が動かないよう幅・高さを固定
@@ -293,6 +293,7 @@
     if (b.dataset.mk) prof.mon = monStep(prof.mon, b.dataset.mk, dir);
     else if (b.dataset.cr === 'nm') { $('nameInput').value = b.dataset.v; localStorage.setItem('sgk_name', b.dataset.v); }
     else if (b.dataset.cr === 'more') pickNames();
+    else if (b.dataset.cr === 'name') { openNameKb(); return; }
     else if (b.dataset.cr === 'at') { const k = b.dataset.k, v = prof.attrs[k] + dir; if (v >= C.base && v <= C.max && (dir < 0 || crLeft() > 0)) prof.attrs[k] = v; }
     else if (b.dataset.cr === 'st') { const n = START.length, i = START.findIndex((t) => t.id === prof.start); prof.start = START[(((i + dir) % n) + n) % n].id; }
     else if (b.dataset.cr === 'map') { smOpen(); return; }
@@ -303,21 +304,40 @@
     renderCreate();
   });
 
-  // 名前を候補から選ぶ（キーボードがなくても決められる）
-  const SEI = ['木下', '明智', '前田', '佐々', '滝川', '山内', '蜂須賀', '池田', '森', '堀', '竹中', '黒田', '島', '可児', '真田', '本多', '井伊', '藤堂'];
-  const MEI = ['藤吉郎', '十兵衛', '又左衛門', '内蔵助', '彦右衛門', '伊右衛門', '小六', '勝三郎', '三左衛門', '久太郎', '半兵衛', '官兵衛', '左近', '才蔵', '源次郎', '平八郎', '弥助', '五郎左'];
-  function fillNames() {
-    const pk = (a) => a[Math.floor(Math.random() * a.length)], set = new Set();
-    while (set.size < 12) set.add(pk(SEI) + pk(MEI));
-    $('nameKeys').innerHTML = [...set].map((n, i) => `<button id="nk-${i}" data-nm="${n}">${n}</button>`).join('');
+  // 0.84.0 名前の文字盤（コントローラーだけで入力できる。ひらがな・カタカナ、濁点・半濁点・小さい字）
+  const KCOL = ['あいうえお', 'かきくけこ', 'さしすせそ', 'たちつてと', 'なにぬねの', 'はひふへほ', 'まみむめも', 'や ゆ よ', 'らりるれろ', 'わ を ん'];
+  const KEX = ['゛', '゜', '小', 'ー', '・'];
+  let nmBuf = '', nmKata = false;
+  const toK = (c) => (nmKata && c >= 'ぁ' && c <= 'ゔ' ? String.fromCharCode(c.charCodeAt(0) + 0x60) : c);
+  function nkShow() { $('nameShow').textContent = (nmBuf || '　') + '_'; }
+  function nkRender() {
+    let h = '';
+    for (let r = 0; r < 5; r++) for (let c = 0; c < 10; c++) { const ch = KCOL[c][r]; h += ch && ch !== ' ' ? `<button id="nk-${r}-${c}" data-ch="${ch}">${toK(ch)}</button>` : '<span></span>'; }
+    KEX.forEach((x, i) => { h += `<button id="nk-x${i}" data-ch="${x}">${x}</button>`; });
+    $('nameKeys').innerHTML = h; $('nkMode').textContent = nmKata ? 'ひらがなへ' : 'カタカナへ'; nkShow();
   }
-  const openNamePanel = () => { fillNames(); $('namePanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); setFocus($('namePanel'), $('nk-0')); };
-  $('btnNameMore').onclick = () => { fillNames(); setFocus($('namePanel'), $('btnNameMore')); };
-  $('btnNameBack').onclick = titleBack;
+  function nkMod(kind) { // 最後の字に濁点・半濁点・小さい字をつける（もう一度で戻す）
+    if (!nmBuf) return; const last = nmBuf.slice(-1), code = last.charCodeAt(0), kata = code >= 0x30a1 && code <= 0x30f4;
+    const hc = kata ? String.fromCharCode(code - 0x60) : last;
+    const T = { '゛': ['かきくけこさしすせそたちつてとはひふへほう', 'がぎぐげござじずぜぞだぢづでどばびぶべぼゔ'], '゜': ['はひふへほばびぶべぼ', 'ぱぴぷぺぽぱぴぷぺぽ'], '小': ['あいうえおつやゆよわ', 'ぁぃぅぇぉっゃゅょゎ'] }[kind];
+    let i = T[0].indexOf(hc), out = null; if (i >= 0) out = T[1][i]; else if ((i = T[1].indexOf(hc)) >= 0) out = kind === '゜' ? 'はひふへほ'[i % 5] : T[0][i];
+    if (!out) return; nmBuf = nmBuf.slice(0, -1) + (kata ? String.fromCharCode(out.charCodeAt(0) + 0x60) : out);
+  }
+  function nkDel() { nmBuf = [...nmBuf].slice(0, -1).join(''); nkShow(); }
+  function openNameKb() { nmBuf = $('nameInput').value.trim(); $('createPanel').classList.add('hidden'); $('namePanel').classList.remove('hidden'); nkRender(); setFocus($('namePanel'), $('nk-0-0')); }
+  function closeNameKb(save) {
+    if (save) { const n = [...nmBuf.trim()].slice(0, 12).join(''); $('nameInput').value = n; localStorage.setItem('sgk_name', n || '浪人'); }
+    $('namePanel').classList.add('hidden'); $('createPanel').classList.remove('hidden'); renderCreate(); setFocus($('createPanel'), $('cr-name'));
+  }
   $('nameKeys').addEventListener('click', (e) => {
-    const b = e.target.closest('button'); if (!b) return;
-    $('nameInput').value = b.dataset.nm; localStorage.setItem('sgk_name', b.dataset.nm); titleBack(); titleMsg(`名前を「${b.dataset.nm}」にしました`);
+    const b = e.target.closest('button'); if (!b) return; const ch = b.dataset.ch;
+    if (ch === '゛' || ch === '゜' || ch === '小') nkMod(ch); else if ([...nmBuf].length < 12) nmBuf += toK(ch);
+    nkShow();
   });
+  $('nkMode').onclick = () => { nmKata = !nmKata; nkRender(); setFocus($('namePanel'), $('nkMode')); };
+  $('nkDel').onclick = nkDel;
+  $('nkOk').onclick = () => closeNameKb(true);
+  $('btnNameBack').onclick = () => closeNameKb(false);
   $('btnJoinGo').onclick = () => { const c = $('codeInput').value.replace(/\D/g, ''); if (c.length < CL) return titleMsg(`部屋コード（数字${CL}けた）を入れてください`); startClient(c); };
 
   // ---------- ホスト ----------
@@ -1417,7 +1437,7 @@
         else navHold = 0;
         if (down(0)) pressMenu();
       }
-      if (down(1) && !inBattle) { if (activeMenu() === $('mapPanel')) smClose(); else if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else menuBack(); }
+      if (down(1) && !inBattle) { if (activeMenu() === $('namePanel')) nkDel(); else if (activeMenu() === $('mapPanel')) smClose(); else if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else menuBack(); }
       if (activeMenu() === $('mapPanel')) { if (down(4)) smZoom(1 / 1.5); if (down(5)) smZoom(1.5); }
       if (activeMenu() === $('town')) { if (down(4)) cycleTab(-1); if (down(5)) cycleTab(1); }
       else if (activeMenu() === $('char')) { if (down(4)) cycleCTab(-1); if (down(5)) cycleCTab(1); if (down(8)) openChar(false); }
