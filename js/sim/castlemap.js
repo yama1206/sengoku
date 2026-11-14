@@ -27,25 +27,40 @@
       const aF = t.x > F.w / 2 ? PI : 0, R = t.r;
       if (R >= 45) {
         const ri = Math.round(R * 0.4), rm = R - 7, gA = aF + 0.35;
-        out.push({ x: t.x, y: t.y, R, main: 1, rings: [
+        const o = { x: t.x, y: t.y, R, main: 1, rings: [
           { r: ri, gaps: [[aF + PI, hg(7, ri)]] }, // 本丸（門は奥）
           { r: rm, gaps: [[gA + PI, PI - hg(18, rm)]] }, // 枡形（大手門の内側だけ塀）
           { r: R, gaps: [[gA, hg(7, R)], [aF - 0.35 * PI, hg(6, R)]] } // 外の塀（大手門・搦手門）
-        ], rad: [{ a: aF - PI / 2, r0: ri, r1: R }] }); // 仕切りの塀（片側をふさいで、本丸の門まで遠回りさせる）
+        ], rad: [{ a: aF - PI / 2, r0: ri, r1: R }] }; // 仕切りの塀（片側をふさいで、本丸の門まで遠回りさせる）
+        /* 1.6.37 堀は通れない（w：堀の幅の半分）。大手門・搦手門の前だけ土橋（切れ目）で渡れる */
+        const mt = ter.find((m) => m.k === 'm' && Math.abs(m.x - t.x) < 1 && Math.abs(m.y - t.y) < 1);
+        if (mt) { const mr = (mt.r + (mt.ri || R)) / 2; o.rings.push({ r: mr, w: (mt.r - (mt.ri || R)) / 2, moat: 1, gaps: [[gA, hg(8, mr)], [aF - 0.35 * PI, hg(8, mr)]] }); o.RO = mt.r; }
+        out.push(o);
       } else out.push({ x: t.x, y: t.y, R, rings: [{ r: R, gaps: [[aF + 0.3, hg(6, R)]] }], rad: [] });
     }
     c = out.length ? out : null; CWC.set(ter, c); return c;
   };
   const inGap = (q, a, m) => q.gaps.some(([ga, gw]) => Math.abs(nrm(a - ga)) < gw - m / q.r);
   SIM.wallInGap = inGap;
+  /* 1.6.37 土橋の上か（堀の幅の中で、切れ目の角度） */
+  SIM.onBridge = (ter, x, y) => {
+    const cw = SIM.castleWalls(ter); if (!cw) return false;
+    for (const c of cw) for (const q of c.rings) if (q.w) { const d = Math.hypot(x - c.x, y - c.y); if (Math.abs(d - q.r) <= q.w + 0.5 && inGap(q, Math.atan2(y - c.y, x - c.x), 0)) return true; }
+    return false;
+  };
   // 塀にめり込んだら押し戻す（rad：体の半径）
   SIM.wallPush = (cw, s, rad) => {
     for (const c of cw) {
       let dx = s.x - c.x, dy = s.y - c.y, d = Math.hypot(dx, dy) || 0.01;
-      if (d > c.R + 3) continue;
+      if (d > (c.RO || c.R) + 3) continue;
       const m = rad + WT;
-      for (const q of c.rings) if (Math.abs(d - q.r) < m && !inGap(q, Math.atan2(dy, dx), rad)) {
-        const nr = d < q.r ? q.r - m : q.r + m; s.x = c.x + dx / d * nr; s.y = c.y + dy / d * nr; dx = s.x - c.x; dy = s.y - c.y; d = nr;
+      for (const q of c.rings) {
+        const w = q.w || 0, a = Math.atan2(dy, dx); if (Math.abs(d - q.r) >= m + w || inGap(q, a, rad)) continue;
+        if (w && Math.abs(d - q.r) < w) { /* 堀の上：土橋のすぐ脇なら橋の上へ戻す */
+          let br = 0; for (const [ga, gw] of q.gaps) { const da = nrm(a - ga), lim = Math.max(0, gw - rad / q.r); if ((Math.abs(da) - lim) * d < 2.5) { const na = ga + Math.sign(da) * lim; s.x = c.x + Math.cos(na) * d; s.y = c.y + Math.sin(na) * d; br = 1; break; } }
+          if (br) { dx = s.x - c.x; dy = s.y - c.y; continue; }
+        }
+        const nr = d < q.r ? q.r - w - m : q.r + w + m; s.x = c.x + dx / d * nr; s.y = c.y + dy / d * nr; dx = s.x - c.x; dy = s.y - c.y; d = nr;
       }
       for (const w of c.rad) {
         const ux = Math.cos(w.a), uy = Math.sin(w.a), along = dx * ux + dy * uy; if (along < w.r0 - m || along > w.r1 + m) continue;
@@ -57,8 +72,8 @@
   // まっすぐ行くと塀に当たるか
   const blocked = (c, x0, y0, x1, y1) => {
     const ax = x0 - c.x, ay = y0 - c.y, vx = x1 - x0, vy = y1 - y0, A = vx * vx + vy * vy; if (A < 1e-6) return false;
-    for (const q of c.rings) {
-      const B = 2 * (ax * vx + ay * vy), C = ax * ax + ay * ay - q.r * q.r, D = B * B - 4 * A * C; if (D < 0) continue;
+    for (const q of c.rings) for (const rq of q.w ? [q.r - q.w, q.r, q.r + q.w] : [q.r]) {
+      const B = 2 * (ax * vx + ay * vy), C = ax * ax + ay * ay - rq * rq, D = B * B - 4 * A * C; if (D < 0) continue;
       for (const sg of [-1, 1]) { const t = (-B + sg * Math.sqrt(D)) / (2 * A); if (t > 0.02 && t < 0.98 && !inGap(q, Math.atan2(ay + vy * t, ax + vx * t), 0.6)) return true; }
     }
     for (const w of c.rad) {
@@ -72,15 +87,15 @@
   SIM.wallWay = (cw, s, gx, gy) => {
     for (const c of cw) {
       const sx = s.x - c.x, sy = s.y - c.y, ds = Math.hypot(sx, sy), dg = Math.hypot(gx - c.x, gy - c.y);
-      if (ds > c.R + 6 && dg > c.R + 6 && !blocked(c, s.x, s.y, gx, gy)) continue;
+      if (ds > (c.RO || c.R) + 6 && dg > (c.RO || c.R) + 6 && !blocked(c, s.x, s.y, gx, gy)) continue;
       const band = (r) => c.rings.filter((q) => q.r < r).length, bs = band(ds), bg = band(dg), as = Math.atan2(sy, sx);
-      const lo = bs ? c.rings[bs - 1].r + 2.2 : 0, hi = bs < c.rings.length ? c.rings[bs].r - 2.2 : 1e9;
+      const lo = bs ? c.rings[bs - 1].r + (c.rings[bs - 1].w || 0) + 2.2 : 0, hi = bs < c.rings.length ? c.rings[bs].r - (c.rings[bs].w || 0) - 2.2 : 1e9;
       const radIn = c.rad.filter((w) => ds > w.r0 && ds < w.r1);
       const pm = (x) => ((x % (2 * PI)) + 2 * PI) % (2 * PI), wallBetween = (a0, a1, dir) => radIn.some((w) => { const o = pm((w.a - a0) * dir); return o > 0.001 && o < pm((a1 - a0) * dir); });
       const orbit = (ta) => {
         let diff = nrm(ta - as), dir = diff >= 0 ? 1 : -1;
         if (wallBetween(as, ta, dir)) { dir = -dir; diff = 9; }
-        const rr = Math.max(lo, Math.min(hi, Math.max(ds, bs === c.rings.length ? c.R + 3 : 0))), st = Math.min(Math.abs(diff), 10 / Math.max(rr, 5)), a = as + dir * st;
+        const rr = Math.max(lo, Math.min(hi, Math.max(ds, bs === c.rings.length ? (c.RO || c.R) + 3 : 0))), st = Math.min(Math.abs(diff), 10 / Math.max(rr, 5)), a = as + dir * st;
         return [c.x + Math.cos(a) * rr, c.y + Math.sin(a) * rr];
       };
       if (bs === bg) { if (!blocked(c, s.x, s.y, gx, gy)) continue; return orbit(Math.atan2(gy - c.y, gx - c.x)); }
@@ -94,10 +109,10 @@
       }
       if (best == null) continue;
       const px = c.x + Math.cos(best) * q.r, py = c.y + Math.sin(best) * q.r;
-      if (Math.hypot(px - s.x, py - s.y) < 2.5) return [c.x + Math.cos(best) * (q.r + out * 4), c.y + Math.sin(best) * (q.r + out * 4)];
+      if (Math.hypot(px - s.x, py - s.y) < 2.5) return [c.x + Math.cos(best) * (q.r + out * (4 + (q.w || 0))), c.y + Math.sin(best) * (q.r + out * (4 + (q.w || 0)))];
       // 門の手前（同じ側に 3m）をめざす
-      const fx = c.x + Math.cos(best) * (q.r - out * 3), fy = c.y + Math.sin(best) * (q.r - out * 3);
-      if (Math.hypot(fx - s.x, fy - s.y) < 2) return [px, py];
+      const fx = c.x + Math.cos(best) * (q.r - out * (3 + (q.w || 0))), fy = c.y + Math.sin(best) * (q.r - out * (3 + (q.w || 0)));
+      if (Math.hypot(fx - s.x, fy - s.y) < 2 || (q.w && Math.abs(ds - q.r) < q.w + 1 && inGap(q, as, 0))) return [px, py]; /* 1.6.37 土橋の上はそのまま渡る */
       if (!blocked(c, s.x, s.y, fx, fy)) return [fx, fy];
       return orbit(best);
     }
@@ -115,7 +130,7 @@
       b.ter.push({ k: 'f', x: cx, y: cy - 175, r: 34 }, { k: 'f', x: cx, y: cy + 175, r: 34 });
     } else {
       kr = 55;
-      b.ter.push({ k: 'm', x: cx, y: cy, r: kr + 22, ri: kr + 4 }); // 堀
+      b.ter.push({ k: 'm', x: cx, y: cy, r: kr + 22, ri: kr + 6 }); // 堀
     }
     b.ter.push({ k: 'k', x: cx, y: cy, r: kr }); // 曲輪
     b.cside = cside; b.ck = ck; b.kf = SIM.kaiF ? SIM.kaiF(s) : 1; b.cx = cx; b.cy = cy; // 0.40.0 改築の段階で守りの強さが変わる

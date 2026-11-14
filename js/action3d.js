@@ -29,7 +29,7 @@
       const q = 1 - (d / t.r) * (d / t.r); h += t.hh * q * q;
     }
     h += 0.35 * Math.sin(x * 0.07 + 1.3) * Math.sin(y * 0.06 + 0.7) + 0.18 * Math.sin(x * 0.17 - y * 0.13); // 0.65.0 地面の小さな起伏
-    for (const t of ter) if (t.k === 'm') { const d = Math.hypot(x - t.x, y - t.y); if (d < t.r && d > (t.ri || 0)) h -= 1.4; }
+    for (const t of ter) if (t.k === 'm') { const d = Math.hypot(x - t.x, y - t.y); if (d < t.r && d > (t.ri || 0) && !SGK.SIM.onBridge(ter, x, y)) h -= 1.4; }
     return h;
   }
   X.hgt = hgt;
@@ -172,7 +172,7 @@
     });
     t.wrapS = t.wrapT = T.ClampToEdgeWrapping; return t;
   }
-  const water = (t, x, y) => { const d = Math.hypot(x - t.x, y - t.y); return (t.k === 'm' && d < t.r && d > (t.ri || 0)) || (!['f', 'h', 'm', 'k', 's'].includes(t.k) && d < t.r); };
+  const water = (t, x, y) => { const d = Math.hypot(x - t.x, y - t.y); return (t.k === 'm' && d < t.r && d > (t.ri || 0) && !SGK.SIM.onBridge(ter, x, y)) || (!['f', 'h', 'm', 'k', 's'].includes(t.k) && d < t.r); };
 
   // いくつかの形を1つにまとめる（部分ごとに色を付ける）
   function merge(list) {
@@ -197,7 +197,7 @@
         const d = Math.hypot(x - t.x, y - t.y);
         if (t.k === 'f' && d < t.r) c.lerp(new T.Color(0x4f6c34), 0.75);
         else if (t.k === 'h' && d < t.r * 1.15) c.lerp(new T.Color(0xa49866), 0.55 * (1 - d / (t.r * 1.15)) + 0.2);
-        else if (t.k === 'm' && d < t.r && d > (t.ri || 0)) c.setHex(0x4d6f8e);
+        else if (t.k === 'm' && d < t.r && d > (t.ri || 0)) c.setHex(SGK.SIM.onBridge(ter, x, y) ? 0x9a8660 : 0x4d6f8e);
         else if (t.k === 'k' && d < t.r) c.setHex(0xb9a57c);
         else if (t.k === 's' && d < t.r && d > (t.ri || 0)) c.lerp(new T.Color(0x8b7d55), 0.5);
         else if (!['f', 'h', 'm', 'k', 's'].includes(t.k) && d < t.r) c.setHex(0x4d6f8e);
@@ -249,7 +249,7 @@
     // 1.6.25 攻城戦：塀（当たり判定と同じ形。門＝切れ目・枡形・仕切り）と、本丸の真ん中に天守
     const CWs = SGK.SIM.castleWalls ? SGK.SIM.castleWalls(ter) || [] : [], segs = [];
     for (const c of CWs) {
-      for (const q of c.rings) { const n = Math.max(8, Math.round(q.r * 2 * Math.PI / 4)), sl = q.r * 2 * Math.PI / n; for (let i = 0; i < n; i++) { const a = (i + 0.5) / n * Math.PI * 2; if (SGK.SIM.wallInGap(q, a, -sl / 2)) continue; segs.push([c.x + Math.cos(a) * q.r, c.y + Math.sin(a) * q.r, -a + Math.PI / 2, sl]); } }
+      for (const q of c.rings) { if (q.moat) continue; const n = Math.max(8, Math.round(q.r * 2 * Math.PI / 4)), sl = q.r * 2 * Math.PI / n; for (let i = 0; i < n; i++) { const a = (i + 0.5) / n * Math.PI * 2; if (SGK.SIM.wallInGap(q, a, -sl / 2)) continue; segs.push([c.x + Math.cos(a) * q.r, c.y + Math.sin(a) * q.r, -a + Math.PI / 2, sl]); } }
       for (const w of c.rad) { const n = Math.max(1, Math.round((w.r1 - w.r0) / 4)), sl = (w.r1 - w.r0) / n; for (let i = 0; i < n; i++) { const d = w.r0 + (i + 0.5) * sl; segs.push([c.x + Math.cos(w.a) * d, c.y + Math.sin(w.a) * d, -w.a, sl]); } }
     }
     if (segs.length) {

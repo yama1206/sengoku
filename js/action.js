@@ -112,14 +112,14 @@
   // 0.75.0 隊形：兵の持ち場（ox 前後・oy 左右）を並べ直す
   ACT.FORMS = { norm: '通常', line: '横隊', loose: '散開', square: '方陣', wedge: '鋒矢' };
   // 0.79.0 隊形の得手不得手：spd 移動・ma 近接の攻撃・ra 弓鉄砲の攻撃・md 近接で受ける被害・rd 矢弾で受ける被害（倍）
-  ACT.FMOD = { line: { spd: 0.85, ra: 1.1 }, loose: { rd: 0.9, md: 1.15 }, square: { spd: 0.85, md: 0.9, rd: 0.9 }, wedge: { ma: 1.1, md: 1.15, rd: 1.15 } };
+  ACT.FMOD = {}; /* 1.6.37 隊形による強さの違いはなくした（並び方だけ変わる） */
   const fmod = (u, k) => { const m = u && ACT.FMOD[u.fm]; return (m && m[k]) || 1; };
   // 0.80.0 地形：丘の高さ（中心1・ふち0）、移動の速さ（林・登り下り・堀・急な斜面）
   const hgt = (b, x, y) => { let h = 0; for (const t of b.ter || []) if (t.k === 'h') { const d = Math.hypot(x - t.x, y - t.y); if (d < t.r) h = Math.max(h, 1 - d / t.r); } return h; };
   function terMul(b, s, dx, dy, cav) {
     if (!b.ter || !b.ter.length) return 1;
     const t = SIM.terAt(b, s); let m = t.f ? (cav ? SIM.CAV_FOREST : 0.8) : 1;
-    if (t.m) m *= 0.4; if (t.s) m *= cav ? 0.3 : 0.5;
+    if (t.m && !SIM.onBridge(b.ter, s.x, s.y)) m *= 0.4; if (t.s) m *= cav ? 0.3 : 0.5;
     if (t.h && (dx || dy)) { const l = Math.hypot(dx, dy) || 1, h0 = hgt(b, s.x, s.y), h1 = hgt(b, s.x + dx / l, s.y + dy / l); if (h1 > h0 + 0.002) m *= 0.85; else if (h1 < h0 - 0.002) m *= 1.05; }
     return m;
   }
@@ -189,7 +189,7 @@
     return hits.length;
   }
   const YARI_T = { yari: 1, nagayari: 1, yarigashira: 1, kiba: 1, horo: 1 };
-  const cpuWep = (s, close) => (!close && !s.hero && YARI_T[s.type] ? ACT.WEP.yari : ACT.WEP.tachi); // 0.73.9 CPUも本人と同じ刀・槍の範囲
+  const cpuWep = (s, close) => (close && !s.hero && TR[s.type] && TR[s.type].ranged ? ACT.WEP.waki : !close && !s.hero && YARI_T[s.type] ? ACT.WEP.yari : ACT.WEP.tachi); // 0.73.9 CPUも本人と同じ刀・槍の範囲
 
   // ---- 0.64.0 隊のAI（敵の隊と「AIに任せる」にした隊）：u.eo が実際に使う指図 ----
   function aiThink(A, b, u, c, center, all, dt) {
@@ -209,7 +209,7 @@
     if (u.rg) { if (fd < 30) { go(toFoe + Math.PI, 16); u.kite = 1; } else hold(); return; }
     if (T.ranged) { // 弓・鉄砲：届く距離を保って撃つ。近づかれたら下がる
       const R = T.range + (u.ra || 0);
-      if (fd < 9) { go(toFoe + Math.PI, 12); u.kite = 1; } else if (fd > R * 0.95) go(toFoe, fd - R * 0.8); else hold();
+      if (fd > R * 0.95) go(toFoe, fd - R * 0.8); else hold(); /* 1.6.37 近づかれても下がらない（兵ひとりずつ脇差で戦う） */
       return;
     }
     if (T.cav) { // 騎馬：突撃して、しばらく戦ったら離れて立て直し、また突撃
@@ -322,7 +322,7 @@
       if (hunter && (!e || dist(s, e) > reach)) { let r = null, rd = 35; for (const x of foeRanged) if (x.side !== s.side) { const dd = Math.abs(x.x - s.x) + Math.abs(x.y - s.y); if (dd < rd) { rd = dd; r = x; } } if (r) e = r; }
       if (u.kite && T.ranged && e && dist(s, e) < 8) e = null; // 下がっている間は撃たずに離れる
       if (!u.isAI && o === 'move') e = null; // 0.73.8 移動の指示は敵にかまわず最優先
-      const close = T.ranged && e && dist(s, e) < 5, R = close ? ACT.WEP.tachi.reach : reach; s.kat = close ? 1 : 0; // 0.73.8 弓・鉄砲は近づかれたら刀に持ち替える
+      const close = T.ranged && e && dist(s, e) < (s.kat ? 6 : 4), R = close ? ACT.WEP.waki.reach : reach; /* 1.6.37 近づかれたら脇差、離れたら弓・鉄砲に戻す */ s.kat = close ? 1 : 0; // 0.73.8 弓・鉄砲は近づかれたら刀に持ち替える
       let gx, gy;
       const runCav = T.cav && !s.hero && o !== 'move'; // 0.80.0 騎馬は止まらず駆け抜けて、また突っ込む
       if (runCav && s.pt > 0) {

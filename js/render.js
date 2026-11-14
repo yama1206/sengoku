@@ -231,7 +231,7 @@
     }
     for (const c of SGK.SIM.castleWalls ? SGK.SIM.castleWalls(bt.ter) || [] : []) { // 1.6.25 塀（門は切れ目）
       ctx.strokeStyle = '#ece4d0'; ctx.lineWidth = Math.max(2, 1.6 * L.sc);
-      for (const q of c.rings) { ctx.beginPath(); const n = Math.round(q.r * 2), st = Math.PI * 2 / n; let on = false; for (let i = 0; i <= n; i++) { const a = i * st, w = !SGK.SIM.wallInGap(q, a, 0); if (w) { const X = sx(c.x + Math.cos(a) * q.r), Y = sy(c.y + Math.sin(a) * q.r); on ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } on = w; } ctx.stroke(); }
+      for (const q of c.rings) { if (q.moat) { ctx.save(); ctx.strokeStyle = '#9a8660'; for (const [ga, gw] of q.gaps) { ctx.lineWidth = Math.max(3, 2 * gw * q.r * L.sc); ctx.beginPath(); ctx.moveTo(sx(c.x + Math.cos(ga) * (q.r - q.w)), sy(c.y + Math.sin(ga) * (q.r - q.w))); ctx.lineTo(sx(c.x + Math.cos(ga) * (q.r + q.w)), sy(c.y + Math.sin(ga) * (q.r + q.w))); ctx.stroke(); } ctx.restore(); continue; } /* 1.6.37 土橋 */ ctx.beginPath(); const n = Math.round(q.r * 2), st = Math.PI * 2 / n; let on = false; for (let i = 0; i <= n; i++) { const a = i * st, w = !SGK.SIM.wallInGap(q, a, 0); if (w) { const X = sx(c.x + Math.cos(a) * q.r), Y = sy(c.y + Math.sin(a) * q.r); on ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } on = w; } ctx.stroke(); }
       for (const w of c.rad) { ctx.beginPath(); ctx.moveTo(sx(c.x + Math.cos(w.a) * w.r0), sy(c.y + Math.sin(w.a) * w.r0)); ctx.lineTo(sx(c.x + Math.cos(w.a) * w.r1), sy(c.y + Math.sin(w.a) * w.r1)); ctx.stroke(); }
       if (c.main) { ctx.fillStyle = '#4a3a2a'; ctx.fillRect(sx(c.x) - 7 * L.sc, sy(c.y) - 7 * L.sc, 14 * L.sc, 14 * L.sc); } // 天守
     }
