@@ -286,7 +286,7 @@
   $('smBox').addEventListener('pointerup', smUp); $('smBox').addEventListener('pointercancel', smUp);
   $('smBox').addEventListener('wheel', (e) => { e.preventDefault(); const r = $('smBox').getBoundingClientRect(); smZoom(e.deltaY < 0 ? 1.2 : 1 / 1.2, e.clientX - r.left, e.clientY - r.top); }, { passive: false });
   window.addEventListener('resize', () => { if (!$('mapPanel').classList.contains('hidden')) { smSize(); smClamp(); smDraw(); } });
-  function pickNames() { const pk = (a) => a[Math.floor(Math.random() * a.length)], set = new Set(); while (set.size < 6) set.add(pk(SEI) + pk(MEI)); crNames = [...set]; }
+  function pickNames() { const SEI = SGK.SIM.SEI, MEI = ['藤吉郎', '小平太', '与一', '新左衛門', '源太', '又四郎', '弥助', '勘兵衛', '十兵衛', '孫六']; const pk = (a) => a[Math.floor(Math.random() * a.length)], set = new Set(); while (set.size < 6) set.add(pk(SEI) + pk(MEI)); crNames = [...set]; } // 1.6.1 名前の候補（army.js から MEI を消したので、ここに持つ）
   $('btnName').onclick = () => { prof = loadProf(); pickNames(); $('createPanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); renderCreate(); setFocus($('createPanel'), $('cr-ok')); };
   $('createBody').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
