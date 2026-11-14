@@ -104,7 +104,7 @@
     for (const p of Object.values(w.players)) {
       p.quests = p.quests.filter((q) => {
         if (q.deadline >= now) return true;
-        p.fame = Math.max(0, p.fame - 1); SIM.say(p.id, `依頼「${q.title}」の期限が過ぎてしまいました（名声-1）`); return false;
+        p.fame = Math.max(0, p.fame - 1); SIM.say(p.id, `依頼「${q.title}」の期限が過ぎてしまいました（名声-1）`); if (SIM.sellQBack) SIM.sellQBack(w, p, q); return false;
       });
     }
   }
@@ -222,7 +222,7 @@
     abandonJob(w, p, c) {
       const q = p.quests.find((x) => x.id === c.id); if (!q) return;
       p.quests = p.quests.filter((x) => x !== q); p.fame = Math.max(0, p.fame - 1);
-      SIM.say(p.id, `依頼「${q.title}」を取りやめました（名声-1）`);
+      SIM.say(p.id, `依頼「${q.title}」を取りやめました（名声-1）`); if (SIM.sellQBack) SIM.sellQBack(w, p, q);
     },
     work(w, p, c) {
       const s = needTown(w, p); if (!s) return;

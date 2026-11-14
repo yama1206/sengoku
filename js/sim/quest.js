@@ -80,8 +80,8 @@
         return Object.assign(base, { type: 'escort', to: to.id, days: Math.ceil(d / 18) + 4, reward: r10(300 + d * 15), title: `${to.name}まで行商人の護衛`, what: `行商人について${to.name}まで守る（${dirOf(s, to)}へ約${Math.round(d)}km）`, look: to.id });
       }
       const tos = w.settlements.filter((t) => t.type === 'town' && t !== s && dist(s, t) < 100 && !SIM.foeDest(w, s, t)); if (!tos.length) return null; // 0.74.3 100km以内・戦の相手の町はなし
-      const to = pick(w, tos), k = pick(w, Object.keys(I())), it = I()[k], qty = 10 + Math.floor(rnd(w) * 16);
-      return Object.assign(base, { type: 'sell', to: to.id, item: k, qty, left: qty, days: 15, reward: r10(it.base * qty * 0.4 + 200), title: `${to.name}で${it.name}${qty}${it.unit}を売る`, what: `${to.name}の市で${it.name}を${qty}${it.unit}売りさばく（売った代金とは別に報酬）`, look: to.id });
+      const to = pick(w, tos), k = pick(w, Object.keys(I())), it = I()[k], qty = 6 + Math.floor(rnd(w) * 10); /* 1.6.34 品物を預かって代わりに売る。売上は依頼主のもの、報酬は安め */
+      return Object.assign(base, { type: 'sell', given: 1, to: to.id, item: k, qty, left: qty, days: 15, reward: r10(it.base * qty * 0.08 + 100), title: `${to.name}で預かった${it.name}${qty}${it.unit}を売る`, what: `預かった${it.name}${qty}${it.unit}を${to.name}の市で売りさばく（売上は依頼主に渡す。報酬は別）`, look: to.id });
     }
     if (s.type !== 'castle' || !s.owner || !w.factions[s.owner]) return null;
     let k = pick(w, ['scout', 'supply', 'outlaw', 'envoy']); if (k === 'supply' && rnd(w) < 0.5) k = pick(w, ['scout', 'outlaw', 'envoy']); // 0.74.1 兵糧運びを半分に
@@ -110,7 +110,15 @@
     const s = st(w, q.from);
     if (SIM.addMerit && p.clan && s && s.owner === p.clan) SIM.addMerit(w, p, (s.type === 'castle' ? 12 : 6) + q.reward / 100, `${w.factions[p.clan] ? w.factions[p.clan].name : ''}の領地の依頼`);
   }
+  SIM.sellQBack = (w, p, q) => { // 1.6.34 預かった品の依頼をやめた・期限切れ：残りの品を返す。足りない分は代金を払う
+    if (!q || q.type !== 'sell' || !q.given || q.left <= 0) return;
+    const it = I()[q.item], have = Math.min(p.inv[q.item] || 0, q.left), miss = q.left - have;
+    if (have) { p.inv[q.item] -= have; if (!p.inv[q.item]) delete p.inv[q.item]; }
+    const pay = miss * (it ? it.base : 0); if (pay) p.money = Math.max(0, p.money - pay);
+    SIM.say(p.id, `預かった${it ? it.name : '品'}を返しました${pay ? `（足りない${miss}${it.unit}の代金${SIM.money(pay)}を払いました）` : ''}`);
+  };
   function drop(w, p, q, msg, fame) {
+    SIM.sellQBack(w, p, q);
     p.quests = p.quests.filter((x) => x !== q);
     if (fame) p.fame = Math.max(0, p.fame - fame);
     SIM.say(p.id, `依頼「${q.title}」は果たせませんでした。${msg}${fame ? `（名声-${fame}）` : ''}`);
@@ -129,6 +137,7 @@
       q.raid = now + q.wait * 1440; q.deadline = q.raid + 1.5 * 1440;
       SIM.say(p.id, `${q.wait}日後に野盗が来ます。その日までに${s.name}に戻っておきましょう`);
     } else if (q.type === 'labor') startLabor(w, p, q);
+    else if (q.type === 'sell' && q.given) { p.inv[q.item] = (p.inv[q.item] || 0) + q.qty; SIM.say(p.id, `${I()[q.item].name}${q.qty}${I()[q.item].unit}を預かりました。${st(w, q.to).name}の市で売ってきてください`); } /* 1.6.34 */
     else if (q.type === 'escort') {
       const to = st(w, q.to), m = SIM.spawnNpc(w, 'merchant', null, s);
       Object.assign(m, { tx: to.x, ty: to.y, dest: to.id, at: null, path: SIM.findPath(s.x, s.y, to.x, to.y), wait: 0, escort: p.id, qid: q.id, speed: 22 });
@@ -155,9 +164,10 @@
   };
   const baseSell = SIM.commands.sell;
   SIM.commands.sell = (w, p, c) => {
-    const before = p.inv[c.item] || 0, at = p.at; baseSell(w, p, c);
+    const before = p.inv[c.item] || 0, at = p.at, m0 = p.money; baseSell(w, p, c);
     const sold = before - (p.inv[c.item] || 0); if (sold <= 0) return;
     for (const q of p.quests.slice()) if (q.type === 'sell' && q.to === at && q.item === c.item) {
+      if (q.given) { const k = Math.min(sold, q.left), back = Math.round((p.money - m0) * k / sold); p.money -= back; SIM.say(p.id, `預かった品の売上${SIM.money(back)}は依頼主に渡します`); } /* 1.6.34 */
       q.left -= sold;
       if (q.left <= 0) done(w, p, q); else SIM.say(p.id, `売り込みの残り：${q.left}${I()[q.item].unit}`);
       break;
