@@ -258,7 +258,9 @@
       hero.cd -= dt; hero.dcd -= dt; hero.dash -= dt; hero.blk = !!inp.blk && hero.dash <= 0;
       let mx = inp.mx || 0, my = inp.my || 0; const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }
       if (inp.dash && hero.dcd <= 0 && (mx || my)) { hero.dash = ACT.DASH.t; hero.dcd = ACT.DASH.cd; hero.dx = mx; hero.dy = my; }
-      hero.rd = pl && pl.equip && pl.equip.horse ? 1 : 0; // 1.6.16 馬を装備していれば本人も馬に乗る
+      const hasH = !!(pl && pl.equip && pl.equip.horse); A.rq = A.rq || {};
+      if (A.rq[hero.pc]) { A.rq[hero.pc] = false; if (!hasH) SIM.say(hero.pc, '馬を装備していません'); else { hero.off = !hero.off; SIM.say(hero.pc, hero.off ? '馬から降りました' : '馬に乗りました'); } } // 1.6.17 △長押し／Rキー
+      hero.rd = hasH && !hero.off ? 1 : 0; // 1.6.16 馬を装備していれば本人も馬に乗る
       const sp = (hero.rd ? TR.kiba.spd : TR.hero.spd) * ACT.SPD * 1.1 * (hero.blk ? 0.5 : 1) * (pl && pl.nin ? SIM.NIN.actSpd : 1); // 0.77.0 忍びは速い
       if (hero.dash > 0) { hero.x += hero.dx * sp * ACT.DASH.mul * dt; hero.y += hero.dy * sp * ACT.DASH.mul * dt; }
       else { const tm = terMul(b, hero, mx, my, !!hero.rd); hero.x += mx * sp * tm * dt; hero.y += my * sp * tm * dt; }
@@ -411,6 +413,7 @@
       if (c.dash) A.dq[p.id] = true;
       if (c.sw) (A.wq = A.wq || {})[p.id] = true;
       if (c.jmp) (A.jq = A.jq || {})[p.id] = true;
+      if (c.ride) (A.rq = A.rq || {})[p.id] = true;
     },
   });
   const q10 = (v) => Math.round(v * 10);

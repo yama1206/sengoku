@@ -1316,6 +1316,7 @@
       if (fm) { e.preventDefault(); const n = +fm[1]; if (!R.ordMenu || R.ordMenu === 'root') { const m = [null, 'move', 'face', 'form', 'fire'][n]; if (m) ordMenu(m); } else { const o = ORDK[R.ordMenu][n - 1]; if (o) ord3(o); } return; }
       if ('wasd'.includes(kl) && kl.length === 1) { keys.add(kl); G.padUsed = false; return; }
       if (k === ' ') { e.preventDefault(); G.actDash = true; return; }
+      if (kl === 'r') { G.actRide = true; return; } /* 1.6.17 馬の乗り降り */
       if (kl === 'q') { G.actSw = true; return; } // 0.64.0 武器の持ち替え
       if (kl === 'e') { G.actJmp = true; return; } // 0.64.0 ジャンプ
       if (/^[0-9]$/.test(k)) { sel3(+k); if (!R.ordMenu) ordMenu('root'); return; }
@@ -1447,7 +1448,7 @@
             const c = R.acam; c.yaw = (c.yaw || 0) + rx * 2.6 * dt; c.pitch = Math.max(-0.5, Math.min(1.2, (c.pitch || 0) + ry * 1.6 * dt));
           }
           G.padAtk = btn(5); G.padBlk = btn(4);
-          if (down(0)) G.actJmp = true; if (down(1)) G.actDash = true; if (down(3)) G.actSw = true; if (down(2)) ord3('follow');
+          if (down(0)) G.actJmp = true; if (down(1)) G.actDash = true; if (btn(3)) { G.ytT = (G.ytT || 0) + dt; if (G.ytT >= 0.6 && !G.ytDone) { G.ytDone = true; G.actRide = true; } } else { if (G.ytT > 0 && !G.ytDone) G.actSw = true; G.ytT = 0; G.ytDone = false; } /* 1.6.17 △短押し＝持ち替え、長押し＝馬の乗り降り */ if (down(2)) ord3('follow');
           if (!r2 && G.r2t) { if (G.r2t <= 0.35) ord3('move'); G.r2t = 0; } if (down(12)) ord3('charge'); if (down(13)) ord3('hold'); if (down(15)) ord3('faceHere'); if (down(14)) ord3('ai');
           if (btn(10)) bZoom(1 - dt * 1.5); if (btn(11)) bZoom(1 + dt * 1.5);
         } else if (actB()) { // 0.56.0 アクション戦闘：左スティック移動・右スティック狙い・RT/A攻撃・Bかわす・LB/RB隊を選ぶ・X突撃・Y随行・十字↑待機↓後退
@@ -1534,7 +1535,7 @@
     const h = AB.act.s.find((s) => s.pc === G.myPid), pm = G.padMv || [0, 0];
     const inp = { mx: pm[0] + (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0), my: pm[1] + (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0), atk: !!(G.actAtk || G.padAtk), dash: !!G.actDash, aim: null };
     G.actDash = false;
-    if (ML()) { const y = R.acam.yaw || 0, f = -inp.my, r = inp.mx; inp.mx = Math.cos(y) * f - Math.sin(y) * r; inp.my = Math.sin(y) * f + Math.cos(y) * r; inp.aim = y; inp.blk = !!(G.actBlk || G.padBlk); inp.sw = !!G.actSw; inp.jmp = !!G.actJmp; G.actSw = G.actJmp = false; return inp; }
+    if (ML()) { const y = R.acam.yaw || 0, f = -inp.my, r = inp.mx; inp.mx = Math.cos(y) * f - Math.sin(y) * r; inp.my = Math.sin(y) * f + Math.cos(y) * r; inp.aim = y; inp.blk = !!(G.actBlk || G.padBlk); inp.sw = !!G.actSw; inp.jmp = !!G.actJmp; inp.ride = !!G.actRide; G.actSw = G.actJmp = G.actRide = false; return inp; }
     if (h && G.actTouch) { const [x, y] = R.actToWorld(G.actTouch[0], G.actTouch[1]), d = Math.hypot(x - h.x, y - h.y); inp.aim = Math.atan2(y - h.y, x - h.x); if (d > 3.5) { inp.mx = (x - h.x) / d; inp.my = (y - h.y) / d; } inp.atk = d < 6; }
     else if (G.padAim != null) inp.aim = G.padAim;
     else if (h && G.mouseXY && !G.padUsed) { const [x, y] = R.actToWorld(G.mouseXY[0], G.mouseXY[1]); inp.aim = Math.atan2(y - h.y, x - h.x); }
@@ -1590,10 +1591,10 @@
         if (document.pointerLockElement === cv && (!ML() || !$('gameMenu').classList.contains('hidden'))) document.exitPointerLock();
         if (AB) {
           const menuOpen = !$('gameMenu').classList.contains('hidden'), inp = menuOpen ? { mx: 0, my: 0, atk: false, dash: false, aim: null } : actInput(AB);
-          if (G.mode === 'host') { AB.act.inp[G.myPid] = inp; if (inp.dash) AB.act.dq[G.myPid] = true; if (inp.sw) (AB.act.wq = AB.act.wq || {})[G.myPid] = true; if (inp.jmp) (AB.act.jq = AB.act.jq || {})[G.myPid] = true; if (!(menuOpen && soloHost())) SIM.actStep(G.world, AB, dt); }
+          if (G.mode === 'host') { AB.act.inp[G.myPid] = inp; if (inp.dash) AB.act.dq[G.myPid] = true; if (inp.sw) (AB.act.wq = AB.act.wq || {})[G.myPid] = true; if (inp.jmp) (AB.act.jq = AB.act.jq || {})[G.myPid] = true; if (inp.ride) (AB.act.rq = AB.act.rq || {})[G.myPid] = true; if (!(menuOpen && soloHost())) SIM.actStep(G.world, AB, dt); }
           else { // 0.62.0 参加者：入力をホストへ送り（かわすはすぐ）、自分の本人は手もとで先に動かす
             G.actSendAcc = (G.actSendAcc || 0) + dt; const key = `${inp.mx.toFixed(2)},${inp.my.toFixed(2)},${inp.aim == null ? '' : inp.aim.toFixed(2)},${inp.atk},${inp.blk}`;
-            if (inp.dash || inp.sw || inp.jmp || (key !== G.actLastKey && G.actSendAcc > 0.05) || G.actSendAcc > 0.5) { G.actSendAcc = 0; G.actLastKey = key; command(Object.assign({ type: 'actIn' }, inp)); }
+            if (inp.dash || inp.sw || inp.jmp || inp.ride || (key !== G.actLastKey && G.actSendAcc > 0.05) || G.actSendAcc > 0.5) { G.actSendAcc = 0; G.actLastKey = key; command(Object.assign({ type: 'actIn' }, inp)); }
             SIM.actSmooth(AB, dt, G.myPid, inp);
           }
           R.actPad = !!G.padUsed; R.actCur = G.vcurOn && G.vcur ? { p: G.vcur, d: G.padRD } : null; R.drawAction(ctx, AB, G.myPid, G.selUnit, dt, BT.ter); renderBattle(BT);
