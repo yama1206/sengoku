@@ -170,7 +170,6 @@
           const hits = [];
           near(g, hero.x, hero.y, W.reach + 1, (o) => { if (o.side !== hero.side && live(o) && dist(hero, o) < W.reach + (o.type && TR[o.type].cav ? 0.9 : 0.5) && angDiff(hero.f, ang(hero, o)) < W.arc) hits.push(o); });
           hits.sort((a, c) => dist(hero, a) - dist(hero, c)).slice(0, W.max).forEach((o) => { damage(b, A, o, base * W.dmg * (0.8 + rr() * 0.4), hero); const a = ang(hero, o); o.x += Math.cos(a) * 0.6; o.y += Math.sin(a) * 0.6; });
-          if (hits.length) sfx(hero, 'hit');
         }
       }
     }
@@ -338,6 +337,43 @@
     for (const p of V.act.pr) { p.x += p.vx * dt; p.y += p.vy * dt; }
   };
 
+  // ---- 0.68.0 戦の音：前のフレームとの違い（攻撃・被弾・討死）を見て、聞き手（本人かカメラ）からの距離で鳴らす ----
+  let sndA = null, sndDc = 0, heat = 0, sndT = 0;
+  function battleSounds(A, hero, myPid) {
+    const AU = SGK.AUDIO; if (!AU.at) return;
+    const nowT = performance.now() / 1000, dt = Math.min(0.2, nowT - (sndT || nowT)); sndT = nowT;
+    if (sndA !== A) { sndA = A; sndDc = A.dc || 0; heat = 0; for (const s of A.s) { s._sa = s.at; s._sf = s.fl; s._sw = !!s.sw; } return; }
+    const lx = hero ? hero.x : cam.x, ly = hero ? hero.y : cam.y, X = R.act3dOn && R.act3d && R.act3d.S;
+    const pos = (x, y) => {
+      const dd = Math.hypot(x - lx, y - ly), v = 1 / (1 + (dd / 14) ** 2);
+      let pan = 0;
+      if (X) { const p = X(x, y); pan = p[0] < -9000 ? 0 : (p[0] - W / 2) / (W / 2); } else pan = (x - cam.x) * cam.z / (W / 2 || 1);
+      return [v, Math.max(-1, Math.min(1, pan)) * 0.8, dd];
+    };
+    let act = 0;
+    for (const s of A.s) {
+      if (s.at !== s._sa && s.at) { // 攻撃した
+        s._sa = s.at;
+        if (s.pc !== myPid) {
+          const [v, pan, dd] = pos(s.x, s.y), T = s.hero ? null : TR[s.type];
+          if (T && T.ranged) AU.at(s.type === 'teppo' || s.type === 'teppogashira' ? 'gun' : 'bow', s.type === 'yumi' ? v : Math.max(v, 0.25 / (1 + dd / 60)), pan);
+          else AU.at('swing', v, pan);
+          if (dd < 40) act++;
+        }
+      }
+      const sw = !!s.sw; if (sw && !s._sw && s.pc !== myPid) { const [v, pan] = pos(s.x, s.y); AU.at('swing', v * 1.3, pan); } s._sw = sw; // ほかの人の本人の太刀
+      if (s.fl && !s._sf) { // 当たった
+        if (s.pc === myPid) AU.at(s.blk ? 'block' : 'hurt', 1, 0);
+        else { const [v, pan] = pos(s.x, s.y); AU.at(Math.random() < 0.55 ? 'clash' : 'thud', v, pan); }
+      }
+      s._sf = s.fl;
+    }
+    const nd = (A.dc || 0) - sndDc; sndDc = A.dc || 0;
+    if (nd > 0) for (const p of A.dead.slice(-Math.min(nd, 4))) { const [v, pan] = pos(p.x, p.y); AU.at('fall', v, pan); }
+    heat += (act * 0.06 - heat * 0.8) * Math.min(1, dt * 2 + 0.02);
+    AU.din(Math.min(1, heat + (A.s.length > 0 ? 0.08 : 0)));
+  }
+
   // ---- 描画 ----
   const cam = R.acam = { x: 350, y: 230, z: 9 };
   let W = 0, H = 0;
@@ -345,6 +381,7 @@
   R.drawAction = function (ctx, b, myPid, sel, dt, ter) {
     const A = b.act, cv = ctx.canvas, d = window.devicePixelRatio || 1; W = cv.width / d; H = cv.height / d;
     const hero = A.s.find((s) => s.pc === myPid);
+    battleSounds(A, hero, myPid);
     if (hero) { const k = Math.min(1, dt * 6); cam.x += (hero.x - cam.x) * k; cam.y += (hero.y - cam.y) * k; cam.hx = hero.x; cam.hy = hero.y; }
     // 0.63.0 3D表示（three.js）。使えないときはこれまでの2D
     R.act3dOn = !!(R.act3d && R.act3d.draw(b, myPid, sel, dt, ter || b.ter, cam, W, H));
