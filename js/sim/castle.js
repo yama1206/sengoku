@@ -133,6 +133,21 @@
   });
 
   // ---- コマンド ----
+  // 1.6.28 守備兵の入れ替え：garIn＝自分の兵を城に残す／garOut＝城の兵を連れて行く（kind・qty）
+  const garCmd = (dir) => (w, p, c) => {
+    const s = p.at && p.tx == null && !p.battle ? SIM.settlement(w, p.at) : null;
+    if (!s || s.holder !== p.id || s.site) return SIM.say(p.id, '任されている城の中でないとできません');
+    if (SIM.besieged && SIM.besieged(w, s.id)) return SIM.say(p.id, '攻城戦の準備をされているあいだは入れ替えられません');
+    const k = c.kind, T = SIM.TROOPS[k]; if (!T || k === 'hero') return;
+    s.gar = s.gar || {}; p.troops = p.troops || {};
+    const from = dir ? p.troops : s.gar, to = dir ? s.gar : p.troops;
+    const room = dir ? SIM.garMax(w, s) - SIM.garrison(s) : SIM.troopCap(p) - SIM.troopCount(p.troops);
+    const n = Math.min(from[k] || 0, Math.max(1, +c.qty || 1), room);
+    if (n <= 0) return SIM.say(p.id, dir ? (from[k] ? '城の守備兵がいっぱいです' : 'その兵を連れていません') : (from[k] ? '率いる人数に空きがありません' : '城にその兵はいません'));
+    from[k] -= n; if (!from[k]) delete from[k]; to[k] = (to[k] || 0) + n;
+    SIM.say(p.id, dir ? `${T.name}${n}人を${s.name}の守りに残しました` : `${s.name}の${T.name}${n}人を連れて行きます`);
+  };
+  SIM.commands.garIn = garCmd(1); SIM.commands.garOut = garCmd(0);
   SIM.commands.develop = (w, p, c) => {
     const D = DEV[c.kind]; if (!D) return;
     const s = p.at && p.tx == null && !p.battle ? SIM.settlement(w, p.at) : null;
@@ -177,7 +192,7 @@
     const r = basePriv(w, pid); if (!r) return r;
     const p = w.players[pid];
     r.me.castles = heldAll(w, pid).filter((s) => !s.site).map((s) => ({ id: s.id, name: s.name, tax: SIM.tax(p, s),
-      dev: Object.keys(DEV).map((k) => [k, Math.round(s.dev[k] * 100) / 100, SIM.devCost(p, s, k), Math.round(SIM.devGain(p, s, k) * 100)]) }));
+      dev: Object.keys(DEV).map((k) => [k, Math.round(s.dev[k] * 100) / 100, SIM.devCost(p, s, k), Math.round(SIM.devGain(p, s, k) * 100)]), gar: Object.assign({}, s.gar || {}), garMax: SIM.garMax ? SIM.garMax(w, s) : 0 }));
     r.me.castle = r.me.castles[0] || null;
     r.me.build = { canRank: !!p.clan && p.rank >= BUILD.minRank, cost: BUILD.cost, minKm: BUILD.minKm, hours: BUILD.hours, gain: Math.round(SIM.siteGain(p) * 100),
       site: (w.settlements.find((s) => s.site && s.site.by === pid) || {}).name || null };

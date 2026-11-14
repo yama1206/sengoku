@@ -57,6 +57,7 @@
     t.kiba = Math.max(0, n - t.yari - t.yumi - t.teppo); return t;
   }
   SIM.garrison = (s) => SIM.troopCount(s.gar);
+  SIM.garMax = garMax;
 
   // ---- 足りない項目を補う ----
   const baseEnsure = SIM.ensure;
@@ -249,7 +250,7 @@
     for (const s of w.settlements) if (s.type === 'castle' && !s.site) {
       if (SIM.besieged && SIM.besieged(w, s.id)) continue; // 攻城戦の準備をされている城は補充できない
       const mx = garMax(w, s), n = SIM.garrison(s);
-      if (n < mx) s.gar = garOf(Math.min(mx, n + Math.max(2, Math.round(mx * 0.15))));
+      if (n < mx) { const ad = garOf(Math.min(mx - n, Math.max(2, Math.round(mx * 0.15)))); s.gar = s.gar || {}; for (const k in ad) if (ad[k] > 0) s.gar[k] = (s.gar[k] || 0) + ad[k]; } /* 1.6.28 今いる兵の内訳はそのまま、足りない分を足す */
     }
     for (const s of w.settlements) {
       const pr = s.type === 'castle' && s.lord && w.people[s.lord], f = w.factions[s.owner];

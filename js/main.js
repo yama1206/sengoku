@@ -762,6 +762,14 @@
             + `</div><div class="bar"><i style="width:${pct}%"></i></div><div class="muted">1回で+${gp}%（${SIM.SKILLS[D.skill].name}の技能・${SIM.ATTRS[D.attr]}が高いほど進む）</div></div>`;
         }
         if (me.busy) html += `<div class="muted">${me.busy.label}の最中です（「仕事」で取りやめられます）</div>`;
+        { /* 1.6.28 守備兵の管理（連れている兵と入れ替え） */
+          const TR = SIM.TROOPS, gn = Object.values(C.gar || {}).reduce((a, x) => a + x, 0), qb = (act, k, have) => [1, 10, have].filter((q, i, a) => q > 0 && q <= have && a.indexOf(q) === i).map((q) => `<button id="g${act}-${k}-${q}" data-act="${act}" data-kind="${k}" data-qty="${q}" style="flex:0 0 auto">${q === have && q > 10 ? '全員' : q + '人'}</button>`).join('');
+          html += `<div class="muted" style="margin-top:10px"><b>守備兵</b>　${gn}/${C.garMax}人（月の初めに足りない分が補充されます）</div>`;
+          const ks = [...new Set([...Object.keys(C.gar || {}), ...Object.keys(me.troops || {})])].filter((k) => TR[k] && k !== 'hero');
+          if (!ks.length) html += '<div class="muted">城にも手元にも兵がいません</div>';
+          for (const k of ks) { const a = (C.gar || {})[k] || 0, b2 = (me.troops || {})[k] || 0;
+            html += `<div class="card" style="display:block"><b>${TR[k].name}</b>　城${a}人／手元${b2}人<div class="row" style="gap:4px;margin-top:4px;flex-wrap:wrap">${a ? '<span class="muted">連れて行く</span>' + qb('garOut', k, a) : ''}${b2 ? '<span class="muted" style="margin-left:6px">城に残す</span>' + qb('garIn', k, b2) : ''}</div></div>`; }
+        }
         html += fushinHtml(me);
       } else if (me.fushin && me.fushin.id === h.id) { html += fushinHtml(me);
       } else {
