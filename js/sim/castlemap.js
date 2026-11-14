@@ -28,7 +28,7 @@
       b.ter.push({ k: 'm', x: cx, y: cy, r: kr + 22, ri: kr + 4 }); // 堀
     }
     b.ter.push({ k: 'k', x: cx, y: cy, r: kr }); // 曲輪
-    b.cside = cside; b.ck = ck; b.kf = SIM.kaiF ? SIM.kaiF(s) : 1; // 0.40.0 改築の段階で守りの強さが変わる b.cx = cx; b.cy = cy;
+    b.cside = cside; b.ck = ck; b.kf = SIM.kaiF ? SIM.kaiF(s) : 1; b.cx = cx; b.cy = cy; // 0.40.0 改築の段階で守りの強さが変わる
     // 守り手を曲輪の中に並べる（城兵は動かず守る。弓・鉄砲は塀の上から少し遠くまで届く）
     const defs = b.units.filter((u) => u.side === cside && (cside === 'B' || u.gar));
     const front = cside === 'B' ? -1 : 1;

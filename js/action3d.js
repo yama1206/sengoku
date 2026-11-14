@@ -239,6 +239,33 @@
     }
     grassM = grass; grass.userData.full = gi; X.applyVid(); rocks.count = ri; rocks.castShadow = true; rocks.receiveShadow = true; grass.receiveShadow = false;
     scene.add(grass, rocks); trees.push(grass, rocks);
+    // 1.6.11 攻城戦：曲輪のまわりに石垣と白壁の塀（ところどころ切れ目＝門）、奥に天守
+    for (const t of ter) if (t.k === 'k') {
+      const segN = Math.round(t.r * 2 * Math.PI / 4), seg = (t.r * 2 * Math.PI) / segN;
+      const stone = new T.InstancedMesh(new T.BoxGeometry(seg * 0.98, 1.2, 1.4), new T.MeshLambertMaterial({ color: 0x7d786c }), segN);
+      const wallM = new T.InstancedMesh(new T.BoxGeometry(seg * 0.98, 1.1, 0.5), new T.MeshLambertMaterial({ color: 0xece6d6 }), segN);
+      const roofM = new T.InstancedMesh(new T.BoxGeometry(seg * 0.98, 0.18, 0.95), new T.MeshLambertMaterial({ color: 0x3a3f46 }), segN);
+      const o3 = new T.Object3D(); let k = 0;
+      for (let i = 0; i < segN; i++) {
+        if (i % 6 === 3) continue; // 門（通り道）
+        const a = (i + 0.5) / segN * Math.PI * 2, x = t.x + Math.cos(a) * t.r, y = t.y + Math.sin(a) * t.r, g = hgt(x, y);
+        o3.rotation.set(0, -a + Math.PI / 2, 0);
+        o3.position.set(x, g + 0.5, y); o3.updateMatrix(); stone.setMatrixAt(k, o3.matrix);
+        o3.position.set(x, g + 1.65, y); o3.updateMatrix(); wallM.setMatrixAt(k, o3.matrix);
+        o3.position.set(x, g + 2.28, y); o3.updateMatrix(); roofM.setMatrixAt(k, o3.matrix); k++;
+      }
+      for (const m of [stone, wallM, roofM]) { m.count = k; m.castShadow = true; m.receiveShadow = true; scene.add(m); trees.push(m); }
+      const back = t.x > F.w / 2 ? 1 : -1, tx = t.x + back * t.r * 0.62, ty = t.y, g0 = hgt(tx, ty);
+      const lv = [[14, 4, 0xece6d6], [11, 3.5, 0xece6d6], [8, 3.2, 0xece6d6]]; let yy = g0;
+      const base = new T.Mesh(new T.BoxGeometry(17, 3, 17), new T.MeshLambertMaterial({ color: 0x7d786c })); base.position.set(tx, yy + 1.5, ty); yy += 3;
+      base.castShadow = base.receiveShadow = true; scene.add(base); trees.push(base);
+      for (const [w2, h2, col] of lv) {
+        const body = new T.Mesh(new T.BoxGeometry(w2, h2, w2), new T.MeshLambertMaterial({ color: col })); body.position.set(tx, yy + h2 / 2, ty);
+        const roof = new T.Mesh(new T.ConeGeometry(w2 * 0.86, 1.8, 4).rotateY(Math.PI / 4), new T.MeshLambertMaterial({ color: 0x3a3f46 })); roof.position.set(tx, yy + h2 + 0.6, ty);
+        for (const m of [body, roof]) { m.castShadow = m.receiveShadow = true; scene.add(m); trees.push(m); }
+        yy += h2 + 0.6;
+      }
+    }
     last.clear();
     for (const id of [...rigs.keys()]) dropRig(id);
   }

@@ -26,14 +26,14 @@
   const rr = () => Math.random();
   const live = (s) => s.hp > 0 && !s.gone;
 
-  SIM.actCan = (w, b) => b && !b.cside && !b.act;
+  SIM.actCan = (w, b) => b && !b.act; // 1.6.11 攻城戦でも自分で戦える
   SIM.actStart = (w, b, pid) => {
     const F = SIM.FIELD, cx = F.w / 2;
     const us = b.units.filter((u) => u.hp > 0 && !u.gone);
     const total = us.reduce((a, u) => a + (u.type === 'hero' ? 0 : u.n), 0);
     const A = b.act = { pid, pids: (b.pids || [pid]).slice(), inp: {}, dq: {}, dc: 0, k: Math.max(1, Math.ceil(total / ACT.MAXMEN)), s: [], pr: [], fx: [], dead: [], next: 1 };
     for (const u of us) {
-      u.x = cx + (u.x - cx) * ACT.SQUEEZE;
+      if (!b.cside) u.x = cx + (u.x - cx) * ACT.SQUEEZE; // 攻城戦は城の位置に合わせるので縮めない
       if (u.type === 'hero') {
         if (u.att != null) { const g = b.units.find((x) => x.id === u.att); if (g) g.lead = 0; u.att = null; }
         A.s.push({ id: A.next++, g: u.id, side: u.side, x: u.x - (u.side === 'A' ? 6 : -6), y: u.y, f: u.f, hp: u.hp * ACT.HERO_HP, mh: u.mh * ACT.HERO_HP, hero: 1, pc: u.owner && A.pids.includes(u.owner) ? u.owner : 0, cd: 0, dash: 0, dcd: 0 }); // pc = 操る人のid
@@ -113,6 +113,7 @@
     if (u && u.order === 'rout') d *= 1.3;
     if (u && !t.hero) d *= fmod(u, rng ? 'rd' : 'md'); // 0.79.0 隊形の守り
     if (from && from.x != null) { d *= hMul(b, rng && from.p0 ? from.p0 : from, t, rng); if (!rng) d *= mom(from, t); } // 0.80.0 高さ・勢い
+    if (b.cside && t.side === b.cside && SIM.terAt(b, t).k) d *= 1 - ({ yama: 0.5, mizu: 0.44 }[b.ck] || 0.38) * (b.kf == null ? 1 : b.kf); /* 1.6.11 曲輪の中の守り手は討たれにくい */
     if (t.hero && u && u.da) d /= 1 + u.da * 0.15; // 0.73.8 本人の防具の守り（守り3で約3割減）
     if (from) { const dir = angDiff(t.f || 0, ang(t, from)); if (dir > Math.PI * 2 / 3) d *= 1.5; else if (dir > Math.PI / 3) d *= 1.2; if (u && !t.hero && dir > Math.PI / 3) u.mor -= 0.4; }
     if (from && from.pc && from.wk && from.side !== t.side) (A.xq = A.xq || []).push([from.pc, from.wk, Math.min(d, t.hp) / (t.mh || 1), t, d >= t.hp]); // 0.76.0 本人の技能の経験
