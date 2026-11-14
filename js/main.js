@@ -1352,7 +1352,7 @@
     else if (k === 'f' || k === 'F') $('mFollow').click();
     else if (k === 'i' || k === 'I') openSub('inv'); // 1.3.0 I：持っている物資
     else if (k === 'Tab') { e.preventDefault(); cycleNear(); }
-    else if (k === 'e' || k === 'E') openTown(true);
+    else if (k === 'e' || k === 'E') { if (!$('joinBtn').classList.contains('hidden')) $('joinBtn').click(); else openTown(true); }
     else if (k === 'p' || k === 'P') openChar(true);
     else if (k === 'Enter' && G.selected) $('infoGo').click();
     else if (k === '+' || k === '=' || k === ';') anyZoom(1.2); else if (k === '-') anyZoom(1 / 1.2);
@@ -1510,6 +1510,7 @@
           else if (hit) { if (G.selKind !== 'u' && G.selected === hit.id) $('infoGo').click(); else selectSettlement(hit); }
           else { const [wx, wy] = R.toWorld(sx, sy); if (G.selected) selectSettlement(null); moveTo(wx, wy); }
         } else if (G.selected) $('infoGo').click();
+        else if (!$('joinBtn').classList.contains('hidden')) $('joinBtn').click(); // 1.6.14 近くに合戦があればAで加わる
         else openTown(true);
       }
       if (down(1)) { if (G.selected) selectSettlement(null); else if (G.pcurOn || !R.cam.follow) { G.pcurOn = false; R.cam.follow = true; } else command({ type: 'stop' }); }
@@ -1617,7 +1618,7 @@
       { const mt = P && P.me && P.me.meet; if (mt && mt !== G.lastMeet && !BT) { const u = findUnit(mt); if (u) { selectUnit(u); toast('追いつきました。話しかけるか、攻めかかるかを選んでください（閉じると相手は動き出します）', 3500); } } G.lastMeet = mt || null; } // 0.73.4
       if (G.selKind === 'u' && !BT) refreshUnitInfo();
       $('townBtn').classList.toggle('hidden', !(P && P.here) || !!BT);
-      $('joinBtn').classList.toggle('hidden', !(P && P.nearBattle) || !!BT); if (P && P.nearBattle) $('joinBtn').textContent = `合戦に加わる（${P.nearBattle.foe}）`;
+      $('joinBtn').classList.toggle('hidden', !(P && P.nearBattle) || !!BT); if (P && P.nearBattle) $('joinBtn').textContent = `合戦に加わる（${P.nearBattle.foe}）${G.padUsed ? ' Ⓐ' : ' [E]'}`;
       // 拠点に着いたら自動で拠点画面を開く
       const hereId = P && P.here && !BT ? P.here.id : null;
       if (hereId && hereId !== G.lastHere && $('char').classList.contains('hidden') && $('gameMenu').classList.contains('hidden')) { SGK.AUDIO.sfx('arrive'); openTown(true); }
