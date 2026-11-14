@@ -97,6 +97,15 @@
       [new T.ConeGeometry(0.06, 0.38, 6).rotateZ(-Math.PI / 2).translate(L - 0.9 + 0.19, 0, 0), 0xd8dde2],
     ]);
     mk('spearS', spear(2.6), vc, CAP.body); mk('spearL', spear(4.4), vc, CAP.body);
+    mk('waki', merge([ // 0.81.0 脇差
+      [new T.BoxGeometry(0.18, 0.045, 0.045).translate(0.02, 0, 0), 0x2a1c14],
+      [new T.CylinderGeometry(0.06, 0.06, 0.02, 10).rotateZ(Math.PI / 2).translate(0.12, 0, 0), 0x3a3020],
+      [new T.BoxGeometry(0.55, 0.06, 0.022).translate(0.4, 0, 0), 0xdfe4e8],
+    ]), vc, CAP.body);
+    mk('shuri', merge([ // 0.81.0 手裏剣
+      [new T.BoxGeometry(0.22, 0.01, 0.05).translate(0.06, 0, 0), 0x50555a],
+      [new T.BoxGeometry(0.05, 0.01, 0.22).translate(0.06, 0, 0), 0x50555a],
+    ]), vc, CAP.body);
     mk('sword', merge([
       [new T.BoxGeometry(0.26, 0.05, 0.05).translate(0.02, 0, 0), 0x2a1c14],
       [new T.CylinderGeometry(0.08, 0.08, 0.02, 10).rotateZ(Math.PI / 2).translate(0.16, 0, 0), 0x3a3020],
@@ -243,6 +252,7 @@
   // 0.66.0 構え・攻撃の姿勢。aR/aL＝右腕/左腕を前へ上げる角度（0で下ろす）、tilt＝武器の傾き、lean＝前かがみ、tw＝上半身のひねり
   const ease = (x) => x * x * (3 - 2 * x), lerp = (a, b, k) => a + (b - a) * k;
   function pose(s, wk, stp, now) {
+    if (wk === 'waki' || wk === 'shuri') wk = 'sword'; // 0.81.0 脇差・手裏剣は刀と同じ構え
     const P = { aR: 0.35, aL: 0.25, tilt: 0.3, lean: 0, tw: 0, fl: false };
     const sw = stp * 0.45; // 歩くときの腕の振り
     const at = s.at ? (now - s.at) / (wk === 'gun' || wk === 'bow' ? 0.5 : 0.4) : 9;
@@ -271,7 +281,7 @@
     return P;
   }
   function weaponOf(s) {
-    if (s.hero) { const n = s.wep && s.wep.name; return n === '槍' ? 'spearL' : n === '弓' ? 'bow' : n === '鉄砲' ? 'gun' : 'sword'; }
+    if (s.hero) { const n = s.wep && s.wep.name; return n === '槍' ? 'spearL' : n === '弓' ? 'bow' : n === '鉄砲' ? 'gun' : n === '脇差' ? 'waki' : n === '手裏剣' ? 'shuri' : 'sword'; }
     const t = s.type; if (!t || s.kat) return 'sword'; // 0.73.8 近づかれた弓・鉄砲は刀
     if (t === 'yumi') return 'bow'; if (t === 'teppo' || t === 'teppogashira') return 'gun';
     if (t === 'nagayari' || t === 'yarigashira') return 'spearL'; if (t === 'bandit') return 'sword';

@@ -17,6 +17,10 @@
       teppo1: { name: '火縄銃', kind: 'teppo', cost: 3000, atk: 0.5, wt: 4 },
       teppo2: { name: '堺筒', kind: 'teppo', cost: 7000, atk: 1.5, wt: 5 },
       teppo3: { name: '国友の名銃', kind: 'teppo', cost: 16000, atk: 2.5, castle: true, wt: 5 },
+      waki1: { name: '脇差', kind: 'waki', cost: 600, atk: 0.3, wt: 0.8 }, // 0.81.0
+      waki2: { name: '名脇差', kind: 'waki', cost: 9000, atk: 1.5, castle: true, wt: 0.8 },
+      shuri1: { name: '棒手裏剣', kind: 'shuri', cost: 800, atk: 0, wt: 0.5 },
+      shuri2: { name: '十字手裏剣', kind: 'shuri', cost: 3000, atk: 0.8, wt: 0.6 },
     },
     arm: {
       arm1: { name: '胴丸', cost: 1500, da: 1, wt: 10 }, // 0.73.8 防具は守りだけ（体力の上乗せは無し）
@@ -29,10 +33,10 @@
       horse3: { name: '名馬', cost: 18000, km: 10, castle: true, cw: 110 },
     },
     slotName: { wep: '武器', wep2: '副武器', arm: '防具', horse: '馬' },
-    kindName: { yari: '槍', tachi: '太刀', yumi: '弓', teppo: '鉄砲' },
+    kindName: { yari: '槍', tachi: '太刀', yumi: '弓', teppo: '鉄砲', waki: '脇差', shuri: '手裏剣' },
     // 武器ごとに入る隊（左ほど優先。そのうち人数の多い隊に入る）
-    group: { yari: ['yarigashira', 'nagayari', 'yari', 'nohei'], tachi: ['horo', 'kiba'], yumi: ['yumi'], teppo: ['teppogashira', 'teppo'] },
-    groupName: { yari: '槍の隊', tachi: '騎馬の隊', yumi: '弓の隊', teppo: '鉄砲の隊' },
+    group: { yari: ['yarigashira', 'nagayari', 'yari', 'nohei'], tachi: ['horo', 'kiba'], yumi: ['yumi'], teppo: ['teppogashira', 'teppo'], waki: ['horo', 'kiba'], shuri: ['yumi'] },
+    groupName: { yari: '槍の隊', tachi: '騎馬の隊', yumi: '弓の隊', teppo: '鉄砲の隊', waki: '騎馬の隊', shuri: '弓の隊' },
     lead: { am: 1.1, mo: 5 }, // 本人のいる隊：攻撃+10%・士気+5（兵種の相性は覆らない程度）
     sell: 0.5,                // 武具を売ると半値
     // 0.74.0 荷の重さ：目安(kg)＝本人＋兵1人ごと＋馬。目安を超えると遅くなる（2倍で約0.57倍、下限0.25倍）

@@ -14,6 +14,8 @@
       yari: { name: '槍', reach: 3.2, arc: 0.3, cd: 0.8, sw: 0.24, dmg: 2.7 }, // 0.73.10 届く長さ 2.7→3.2、振りは遅い
       yumi: { name: '弓', shot: 45, cd: 1, dmg: 3, spd: 45 },
       teppo: { name: '鉄砲', shot: 60, cd: 3, dmg: 9, spd: 140 },
+      waki: { name: '脇差', reach: 1.7, arc: 0.55, cd: 0.32, sw: 0.11, dmg: 1.7, sk: 'tachi' }, // 0.81.0 短くて速い（刀の技能で伸びる）
+      shuri: { name: '手裏剣', shot: 22, cd: 0.4, dmg: 1.7, spd: 38, sk: 'yumi' }, // 0.81.0 近い間合いで速く投げる。まっすぐ飛ぶ（弓の技能で伸びる）
     },
     ENGAGE: 12,      // 待機中の兵が自分から向かっていく距離
     SOLDIER_R: 0.5,
@@ -212,8 +214,8 @@
       if (A.wq[hero.pc]) { A.wq[hero.pc] = false; if (k2) { hero.wi = hero.wi ? 0 : 1; hero.cd = Math.max(hero.cd, 0.5); } else SIM.say(hero.pc, '副武器を持っていません（町の武具屋で「副武器に買う」）'); }
       if (A.jq[hero.pc]) { A.jq[hero.pc] = false; if (!(hero.jp > 0)) hero.jp = 0.55; } // 0.64.0 ジャンプ（見た目だけ）
       hero.jp = Math.max(0, (hero.jp || 0) - dt);
-      const kk = ACT.WEP[hero.wi && k2 ? k2 : k1] ? (hero.wi && k2 ? k2 : k1) : 'tachi', W0 = ACT.WEP[kk], wf = (key) => (pl && SIM.wsFx ? SIM.wsFx(pl, kk + key) : 0); // 0.76.0 技能の特技
-      const W = Object.assign({}, W0, { cd: W0.cd * (1 + wf('Cd')), dmg: W0.dmg * (1 + wf('Atk')) }, W0.reach ? { reach: W0.reach + wf('Reach') } : { shot: W0.shot * (1 + wf('Range')) }); hero.wk = kk;
+      const kk = ACT.WEP[hero.wi && k2 ? k2 : k1] ? (hero.wi && k2 ? k2 : k1) : 'tachi', W0 = ACT.WEP[kk], skk = W0.sk || kk, wf = (key) => (pl && SIM.wsFx ? SIM.wsFx(pl, skk + key) : 0); // 0.76.0 技能の特技
+      const W = Object.assign({}, W0, { cd: W0.cd * (1 + wf('Cd')), dmg: W0.dmg * (1 + wf('Atk')) }, W0.reach ? { reach: W0.reach + wf('Reach') } : { shot: W0.shot * (1 + wf('Range')) }); hero.wk = skk;
       hero.wep = W; if (hero.pc === A.pid) A.wep = W;
       hero.cd -= dt; hero.dcd -= dt; hero.dash -= dt; hero.blk = !!inp.blk && hero.dash <= 0;
       let mx = inp.mx || 0, my = inp.my || 0; const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }
