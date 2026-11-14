@@ -12,11 +12,11 @@
     yari: { name: '足軽（槍）', short: '槍', tier: 2, hp: 10, atk: 2, def: 1, spd: 4, range: 2.5, cost: 300, wage: 10, up: ['nagayari', 'kiba'] },
     yumi: { name: '弓足軽', short: '弓', tier: 2, hp: 8, atk: 1.5, def: 0, spd: 4, range: 35, ranged: true, cost: 500, wage: 15, up: ['teppo'] },
     nagayari: { name: '長槍足軽', short: '長槍', tier: 3, hp: 12, atk: 2.6, def: 1.5, spd: 4, range: 3.5, cost: 700, wage: 18, up: ['yarigashira'] },
-    kiba: { name: '騎馬武者', short: '騎', tier: 3, hp: 18, atk: 4, def: 2, spd: 9, range: 2.5, cav: true, cost: 750, wage: 40, fame: 5, up: ['horo'] },
+    kiba: { name: '騎馬武者', short: '騎', tier: 3, hp: 18, atk: 4, def: 2, spd: 12, range: 4, cav: true, cost: 750, wage: 40, fame: 5, up: ['horo'] },
     teppo: { name: '鉄砲足軽', short: '鉄砲', tier: 3, hp: 8, atk: 3, def: 0, spd: 3.5, range: 40, ranged: true, cost: 1000, wage: 25, up: ['teppogashira'] },
     yarigashira: { name: '槍組頭', short: '組頭', tier: 4, hp: 15, atk: 3.4, def: 2.2, spd: 4.2, range: 3.5, cost: 1200, wage: 30 },
     teppogashira: { name: '鉄砲頭', short: '鉄砲頭', tier: 4, hp: 10, atk: 4, def: 0.5, spd: 3.5, range: 45, ranged: true, cost: 1800, wage: 40 },
-    horo: { name: '母衣衆', short: '母衣', tier: 4, hp: 24, atk: 5, def: 3, spd: 10, range: 2.5, cav: true, cost: 3000, wage: 70, fame: 15 },
+    horo: { name: '母衣衆', short: '母衣', tier: 4, hp: 24, atk: 5, def: 3, spd: 13, range: 4, cav: true, cost: 3000, wage: 70, fame: 15 },
     bandit: { name: '野盗', hp: 10, atk: 2.0, def: 0, spd: 4.5, range: 2.5 },
     banditBow: { name: '野盗（弓）', hp: 7, atk: 1.4, def: 0, spd: 4.5, range: 30, ranged: true },
   };
@@ -192,6 +192,8 @@
     }
     return ter;
   }
+  SIM.CAV_FOREST = 0.33; // 0.73.6 林の中の騎馬は歩きの兵と同じくらいの速さ（以前は0.5）
+  SIM.terAt = (b, u) => terAt(b, u);
   function terAt(b, u) {
     const o = { f: false, h: false, k: false, m: false, s: false }; // 0.37.0 k：曲輪（城の中）・m：堀・s：急な斜面（ri があれば輪の形）
     for (const t of b.ter || []) { const d = Math.hypot(u.x - t.x, u.y - t.y); if (d < t.r && !(t.ri && d < t.ri)) o[t.k] = true; }
@@ -280,7 +282,7 @@
     const goTo = (u, x, y, spd) => { const d = Math.hypot(x - u.x, y - u.y); if (d < 0.3) return true; const s = Math.min(spd * dt, d); u.x += ((x - u.x) / d) * s; u.y += ((y - u.y) / d) * s; u.f = Math.atan2(y - u.y, x - u.x); return false; };
     for (const u of us) {
       const t = TR[u.type], tu = terAt(b, u);
-      const spd = t.spd * (t.cav && tu.f ? 0.5 : 1) * (tu.h ? 0.85 : 1) * (tu.m ? 0.4 : 1) * (tu.s ? (t.cav ? 0.3 : 0.5) : 1);
+      const spd = t.spd * (t.cav && tu.f ? SIM.CAV_FOREST : 1) * (tu.h ? 0.85 : 1) * (tu.m ? 0.4 : 1) * (tu.s ? (t.cav ? 0.3 : 0.5) : 1);
       if (u.order === 'retreat' || u.order === 'rout') {
         const ex = u.side === 'A' ? -4 : FIELD.w + 4; u.x += Math.sign(ex - u.x) * spd * (u.order === 'rout' ? 1.1 : 1) * dt; u.f = u.side === 'A' ? Math.PI : 0;
         if ((u.side === 'A' && u.x < FIELD.ax - 120) || (u.side === 'B' && u.x > FIELD.bx + 120) || u.x < 1 || u.x > FIELD.w - 1) u.gone = true; // 120m 退けば戦場を離れる

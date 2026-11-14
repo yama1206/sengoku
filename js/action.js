@@ -182,7 +182,7 @@
     for (const s of all) {
       if (s.fl) s.fl = Math.max(0, s.fl - dt);
       if (s.pc) continue;
-      const u = A.byG[s.g], T = s.hero ? TR.hero : TR[s.type], spd = T.spd * ACT.SPD;
+      const u = A.byG[s.g], T = s.hero ? TR.hero : TR[s.type], spd = T.spd * ACT.SPD * (T.cav && b.ter && b.ter.length && SIM.terAt(b, s).f ? SIM.CAV_FOREST : 1); // 0.73.6 林の中の騎馬は遅い
       s.cd -= dt;
       if (!u) continue;
       if (u.order === 'rout' || u.order === 'retreat') {
@@ -190,7 +190,7 @@
         if (s.x < 2 || s.x > F.w - 2) s.gone = true;
         continue;
       }
-      const o = u.eo || u.order, reach = T.ranged ? T.range + (u.ra || 0) : (T.range || 2.5) * 0.4 + 0.4; // 0.73.4 近接の間合いを狭く（以前は ×0.5+0.7）
+      const o = u.eo || u.order, reach = T.ranged ? T.range + (u.ra || 0) : (T.range || 2.5) * 0.4 + 0.4 + (T.cav ? 0.4 : 0); // 0.73.6 騎馬は馬上から長く届く // 0.73.4 近接の間合いを狭く（以前は ×0.5+0.7）
       let look = o === 'charge' || o === 'flank' ? 22 : o === 'follow' ? 8 : Math.max(ACT.ENGAGE, T.ranged ? reach : 0);
       if (u.kite) look = T.ranged ? reach : 3;
       const aiHero = s.hero && !s.pc && (u.side === 'B' || u.order === 'ai'); // 0.64.0 敵の大将は後ろから兵を励まし、近づかれたら戦う
