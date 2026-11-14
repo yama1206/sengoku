@@ -72,7 +72,7 @@
       n.riceDay = d;
       const h = SIM.settlement(w, n.home);
       if (n.mode === 'return' && h && Math.hypot(h.x - n.x, h.y - n.y) < 3) continue;
-      if (n.rice > 0) { n.rice--; continue; }
+      if (n.rice > 0) { if (!(SIM.riceSkip && SIM.riceSkip(w, n))) n.rice--; continue; }
       n.starve = (n.starve || 0) + 1;
       for (const k in n.army) { n.army[k] = Math.floor(n.army[k] * (1 - HS.starveLoss)); if (n.army[k] <= 0) delete n.army[k]; }
       n.size = SIM.troopCount(n.army);

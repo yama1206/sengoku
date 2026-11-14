@@ -132,7 +132,7 @@
       for (const n of Object.values(w.npcs)) if (n.home === v.id && n.faction === from) n.faction = to;
     }
   };
-  const landInc = (p, v) => Math.round((KN.landInc[v.type] * SIM.minatoMul(v) * (SIM.popF ? SIM.popF(v) : 1) * (SIM.prodMul ? SIM.prodMul(v) : 1) * (1 + (((p.attrs && p.attrs.sei) || 3) - 3) * 0.03)) / 10) * 10;
+  const landInc = (p, v) => Math.round((KN.landInc[v.type] * SIM.minatoMul(v) * (SIM.popF ? SIM.popF(v) : 1) * (SIM.prodMul ? SIM.prodMul(v) : 1) * (1 + (((p.attrs && p.attrs.sei) || 3) - 3) * 0.03) * (SIM.incMul ? SIM.incMul(v) : 1)) / 10) * 10;
   SIM.landsIncome = (w, p, c) => SIM.landsOf(w, c).reduce((a, v) => a + landInc(p, v), 0);
   function landsMonth(w) {
     for (const c of w.settlements) {
@@ -182,8 +182,9 @@
       if (s.site) continue;
       // 0.70.0 物資が多いほど早く増え、上限も上がる（行商で物を運ぶと国が育つ）。足りないと減る
       const sf = SIM.supplyF ? SIM.supplyF(s) : 1;
-      const base = SIM.popBase(s), cap = base * (1 + (s.inv || 0) * KN.popCapInv) * (0.75 + KN.popSupCap * sf);
-      let g = KN.popGrow + (s.inv || 0) * KN.popGrowInv + KN.popSup * (sf - 0.7) - (warring.has(s.owner) ? KN.popWar : 0);
+      const pm = SIM.popMod ? SIM.popMod(w, s) : { g: 0, cap: 1 }; // 0.71.0 政策
+      const base = SIM.popBase(s), cap = base * (1 + (s.inv || 0) * KN.popCapInv) * (0.75 + KN.popSupCap * sf) * pm.cap;
+      let g = KN.popGrow + (s.inv || 0) * KN.popGrowInv + KN.popSup * (sf - 0.7) + pm.g - (warring.has(s.owner) ? KN.popWar : 0);
       if (s.pop > cap) g = Math.min(g, -0.02);
       if (SIM.besieged && SIM.besieged(w, s.id)) g = -KN.popSiege;
       s.pop = Math.max(Math.round(base * 0.3), Math.round(s.pop * (1 + g)));

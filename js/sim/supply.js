@@ -7,14 +7,14 @@
   const DESERT_AT = 35, DESERT_HARD = 15; // この士気を下回ると兵が抜ける（下はさらに多く）
 
   const ensure = (p) => { if (p.morale == null) p.morale = MOR_START; if (p.riceDebt == null) p.riceDebt = 0; };
-  SIM.riceNeed = (p) => SIM.troopCount(p.troops || {}) * RICE_PER_MAN;
+  SIM.riceNeed = (p) => SIM.troopCount(p.troops || {}) * RICE_PER_MAN * (SIM.riceRate ? SIM.riceRate(p) : 1);
 
   function daily(w) {
     for (const p of Object.values(w.players)) {
       ensure(p);
       const n = SIM.troopCount(p.troops || {});
       if (!n) { p.riceDebt = 0; p.morale = Math.min(MOR_FED, p.morale + MOR_UP); p.hungry = false; continue; }
-      p.riceDebt += n * RICE_PER_MAN;
+      p.riceDebt += n * RICE_PER_MAN * (SIM.riceRate ? SIM.riceRate(p) : 1);
       const eat = Math.min(Math.floor(p.riceDebt), (p.inv && p.inv.rice) || 0);
       if (eat) { p.inv.rice -= eat; p.riceDebt -= eat; if (!p.inv.rice) { delete p.inv.rice; if (p.cost) delete p.cost.rice; } }
       p.hungry = p.riceDebt >= 1; // 食べる分が足りなかった

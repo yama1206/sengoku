@@ -824,6 +824,21 @@
         for (const x of opts) html += `<div class="card perk ${have === x ? 'have' : ''}"><div><b>${x.name}</b><br><span class="muted">${x.desc}</span></div>`
           + (have === x ? '<span>習得</span>' : `<button id="pk-${x.id}" data-cact="pickPerk" data-id="${x.id}" ${reach && !have ? '' : 'disabled'}>選ぶ</button>`) + '</div>';
       }
+    } else if (charTab === 'pol') { // 0.71.0 家の政策・上納
+      const Q = me.pol;
+      if (!Q) html += '<div class="muted">家に仕えると、その家の政策と上納の割合が見られます。独立して大名になると政策を決められます</div>';
+      else {
+        html += `<div class="card" style="display:block"><b>${Q.house}</b>　<span class="muted">上納 ${Q.jono}%（城主の年貢・領内の上がりから家へ納める）　政策の枠 ${Q.on.length}/${Q.slots}${Q.kura != null ? `　所持金 ${SIM.money(Q.kura)}` : ''}</span></div>`;
+        if (Q.lead) html += `<div class="card"><div>上納の割合 <b>${Q.jono}%</b><br><span class="muted">10〜40%。2割より高いと城主の忠誠が下がり、低いと上がります</span></div><button id="jn-m" data-cact="setJono" data-qty="-1">－</button><button id="jn-p" data-cact="setJono" data-qty="1">＋</button></div>`;
+        if (Q.mine) { html += '<div class="muted" style="margin-top:8px">家の固有政策を1つ選んでください（あとから変えられません）</div>'; for (const [k, n, t] of Q.mine) html += `<div class="card"><div><b>${n}</b><br><span class="muted">${t}</span></div><button id="pm-${k}" data-cact="pickMine" data-id="${k}">これにする</button></div>`; }
+        html += '<div class="muted" style="margin-top:8px">行っている政策</div>';
+        if (!Q.on.length) html += '<div class="muted">なし</div>';
+        for (const [k, n, t, up] of Q.on) html += `<div class="card"><div><b>${n}</b>　<span class="muted">毎月${SIM.money(up)}<br>${t}</span></div>${Q.lead ? `<button id="po-${k}" data-cact="setPolicy" data-id="${k}">やめる</button>` : ''}</div>`;
+        if (Q.lead) {
+          html += '<div class="muted" style="margin-top:8px">始められる政策（費用を払って始め、毎月の維持費がかかります）</div>';
+          for (const [k, n, t, cost, up, cd] of Q.list) html += `<div class="card"><div><b>${n}</b>　<span class="muted">${SIM.money(cost)}・毎月${SIM.money(up)}<br>${t}${cd ? `<br>あと${cd}日で使えます` : ''}</span></div><button id="pl-${k}" data-cact="setPolicy" data-id="${k}" ${cd || Q.on.length >= Q.slots || Q.kura < cost ? 'disabled' : ''}>始める</button></div>`;
+        }
+      }
     } else if (charTab === 'mon') { // 0.36.0 家紋を選ぶ・作る
       const d = G.monDraft = G.monDraft || (me.mon ? Object.assign({}, me.mon) : monDefault());
       html += `<div class="muted" style="margin-bottom:6px">地図のあなたの印と、独立したときの家の紋になります。${me.mon ? '' : '（いまは家紋なし）'}</div>`;

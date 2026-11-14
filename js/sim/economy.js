@@ -59,7 +59,7 @@
   }
   SIM.ensurePlayer = (p) => { if (p.money == null) p.money = 3000; p.inv = p.inv || {}; p.quests = p.quests || []; if (p.fame == null) p.fame = 0; if (p.busy === undefined) p.busy = null; };
 
-  const pm = (s, k) => (s.prod[k] || 0) * (SIM.prodMul ? SIM.prodMul(s) : 1); // 0.41.0 投資で生産が増える
+  const pm = (s, k) => (s.prod[k] || 0) * (SIM.prodMul ? SIM.prodMul(s) : 1) * (SIM.prodItemMul ? SIM.prodItemMul(s, k) : 1); // 0.71.0 政策・豊作凶作 // 0.41.0 投資で生産が増える
   // 0.70.0 人が多い拠点ほどよく使う（人口の比の平方根で増える）
   const sz = (s) => s.size * Math.sqrt(SIM.popF ? SIM.popF(s) : 1);
   function target(s, k) { return (I()[k].cons * sz(s) + pm(s, k)) * 12 + 4; }
