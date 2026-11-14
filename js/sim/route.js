@@ -6,7 +6,7 @@
   const SPEED = { road: 1.8, plain: 1.0, mountain: 0.45, roads: [0, 1.8, 1.45, 1.2], pass: 0.7, ferry: 1.0 };
   const RANK_NAME = ['', '大街道', '街道', '脇道'];
   const CELL = 2;          // 道筋探しのマス目の大きさ（km）。全国の地図なので2kmマス
-  const ROAD_WIDTH = 1.3;  // 街道とみなす幅（中心からkm）。マスが途切れないよう少し広め
+  const ROAD_WIDTH = 1.42; // 街道とみなす幅（中心からkm）。道が通るマスはすべて道になるよう √2 より少し広め（1.1.0）
   SIM.ROUTE_SPEED = SPEED;
 
   let grid = null, buf = null; // 値 = 地形(0=海 1=平地 2=山) + 3×道の格(0=なし 1=大街道 2=街道 3=脇道)
@@ -19,6 +19,8 @@
     const T = SGK.DATA.terrain, B = SGK.DATA.bounds;
     const gw = Math.ceil(B.w / CELL), gh = Math.ceil(B.h / CELL);
     const g = new Uint8Array(gw * gh);
+    // 1.1.0 マスごとに一番近い道（道の番号と、道の上の位置＝区間番号+割合）を覚えておく。道の上をなめらかに進むため
+    const rd = new Int32Array(gw * gh).fill(-1), rpos = new Float32Array(gw * gh), rdist = new Float32Array(gw * gh).fill(1e9);
     // 多角形を行ごとに塗る（全国の地図でも速い）。f(今の値) → 新しい値
     function fill(pts, f) {
       for (let j = 0; j < gh; j++) {
@@ -38,17 +40,23 @@
     for (const s of T.seas) fill(s, () => 0);
     for (const m of T.mountains || []) fill(m.pts, (v) => (v ? 2 : 0));
     // 街道（海の上の部分は渡し船扱いで通れるようにする）
-    for (const r of T.roads || []) for (let k = 1; k < r.pts.length; k++) {
+    (T.roads || []).forEach((r, ri) => { for (let k = 1; k < r.pts.length; k++) {
       const [ax, ay] = r.pts[k - 1], [bx, by] = r.pts[k];
       const i0 = Math.max(0, Math.floor((Math.min(ax, bx) - ROAD_WIDTH) / CELL)), i1 = Math.min(gw - 1, Math.floor((Math.max(ax, bx) + ROAD_WIDTH) / CELL));
       const j0 = Math.max(0, Math.floor((Math.min(ay, by) - ROAD_WIDTH) / CELL)), j1 = Math.min(gh - 1, Math.floor((Math.max(ay, by) + ROAD_WIDTH) / CELL));
       for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++)
-        if (distSeg((i + 0.5) * CELL, (j + 0.5) * CELL, ax, ay, bx, by) <= ROAD_WIDTH) {
-          const k = j * gw + i, v = g[k], t = v % 3, r0 = (v - t) / 3, rk = r.rank || 2;
-          g[k] = t + 3 * (r0 ? Math.min(r0, rk) : rk); // 重なったら格の高い道
+        {
+          const px = (i + 0.5) * CELL, py = (j + 0.5) * CELL, d = distSeg(px, py, ax, ay, bx, by);
+          if (d > ROAD_WIDTH) continue;
+          const q = j * gw + i, v = g[q], t = v % 3, r0 = (v - t) / 3, rk = r.rank || 2;
+          g[q] = t + 3 * (r0 ? Math.min(r0, rk) : rk); // 重なったら格の高い道
+          if (d < rdist[q]) {
+            const dx = bx - ax, dy = by - ay, l = dx * dx + dy * dy;
+            rdist[q] = d; rd[q] = ri; rpos[q] = (k - 1) + (l ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l)) : 0);
+          }
         }
-    }
-    grid = { g, gw, gh };
+    } });
+    grid = { g, gw, gh, rd, rpos };
     return grid;
   }
   const G = () => grid || build();
@@ -107,12 +115,15 @@
       }
     }
     if (!found) return null;
-    // マスの列 → 同じ地形のあいだは見通せる所まで一直線にする（斜めのギザギザをなくす）
+    // マスの列 → 道のマスは本物の道筋（街道の線）にのせる。道でない所は見通せる所まで一直線（1.1.0）
     const cells = [];
     for (let k = t; k !== -1; k = F[k]) cells.push(k);
     cells.reverse();
+    const { rd, rpos } = grid, R = SGK.DATA.terrain.roads || [];
     const cx = (k) => ((k % gw) + 0.5) * CELL, cy = (k) => (Math.floor(k / gw) + 0.5) * CELL;
-    // a から b へまっすぐ進んでも、通るマスがすべて a と同じ地形か
+    const isRoad = (k) => g[k] >= 3 && rd[k] >= 0;
+    // 道 ri の位置 pos の座標
+    const at = (ri, pos) => { const P = R[ri].pts, n = Math.min(P.length - 2, Math.max(0, Math.floor(pos))), f = pos - n; return [P[n][0] + (P[n + 1][0] - P[n][0]) * f, P[n][1] + (P[n + 1][1] - P[n][1]) * f]; };
     function clear(ax, ay, b, kind) {
       const bx = cx(b), by = cy(b), n = Math.ceil(Math.hypot(bx - ax, by - ay) / (CELL * 0.25));
       for (let s2 = 1; s2 <= n; s2++) {
@@ -122,17 +133,40 @@
       return true;
     }
     const pts = [];
-    let ax = x0, ay = y0, ak = cells[0], i = 0;
-    while (i < cells.length - 1) {
-      let j = i + 1;
-      while (j + 1 < cells.length && clear(ax, ay, cells[j + 1], g[ak])) j++;
-      if (j === cells.length - 1) break;
-      pts.push([cx(cells[j]), cy(cells[j])]);
-      ax = cx(cells[j]); ay = cy(cells[j]); ak = cells[j]; i = j;
+    let ax = x0, ay = y0, i = 0;
+    while (i < cells.length) {
+      if (isRoad(cells[i])) {
+        // 同じ道が続くあいだをひとまとめにし、その道の線（曲がり角の点も含む）をたどる
+        const ri = rd[cells[i]], p0 = rpos[cells[i]];
+        let j = i; while (j + 1 < cells.length && isRoad(cells[j + 1]) && rd[cells[j + 1]] === ri) j++;
+        // 交差点で別の道のマスを1つだけかすめた時は、その寄り道をしない
+        if (i === j && i > 0 && j + 1 < cells.length && isRoad(cells[i - 1]) && isRoad(cells[j + 1]) && rd[cells[i - 1]] === rd[cells[j + 1]]) { i++; continue; }
+        const p1 = rpos[cells[j]];
+        pts.push(at(ri, p0));
+        if (p1 > p0) for (let v = Math.floor(p0) + 1; v < p1; v++) pts.push(R[ri].pts[v].slice());
+        else for (let v = Math.ceil(p0) - 1; v > p1; v--) pts.push(R[ri].pts[v].slice());
+        if (p1 !== p0) pts.push(at(ri, p1));
+        [ax, ay] = pts[pts.length - 1]; i = j + 1;
+      } else {
+        // 道でない所：同じ地形のあいだは見通せる所まで一直線
+        let j = i; while (j + 1 < cells.length && !isRoad(cells[j + 1])) j++;
+        let a = i, kind = g[cells[i]];
+        while (a < j) {
+          let b2 = a + 1;
+          while (b2 + 1 <= j && clear(ax, ay, cells[b2 + 1], kind)) b2++;
+          if (b2 === j) break;
+          pts.push([cx(cells[b2]), cy(cells[b2])]); ax = cx(cells[b2]); ay = cy(cells[b2]); kind = g[cells[b2]]; a = b2;
+        }
+        i = j + 1;
+      }
     }
-    // 最後の区間も、見通せるなら目的地へ直行
+    // 目的地の町などは道の脇にあることもあるので、最後は目的地へ
     pts.push([x1, y1]);
-    return pts;
+    // ほとんど同じ点が続いたら1つにする
+    const out = [];
+    for (const q of pts) { const l = out[out.length - 1]; if (!l || Math.hypot(q[0] - l[0], q[1] - l[1]) > 0.05) out.push(q); }
+    if (out.length > 1 && Math.hypot(out[out.length - 1][0] - x1, out[out.length - 1][1] - y1) > 0.05) out.push([x1, y1]);
+    return out;
   };
 
   // 道のりの長さ（km）と、かかる日数のめやす
