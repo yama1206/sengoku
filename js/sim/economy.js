@@ -87,7 +87,7 @@
       const k = pick(w, Object.keys(I()).filter((k) => !(s.prod[k] > 0))); const it = I()[k]; const qty = 1 + Math.floor(SIM.rand(w) * (it.wt >= 4 ? 3 : 4)); // 0.74.1 必要数を少なく（以前は4〜12、重い品は1〜3・軽い品は1〜4）
       job = { id, type: 'procure', from: s.id, item: k, qty, days: 10, reward: Math.round((it.base * qty * 1.4 + 100) / 10) * 10, title: `${it.name}${qty}${it.unit}の調達`, giver };
     }
-    job.expires = now + 5 * 1440;
+    job.reward *= 2; /* 1.6.8 依頼の報酬を2倍 */ job.expires = now + 5 * 1440;
     w.jobs[id] = job;
   }
 
