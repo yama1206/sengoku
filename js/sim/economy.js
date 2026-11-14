@@ -84,7 +84,7 @@
       const to = pick(w, tos); const d = dist(s, to);
       job = { id, type: 'deliver', from: s.id, to: to.id, days: Math.ceil(d / 20) + 2, reward: Math.round((60 + d * 12) / 10) * 10, title: `${to.name}へ届け物`, giver };
     } else {
-      const k = pick(w, Object.keys(I()).filter((k) => !(s.prod[k] > 0))); const it = I()[k]; const qty = 1 + Math.floor(SIM.rand(w) * (it.wt >= 10 ? 3 : 4)); // 0.74.1 必要数を少なく（以前は4〜12、重い品は1〜3・軽い品は1〜4）
+      const k = pick(w, Object.keys(I()).filter((k) => !(s.prod[k] > 0))); const it = I()[k]; const qty = 1 + Math.floor(SIM.rand(w) * (it.wt >= 4 ? 3 : 4)); // 0.74.1 必要数を少なく（以前は4〜12、重い品は1〜3・軽い品は1〜4）
       job = { id, type: 'procure', from: s.id, item: k, qty, days: 10, reward: Math.round((it.base * qty * 1.4 + 100) / 10) * 10, title: `${it.name}${qty}${it.unit}の調達`, giver };
     }
     job.expires = now + 5 * 1440;

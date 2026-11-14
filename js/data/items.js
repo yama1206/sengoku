@@ -1,14 +1,14 @@
 // 商品と各拠点の生産（1日あたり）。値段の単位は文（1000文 = 1貫）。数値はすべて仮
 (function () {
   SGK.DATA.items = {
-    // 0.74.0 wt＝1つの重さ(kg)。荷は重さで管理（遊びやすさ優先で、俵・樽は本物より軽め）
-    rice: { name: '米', unit: '俵', base: 12, cons: 2, wt: 15 },
-    salt: { name: '塩', unit: '俵', base: 400, cons: 1, wt: 12 },
-    cotton: { name: '木綿', unit: '反', base: 300, cons: 1, wt: 2 },
-    sake: { name: '酒', unit: '樽', base: 500, cons: 1, wt: 10 },
-    firewood: { name: '薪', unit: '束', base: 40, cons: 3, wt: 5 },
-    iron: { name: '鉄', unit: '貫', base: 800, cons: 0.5, wt: 4 },
-    tea: { name: '茶', unit: '斤', base: 350, cons: 0.5, wt: 2 },
+    // 1.6.0 wt＝1つの重さ(kg)。1つの量を「持ち運びやすい小分け」にそろえ、中身の重さ（密度）で決める。鉄は重く、木綿・茶は軽い
+    rice: { name: '米', unit: '俵', base: 12, cons: 2, wt: 6 },       // 小俵（米 約4升）
+    salt: { name: '塩', unit: '袋', base: 400, cons: 1, wt: 2 },      // 小袋（塩 約1升）
+    cotton: { name: '木綿', unit: '反', base: 300, cons: 1, wt: 0.7 }, // 1反は本物も約0.7kg
+    sake: { name: '酒', unit: '樽', base: 500, cons: 1, wt: 4 },      // 小樽（酒 約2升）
+    firewood: { name: '薪', unit: '束', base: 40, cons: 3, wt: 3 },
+    iron: { name: '鉄', unit: '貫', base: 800, cons: 0.5, wt: 3.75 },  // 1貫は本物も3.75kg
+    tea: { name: '茶', unit: '斤', base: 350, cons: 0.5, wt: 0.6 },   // 1斤は本物も約0.6kg
   };
   const prod = {
     inabayama: { rice: 3, iron: 1, tea: 1 }, ogaki: { rice: 4 }, inuyama: { firewood: 4, sake: 1 },
