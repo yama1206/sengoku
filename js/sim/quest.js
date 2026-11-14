@@ -25,7 +25,7 @@
   function spot(w, cx, cy, rmin, rmax) {
     for (let i = 0; i < 60; i++) {
       const a = rnd(w) * Math.PI * 2, r = rmin + rnd(w) * (rmax - rmin), x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
-      if (SIM.terrainAt(x, y) === '海' || SIM.isSea(x, y)) continue;
+      if (SIM.terrainAt(x, y) === '海' || SIM.isSea(x, y) || (i < 50 && SIM.terrainAt(x, y) === '山地')) continue; /* 1.6.9 なるべく山を避ける */
       if (w.settlements.some((s) => Math.hypot(s.x - x, s.y - y) < 2)) continue;
       return [x, y];
     }

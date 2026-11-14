@@ -28,7 +28,7 @@
     castle: { yari: [1, 10], yumi: [0.5, 6], kiba: [0.25, 3] },
   };
   const FIELD = { w: 700, h: 460, ax: 120, bx: 580 }; // 0.79.1 離れて始める（300m→460m） // 戦場（m）。ax/bx：味方・敵の初めの位置
-  const MAX_BANDITS = 200; // 地図の広さに合わせて（全国）
+  const MAX_BANDITS = 400; // 1.6.9 200→400 // 地図の広さに合わせて（全国）
 
   SIM.troopCount = (tr) => Object.values(tr || {}).reduce((a, b) => a + b, 0);
   // 0.73.4 武将の手勢を増やす：今までの人数の GEN_MUL 倍まで。増やした分は1人 GEN_COST 文を家の蔵から払う（蔵が足りなければその分だけ）
@@ -66,7 +66,7 @@
     }
     for (const p of Object.values(w.players)) if (p.battle && !w.battles[p.battle]) p.battle = null;
     for (const b of Object.values(w.battles)) { b.ter = b.ter || []; b.lk = b.lk || { A: null, B: null }; for (const u of b.units) { if (u.f == null) u.f = u.side === 'A' ? 0 : Math.PI; if (u.mor == null) u.mor = u.mo = 65; if (u.n0 == null) u.n0 = u.n; } }
-    if (!Object.values(w.npcs).some((n) => n.kind === 'bandit')) for (let i = 0; i < 100; i++) spawnBandit(w);
+    if (!Object.values(w.npcs).some((n) => n.kind === 'bandit')) for (let i = 0; i < 200; i++) spawnBandit(w);
     for (const n of Object.values(w.npcs)) if (n.kind === 'patrol' && !n.army) { // 巡回兵の手勢
       n.army = SIM.genArmy(w, n.faction, { yari: 8 + Math.floor(rnd(w) * 8), yumi: 2 + Math.floor(rnd(w) * 5) }, true); n.size = SIM.troopCount(n.army); n.cap = n.size;
     }
@@ -77,10 +77,10 @@
   function spawnBandit(w) {
     const B = SGK.DATA.bounds;
     // 野盗は2割が山の中、残りは街道沿いや野原に出る。拠点のすぐそばには出ない
-    const wantMt = rnd(w) < 0.2, wantRoad = !wantMt && rnd(w) < 0.5;
+    const wantRoad = rnd(w) < 0.5; // 1.6.9 山には出ない
     for (let i = 0; i < 160; i++) {
       const x = 3 + rnd(w) * (B.w - 6), y = 3 + rnd(w) * (B.h - 6), t = SIM.terrainAt(x, y);
-      if (t === '海' || SIM.isSea(x, y) || (wantMt && i < 120 && t !== '山地') || (wantRoad && i < 120 && !nearRoad(x, y))) continue;
+      if (t === '海' || SIM.isSea(x, y) || t === '山地' || (wantRoad && i < 120 && !nearRoad(x, y))) continue;
       if (w.settlements.some((s) => Math.hypot(s.x - x, s.y - y) < 3)) continue;
       const id = 'n' + w.nextId++;
       // 日が経つほど大きな野盗団が出る。ときどき大勢の野盗団も
@@ -106,6 +106,7 @@
     const now = w.time.min, B = SGK.DATA.bounds;
     for (const n of Object.values(w.npcs)) {
       if (n.kind !== 'bandit' || n.battle) continue;
+      if (!n.qid && !n.tgt && !n.fight && SIM.terrainAt(n.hx, n.hy) === '山地') { delete w.npcs[n.id]; continue; } /* 1.6.9 山に根城のある野盗は消す（別の場所に出直す） */
       n.speed = 28 * SIM.sizeSpeed(n.size || 0) * (n.army ? SIM.mixSpeed(n.army) : 1); // 大勢の野盗団ほど遅い
       if (n.fight) { // 巡回兵と交戦中：近づいたプレイヤーは加勢になる
         for (const p of Object.values(w.players)) if (inField(p) && dist(n, p) < 0.6) { startBattle(w, n, p); break; }
@@ -130,7 +131,7 @@
         n.wait -= dt; if (n.wait > 0) continue;
         const x = n.hx + (rnd(w) - 0.5) * 12, y = n.hy + (rnd(w) - 0.5) * 12;
         const t = x > 0 && y > 0 && x < B.w && y < B.h ? SIM.terrainAt(x, y) : '海';
-        if (t !== '海' && !SIM.isSea(x, y)) { n.tx = x; n.ty = y; } // 渡し船の上には出ない
+        if (t !== '海' && t !== '山地' && !SIM.isSea(x, y)) { n.tx = x; n.ty = y; } // 渡し船の上には出ない
         n.wait = 60 + rnd(w) * 300;
       } else moveTo(n, dt);
     }
@@ -470,7 +471,7 @@
       else if (c < (n.cap || 12) && f && !f.player && (f.kura || 0) >= SIM.GEN_COST * 3) { n.army.yari = (n.army.yari || 0) + 3; f.kura -= SIM.GEN_COST * 3; }
       n.size = SIM.troopCount(n.army);
     }
-    if (Object.values(w.npcs).filter((n) => n.kind === 'bandit').length < MAX_BANDITS) for (let i = 0; i < 5; i++) if (rnd(w) < 0.7) spawnBandit(w);
+    if (Object.values(w.npcs).filter((n) => n.kind === 'bandit').length < MAX_BANDITS) for (let i = 0; i < 10; i++) if (rnd(w) < 0.7) spawnBandit(w);
   }
 
   // 兵種の割合で行軍の速さが少し変わる：騎馬が多いほど速く（最大+10%）、鉄砲が多いほど遅く（最大-10%）
