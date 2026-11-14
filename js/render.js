@@ -68,8 +68,6 @@
       ctx.fillStyle = `rgba(${Math.round(20 + 150 * tw)},${Math.round(28 + 50 * tw)},${Math.round(70 - 30 * tw)},${(0.55 * night + 0.12 * tw).toFixed(3)})`;
       ctx.fillRect(0, 0, W, H);
     }
-    // 0.40.0 依頼の目標（野盗・行商人など）の印
-    for (const [qx, qy] of (marks && marks.pts) || []) { const [x, y] = R.toScreen(qx, qy); ctx.fillStyle = '#f2c14e'; ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y - 22); ctx.lineTo(x + 6, y - 15); ctx.lineTo(x, y - 8); ctx.lineTo(x - 6, y - 15); ctx.closePath(); ctx.fill(); ctx.stroke(); }
     // 自分の目的地の線
     const me = view.players.find((p) => p.id === myPid);
     if (me && me.tx != null) {
@@ -111,7 +109,6 @@
         ctx.moveTo(ax, ay - 4); ctx.lineTo(ax, ay + 4); ctx.moveTo(ax - 3, ay - 2); ctx.lineTo(ax + 3, ay - 2);
         ctx.moveTo(ax - 4, ay + 1); ctx.quadraticCurveTo(ax - 3, ay + 5, ax, ay + 4); ctx.quadraticCurveTo(ax + 3, ay + 5, ax + 4, ay + 1); ctx.stroke();
       }
-      if (marks && marks.has(s.id)) { ctx.fillStyle = '#f2c14e'; ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y - 24); ctx.lineTo(x + 6, y - 17); ctx.lineTo(x, y - 10); ctx.lineTo(x - 6, y - 17); ctx.closePath(); ctx.fill(); ctx.stroke(); }
       if (s.id === selectedId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 17, 0, 7); ctx.stroke(); }
       if (s.site) { ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 2; ctx.setLineDash([3, 3]); ctx.strokeRect(x - 13, y - 13, 26, 26); ctx.setLineDash([]); }
       if (cam.scale < 6 && !s.lord && !s.built && s.type !== 'town' && s.id !== selectedId) continue;
@@ -130,6 +127,13 @@
       ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
       ctx.strokeStyle = 'rgba(255,240,200,.35)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 6]);
       ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+    }
+    // 1.6.6 依頼先のダイヤ印（どの縮尺でも見える・ゆっくり上下する）
+    if (marks) {
+      const bob = Math.sin((performance.now() / 1000) * 3) * 2.5;
+      const dia = (x, y, r) => { ctx.fillStyle = '#f2c14e'; ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y - r * 1.3); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r * 1.3); ctx.lineTo(x - r, y); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.beginPath(); ctx.moveTo(x, y - r * 1.3); ctx.lineTo(x + r * 0.45, y - r * 0.4); ctx.lineTo(x, y); ctx.lineTo(x - r * 0.45, y - r * 0.4); ctx.closePath(); ctx.fill(); };
+      for (const s of view.settlements) if (marks.has(s.id)) { const [x, y] = R.toScreen(s.x, s.y); dia(x, y - 30 + bob, 8); }
+      for (const [qx, qy] of marks.pts || []) { const [x, y] = R.toScreen(qx, qy); dia(x, y - 24 + bob, 7); }
     }
     // NPC
     for (const n of view.npcs) {
