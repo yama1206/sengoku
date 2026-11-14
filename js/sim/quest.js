@@ -77,13 +77,13 @@
       return Object.assign(base, { type: 'sell', to: to.id, item: k, qty, left: qty, days: 15, reward: r10(it.base * qty * 0.4 + 200), title: `${to.name}で${it.name}${qty}${it.unit}を売る`, what: `${to.name}の市で${it.name}を${qty}${it.unit}売りさばく（売った代金とは別に報酬）`, look: to.id });
     }
     if (s.type !== 'castle' || !s.owner || !w.factions[s.owner]) return null;
-    const k = pick(w, ['scout', 'supply', 'outlaw', 'envoy']);
+    let k = pick(w, ['scout', 'supply', 'outlaw', 'envoy']); if (k === 'supply' && rnd(w) < 0.5) k = pick(w, ['scout', 'outlaw', 'envoy']); // 0.74.1 兵糧運びを半分に
     if (k === 'scout') {
       const t = pick(w, enemyCastles(w, s, 120).slice(0, 4)); if (!t) return null; const d = dist(s, t);
       return Object.assign(base, { type: k, to: t.id, stage: 0, days: Math.ceil((d * 2) / 20) + 3, reward: r10(400 + d * 10), title: `${t.name}の偵察`, what: `${t.name}に近づいて守りを調べ、ここへ戻って報告する`, look: t.id });
     }
     if (k === 'supply') {
-      const t = frontCastle(w, s); if (!t) return null; const d = dist(s, t), qty = 10 + Math.floor(rnd(w) * 11);
+      const t = frontCastle(w, s); if (!t) return null; const d = dist(s, t), qty = 3 + Math.floor(rnd(w) * 4); // 0.74.1 以前は10〜20俵
       return Object.assign(base, { type: k, to: t.id, item: 'rice', qty, days: Math.ceil(d / 20) + 5, reward: r10(I().rice.base * qty * 1.5 + 200 + d * 5), title: `${t.name}へ兵糧の運び込み`, what: `米${qty}俵を前線の${t.name}へ運ぶ（${dirOf(s, t)}へ約${Math.round(d)}km）`, look: t.id });
     }
     if (k === 'outlaw') {
