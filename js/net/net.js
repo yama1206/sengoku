@@ -67,9 +67,9 @@
     };
     open();
     return {
-      each(fn) { for (const [c, pid] of conns) if (c.open) { const m = fn(pid); try { c.send(m); } catch (e) { console.error(e); try { c.send({ t: 'err', text: 'エラー(送信): ' + (e && e.message) }); } catch (e2) {} } } },
-      sendTo(pid, msg) { for (const [c, p] of conns) if (p === pid && c.open) c.send(msg); },
-      broadcast(msg) { for (const c of conns.keys()) if (c.open) c.send(msg); },
+      each(fn) { for (const [c, pid] of conns) if (c.open) { const m = fn(pid); try { c.send(JSON.stringify(m)); } catch (e) { console.error(e); try { c.send({ t: 'err', text: 'エラー(送信): ' + (e && e.message) }); } catch (e2) {} } } },
+      sendTo(pid, msg) { const j = JSON.stringify(msg); for (const [c, p] of conns) if (p === pid && c.open) c.send(j); },
+      broadcast(msg) { const j = JSON.stringify(msg); for (const c of conns.keys()) if (c.open) c.send(j); },
       count: () => conns.size,
       pids: () => [...conns.values()],
       close() { for (const c of conns.keys()) try { c.send({ t: 'bye', reason: 'ホストがワールドを閉じました' }); } catch (e) {} setTimeout(() => peer.destroy(), 300); },
@@ -85,6 +85,8 @@
       conn = peer.connect(SGK.CFG.PEER_PREFIX + code.replace(/\D/g, ''), { reliable: true });
       conn.on('open', () => conn.send({ t: 'hello', token, name, ver: SGK.VERSION, fcode: NET.myCode(), prof: NET.prof || null }));
       conn.on('data', (m) => {
+        if (typeof m === 'string') { try { m = JSON.parse(m); } catch (e) { if (h.onErr) h.onErr({ text: 'エラー(受信): ' + e.message }); return; } } // 1.6.5 ホストからは文字列(JSON)で届く
+        if (!m || !m.t) { if (h.onErr) h.onErr({ text: 'エラー(受信): 読めないデータ ' + typeof m }); return; }
         if (m.t === 'welcome') h.onWelcome(m);
         else if (m.t === 'state') h.onState(m);
         else if (m.t === 'act') { if (h.onAct) h.onAct(m); }
