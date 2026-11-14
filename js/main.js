@@ -1416,7 +1416,7 @@
             if (inp.dash || inp.sw || inp.jmp || (key !== G.actLastKey && G.actSendAcc > 0.05) || G.actSendAcc > 0.5) { G.actSendAcc = 0; G.actLastKey = key; command(Object.assign({ type: 'actIn' }, inp)); }
             SIM.actSmooth(AB, dt, G.myPid, inp);
           }
-          R.actCur = G.vcurOn && G.vcur ? { p: G.vcur, d: G.padRD } : null; R.drawAction(ctx, AB, G.myPid, G.selUnit, dt, BT.ter); renderBattle(BT);
+          R.actPad = !!G.padUsed; R.actCur = G.vcurOn && G.vcur ? { p: G.vcur, d: G.padRD } : null; R.drawAction(ctx, AB, G.myPid, G.selUnit, dt, BT.ter); renderBattle(BT);
         } else { R.drawBattle(ctx, BT, G.disp, G.myPid, G.selUnit); renderBattle(BT); }
         if (G.bcur && !AB) { const L = R.battleLayout(SIM.FIELD); drawCross(L.ox + G.bcur[0] * L.sc, L.oy + G.bcur[1] * L.sc, '#f2c14e'); }
         { // 0.59.0 向きを決める矢印

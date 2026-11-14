@@ -438,7 +438,9 @@
     for (const s of A.s) if (s.pc && s.pc !== myPid && live(s)) { const [a, c] = S(s.x, s.y, 3); ctx.fillStyle = '#ffcf8a'; ctx.fillText('仲間', a, c); }
     // 照準（画面の真ん中）
     const cx = W / 2, cy = H / 2; ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(cx - 9, cy); ctx.lineTo(cx - 3, cy); ctx.moveTo(cx + 3, cy); ctx.lineTo(cx + 9, cy); ctx.moveTo(cx, cy - 9); ctx.lineTo(cx, cy - 3); ctx.moveTo(cx, cy + 3); ctx.lineTo(cx, cy + 9); ctx.stroke();
+    if (R.actPad) { // 0.67.0 照準はコントローラーのときだけ出す
+      ctx.beginPath(); ctx.moveTo(cx - 9, cy); ctx.lineTo(cx - 3, cy); ctx.moveTo(cx + 3, cy); ctx.lineTo(cx + 9, cy); ctx.moveTo(cx, cy - 9); ctx.lineTo(cx, cy - 3); ctx.moveTo(cx, cy + 3); ctx.lineTo(cx, cy + 9); ctx.stroke();
+    }
     // 指図メニューを開いているとき：照準の先の地面に旗印
     const OM = R.ordMenu;
     if (OM) { const [gx, gy] = X.toWorld(cx, cy), [a, c] = S(gx, gy, 0), [, c2] = S(gx, gy, 3); ctx.strokeStyle = '#ffe070'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a, c); ctx.lineTo(a, c2); ctx.stroke(); ctx.fillStyle = '#ffe070'; ctx.fillRect(a, c2, 14, 9); ctx.beginPath(); ctx.ellipse(a, c, 10, 4, 0, 0, 7); ctx.stroke(); }

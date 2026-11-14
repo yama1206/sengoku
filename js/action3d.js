@@ -1,4 +1,4 @@
-// 0.63.0 自分で戦う：3D表示（three.js）。0.65.0 見た目の質を上げた（空・雲・草・木・地面の模様・具足・歩く足）。計算は action.js のまま、見た目だけを3Dで描く
+// 0.63.0 自分で戦う：3D表示（three.js）。0.67.0 本人・武将は人型モデル（assets/models/Xbot.glb、Mixamo製の動きつき）に具足を着せて描く。0.65.0 見た目の質を上げた（空・雲・草・木・地面の模様・具足・歩く足）。計算は action.js のまま、見た目だけを3Dで描く
 // three.js が読めないときや WebGL が使えないときは、これまでの2D表示に戻る
 (function () {
   const R = SGK.RENDER, SIM = SGK.SIM, TR = SIM.TROOPS;
@@ -125,6 +125,7 @@
     // 振りの扇
     X.fans = [];
     L4.m = new T.Matrix4();
+    loadModel();
     X.ready = true;
     return true;
   }
@@ -222,6 +223,7 @@
     grass.count = gi; rocks.count = ri; rocks.castShadow = true; rocks.receiveShadow = true; grass.receiveShadow = false;
     scene.add(grass, rocks); trees.push(grass, rocks);
     last.clear();
+    for (const id of [...rigs.keys()]) dropRig(id);
   }
 
   // ---- 1人分を置く ----
@@ -268,6 +270,122 @@
     return 'spearS';
   }
 
+  // ---- 0.67.0 本人・武将の人型モデル ----
+  // 体と足は Mixamo の動き（立つ・歩く・走る）、腕と上半身は兵と同じ「構え・攻撃の姿勢」で上書きする。具足は骨の位置に毎回置く
+  const RIG = { proto: null, clips: null, h: 1.8, loading: false };
+  const rigs = new Map(), seen = new Set();
+  const V1 = () => new T.Vector3(), Q1 = () => new T.Quaternion();
+  let tv, tq; // 使い回す計算用
+  function loadModel() {
+    if (RIG.loading || !T.GLTFLoader || !T.SkeletonUtils) return; RIG.loading = true;
+    UP = new T.Vector3(0, 1, 0); tv = [V1(), V1(), V1(), V1()]; tq = [Q1(), Q1(), Q1(), Q1(), Q1()];
+    new T.GLTFLoader().load('assets/models/Xbot.glb', (g) => {
+      g.scene.updateMatrixWorld(true);
+      const bx = new T.Box3().setFromObject(g.scene); RIG.h = Math.max(0.1, bx.max.y - bx.min.y);
+      RIG.clips = g.animations; RIG.proto = g.scene;
+    }, undefined, (e) => { console.warn('人型モデルを読めませんでした（これまでの形で描きます）', e); });
+  }
+  const gearMat = (c, o) => new T.MeshLambertMaterial(Object.assign({ color: c }, o || {}));
+  function makeRig(s) {
+    const root = T.SkeletonUtils.clone(RIG.proto), k = 1.9 / RIG.h;
+    root.scale.setScalar(k); root.rotation.y = Math.PI / 2; // モデルの前（+Z）を戦場の前（+X）へ
+    const holder = new T.Group(); holder.add(root); scene.add(holder);
+    const B = {}, mats = [];
+    root.traverse((o) => {
+      if (o.isBone) B[o.name.replace('mixamorig:', '')] = o;
+      if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; o.material = o.material.clone(); o.material.metalness = 0.15; o.material.roughness = 0.7; mats.push(o); }
+    });
+    const mixer = new T.AnimationMixer(root), act = {};
+    for (const n of ['idle', 'walk', 'run']) { const c = RIG.clips.find((c) => c.name === n); if (c) { const a = mixer.clipAction(c); a.play(); a.setEffectiveWeight(n === 'idle' ? 1 : 0); act[n] = a; } }
+    // 具足：胴・草摺・兜（鍬形）・袖・指物。色は陣営で変える
+    const G = {}, add = (n, geo, mat, sh = true) => { const m = new T.Mesh(geo, mat); m.matrixAutoUpdate = false; m.castShadow = sh; scene.add(m); G[n] = m; return m; };
+    const lac = gearMat(0x333333), trim = gearMat(0xc9a65a);
+    add('do', new T.CylinderGeometry(0.2, 0.16, 0.44, 12), lac);
+    add('obi', new T.CylinderGeometry(0.17, 0.17, 0.06, 12), trim, false);
+    add('kusa', new T.CylinderGeometry(0.19, 0.3, 0.3, 12, 1, true), gearMat(0x333333, { side: T.DoubleSide }));
+    add('kabuto', new T.SphereGeometry(0.15, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), gearMat(0x222222));
+    add('shikoro', new T.CylinderGeometry(0.16, 0.24, 0.12, 14, 1, true), gearMat(0x333333, { side: T.DoubleSide }));
+    add('kuwa', new T.TorusGeometry(0.13, 0.016, 4, 12, Math.PI).rotateY(Math.PI / 2), gearMat(0xf0c230, { emissive: 0x4a3600 }), false);
+    add('sodeR', new T.BoxGeometry(0.2, 0.2, 0.05), lac); add('sodeL', new T.BoxGeometry(0.2, 0.2, 0.05), lac);
+    add('pole', new T.CylinderGeometry(0.015, 0.015, 1.3, 4), gearMat(0x3b2a18), false);
+    add('flag', new T.PlaneGeometry(0.45, 0.65).rotateY(Math.PI / 2), gearMat(0xffffff, { side: T.DoubleSide }), false);
+    const r = { holder, root, B, mats, mixer, act, G, lac, w: { idle: 1, walk: 0, run: 0 }, wk: null, wep: null, flash: null };
+    rigs.set(s.id, r); return r;
+  }
+  function dropRig(id) {
+    const r = rigs.get(id); if (!r) return; rigs.delete(id);
+    scene.remove(r.holder); r.mixer.stopAllAction();
+    for (const k in r.G) { scene.remove(r.G[k]); r.G[k].geometry.dispose(); r.G[k].material.dispose(); }
+    if (r.wep) scene.remove(r.wep); if (r.flash) scene.remove(r.flash);
+    for (const m of r.mats) m.material.dispose();
+  }
+  // 骨 bone を、子の骨 child の方向が dir（世界の向き）になるように回す
+  function aimBone(bone, child, dir) {
+    const bp = bone.getWorldPosition(tv[0]), cp = child.getWorldPosition(tv[1]);
+    const cur = cp.sub(bp).normalize(); if (cur.lengthSq() < 1e-6) return;
+    const q = tq[0].setFromUnitVectors(cur, dir), wq = bone.getWorldQuaternion(tq[1]);
+    const pq = bone.parent.getWorldQuaternion(tq[2]).invert();
+    bone.quaternion.copy(pq.multiply(q.multiply(wq))); bone.updateMatrixWorld(true);
+  }
+  function turnBone(bone, rq) { // 世界の回転 rq を骨に足す
+    const wq = bone.getWorldQuaternion(tq[1]), pq = bone.parent.getWorldQuaternion(tq[2]).invert();
+    bone.quaternion.copy(pq.multiply(tq[3].copy(rq).multiply(wq))); bone.updateMatrixWorld(true);
+  }
+  let UP = null;
+  function placeAt(m, pos, q, ox, oy, oz, sc) { const v = tv[2].set(ox, oy, oz).applyQuaternion(q).add(pos); m.matrix.compose(v, q, tv[3].set(sc || 1, sc || 1, sc || 1)); m.matrixWorldNeedsUpdate = true; }
+  function drawRig(s, col, mv, dt, now, stp, own) {
+    seen.add(s.id);
+    const r = rigs.get(s.id) || makeRig(s), f = s.f || 0, B = r.B;
+    const jh = s.jp > 0 ? Math.sin(Math.PI * (1 - s.jp / 0.55)) * 1.1 : 0;
+    r.holder.position.set(s.x, hgt(s.x, s.y) + jh, s.y); r.holder.rotation.set(0, -f, 0);
+    // 立つ・歩く・走るをなめらかに切り替える
+    const tgt = mv < 0.4 ? 'idle' : mv < 3.6 ? 'walk' : 'run', kk = Math.min(1, dt * 8);
+    for (const n in r.act) { r.w[n] += ((n === tgt ? 1 : 0) - r.w[n]) * kk; r.act[n].setEffectiveWeight(r.w[n]); }
+    if (r.act.walk) r.act.walk.timeScale = Math.min(1.8, Math.max(0.6, mv / 1.5));
+    if (r.act.run) r.act.run.timeScale = Math.min(1.5, Math.max(0.7, mv / 5));
+    r.mixer.update(dt);
+    r.holder.updateMatrixWorld(true);
+    // 色：胴と体は陣営の色、打たれると白く光る
+    for (const m of r.mats) { const surf = /Surface/i.test(m.name); m.material.color.setHex(surf ? col : 0x2a2a2a); if (surf) m.material.color.multiplyScalar(0.8); m.material.emissive && m.material.emissive.setHex(s.fl ? 0x777777 : 0); }
+    r.lac.color.setHex(col).multiplyScalar(0.45);
+    // 上半身：前かがみ・ひねり → 腕を構え・攻撃の姿勢へ
+    const wk = weaponOf(s), ps = pose(s, wk, stp, now);
+    const qb = tq[4].setFromAxisAngle(UP, -f);
+    if (B.Spine && (ps.lean || ps.tw)) {
+      const ax = tv[3].set(0, 0, 1).applyQuaternion(qb), rq = new T.Quaternion().setFromAxisAngle(UP, ps.tw).multiply(new T.Quaternion().setFromAxisAngle(ax, -ps.lean));
+      turnBone(B.Spine, rq);
+    }
+    const qu = new T.Quaternion().setFromAxisAngle(UP, ps.tw - f);
+    if (ps.lean) qu.multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 0, 1), -ps.lean));
+    const arm = (side, a) => {
+      const sg = side === 'R' ? 1 : -1, up = B[side === 'R' ? 'RightArm' : 'LeftArm'], fo = B[side === 'R' ? 'RightForeArm' : 'LeftForeArm'], ha = B[side === 'R' ? 'RightHand' : 'LeftHand'];
+      if (!up || !fo || !ha) return;
+      const bend = Math.max(0.1, 0.55 - a * 0.25);
+      aimBone(up, fo, new T.Vector3(Math.sin(a), -Math.cos(a), 0.3 * sg).normalize().applyQuaternion(qu));
+      aimBone(fo, ha, new T.Vector3(Math.sin(a + bend), -Math.cos(a + bend), 0.12 * sg).normalize().applyQuaternion(qu));
+    };
+    arm('R', ps.aR); arm('L', ps.aL);
+    // 武器を手に持たせる
+    if (r.wk !== wk) { if (r.wep) scene.remove(r.wep); r.wep = new T.Mesh(M[wk].geometry, M[wk].material.clone()); r.wep.matrixAutoUpdate = false; r.wep.castShadow = true; scene.add(r.wep); r.wk = wk; }
+    const hand = B[wk === 'bow' ? 'LeftHand' : 'RightHand'];
+    if (hand) {
+      const hp = hand.getWorldPosition(new T.Vector3()), qw = qu.clone().multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 0, 1), ps.tilt));
+      placeAt(r.wep, hp, qw, 0, 0, (wk === 'spearS' || wk === 'spearL' || wk === 'gun') ? -0.1 : 0, 1.15);
+      if (!r.flash) { r.flash = new T.Mesh(M.flash.geometry, M.flash.material); r.flash.matrixAutoUpdate = false; scene.add(r.flash); }
+      r.flash.visible = !!ps.fl; if (ps.fl) placeAt(r.flash, hp, qw, 1.25, 0, 0, 1.2);
+    }
+    // 具足を骨の位置に置く
+    const P = (n) => B[n] && B[n].getWorldPosition(new T.Vector3());
+    const sp1 = P('Spine1'), sp2 = P('Spine2'), hip = P('Hips'), head = P('Head'), aR = P('RightArm'), aL = P('LeftArm');
+    const G = r.G;
+    if (sp1 && sp2) { const c = sp1.clone().lerp(sp2, 0.5); placeAt(G.do, c, qu, 0, 0.02, 0, 1); }
+    if (hip) { placeAt(G.kusa, hip, qb, 0, -0.1, 0, 1); placeAt(G.obi, hip, qb, 0, 0.07, 0, 1); }
+    if (head) { placeAt(G.kabuto, head, qu, 0, 0.1, 0, 1); placeAt(G.shikoro, head, qu, -0.01, 0.06, 0, 1); placeAt(G.kuwa, head, qu, 0.13, 0.2, 0, 1); }
+    if (aR) placeAt(G.sodeR, aR, qu, 0, -0.08, 0.06, 1); if (aL) placeAt(G.sodeL, aL, qu, 0, -0.08, -0.06, 1);
+    if (sp2) { placeAt(G.pole, sp2, qu, -0.17, 0.5, 0, 1); placeAt(G.flag, sp2, qu, -0.17, 0.85, 0, 1); }
+    G.flag.material.color.setHex(s.side === 'B' ? 0xc8402f : own ? 0xf2f2f2 : 0x6fa7d8);
+  }
+
   const COL = { A: 0x2f5a96, Aown: 0x3a6ea5, Aally: 0x5d9ab8, B: 0xa8352a };
   X.draw = function (b, myPid, sel, dt, terList, cam, w, h) {
     if (!X.on || X.failed) return false;
@@ -289,6 +407,7 @@
     sun.position.set(hx - 60, th + 120, hy + 40); sun.target.position.set(hx, th, hy);
     sky.position.copy(cam3.position); sky.material.uniforms.tm.value = clock; sky.material.uniforms.sunD.value.set(-60, 120, 40);
     for (const k in M) cnt[k] = 0;
+    seen.clear();
     const A = b.act, live = (s) => s.hp > 0 && !s.gone;
     const mats = {};
     for (const s of A.s) {
@@ -304,6 +423,9 @@
       C.setHex(s.fl ? 0xffffff : col);
       const ride = cav ? 0.95 : 0;
       const stp = mv > 0.6 ? Math.sin(clock * (cav ? 9 : 11) * 0.5 + s.id) : 0; // 0.65.0 足を前後に振る
+      const rigOK = s.hero && !cav && RIG.proto;
+      if (rigOK) drawRig(s, col, mv, dt, nowS, stp, own);
+      else {
       if (cav) {
         O.position.set(s.x, gy + bob * 0.5, s.y); O.rotation.set(0, -f, 0); O.scale.set(1, 1, 1); O.updateMatrix();
         put('horse', O.matrix); put('hneck', O.matrix); put('hhead', O.matrix); put('htail', O.matrix); put('saddle', O.matrix, C.setHex(s.side === 'B' ? 0x7a2418 : 0x1f3a66));
@@ -332,6 +454,7 @@
       if (wk === 'spearS' || wk === 'spearL' || wk === 'gun') Mx.multiply(L4.m.makeTranslation(0, 0, -0.14)); // 両手で持つので少し体の中ほどへ
       put(wk, Mx);
       if (ps.fl) { Mx.multiply(L4.m.makeTranslation(1.1, 0, 0)); put('flash', Mx); }
+      }
       // 足もとの輪：自分の本人・選んだ隊
       const isSel = own && !s.hero && u && (u.id === sel || sel === 'all');
       if (s.pc === myPid || isSel) { O.position.set(s.x, gy, s.y); O.rotation.set(0, 0, 0); O.scale.set(s.hero ? 1.6 : 1, 1, s.hero ? 1.6 : 1); O.updateMatrix(); put('ring', O.matrix, C.setHex(s.pc === myPid ? 0xffe060 : 0xfff2a0)); }
@@ -345,6 +468,7 @@
       const a = Math.atan2(p.vy, p.vx); O.position.set(p.x, hgt(p.x, p.y) + 1.3, p.y); O.rotation.set(0, -a, 0); O.scale.set(1, 1, 1); O.updateMatrix();
       put(p.gun ? 'bullet' : 'arrow', O.matrix);
     }
+    for (const id of [...rigs.keys()]) if (!seen.has(id)) dropRig(id);
     for (const k in M) { const im = M[k]; im.count = Math.min(cnt[k], im.instanceMatrix.count); im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; }
     // 振りの扇
     let fi = 0;
