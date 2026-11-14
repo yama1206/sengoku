@@ -312,7 +312,8 @@
     const N = SIEGE_N;
     for (const k of Object.keys(w.wars)) {
       const [a, b] = k.split('|'); if (!alive(w, a) || !alive(w, b)) continue;
-      const att = w.factions[a].player ? b : w.factions[b].player ? a : rnd(w) < SIM.kou(w, a) / (SIM.kou(w, a) + SIM.kou(w, b)) ? a : b, def = att === a ? b : a;
+      const aimAt = (x, y) => { const m = w.factions[x].aim, t = m && SIM.settlement(w, m.tgt); return !!(t && t.owner === y && !w.factions[x].player); };
+      const att = aimAt(a, b) ? a : aimAt(b, a) ? b : w.factions[a].player ? b : w.factions[b].player ? a : rnd(w) < SIM.kou(w, a) / (SIM.kou(w, a) + SIM.kou(w, b)) ? a : b, def = att === a ? b : a;
       if (w.factions[att].player) continue;
       const K = SIM.kou(w, att);
       const mine = castles(w, att);
@@ -325,29 +326,52 @@
         const score = guard * (1 + d / 40);
         if (!best || score < best.score) best = { src: x, tgt: y, guard, weak, score };
       }
+      // 0.73.0 評定で決まった攻め先があれば、そこを狙う（30日のうち）
+      const fa = w.factions[att], aim = fa.aim; let forced = false;
+      if (aim && (aim.until < w.time.min || !SIM.settlement(w, aim.tgt) || SIM.settlement(w, aim.tgt).owner === att)) delete fa.aim;
+      else if (aim) {
+        const y = SIM.settlement(w, aim.tgt), x = mine.slice().sort((p1, p2) => dist(p1, y) - dist(p2, y))[0];
+        if (y.owner === def && x && !SIM.armyTo(w, y.id) && !w.musters.some((m) => m.tgt === y.id)) { best = { src: x, tgt: y, guard: defPow(y), weak: 0 }; forced = true; }
+      }
       if (!best) continue;
       // 手薄な城（兵が上限の4割未満）はすぐ狙う。そうでなければときどき
-      if (rnd(w) > Math.min(0.95, (best.weak < N.weakFrac ? N.weakRate : N.rate) * KOU.rate[K] * (SIM.infamyMul ? SIM.infamyMul(w, def) : 1))) continue;
+      if (!forced && rnd(w) > Math.min(0.95, (best.weak < N.weakFrac ? N.weakRate : N.rate) * KOU.rate[K] * (SIM.infamyMul ? SIM.infamyMul(w, def) : 1))) continue;
       const { src, tgt } = best, need = Math.max(N.min, Math.ceil(best.guard * KOU.ratio[K]));
-      // 近くの城（3つまで）から兵を集め、足りなければ陣触れで農兵を足す
+      if (musterFor(w, att, def, src, tgt, need, mine, false) && forced) delete fa.aim;
+    }
+  }
+  // 近くの城（3つまで）から兵を集め、足りなければ陣触れで農兵を足す。weak：足りなくても集まった分で出る（評定で決めた攻め）
+  function musterFor(w, att, def, src, tgt, need, mine, weak) {
+    const N = SIEGE_N;
+    {
       const near = mine.slice().sort((a2, b2) => dist(a2, tgt) - dist(b2, tgt)).slice(0, 3);
       const can = near.reduce((s2, x) => s2 + Math.floor(SIM.garrison(x) * N.take), 0), levyCap = SIM.taue && SIM.taue(w) ? 0 : Math.min(N.levyMax, mine.length * N.levyPer); // 0.72.0 田植えの月は陣触れで農兵を集められない
-      if (can + levyCap < need) continue; // 集めても足りない：攻めない
+      if (can + levyCap < need && !weak) return false; // 集めても足りない：攻めない
       let n = 0; const gens = [];
       for (const x of near) {
         if (n >= need) break;
         const t = Math.min(Math.floor(SIM.garrison(x) * N.take), need - n); n += t; x.gar = garOf(SIM.garrison(x) - t);
         if (t > 0 && x.lord && w.people[x.lord] && !gens.includes(x.lord)) gens.push(x.lord); // 城主が武将として加わる
       }
-      const levy = Math.max(0, need - n);
+      const levy = Math.max(0, Math.min(need - n, levyCap));
+      if (n + levy < N.min) return false;
       const army = garOf(n); if (levy) army.nohei = levy;
       // 0.49.0 すぐには出陣せず、まず兵を集める（噂が流れる）→ 数日後に軍勢が出る
       const days = Math.max(1, Math.min(7, Math.round(1 + (n + levy) / 60))); // 0.59.0 大軍ほど集めるのに日数がかかる
       w.musters.push({ att, src: src.id, tgt: tgt.id, army, gens, n: n + levy, at: w.time.min + days * 1440 });
       news(w, `${fName(w, att)}が${src.name}に兵を集めているそうです（${n + levy}人ほど。${fName(w, def)}の${tgt.name}を狙っているとか）`);
       for (const q of Object.values(w.players)) if (q.clan === att) SIM.say(q.id, `【陣触れ】${src.name}に兵を集めています。${days}日のうちに${src.name}に入っておけば、${tgt.name}攻めに参陣できます`); // 0.50.0
+      return true;
     }
   }
+  // 0.73.0 評定で採った攻め（プレイヤーの家も）：いちばん近い自分の城から兵を集める
+  SIM.hyoMuster = (w, att, tgtId) => {
+    const tgt = SIM.settlement(w, tgtId), mine = castles(w, att);
+    if (!tgt || !SIM.atWar(w, att, tgt.owner) || SIM.armyTo(w, tgt.id) || w.musters.some((m) => m.tgt === tgt.id)) return false;
+    const src = mine.slice().sort((a, b) => dist(a, tgt) - dist(b, tgt))[0]; if (!src) return false;
+    w.musters = w.musters || [];
+    return musterFor(w, att, tgt.owner, src, tgt, Math.max(SIEGE_N.min, Math.ceil(defPow(tgt) * 1.5)), mine, true);
+  };
   // 兵を集め終えたら出陣する。狙いの城がもう敵の城でなければ取りやめて兵を城に戻す
   function musterTick(w) {
     if (!w.musters.length) return;

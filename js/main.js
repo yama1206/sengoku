@@ -799,7 +799,7 @@
     openTown(false); toggleMenu(false); c.classList.remove('hidden'); charHtml = ''; renderChar(); setFocus(c, currentFocus(c));
   }
   function setCTab(t) { charTab = t; charHtml = ''; renderChar(); setFocus($('char'), $('ctab-' + t)); }
-  function cycleCTab(d) { const t = ['stat', 'perk', 'army', 'rank', 'mon']; setCTab(t[(t.indexOf(charTab) + d + t.length) % t.length]); }
+  function cycleCTab(d) { const t = ['stat', 'perk', 'army', 'rank', 'pol', 'mon', 'hyo'].filter((x) => !$('ctab-' + x).classList.contains('hidden')); setCTab(t[(t.indexOf(charTab) + d + t.length) % t.length]); }
   function renderChar() {
     const P = G.priv; if (!P || !P.me.char || P.battle) return openChar(false);
     const me = P.me, C = me.char, TR = SIM.TROOPS, m = G.view && G.view.players.find((x) => x.id === G.myPid);
@@ -824,11 +824,34 @@
         for (const x of opts) html += `<div class="card perk ${have === x ? 'have' : ''}"><div><b>${x.name}</b><br><span class="muted">${x.desc}</span></div>`
           + (have === x ? '<span>習得</span>' : `<button id="pk-${x.id}" data-cact="pickPerk" data-id="${x.id}" ${reach && !have ? '' : 'disabled'}>選ぶ</button>`) + '</div>';
       }
+    } else if (charTab === 'hyo') { // 0.73.0 評定
+      const H = me.hyo;
+      if (!H) html += '<div class="muted">いまは評定は開かれていません（毎月1日、大名の居城で開かれます）</div>';
+      else {
+        html += `<div class="card" style="display:block"><b>${H.seat}の評定</b>　<span class="muted">出ている人：${H.who.join('・')}　（評定のあいだは時が止まります）</span></div>`;
+        if (H.lead) html += `<div class="card"><div>政策と上納を決める</div><button id="hy-pol" data-cact="goPol">政策タブへ</button></div>`;
+        html += '<div class="muted" style="margin-top:8px">出された意見</div>';
+        if (!H.ops.length) html += '<div class="muted">まだありません</div>';
+        for (const [n, who, txt, st] of H.ops) html += `<div class="card"><div>${who}「${txt}」　<span class="muted">${st === 'ok' ? '採用' : st === 'ng' ? '却下' : '返事待ち'}</span></div>`
+          + (H.lead && st === 'wait' ? `<button id="hj-${n}-ok" data-cact="hyoJudge" data-id="${n}" data-to="ok">採る</button><button id="hj-${n}-ng" data-cact="hyoJudge" data-id="${n}" data-to="ng">退ける</button>` : '') + '</div>';
+        if (!H.lead) {
+          html += `<div class="muted" style="margin-top:8px">意見を出す（功績${H.merit}。評定ごとに1つ。退けられると功績が半分戻ります）</div>`;
+          if (H.done) html += '<div class="muted">今回はもう意見を出しました</div>';
+          else {
+            html += `<div class="card"><div>褒美を願う　<span class="muted">功績${H.rewCost}</span></div><button id="hy-rew" data-cact="hyoOp" data-id="rew" ${H.merit >= H.rewCost ? '' : 'disabled'}>願う</button></div>`;
+            html += `<div class="muted">攻め先を進言する（功績${H.atkCost}）</div>`;
+            if (!H.tgts.length) html += '<div class="muted">戦をしている相手がいません</div>';
+            for (const [id, nm, fn] of H.tgts) html += `<div class="card"><div>${nm}　<span class="muted">${fn}</span></div><button id="hy-a-${id}" data-cact="hyoOp" data-id="atk" data-to="${id}" ${H.merit >= H.atkCost ? '' : 'disabled'}>攻めるべし</button></div>`;
+          }
+        }
+        html += `<div class="card" style="margin-top:8px"><div>${H.lead ? '評定を終える（時が動き出します）' : '評定から下がる'}</div><button id="hy-end" data-cact="hyoLeave">${H.lead ? '終える' : '下がる'}</button></div>`;
+      }
     } else if (charTab === 'pol') { // 0.71.0 家の政策・上納
       const Q = me.pol;
       if (!Q) html += '<div class="muted">家に仕えると、その家の政策と上納の割合が見られます。独立して大名になると政策を決められます</div>';
       else {
         html += `<div class="card" style="display:block"><b>${Q.house}</b>　<span class="muted">上納 ${Q.jono}%（城主の年貢・領内の上がりから家へ納める）　政策 ${Q.on.length}つ${Q.kura != null ? `　所持金 ${SIM.money(Q.kura)}` : ''}</span></div>`;
+        if (Q.lead && !Q.hyo) html += '<div class="muted">政策と上納は、毎月1日の評定のときに決められます</div>';
         if (Q.lead) html += `<div class="card"><div>上納の割合 <b>${Q.jono}%</b><br><span class="muted">10〜40%。2割より高いと城主の忠誠が下がり、低いと上がります</span></div><button id="jn-m" data-cact="setJono" data-qty="-1">－</button><button id="jn-p" data-cact="setJono" data-qty="1">＋</button></div>`;
         if (Q.mine) { html += '<div class="muted" style="margin-top:8px">家の固有政策を1つ選んでください（あとから変えられません）</div>'; for (const [k, n, t] of Q.mine) html += `<div class="card"><div><b>${n}</b><br><span class="muted">${t}</span></div><button id="pm-${k}" data-cact="pickMine" data-id="${k}">これにする</button></div>`; }
         html += '<div class="muted" style="margin-top:8px">行っている政策</div>';
@@ -836,7 +859,7 @@
         for (const [k, n, t, up] of Q.on) html += `<div class="card"><div><b>${n}</b>　<span class="muted">毎月${SIM.money(up)}<br>${t}</span></div>${Q.lead ? `<button id="po-${k}" data-cact="setPolicy" data-id="${k}">やめる</button>` : ''}</div>`;
         if (Q.lead) {
           html += '<div class="muted" style="margin-top:8px">始められる政策（費用を払って始め、毎月の維持費がかかります）</div>';
-          for (const [k, n, t, cost, up, cd] of Q.list) html += `<div class="card"><div><b>${n}</b>　<span class="muted">${SIM.money(cost)}・毎月${SIM.money(up)}<br>${t}${cd ? `<br>あと${cd}日で使えます` : ''}</span></div><button id="pl-${k}" data-cact="setPolicy" data-id="${k}" ${cd || Q.kura < cost ? 'disabled' : ''}>始める</button></div>`;
+          for (const [k, n, t, cost, up, cd] of Q.list) html += `<div class="card"><div><b>${n}</b>　<span class="muted">${SIM.money(cost)}・毎月${SIM.money(up)}<br>${t}${cd ? `<br>あと${cd}日で使えます` : ''}</span></div><button id="pl-${k}" data-cact="setPolicy" data-id="${k}" ${cd || Q.kura < cost || !Q.hyo ? 'disabled' : ''}>始める</button></div>`;
         }
       }
     } else if (charTab === 'mon') { // 0.36.0 家紋を選ぶ・作る
@@ -923,6 +946,7 @@
   });
   $('charBody').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-cact]'); if (!b) return;
+    if (b.dataset.cact === 'goPol') return setCTab('pol');
     const c = { type: b.dataset.cact };
     for (const k of ['attr', 'id', 'from', 'to', 'who']) if (b.dataset[k]) c[k] = b.dataset[k];
     if (b.dataset.qty) c.qty = +b.dataset.qty;
@@ -1468,6 +1492,11 @@
       // BGM：戦闘・拠点の中・昼・夜で曲を変える
       SGK.AUDIO.scene(BT ? 'battle' : !$('town').classList.contains('hidden') ? 'town' : SIM.daylight(G.view.t) < 0.5 ? 'night' : 'day');
       G.lastHere = hereId;
+      { // 0.73.0 評定が開かれたら人物画面の「評定」を開く
+        const hy = P && P.me && P.me.hyo; $('ctab-hyo').classList.toggle('hidden', !hy);
+        if (hy && G.hyoSeen !== hy.id) { G.hyoSeen = hy.id; SGK.AUDIO.sfx('arrive'); openChar(true); setCTab('hyo'); }
+        else if (!hy && charTab === 'hyo') { charTab = 'stat'; charHtml = ''; }
+      }
       if (!$('town').classList.contains('hidden')) renderTown();
       if (!$('char').classList.contains('hidden')) renderChar();
       if (P) {

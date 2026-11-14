@@ -162,7 +162,6 @@
         let d = -(rate - 0.2) * 4; if (has(fid, 'sanbon')) d = Math.max(0, d); if (has(fid, 'jinsei')) d += 1;
         pr.loyal = Math.max(0, Math.min(100, Math.round(pr.loyal + d)));
       }
-      if (!lp) npcPolicy(w, fid, f, di);
     }
   }
   function stop(w, f, k, di) { delete f.pol[k]; f.cool = f.cool || {}; f.cool[k] = di + COOL; }
@@ -185,13 +184,103 @@
     if (w.sm == null) w.sm = mi;
     while (w.sm < mi) { w.sm++; season(w, w.sm * 30); }
     if (w.hday == null) w.hday = di;
-    while (w.hday < di) { w.hday++; if (w.hday % 30 === 3) houseMonth(w, w.hday); }
+    while (w.hday < di) { w.hday++; if (w.hday % 30 === 0) hyoStart(w, w.hday); if (w.hday % 30 === 3) houseMonth(w, w.hday); }
   });
+
+  // ---- 0.73.0 評定（毎月1日、大名の居城で） ----
+  const HY = SIM.HYO = { atkCost: 30, rewCost: 20, npcOps: 2 };
+  const seatOf = (w, fid) => {
+    const f = w.factions[fid], cs = w.settlements.filter((s) => s.type === 'castle' && s.owner === fid && !s.site);
+    return cs.find((s) => s.id === f.home) || cs.find((s) => s.lord === f.leader) || cs[0] || null;
+  };
+  const inHyo = (w, p) => { const h = w.hyo && p.clan && w.hyo[p.clan]; return h && h.att.includes(p.id) ? h : null; };
+  // 戦をしている相手の城（居城から近い順に8つ）
+  const atkList = (w, fid, seat) => w.settlements.filter((s) => s.type === 'castle' && !s.site && s.owner && SIM.atWar(w, fid, s.owner))
+    .sort((a, b) => dist(a, seat) - dist(b, seat)).slice(0, 8);
+  function hyoStart(w, di) {
+    w.hyo = w.hyo || {};
+    for (const [fid, f] of Object.entries(w.factions)) {
+      if (f.dead) continue;
+      const seat = seatOf(w, fid); if (!seat) continue;
+      const lp = leaderP(w, f);
+      if (!lp) npcPolicy(w, fid, f, di); // CPUの大名は評定で政策を決める
+      const att = Object.values(w.players).filter((p) => p.clan === fid && !p.off && !p.battle && (p.id === f.leader || (p.at === seat.id && p.tx == null))).map((p) => p.id);
+      if (!att.length) continue;
+      const h = w.hyo[fid] = { fid, id: di, seat: seat.id, att, ops: [], n: 0 };
+      // 当主がプレイヤーなら、CPUの城主も攻め先を進言する
+      if (lp) {
+        const tg = atkList(w, fid, seat);
+        const lords = w.settlements.filter((s) => s.type === 'castle' && s.owner === fid && s.lord && s.lord !== f.leader && w.people[s.lord]);
+        for (const s of lords) {
+          if (h.ops.length >= HY.npcOps || !tg.length || rnd(w) > 0.4) continue;
+          const t = tg.slice().sort((a, b) => dist(a, s) - dist(b, s))[0];
+          if (!h.ops.some((o) => o.tgt === t.id)) h.ops.push({ n: ++h.n, by: s.lord, name: w.people[s.lord].name, kind: 'atk', tgt: t.id, st: 'wait' });
+        }
+      }
+      for (const id of att) SIM.say(id, `【評定】${seat.name}で${f.name}の評定が開かれました`);
+    }
+  }
+  // 評定のあいだは時間を止める（抜けた人・つながっていない人は外す）
+  SIM.hyoHold = (w) => {
+    if (!w.hyo) return false;
+    for (const fid in w.hyo) {
+      const h = w.hyo[fid]; h.att = h.att.filter((id) => w.players[id] && !w.players[id].off);
+      if (!h.att.length) delete w.hyo[fid];
+    }
+    return Object.keys(w.hyo).length > 0;
+  };
+  const baseStep = SIM.step;
+  SIM.step = (w, dt) => { while (dt > 0) { if (SIM.hyoHold(w)) return; const d = Math.min(dt, 10); baseStep(w, d); dt -= d; } };
+  const hyoEnd = (w, fid, why) => { const h = w.hyo[fid]; for (const id of h.att) SIM.say(id, why); delete w.hyo[fid]; };
+  SIM.commands.hyoLeave = (w, p) => {
+    const h = inHyo(w, p); if (!h) return; const f = w.factions[p.clan];
+    if (f.leader === p.id) return hyoEnd(w, p.clan, '評定が終わりました');
+    h.att = h.att.filter((id) => id !== p.id); SIM.say(p.id, '評定から下がりました');
+  };
+  // 家臣の意見（功績を使う）。CPUの大名ならその場で決まり、プレイヤーの当主なら当主が選ぶ
+  SIM.commands.hyoOp = (w, p, c) => {
+    const h = inHyo(w, p), f = h && w.factions[p.clan]; if (!h || f.leader === p.id) return;
+    if (h.ops.some((o) => o.by === p.id)) return SIM.say(p.id, '意見は評定ごとに1つまでです');
+    const kind = c.id === 'rew' ? 'rew' : 'atk', cost = kind === 'atk' ? HY.atkCost : HY.rewCost;
+    if ((p.merit || 0) < cost) return SIM.say(p.id, `功績が足りません（${cost}いります）`);
+    let tgt = null;
+    if (kind === 'atk') { tgt = SIM.settlement(w, c.to); if (!tgt || !atkList(w, p.clan, SIM.settlement(w, h.seat)).includes(tgt)) return SIM.say(p.id, 'その城は攻め先にできません'); }
+    p.merit -= cost;
+    const op = { n: ++h.n, by: p.id, name: p.name, kind, tgt: tgt && tgt.id, cost, st: 'wait' }; h.ops.push(op);
+    if (f.player && w.players[f.leader]) { SIM.say(f.leader, `【評定】${p.name}から意見が出ました`); return SIM.say(p.id, '意見を申し上げました。殿のお答えを待ちましょう'); }
+    // CPUの大名：身分と名声で通るかが決まる
+    const ok = rnd(w) < Math.min(0.9, 0.3 + (p.rank || 0) * 0.07 + (p.fame || 0) * 0.004);
+    judge(w, f, h, op, ok);
+  };
+  function judge(w, f, h, op, ok) {
+    const p = w.players[op.by], pr = !p && w.people[op.by], t = op.tgt && SIM.settlement(w, op.tgt);
+    op.st = ok ? 'ok' : 'ng';
+    if (op.kind === 'atk' && ok) {
+      if (f.player) { if (!SIM.hyoMuster || !SIM.hyoMuster(w, h.fid, op.tgt)) { op.st = 'ng'; ok = false; if (w.players[f.leader]) SIM.say(f.leader, `${t ? t.name : 'その城'}へは今は兵を出せません`); } }
+      else f.aim = { tgt: op.tgt, until: w.time.min + 30 * 1440 };
+    }
+    if (op.kind === 'rew' && ok) {
+      const amt = Math.max(500, (SIM.RANKS[p.rank] || {}).stipend * 2 || 500), lp = f.player && w.players[f.leader];
+      if (lp) { if (lp.money < amt) { op.st = 'wait'; return SIM.say(lp.id, `お金が足りません（${SIM.money(amt)}）`); } lp.money -= amt; }
+      p.money += amt; op.amt = amt;
+    }
+    if (p) {
+      if (ok) { if (f.player) p.merit += op.cost; SIM.say(p.id, op.kind === 'atk' ? `【評定】${t ? t.name : ''}攻めの進言が採られました${f.player ? '（功績は戻りました）' : ''}` : `【評定】褒美${SIM.money(op.amt)}を賜りました`); }
+      else { p.merit += Math.floor(op.cost / 2); SIM.say(p.id, `【評定】意見は退けられました（功績${Math.floor(op.cost / 2)}が戻りました）`); }
+    } else if (pr && pr.loyal != null) pr.loyal = Math.max(0, Math.min(100, pr.loyal + (ok ? 3 : -2)));
+  }
+  SIM.commands.hyoJudge = (w, p, c) => {
+    const h = inHyo(w, p), f = h && w.factions[p.clan]; if (!h || f.leader !== p.id) return;
+    const op = h.ops.find((o) => o.n === +c.id && o.st === 'wait'); if (!op) return;
+    judge(w, f, h, op, c.to === 'ok');
+  };
 
   // ---- コマンド（当主だけ） ----
   const myHouse = (w, p) => { const f = p.clan && w.factions[p.clan]; return f && f.player && f.leader === p.id ? f : null; };
+  const atHyo = (w, p) => (inHyo(w, p) ? null : SIM.say(p.id, '政策と上納は、毎月1日の評定で決めます'));
   SIM.commands.setPolicy = (w, p, c) => {
     const f = myHouse(w, p); if (!f) return SIM.say(p.id, '政策は当主（大名）だけが決められます');
+    if (!inHyo(w, p)) return atHyo(w, p);
     const k = c.id, q = P[k], di = dayIdx(w); f.pol = f.pol || {};
     if (!q || !canUse(w, p.clan, k)) return SIM.say(p.id, 'その政策は使えません');
     if (f.pol[k] != null) { stop(w, f, k, di); return SIM.say(p.id, `政策「${q.name}」をやめました（${COOL}日たつとまた使えます）`); }
@@ -201,6 +290,7 @@
   };
   SIM.commands.setJono = (w, p, c) => {
     const f = myHouse(w, p); if (!f) return SIM.say(p.id, '上納の割合は当主（大名）だけが決められます');
+    if (!inHyo(w, p)) return atHyo(w, p);
     f.jono = Math.max(0.1, Math.min(0.4, Math.round((jonoOf(w, p.clan) + (+c.qty > 0 ? 0.05 : -0.05)) * 100) / 100));
     SIM.say(p.id, `上納を${Math.round(f.jono * 100)}%にしました${f.jono > 0.2 ? '（城主の忠誠が下がっていきます）' : f.jono < 0.2 ? '（城主の忠誠が上がっていきます）' : ''}`);
   };
@@ -221,8 +311,16 @@
         house: f.name, lead, jono: Math.round(jonoOf(w, p.clan) * 100), kura: lead ? p.money : null,
         on: Object.keys(f.pol || {}).filter((k) => P[k]).map((k) => [k, P[k].name, P[k].text, P[k].up]),
         list: lead ? Object.keys(P).filter((k) => canUse(w, p.clan, k) && !(f.pol || {})[k]).map((k) => [k, P[k].name, P[k].text, P[k].cost, P[k].up, Math.max(0, ((f.cool || {})[k] || 0) - di)]) : [],
+        hyo: !!inHyo(w, p),
         mine: lead && !f.mine ? Object.keys(P).filter((k) => P[k].mine).map((k) => [k, P[k].name, P[k].text]) : null,
       };
+    }
+    const h = r && r.me && inHyo(w, p);
+    if (h) {
+      const seat = SIM.settlement(w, h.seat), lead = f.leader === p.id, nm = (id) => (SIM.settlement(w, id) || {}).name || '';
+      r.me.hyo = { id: h.id, seat: seat ? seat.name : '', lead, merit: p.merit || 0, atkCost: HY.atkCost, rewCost: HY.rewCost,
+        done: h.ops.some((o) => o.by === p.id), tgts: lead ? [] : atkList(w, p.clan, seat).map((s) => [s.id, s.name, (w.factions[s.owner] || {}).name || '']),
+        ops: h.ops.map((o) => [o.n, o.name, o.kind === 'atk' ? `${nm(o.tgt)}を攻めるべし` : '褒美を願う', o.st]), who: h.att.map((id) => w.players[id].name) };
     }
     return r;
   };
