@@ -244,7 +244,7 @@
     else if (wk === 'gun') { P.aR = 0.9; P.aL = 1.1; P.tilt = 0.55; }
     if (s.hero && s.blk) { P.aR = 1.3; P.aL = 1.2; P.tilt = 1.5; return P; }
     if (s.hero && s.sw) { // 本人の振り：横に払う（上半身ごとひねる）
-      const k = 1 - Math.max(0, s.sw.t) / 0.18, a = s.sw.a + s.sw.arc * (1 - 2 * k);
+      const k = 1 - Math.max(0, s.sw.t) / (s.sw.d || 0.18), a = s.sw.a + s.sw.arc * (1 - 2 * k);
       P.tw = -(a - (s.f || 0)); P.aR = 1.45; P.aL = 0.5; P.tilt = wk === 'bow' || wk === 'gun' ? 0.2 : 0; P.lean = 0.12; return P;
     }
     if (at < 1) {
@@ -477,7 +477,7 @@
     for (const hh of A.s) if (hh.pc && hh.sw && live(hh)) {
       let fm = X.fans[fi]; if (!fm) { fm = X.fans[fi] = new T.Mesh(new T.CircleGeometry(1, 16, 0, 1), new T.MeshBasicMaterial({ color: 0xfffae0, transparent: true, depthWrite: false, side: T.DoubleSide })); scene.add(fm); }
       if (fm.userData.arc !== hh.sw.arc) { fm.geometry.dispose(); fm.geometry = new T.CircleGeometry(1, 16, -hh.sw.arc, hh.sw.arc * 2).rotateX(-Math.PI / 2); fm.userData.arc = hh.sw.arc; }
-      fm.visible = true; fm.material.opacity = 0.45 * Math.max(0, hh.sw.t) / 0.18;
+      fm.visible = true; fm.material.opacity = 0.45 * Math.max(0, hh.sw.t) / (hh.sw.d || 0.18);
       fm.position.set(hh.x, hgt(hh.x, hh.y) + 0.9, hh.y); fm.rotation.set(0, -hh.sw.a, 0); fm.scale.set(hh.sw.r, 1, hh.sw.r); fi++;
     }
     for (; fi < X.fans.length; fi++) X.fans[fi].visible = false;
