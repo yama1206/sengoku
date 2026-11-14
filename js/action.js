@@ -5,7 +5,8 @@
     MAXMEN: 360,     // 戦場に出す兵の上限（多いときは1人が何人分かを受け持つ）
     SQUEEZE: 0.55,   // 両軍の初めの間合いを縮める
     SPD: 0.9,        // 移動の速さの倍率（0.61.2 1.5→0.9）
-    HERO_HP: 2.5,    // 本人の体力の倍率（直接戦うので）0.61.0 4→2.5
+    HERO_HP: 2.5,
+    MEN_HP: 2.5,     // 0.73.4 兵の体力の倍率（しっかり斬り合うように）    // 本人の体力の倍率（直接戦うので）0.61.0 4→2.5
     DASH: { t: 0.2, cd: 1.6, mul: 3 },
     WEP: { // 本人の武器：reach 届く距離、arc 振りの幅（片側）、cd 間隔、dmg 威力の倍率、shot 飛び道具
       tachi: { name: '刀', reach: 1.9, arc: 0.45, cd: 0.55, dmg: 2.4, max: 1 }, // 0.73.4 範囲を狭く・当たるのは1人（以前は reach2.6・arc0.95・max3）
@@ -39,7 +40,7 @@
       u.m0 = m; u.nA = u.n; u.ax = u.x; u.ay = u.y; u.af = u.f;
       for (let i = 0; i < m; i++) {
         const r = Math.floor(i / cols), c = i % cols, ox = -r * sp, oy = (c - (cols - 1) / 2) * sp;
-        const s = { id: A.next++, g: u.id, side: u.side, ox, oy, hp: u.hp / m, mh: u.hp / m, cd: rr() * 1.5, type: u.type };
+        const s = { id: A.next++, g: u.id, side: u.side, ox, oy, hp: u.hp / m * ACT.MEN_HP, mh: u.hp / m * ACT.MEN_HP, cd: rr() * 1.5, type: u.type };
         place(s, u); A.s.push(s);
       }
     }
@@ -272,7 +273,7 @@
     for (const u of b.units) {
       const a = acc[u.id]; if (!a) continue;
       if (u.type === 'hero') { u.hp = a.hp / ACT.HERO_HP; u.gone = a.n > 0 && a.go === a.n; continue; }
-      u.hp = a.hp; u.n = a.n ? Math.max(1, Math.round((u.nA || u.n0) * a.n / (u.m0 || 1))) : 0;
+      u.hp = a.hp / ACT.MEN_HP; u.n = a.n ? Math.max(1, Math.round((u.nA || u.n0) * a.n / (u.m0 || 1))) : 0;
       u.gone = a.n > 0 && a.go === a.n;
     }
   }
