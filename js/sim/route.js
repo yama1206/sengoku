@@ -83,6 +83,21 @@
   };
 
   // (x0,y0) → (x1,y1) の通過点の列を返す（最後が目的地）。たどり着けなければ null
+  // 1.6.15 行き過ぎて戻る動きをなくす：目的地（出発地）のすぐそばの点まで来たら、その先の寄り道を省く（道のり4km以内だけ見る）
+  function trimBack(out, x0, y0, x1, y1) {
+    const LIM = 4, dd = (q, x, y) => Math.hypot(q[0] - x, q[1] - y);
+    if (out.length > 2) { // 終わり側
+      let len = 0, k = -1, best = dd(out[out.length - 2], x1, y1);
+      for (let i = out.length - 2; i >= 0 && len < LIM; i--) { const d = dd(out[i], x1, y1); if (d < best - 0.01) { best = d; k = i; } if (i > 0) len += dd(out[i], out[i - 1][0], out[i - 1][1]); }
+      if (k >= 0 && best < 3) out.splice(k + 1, out.length - 2 - k);
+    }
+    if (out.length > 1) { // 始まり側
+      let len = 0, k = -1, best = Infinity;
+      for (let i = 0; i < out.length - 1 && len < LIM; i++) { const d = dd(out[i], x0, y0); if (d < best - 0.01) { best = d; k = i; } len += dd(out[i + 1], out[i][0], out[i][1]); }
+      if (k > 0 && best < 3) out.splice(0, k);
+    }
+    return out;
+  }
   SIM.findPath = function (x0, y0, x1, y1) {
     const { g, gw, gh } = G();
     const ci = (x) => Math.max(0, Math.min(gw - 1, Math.floor(x / CELL))), cj = (y) => Math.max(0, Math.min(gh - 1, Math.floor(y / CELL)));
@@ -166,7 +181,7 @@
     const out = [];
     for (const q of pts) { const l = out[out.length - 1]; if (!l || Math.hypot(q[0] - l[0], q[1] - l[1]) > 0.05) out.push(q); }
     if (out.length > 1 && Math.hypot(out[out.length - 1][0] - x1, out[out.length - 1][1] - y1) > 0.05) out.push([x1, y1]);
-    return out;
+    return trimBack(out, x0, y0, x1, y1);
   };
 
   // 道のりの長さ（km）と、かかる日数のめやす

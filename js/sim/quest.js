@@ -57,7 +57,7 @@
   QC.foeOk = ['scout', 'envoy'];
   SIM.foeDest = (w, a, b) => !!(SIM.atWar && a && b && SIM.atWar(w, a.owner, b.owner));
   SIM.jobOk = (w, p, j) => {
-    if (j.type === 'scout' && !p.nin) return false; /* 1.6.10 偵察は忍びだけ */
+    if ((j.type === 'scout' || j.type === 'envoy') && !p.nin) return false; /* 1.6.10 偵察・1.6.15 調略の使いは忍びだけ */
     if (j.to && !QC.foeOk.includes(j.type)) { const t = st(w, j.to), f = st(w, j.from); if (t && ((p.clan && SIM.atWar(w, p.clan, t.owner)) || SIM.foeDest(w, f, t))) return false; }
     return !QC.milTypes.includes(j.type) || (!!p.clan && st(w, j.from) && st(w, j.from).owner === p.clan);
   };
