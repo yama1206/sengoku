@@ -294,7 +294,7 @@
     const holder = new T.Group(); holder.add(root); scene.add(holder);
     const B = {}, mats = [];
     root.traverse((o) => {
-      if (o.isBone) B[o.name.replace('mixamorig:', '')] = o;
+      if (o.isBone) B[o.name.replace(/^mixamorig:?/, '')] = o; // 0.73.3 読み込むと「:」が消えて mixamorigSpine になる
       if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; o.material = o.material.clone(); o.material.metalness = 0.15; o.material.roughness = 0.7; mats.push(o); }
     });
     const mixer = new T.AnimationMixer(root), act = {};
