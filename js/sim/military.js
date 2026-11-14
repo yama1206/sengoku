@@ -257,7 +257,7 @@
     }
     const pa = n.fight && w.npcs[n.fight];
     if (pa && pa.army && SIM.troopCount(pa.army)) { // 味方の巡回兵も戦場に出る（自動で突撃）
-      const k = b.units.length; addUnits(w, b, 'A', null, pa.army);
+      b.ally = pa.id; const k = b.units.length; addUnits(w, b, 'A', null, pa.army);
       for (let i = k; i < b.units.length; i++) { b.units[i].ally = pa.id; b.units[i].order = 'charge'; }
       pa.battle = id; b.ally = pa.id;
     }

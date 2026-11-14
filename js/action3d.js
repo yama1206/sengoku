@@ -132,6 +132,13 @@
     mk('hlegF', hleg, lam({ color: 0x4a2e18 }), 200); mk('hlegB', hleg, lam({ color: 0x4a2e18 }), 200);
     // 本人の兜の飾り（前立て）
     mk('crest', new T.TorusGeometry(0.3, 0.05, 4, 10, Math.PI).rotateY(Math.PI / 2).translate(0.12, 1.62, 0), new T.MeshLambertMaterial({ color: 0xf0c230, emissive: 0x5a4200 }), 40);
+    // 1.6.36 格（tier）ごとの見た目：農兵は鉢巻・旗なし、組頭・頭・母衣衆は兜と前立て（母衣衆は背中に母衣）
+    mk('kabutoS', new T.SphereGeometry(0.22, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 1.36, 0), lam({ color: 0xffffff }), CAP.body);
+    mk('fuki', new T.CylinderGeometry(0.23, 0.32, 0.14, 12, 1, true).translate(0, 1.3, 0), new T.MeshLambertMaterial({ color: 0xffffff, side: T.DoubleSide }), CAP.body, false);
+    mk('mae', new T.TorusGeometry(0.17, 0.03, 4, 10, Math.PI).rotateY(Math.PI / 2).translate(0.12, 1.62, 0), new T.MeshLambertMaterial({ color: 0xf0c230, emissive: 0x5a4200 }), CAP.body, false);
+    mk('hachi', new T.TorusGeometry(0.19, 0.035, 4, 12).rotateX(Math.PI / 2).translate(0, 1.4, 0), lam({ color: 0xffffff }), CAP.body, false);
+    mk('horoB', new T.SphereGeometry(0.5, 12, 8).scale(0.8, 1, 1).translate(-0.62, 1.45, 0), lam({ color: 0xffffff }), CAP.body);
+    mk('dosh', new T.CylinderGeometry(0.255, 0.255, 0.5, 10).translate(0, 0.9, 0), lam({ color: 0xffffff }), CAP.body);
     // 倒れた者
     mk('dead', new T.BoxGeometry(1.3, 0.22, 0.45).translate(0, 0.11, 0), white(), CAP.dead, false);
     // 飛び道具
@@ -275,7 +282,7 @@
   }
 
   // ---- 1人分を置く ----
-  let O, Mx, Mu, C;
+  let O, Mx, Mu, C, C2;
   const cnt = {};
   function put(name, m, color) { const im = M[name]; const i = cnt[name]++; if (i >= im.instanceMatrix.count) return; im.setMatrixAt(i, m); if (color) im.setColorAt(i, color); }
   // 体の中の一か所（x,y,z）を軸に、前後（Z軸まわり）に a だけ回して置く
@@ -484,17 +491,26 @@
       }
       const jh = s.jp > 0 ? Math.sin(Math.PI * (1 - s.jp / 0.55)) * 1.1 : 0; // 0.64.0 ジャンプ
       O.position.set(s.x, gy + ride + bob + jh, s.y); O.rotation.set(0, -f, 0); O.scale.set(sc, sc, sc); O.updateMatrix();
+      const tr = s.hero ? 5 : (s.type && TR[s.type] && TR[s.type].tier) || 2; /* 1.6.36 格ごとの見た目 */
+      if (!C2) C2 = new T.Color();
+      if (tr <= 2 && !s.fl) C.lerp(C2.setHex(0x7a6a4a), tr === 1 ? 0.7 : 0.35); // 農兵・足軽は色あせた野良着
       const bc = C.getHex();
-      C.setHex(bc).multiplyScalar(0.55); put('kusa', O.matrix, C); put('obi', O.matrix);
+      if (tr >= 2) { C.setHex(bc).multiplyScalar(0.55); put('kusa', O.matrix, C); }
+      if (tr >= 3) put('obi', O.matrix); else put('obi', O.matrix, C.setHex(0x5a4a32));
       if (!cav) { putPart('legL', O.matrix, 0, 0.56, 0.11, stp * 0.6); putPart('legR', O.matrix, 0, 0.56, -0.11, -stp * 0.6); }
       // 0.66.0 上半身（前かがみ・ひねり）を作り、そこに頭・旗・腕・武器を付ける
       const wk = weaponOf(s), ps = pose(s, wk, stp, nowS);
       Mu.copy(O.matrix);
       if (ps.lean || ps.tw) { L4.m.makeTranslation(0, 0.6, 0); Mu.multiply(L4.m); if (ps.tw) Mu.multiply(L4.m.makeRotationY(ps.tw)); if (ps.lean) Mu.multiply(L4.m.makeRotationZ(-ps.lean)); Mu.multiply(L4.m.makeTranslation(0, -0.6, 0)); }
       put('body', Mu, C.setHex(bc)); put('head', Mu);
-      C.setHex(bc).multiplyScalar(0.55); put('sode', Mu, C);
-      const hatC = s.side === 'B' ? 0x3a1a14 : 0x1c2230; put('hat', Mu, C.setHex(s.hero ? 0x2a2a2a : hatC));
-      put('flag', Mu, C.setHex(s.side === 'B' ? 0xc8402f : own ? 0xf2f2f2 : 0x6fa7d8)); put('pole', Mu);
+      if (tr >= 4) put('dosh', Mu, C.setHex(bc).multiplyScalar(0.75)); // 組頭から上は胴丸
+      if (tr >= 3) { C.setHex(bc).multiplyScalar(0.55); put('sode', Mu, C); }
+      const hatC = s.side === 'B' ? 0x3a1a14 : 0x1c2230, flagC = s.side === 'B' ? 0xc8402f : own ? 0xf2f2f2 : 0x6fa7d8;
+      if (tr === 1) put('hachi', Mu, C.setHex(0xe8e0cc)); // 農兵：鉢巻だけ
+      else if (tr <= 3) put('hat', Mu, C.setHex(hatC)); // 足軽：陣笠
+      else { put('kabutoS', Mu, C.setHex(s.hero ? 0x1a1a1a : 0x2a2622)); put('fuki', Mu, C.setHex(bc).multiplyScalar(0.5)); if (!s.hero) put('mae', Mu); } // 兜と吹返し
+      if (tr >= 2) { put('flag', Mu, C.setHex(flagC)); put('pole', Mu); }
+      if (s.type === 'horo') put('horoB', Mu, C.setHex(flagC)); // 母衣衆：背中の母衣
       if (s.hero) put('crest', Mu);
       C.setHex(bc).multiplyScalar(0.7);
       putPart('armR', Mu, 0.02, 1.12, 0.33, ps.aR, C); putPart('armL', Mu, 0.02, 1.12, -0.33, ps.aL, C);

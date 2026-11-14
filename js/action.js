@@ -617,7 +617,13 @@
       ctx.fillStyle = u.side === 'B' ? '#ffb4a8' : own && (u.id === sel || sel === 'all') ? '#ffe680' : '#dfe9f5'; ctx.fillText(t, a, c + 2);
     }
     // 仲間の本人の名前
-    for (const s of A.s) if (s.pc && s.pc !== myPid && live(s)) { const [a, c] = S(s.x, s.y, 3); ctx.fillStyle = '#ffcf8a'; ctx.fillText('仲間', a, c); }
+    { const G0 = window.SGK_G || {}, pl = (G0.view && G0.view.players) || (G0.world && Object.values(G0.world.players)) || []; /* 1.6.36 「仲間」ではなく名前で（味方の武将も） */
+      for (const s of A.s) {
+        if (!s.hero || !live(s) || s.pc === myPid) continue;
+        const u = A.byG[s.g], pp = s.pc && pl.find((x) => x.id === s.pc), nm = pp ? pp.name : u && u.gname; if (!nm) continue;
+        const [a, c] = S(s.x, s.y, 3); if (a < -50 || a > W + 50 || c < -20 || c > H + 20) continue;
+        ctx.fillStyle = s.side === 'B' ? '#ffb4a8' : s.pc ? '#ffcf8a' : '#cfe6ff'; ctx.fillText(nm, a, c);
+      } }
     // 照準（画面の真ん中）
     const cx = W / 2, cy = H / 2; ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1.5;
     if (R.actPad) { // 0.67.0 照準はコントローラーのときだけ出す

@@ -303,7 +303,7 @@
     fieldBattle(w, n, p, ally ? `${armyName(w, ally)}に加勢し、${armyName(w, n)}（${n.size}人）に攻めかかります！` : `${armyName(w, n)}（${n.size}人）に攻めかかります！`);
     const b = ally && w.battles[p.battle];
     if (b && SIM.troopCount(ally.army)) { // 1.6.35 戦っていた味方の隊も戦場に出る（自動で突撃）
-      const k = b.units.length; M.addUnits(w, b, 'A', null, ally.army);
+      b.ally = ally.id; const k = b.units.length; M.addUnits(w, b, 'A', null, ally.army);
       for (const u of b.units.slice(k)) { u.ally = ally.id; u.order = 'charge'; }
       ally.battle = b.id; b.ally = ally.id; ally.tx = ally.ty = null;
     }
