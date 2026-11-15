@@ -86,6 +86,17 @@
     return { geo, tex, nb, H, rows, att };
   }
 
+  // 高さ y0 より上の白っぽい頂点（明るく色みが少ない）を黒漆の色にする
+  function blackHat(geo, y0) {
+    const P = geo.attributes.position, C = geo.attributes.color;
+    for (let i = 0; i < P.count; i++) {
+      if (P.getY(i) < y0) continue;
+      const r = C.getX(i), g = C.getY(i), b = C.getZ(i), lo = Math.min(r, g, b), hi = Math.max(r, g, b);
+      if (lo > 0.3 && hi - lo < 0.25 * hi) C.setXYZ(i, 0.05, 0.05, 0.058);
+    }
+    C.needsUpdate = true;
+  }
+
   // 焼き込んだ骨の行列で体を動かす素材（影用も）
   function skinMat(b, depth) {
     const m = depth ? new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking }) : new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide });
@@ -135,7 +146,9 @@
       const clips = an.animations.map((c) => [c.name, c]);
       for (let i = 0; i < 4; i++) {
         let h = 0; g[1 + i].scene.traverse((o) => { if (!h && o.isBone && /Hips$/.test(o.name)) h = o.position.length(); });
-        const b = mkSkin(bake(g[1 + i], clips, h && aHip ? h / aHip : 1), cap, scene);
+        const bk = bake(g[1 + i], clips, h && aHip ? h / aHip : 1);
+        if (i === 1 || i === 2) blackHat(bk.geo, 1.4); // t2の陣笠・t3の兜の白い所は黒漆に
+        const b = mkSkin(bk, cap, scene);
         const rr = b.rows.ride; b.hipSit = rr && b.att.Hips ? b.att.Hips[rr.r0 * 16 + 13] : 0.53; // 座った姿勢の腰の高さ
         S.tiers.push(b);
       }
