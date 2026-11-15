@@ -1607,7 +1607,7 @@
       }
       const md = m && G.disp[m.id];
       if (R.cam.follow && md) { R.cam.x += (md.x - R.cam.x) * k; R.cam.y += (md.y - R.cam.y) * k; }
-      const marks = questMarks();
+      const P = G.priv, marks = questMarks();
       if (BT) {
         for (const u of BT.units) {
           const key = 'u' + BT.id + '_' + u[0], d = G.disp[key];
