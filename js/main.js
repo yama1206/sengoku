@@ -1432,6 +1432,28 @@
     }
   }
   // 照準の十字
+  /* 1.6.55 地図のカーソルの見た目（設定で変える・この端末に記憶） */
+  const CUR = { sz: [['小', 0.7], ['普通', 1], ['大', 1.4], ['特大', 1.9]], sh: [['十字と丸'], ['十字'], ['丸'], ['矢印'], ['点']],
+    co: [['白', '#ffffff'], ['黄', '#f2c14e'], ['赤', '#ff5040'], ['水色', '#60d0ff'], ['緑', '#70e070'], ['黒', '#202020']], op: [['濃い', 1], ['少し薄い', 0.75], ['半分', 0.5], ['かなり薄い', 0.3]] };
+  let curSet = { sz: 1, sh: 0, co: 0, op: 0 }; try { Object.assign(curSet, JSON.parse(localStorage.getItem('sgk-cur') || '{}')); } catch (e) {}
+  const curLbl = () => { const N = { sz: '大きさ', sh: '形', co: '色', op: '薄さ' }; for (const k of ['sz', 'sh', 'co', 'op']) $('mCur' + k[0].toUpperCase() + k[1]).textContent = `${N[k]}：${CUR[k][curSet[k] % CUR[k].length][0]}`; };
+  for (const k of ['sz', 'sh', 'co', 'op']) $('mCur' + k[0].toUpperCase() + k[1]).onclick = () => { curSet[k] = (curSet[k] + 1) % CUR[k].length; try { localStorage.setItem('sgk-cur', JSON.stringify(curSet)); } catch (e) {} curLbl(); };
+  curLbl();
+  function drawMapCur(x, y) {
+    const sc = CUR.sz[curSet.sz][1], col = CUR.co[curSet.co][1], sh = curSet.sh, dark = curSet.co === 5;
+    ctx.save(); ctx.globalAlpha = CUR.op[curSet.op][1]; ctx.lineCap = 'round';
+    for (let k = 0; k < 2; k++) {
+      ctx.strokeStyle = k ? col : dark ? 'rgba(255,255,255,.8)' : 'rgba(0,0,0,.7)'; ctx.lineWidth = (k ? 2 : 4) * Math.max(1, sc * 0.8); ctx.fillStyle = ctx.strokeStyle;
+      ctx.beginPath();
+      if (sh === 0 || sh === 2) { ctx.moveTo(x + 9 * sc, y); ctx.arc(x, y, 9 * sc, 0, 7); }
+      if (sh === 0 || sh === 1) { const a = sh ? 2 : 5; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { ctx.moveTo(x + dx * a * sc, y + dy * a * sc); ctx.lineTo(x + dx * 16 * sc, y + dy * 16 * sc); } }
+      if (sh === 3) { ctx.moveTo(x, y); ctx.lineTo(x, y + 20 * sc); ctx.lineTo(x + 5 * sc, y + 15 * sc); ctx.lineTo(x + 13 * sc, y + 14 * sc); ctx.closePath(); }
+      ctx.stroke();
+      if (sh === 4) { ctx.beginPath(); ctx.arc(x, y, (k ? 4 : 5.5) * sc, 0, 7); ctx.fill(); }
+      if (sh === 3 && k) ctx.fill();
+    }
+    ctx.restore();
+  }
   function drawCross(x, y, col) {
     ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = 4;
     for (let k = 0; k < 2; k++) {
@@ -1653,7 +1675,7 @@
         G.bcur = null;
         G.view.myClan = P && P.me && P.me.rank ? P.me.rank.clan || null : null;
         R.draw(ctx, G.view, G.disp, G.myPid, G.selected, marks);
-        if (G.pcurOn) drawCross(G.pcur[0], G.pcur[1], '#fff');
+        if (G.pcurOn) drawMapCur(G.pcur[0], G.pcur[1]);
       }
       { const mt = P && P.me && P.me.meet; if (mt && mt !== G.lastMeet && !BT) { const u = findUnit(mt); if (u) { selectUnit(u); toast('追いつきました。話しかけるか、攻めかかるかを選んでください（閉じると相手は動き出します）', 3500); } } G.lastMeet = mt || null; } // 0.73.4
       if (G.selKind === 'u' && !BT) refreshUnitInfo();
