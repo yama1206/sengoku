@@ -83,7 +83,10 @@
     }
     mixer.stopAllAction();
     const tex = new T.DataTexture(data, W, H, T.RGBAFormat, T.FloatType); tex.needsUpdate = true;
-    return { geo, tex, nb, H, rows, att };
+    // 上半身の骨（背骨とその先）。歩きながら攻撃するとき、ここだけ攻撃の動きにする
+    const upper = new Float32Array(64);
+    sk.bones.forEach((bn, i) => { for (let o = bn; o; o = o.parent) if (/Spine$/.test(o.name)) { upper[i] = 1; break; } });
+    return { geo, tex, nb, H, rows, att, upper, base: base.clone(), baseInv: base.clone().invert() };
   }
 
   // 高さ y0 より上の白っぽい頂点（明るく色みが少ない）を黒漆の色にする
@@ -101,16 +104,18 @@
   function skinMat(b, depth) {
     const m = depth ? new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking }) : new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide });
     m.onBeforeCompile = (sh) => {
-      sh.uniforms.bT = { value: b.tex }; sh.uniforms.bS = { value: new T.Vector2(b.nb * 4, b.H) };
+      sh.uniforms.bT = { value: b.tex }; sh.uniforms.bS = { value: new T.Vector2(b.nb * 4, b.H) }; sh.uniforms.bU = { value: b.upper };
+      // aR＝(下半身の行, 上半身の行, 白く光る量)。aC＝上半身を下半身の腰につなぐ行列
       sh.vertexShader = [
-        'uniform sampler2D bT; uniform vec2 bS; attribute vec4 skinIndex; attribute vec4 skinWeight; attribute float aRow; attribute float aFx;',
-        'mat4 bM(float i) { float y = (aRow + 0.5) / bS.y, dx = 1.0 / bS.x, x = (i * 4.0 + 0.5) * dx;',
-        '  return mat4(texture2D(bT, vec2(x, y)), texture2D(bT, vec2(x + dx, y)), texture2D(bT, vec2(x + 2.0 * dx, y)), texture2D(bT, vec2(x + 3.0 * dx, y))); }',
+        'uniform sampler2D bT; uniform vec2 bS; uniform float bU[64]; attribute vec4 skinIndex; attribute vec4 skinWeight; attribute vec3 aR; attribute mat4 aC;',
+        'mat4 bM(float i) { bool up = bU[int(i + 0.5)] > 0.5; float y = ((up ? aR.y : aR.x) + 0.5) / bS.y, dx = 1.0 / bS.x, x = (i * 4.0 + 0.5) * dx;',
+        '  mat4 m = mat4(texture2D(bT, vec2(x, y)), texture2D(bT, vec2(x + dx, y)), texture2D(bT, vec2(x + 2.0 * dx, y)), texture2D(bT, vec2(x + 3.0 * dx, y)));',
+        '  return up ? aC * m : m; }',
         sh.vertexShader
           .replace('#include <skinbase_vertex>', 'mat4 skM = skinWeight.x * bM(skinIndex.x) + skinWeight.y * bM(skinIndex.y) + skinWeight.z * bM(skinIndex.z) + skinWeight.w * bM(skinIndex.w);')
           .replace('#include <skinnormal_vertex>', 'objectNormal = normalize(mat3(skM) * objectNormal);')
           .replace('#include <skinning_vertex>', 'transformed = (skM * vec4(transformed, 1.0)).xyz;')
-          .replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\n  vColor.rgb = mix(vColor.rgb, vec3(1.0), aFx);\n#endif'),
+          .replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\n  vColor.rgb = mix(vColor.rgb, vec3(1.0), aR.z);\n#endif'),
       ].join('\n');
     };
     m.customProgramCacheKey = () => 'sold3d' + (depth ? 'd' : 'c');
@@ -118,9 +123,9 @@
   }
 
   function mkSkin(b, cap, scene) {
-    const ra = new T.InstancedBufferAttribute(new Float32Array(cap), 1), fa = new T.InstancedBufferAttribute(new Float32Array(cap), 1);
+    const ra = new T.InstancedBufferAttribute(new Float32Array(cap * 3), 3), fa = new T.InstancedBufferAttribute(new Float32Array(cap * 16), 16);
     ra.setUsage(T.DynamicDrawUsage); fa.setUsage(T.DynamicDrawUsage);
-    b.geo.setAttribute('aRow', ra); b.geo.setAttribute('aFx', fa);
+    b.geo.setAttribute('aR', ra); b.geo.setAttribute('aC', fa);
     const im = new T.InstancedMesh(b.geo, skinMat(b, false), cap);
     im.customDepthMaterial = skinMat(b, true);
     im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.frustumCulled = false; im.castShadow = true; im.count = 0;
@@ -184,14 +189,32 @@
     const tt = loop ? ((t % R.dur) + R.dur) % R.dur : Math.max(0, Math.min(R.dur, t));
     return R.r0 + Math.min(R.n - 1, Math.round(tt * S.fps));
   };
-  S.put = (b, m, row, fx) => { if (b.n >= b.cap) return false; b.im.setMatrixAt(b.n, m); b.ra.array[b.n] = row; b.fa.array[b.n] = fx || 0; b.n++; return true; };
+  // row＝下半身（または全身）の行、rowU・cs＝上半身の行とつなぐ行列（S.combo で作る。なければ全身 row）
+  const I16 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  S.put = (b, m, row, fx, rowU, cs) => {
+    if (b.n >= b.cap) return false; const n = b.n;
+    b.im.setMatrixAt(n, m);
+    b.ra.array[n * 3] = row; b.ra.array[n * 3 + 1] = rowU == null ? row : rowU; b.ra.array[n * 3 + 2] = fx || 0;
+    if (cs && rowU != null) cs.toArray(b.fa.array, n * 16); else b.fa.array.set(I16, n * 16);
+    b.n++; return true;
+  };
+  // 歩きながら攻撃：上半身（rowUp）を下半身（rowLow）の腰につなぐ。cs＝体を動かす用、cw＝武器などを置く用
+  let mH1, mH2;
+  S.combo = (b, rowLow, rowUp, cs, cw) => {
+    if (!mH1) { mH1 = new T.Matrix4(); mH2 = new T.Matrix4(); }
+    mH1.fromArray(b.att.Hips, rowLow * 16); mH2.fromArray(b.att.Hips, rowUp * 16).invert();
+    cw.multiplyMatrices(mH1, mH2);
+    cs.multiplyMatrices(b.base, cw).multiply(b.baseInv);
+  };
   S.putW = (name, m) => { const w = S.wep[name]; if (!w || w.n >= w.cap) return; w.im.setMatrixAt(w.n++, m); };
   // 手の骨の行列（体の中での位置と向き）
   S.hand = (b, row, side, out) => out.fromArray(b.att[side === 'L' ? 'LeftHand' : 'RightHand'], row * 16);
   // 武器の行列（体の中で）。kind：spear・gun・sword・bow。両手で持つ動き（突く・構える・斬る）では、両手を結ぶ線を武器の向きにする
   const TWO = { spear: ['spear', 1], gun: ['gun', 1], sword: ['sword', -1] };
   let v1, v2, v3, v4, mT;
-  S.weapon = (b, row, kind, clip, out) => {
+  // cw：歩きながら攻撃するとき、上半身を腰につなぐ行列（S.combo の cw）
+  S.weapon = (b, row, kind, clip, out, cw) => { weapon0(b, row, kind, clip, out); if (cw) out.premultiply(cw); return out; };
+  const weapon0 = (b, row, kind, clip, out) => {
     if (!v1) { v1 = new T.Vector3(); v2 = new T.Vector3(); v3 = new T.Vector3(); v4 = new T.Vector3(); mT = new T.Matrix4(); }
     const side = kind === 'bow' ? 'L' : 'R';
     S.hand(b, row, side, out).multiply(S.grip(side));

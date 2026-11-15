@@ -383,7 +383,7 @@
   // ---- 1.6.65 兵の人型モデル（t1〜t4・馬・武器。js/soldier3d.js でまとめて描く）----
   // 近くの兵はモデル、遠く（LOD m より先）はこれまでの簡単な形。読み込めないときもこれまでの形
   const LOD2 = 180 * 180, DEADN = 120;
-  let SK90 = null, Mh = null, Mw = null, Ms = null;
+  let SK90 = null, Mh = null, Mw = null, Ms = null, Mc = null, Mcw = null;
   function wepName(wk, tr) {
     if (wk === 'spearS') return tr <= 1 ? 'takeyari' : 'yari';
     if (wk === 'spearL') return tr >= 4 ? 'yari_t4' : 'yari';
@@ -396,13 +396,15 @@
   function skClip(s, wk, mv, nowS, ph) {
     const S3 = SGK.SOLD3D, atk = wk === 'spearS' || wk === 'spearL' ? 'spear' : wk === 'bow' ? 'bow' : wk === 'gun' ? 'gun' : 'sword';
     const W = S3.win[atk] || { a: 0, b: 1, pk: 0.5 };
-    const hit = (k) => ({ nm: atk, t: W.a + (W.b - W.a) * Math.min(1, Math.max(0, k)), loop: false });
+    // 1.6.65 動きながらの攻撃は、足は歩く・走る（low）、上半身だけ攻撃の動き
+    const low = mv >= 0.4 ? { nm: mv < 3.6 ? 'walk' : 'run', t: ph, loop: true } : null;
+    const hit = (k) => ({ nm: atk, t: W.a + (W.b - W.a) * Math.min(1, Math.max(0, k)), loop: false, atk: true, low });
     if (s.hero && s.sw) return hit(1 - Math.max(0, s.sw.t) / (s.sw.d || 0.18));
-    if (s.hero && s.hold && (atk === 'bow' || atk === 'spear')) return { nm: atk, t: atk === 'bow' ? W.pk : W.a, loop: false };
+    if (s.hero && s.hold && (atk === 'bow' || atk === 'spear')) return { nm: atk, t: atk === 'bow' ? W.pk : W.a, loop: false, atk: true, low };
     const a = s.at ? (nowS - s.at) / (wk === 'gun' || wk === 'bow' ? 0.5 : 0.4) : 9;
-    if (a >= 0 && a < 1) return atk === 'gun' ? { nm: 'gun', t: ph, loop: true } : hit(a);
+    if (a >= 0 && a < 1) return atk === 'gun' ? { nm: 'gun', t: ph, loop: true, atk: true, low } : hit(a);
     if (mv < 0.4) return { nm: wk === 'gun' ? 'gun' : 'idle', t: ph, loop: true }; // 鉄砲は止まるとしゃがんで構える
-    return { nm: mv < 3.6 ? 'walk' : 'run', t: ph, loop: true };
+    return low;
   }
   function drawSk(s, u, cav, mv, nowS, gy, f, own, col, ph) {
     const S3 = SGK.SOLD3D, tr = Math.min(4, Math.max(1, s.hero ? 4 : (s.type && TR[s.type] && TR[s.type].tier) || 2)), b = S3.tiers[tr - 1];
@@ -414,16 +416,19 @@
       const hb = S3.horses[s.hero || s.type === 'horo' ? 'white' : 'brown'];
       Mx.copy(O.matrix).multiply(SK90).multiply(Ms.makeScale(S3.hk, S3.hk, S3.hk));
       S3.put(hb, Mx, S3.rowAt(hb, mv < 0.6 ? 'idle' : mv < 6 ? 'walk' : 'gallop', ph, true), 0);
-      up = S3.seat - b.hipSit * sc; c = { nm: 'ride', t: 0, loop: false };
+      up = S3.seat - b.hipSit * sc;
+      const ride = { nm: 'ride', t: 0, loop: false }, ca = skClip(s, wk, mv, nowS, ph);
+      c = ca.atk ? Object.assign({}, ca, { low: ride }) : ride; // 馬の上でも上半身は攻撃する
     } else c = skClip(s, wk, mv, nowS, ph);
     Mu.copy(O.matrix); Mu.elements[13] += up; // 体の位置（前が +X）。指物などはこれに付ける
     Mx.copy(Mu).multiply(SK90); if (sc !== 1) Mx.multiply(Ms.makeScale(sc, sc, sc));
-    const row = S3.rowAt(b, c.nm, c.t, c.loop);
-    S3.put(b, Mx, row, s.fl ? 0.6 : 0);
+    const row = S3.rowAt(b, c.nm, c.t, c.loop), rowL = c.low ? S3.rowAt(b, c.low.nm, c.low.t, c.low.loop) : row;
+    if (c.low) S3.combo(b, rowL, row, Mc, Mcw);
+    S3.put(b, Mx, rowL, s.fl ? 0.6 : 0, c.low ? row : null, c.low ? Mc : null);
     // 武器を手に持たせる（弓は左手）
     const wn = wepName(wk, tr), kind = wk === 'spearS' || wk === 'spearL' ? 'spear' : wk === 'bow' || wk === 'gun' ? wk : 'sword';
     if (wn || wk === 'shuri') {
-      Mw.multiplyMatrices(Mx, S3.weapon(b, row, kind, c.nm, Mh));
+      Mw.multiplyMatrices(Mx, S3.weapon(b, row, kind, c.nm, Mh, c.low ? Mcw : null));
       if (wk === 'waki') Mw.multiply(Ms.makeScale(0.7, 0.7, 0.7));
       if (wn) S3.putW(wn, Mw); else put('shuri', Mw);
       if (wk === 'gun' && s.at && nowS - s.at < 0.06) { Mw.multiply(Ms.makeTranslation(0, 1.0, 0)); put('flash', Mw); }
@@ -446,7 +451,7 @@
     if (built !== b.id) build(b.id, terList);
     { const gt = b.act && b.act.gt; for (const d of gateM) d.visible = !gt || gt[d.userData.gid] > 0; } /* 1.6.38 破れた門の扉は消す */
     cv.style.display = 'block'; clearTimeout(hideT); hideT = setTimeout(() => { cv.style.display = 'none'; }, 250);
-    if (!O) { O = new T.Object3D(); O.rotation.order = 'YXZ'; Mx = new T.Matrix4(); Mu = new T.Matrix4(); C = new T.Color(); C2 = new T.Color(); SK90 = new T.Matrix4().makeRotationY(Math.PI / 2); Mh = new T.Matrix4(); Mw = new T.Matrix4(); Ms = new T.Matrix4(); }
+    if (!O) { O = new T.Object3D(); O.rotation.order = 'YXZ'; Mx = new T.Matrix4(); Mu = new T.Matrix4(); C = new T.Color(); C2 = new T.Color(); SK90 = new T.Matrix4().makeRotationY(Math.PI / 2); Mh = new T.Matrix4(); Mw = new T.Matrix4(); Ms = new T.Matrix4(); Mc = new T.Matrix4(); Mcw = new T.Matrix4(); }
     const nowS = performance.now() / 1000;
     // カメラ：マウント＆ブレイド2のように本人の肩越し（マウスで向き、ホイールで寄る・引く）
     const hx = cam.hx != null ? cam.hx : cam.x, hy = cam.hy != null ? cam.hy : cam.y;
