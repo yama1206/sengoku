@@ -31,7 +31,7 @@
     h += 0.35 * Math.sin(x * 0.07 + 1.3) * Math.sin(y * 0.06 + 0.7) + 0.18 * Math.sin(x * 0.17 - y * 0.13); // 0.65.0 地面の小さな起伏
     for (const t of ter) if (t.k === 'm') { const d = Math.hypot(x - t.x, y - t.y); if (d < t.r && d > (t.ri || 0) && !SGK.SIM.onBridge(ter, x, y)) h -= 1.4; }
     let wd = 0; for (const t of ter) if (t.k === 'w') { const d = Math.hypot(x - t.x, y - t.y); if (d < t.r + 4) wd = Math.max(wd, 1 - Math.pow(d / (t.r + 4), 2)); } /* 1.6.64 川の底（岸はなだらか） */
-    return h - 1.7 * wd;
+    return h - 2.4 * wd; /* 1.6.70 川底を深く */
   }
   X.hgt = hgt;
 
@@ -187,7 +187,7 @@
   function backdrop(id, F) {
     const E = ter.find((t) => t.k === 'e') || {}, cx = F.w / 2, cy = F.h / 2, r = rng(String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0), 41));
     const add = (m) => { scene.add(m); trees.push(m); return m; };
-    if (ter.some((t) => t.k === 'w' || t.k === 'm')) { const wm = add(new T.Mesh(new T.PlaneGeometry(F.w + 80, F.h + 80).rotateX(-Math.PI / 2).translate(cx, -0.75, cy), new T.MeshPhongMaterial({ color: 0x3e6a84, specular: 0x9fb8c8, shininess: 70, transparent: true, opacity: 0.82 }))); wm.receiveShadow = true; }
+    if (ter.some((t) => t.k === 'w' || t.k === 'm')) { const wm = add(new T.Mesh(new T.PlaneGeometry(F.w + 80, F.h + 80).rotateX(-Math.PI / 2).translate(cx, -0.45, cy), new T.MeshPhongMaterial({ color: 0x2f86d0, specular: 0xd0e8ff, shininess: 90, transparent: true, opacity: 0.72 }))); wm.receiveShadow = true; }
     if (E.sea != null) { const sm = add(new T.Mesh(new T.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), new T.MeshPhongMaterial({ color: 0x35627e, specular: 0xa8c0d0, shininess: 60 }))); sm.position.set(cx + Math.cos(E.sea) * 2400, -0.2, cy + Math.sin(E.sea) * 2400); }
     let list = (E.mtn || []).slice(); if (!list.length) for (let i = 0; i < 5; i++) list.push([r() * 6.28, 20, 1]); /* 山が近くにないときは遠くの低い丘並み */
     const hz = new T.Color(0xcfdde6), base = new T.Color(0x4c5e44), pos = [], col = [], c = new T.Color();
@@ -220,11 +220,11 @@
         const d = Math.hypot(x - t.x, y - t.y);
         if (t.k === 'f' && d < t.r) c.lerp(new T.Color(0x4f6c34), 0.75);
         else if (t.k === 'h' && d < t.r * 1.15) c.lerp(new T.Color(0xa49866), 0.55 * (1 - d / (t.r * 1.15)) + 0.2);
-        else if (t.k === 'm' && d < t.r && d > (t.ri || 0)) c.setHex(SGK.SIM.onBridge(ter, x, y) ? 0x9a8660 : 0x4d6f8e);
+        else if (t.k === 'm' && d < t.r && d > (t.ri || 0)) c.setHex(SGK.SIM.onBridge(ter, x, y) ? 0x9a8660 : 0x2f78bf);
         else if (t.k === 'k' && d < t.r) c.setHex(0xb9a57c);
         else if (t.k === 's' && d < t.r && d > (t.ri || 0)) c.lerp(new T.Color(0x8b7d55), 0.5);
-        else if (t.k === 'w' && d < t.r + 3) c.lerp(new T.Color(0x6b6448), 0.8); /* 1.6.64 川底と岸 */
-        else if (!['f', 'h', 'm', 'k', 's', 'e', 'w'].includes(t.k) && d < t.r) c.setHex(0x4d6f8e);
+        else if (t.k === 'w' && d < t.r + 3) c.lerp(new T.Color(d < t.r ? 0x2c5f8a : 0x8a7a52), 0.85); /* 1.6.64 川底と岸（1.6.70 川底を青に） */
+        else if (!['f', 'h', 'm', 'k', 's', 'e', 'w'].includes(t.k) && d < t.r) c.setHex(0x2f78bf);
       }
       if (x < 0 || y < 0 || x > F.w || y > F.h) c.multiplyScalar(0.85);
       const n = (0.95 + r() * 0.08) * (0.94 + 0.08 * Math.sin(x * 0.045 + 2) * Math.sin(y * 0.05)); col[i * 3] = c.r * n; col[i * 3 + 1] = c.g * n; col[i * 3 + 2] = c.b * n; // 0.65.0 広いまだら模様（0.68.1 色を入れる文がコメントの中に入って地面が黒くなっていたのを直した）

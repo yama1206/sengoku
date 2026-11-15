@@ -100,7 +100,7 @@
     ctx.save(); ctx.translate(ox, oy); ctx.scale(sc, sc);
     ctx.fillStyle = S.d.night ? '#2b3326' : '#5d6b45'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = S.d.night ? '#2f3328' : '#7a7458'; ctx.fillRect(0, 500, W, H - 500); // 城下
-    ctx.fillStyle = '#3d6e8e'; for (const r of S.water) ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = '#2f78bf'; for (const r of S.water) ctx.fillRect(r.x, r.y, r.w, r.h);
     ctx.fillStyle = 'rgba(60,160,80,.5)'; ctx.fillRect(S.exit.x, S.exit.y, S.exit.w, S.exit.h);
     for (const g of S.guards) { // 視界の扇
       const R = g.range * (S.p.crouch ? 0.6 : 1); ctx.fillStyle = g.see ? 'rgba(230,60,40,.35)' : 'rgba(250,230,120,.18)';

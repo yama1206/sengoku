@@ -74,8 +74,8 @@
     for (const r of roads) { const k = r.rank || 2; ctx.strokeStyle = k === 3 ? 'rgba(240,228,190,.6)' : 'rgba(245,232,190,.9)'; ctx.lineWidth = Math.max(k === 1 ? 6 : k === 2 ? 4 : 2.5, cam.scale * RW[k]); path(ctx, r.pts); ctx.stroke(); }
     for (const r of roads) { const k = r.rank || 2; ctx.strokeStyle = RD[k]; ctx.lineWidth = Math.max(k === 1 ? 2.5 : k === 2 ? 1.5 : 1, cam.scale * RW[k] * 0.33); if (k === 3) ctx.setLineDash([4, 3]); path(ctx, r.pts); ctx.stroke(); ctx.setLineDash([]); }
     // 川
-    ctx.strokeStyle = '#7d9fae'; ctx.lineCap = ctx.lineJoin = 'round';
-    ctx.lineWidth = Math.max(2, cam.scale * 0.35);
+    ctx.strokeStyle = '#3d8fd6'; ctx.lineCap = ctx.lineJoin = 'round'; /* 1.6.70 川を青くはっきり */
+    ctx.lineWidth = Math.max(3, cam.scale * 0.45);
     for (const r of T.rivers) { path(ctx, r.pts); ctx.stroke(); }
     // 昼夜：夕方・明け方は橙、夜は藍色に沈める
     const day = SGK.SIM.daylight ? SGK.SIM.daylight(view.t || 0) : 1, night = 1 - day;
