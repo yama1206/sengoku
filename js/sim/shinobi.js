@@ -1,4 +1,4 @@
-// 0.77.0 忍び：忍びとして仕官すると、馬・兵なしで身軽に動き、主家から敵の城への工作（破壊工作・襲撃・流言）を請け負う。工作は潜入のミニゲーム（js/ninja.js）で成否が決まる
+// 0.77.0 忍び：忍びとして仕官すると、兵なしで身軽に動き、主家から敵の城への工作（破壊工作・襲撃・流言）を請け負う。工作は潜入のミニゲーム（js/ninja.js）で成否が決まる
 (function () {
   const SIM = SGK.SIM, C = SIM.commands;
   const NR = SIM.NRANKS = [null,
@@ -8,7 +8,7 @@
     { name: '忍頭', desc: '主家の忍びの頭。工作の報酬が6割増える。忍びはここが最高位' },
   ];
   const NIN = SIM.NIN = {
-    mapSpd: 4,    // 地図での移動の速さ（加算）
+    mapSpd: 8,    // 地図での移動の速さ（加算）1.6.56 4→8
     actSpd: 1.35, // 合戦での本人の走る速さ（倍）1.6.32 1.2→1.35
     view: 1.4,    // 1.6.32 地図の視界（倍）
     seen: 0.6,    // 野盗などから見つかる距離（倍）
@@ -39,8 +39,7 @@
     if (was || !p.clan || !(c && c.nin)) return;
     p.nin = true; nst(w, p);
     const n = SIM.troopCount ? SIM.troopCount(p.troops || {}) : 0; p.troops = {};
-    const e = p.equip; if (e && e.horse) { p.gear = p.gear || {}; p.gear[e.horse] = (p.gear[e.horse] || 0) + 1; e.horse = null; }
-    SIM.say(p.id, `${fName(w, p.clan)}の下忍として召し抱えられました！${n ? `連れていた兵${n}人は解き放ちました。` : ''}忍びの間は馬に乗れず、兵も雇えません`);
+    SIM.say(p.id, `${fName(w, p.clan)}の下忍として召し抱えられました！${n ? `連れていた兵${n}人は解き放ちました。` : ''}忍びの間は兵を雇えません`);
   };
   const baseLeave = C.leaveClan;
   C.leaveClan = (w, p, c) => { const was = p.nin; baseLeave(w, p, c); if (was && !p.clan) { p.nin = false; p.ninQ = null; } };
@@ -54,12 +53,11 @@
     p.rank++; p.promoteHint = 0; nst(w, p);
     SIM.say(p.id, `${NR[p.rank].name}に取り立てられました！ 俸禄は月${SIM.money(SIM.RANKS[p.rank].stipend)}になります`);
   };
-  // 兵を雇えない・馬に乗れない
+  // 兵を雇えない（1.6.56 馬には乗れるようにした）
   for (const k of ['recruit']) { const b = C[k]; if (b) C[k] = (w, p, c) => (p.nin ? SIM.say(p.id, '忍びの間は兵を雇えません') : b(w, p, c)); }
-  const bEq = C.equipGear; if (bEq) C.equipGear = (w, p, c) => (p.nin && SGK.SIM.EQUIP && SIM.EQUIP.slotOf && SIM.EQUIP.slotOf(c.id) === 'horse' ? SIM.say(p.id, '忍びの間は馬に乗れません') : bEq(w, p, c));
-  const bBuyE = C.buyEquip; if (bBuyE) C.buyEquip = (w, p, c) => (p.nin && c.kind === 'horse' ? SIM.say(p.id, '忍びの間は馬に乗れません') : bBuyE(w, p, c));
   // 身軽さ
   const baseSpd = SIM.speedBonus; SIM.speedBonus = (p) => baseSpd(p) + (p.nin ? NIN.mapSpd : 0);
+  const baseMM = SIM.moveMul; SIM.moveMul = (e, x, y) => (e.nin && SIM.forestAt(x, y) ? 1 : baseMM(e, x, y)); /* 1.6.56 忍びは森でも遅くならない（平地と同じ） */
   // 戦の城に入れる：請け負った工作の城だけ
   const baseCan = SIM.canEnter; SIM.canEnter = (w, p, s) => baseCan(w, p, s) || !!(p.nin && p.ninQ && p.ninQ.to === s.id);
 
