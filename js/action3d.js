@@ -5,17 +5,17 @@
   const X = R.act3d = { on: true, ready: false, failed: false };
   try { const v = localStorage.getItem('sgk-act3d'); if (v === '0') X.on = false; } catch (e) { /* 保存できない環境 */ }
   // 0.75.0 ビデオ設定：影（0切・1低・2高）、草の量（0なし・1少なめ・2普通・3多め）
-  X.vid = { sh: 2, gr: 2 }; try { Object.assign(X.vid, JSON.parse(localStorage.getItem('sgk-vid') || '{}')); } catch (e) { /* 無視 */ }
+  X.vid = { sh: 2, gr: 2, pp: 1 }; /* 2.2.0 pp：画面の仕上げ（0切・1入） */ try { Object.assign(X.vid, JSON.parse(localStorage.getItem('sgk-vid') || '{}')); } catch (e) { /* 無視 */ }
   let grassM = null;
   X.setVid = (k, v) => { X.vid[k] = v; try { localStorage.setItem('sgk-vid', JSON.stringify(X.vid)); } catch (e) { /* 無視 */ } X.applyVid(); };
   X.applyVid = () => {
-    if (sun) { const sh = X.vid.sh, sz = sh === 1 ? 1024 : 2048; sun.castShadow = sh > 0; if (sun.shadow.mapSize.x !== sz) { sun.shadow.mapSize.set(sz, sz); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } } }
+    if (sun) { const sh = X.vid.sh, sz = sh === 1 ? 2048 : 4096, bx = sh === 1 ? 90 : 130; sun.castShadow = sh > 0; { const c = sun.shadow.camera; if (c.right !== bx) { c.left = c.bottom = -bx; c.right = c.top = bx; c.updateProjectionMatrix(); } } /* 2.2.0 影を細かく・広く */ if (sun.shadow.mapSize.x !== sz) { sun.shadow.mapSize.set(sz, sz); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } } }
     if (grassM) grassM.count = Math.floor(grassM.userData.full * [0, 0.2, 0.55, 1][X.vid.gr]);
   };
   X.toggle = () => { X.on = !X.on; try { localStorage.setItem('sgk-act3d', X.on ? '1' : '0'); } catch (e) { /* 無視 */ } if (!X.on && cv) cv.style.display = 'none'; return X.on; };
 
   let T, rd, scene, cam3, cv, sun, hideT, W = 0, H = 0, clock = 0;
-  let built = null, groundG = null, groundM = null, gateM = [], trees = [], ter = [], hills = [], sky = null, hemi = null, tod = null, texMacro = null; const gTime = { value: 0 };
+  let built = null, groundG = null, groundM = null, gateM = [], trees = [], ter = [], hills = [], sky = null, hemi = null, tod = null, texMacro = null, texGN = null, envT = null, waterT = []; const gTime = { value: 0 }, wOff = { value: null };
   const L4 = { m: null }; // 足などの部分を動かすための行列
   const M = {}; // 兵の各部分（まとめて描く InstancedMesh）
   const CAP = { body: 700, dead: 520, arrow: 300, ring: 120 };
@@ -79,7 +79,7 @@
       ].join('\n'),
     }));
     sky.frustumCulled = false; sky.renderOrder = -1; scene.add(sky);
-    sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -70; sc.right = 70; sc.top = 70; sc.bottom = -70; sc.near = 1; sc.far = 300;
+    sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -70; sc.right = 70; sc.top = 70; sc.bottom = -70; sc.near = 1; sc.far = 520;
     sun.shadow.bias = -0.0008; X.applyVid(); scene.add(sun); scene.add(sun.target);
     // 戦場の外の広い地面
     const out = new T.Mesh(new T.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), new T.MeshLambertMaterial({ color: 0x6d7c44 }));
@@ -170,6 +170,35 @@
   // 0.65.0 絵の具（画面の中で作る模様。外から画像は読まない）
   let texG = null, texGrass = null;
   function canvasTex(n, fn, lin) { const c = document.createElement('canvas'); c.width = c.height = n; fn(c.getContext('2d'), n); const t = new T.CanvasTexture(c); if (!lin) t.encoding = T.sRGBEncoding; t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = rd.capabilities.getMaxAnisotropy ? Math.min(8, rd.capabilities.getMaxAnisotropy()) : 1; return t; }
+  // 2.2.0 くり返せるなめらかな乱数の高さ（n×n、G：格子の数）
+  function tileNoise(n, G, oct, seed) {
+    const r = rng(seed), v = []; for (let i = 0; i < G * G * 8; i++) v.push(r());
+    const out = new Float32Array(n * n);
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      let s = 0, a = 0.5, g = G;
+      for (let o = 0; o < oct; o++) { const fx = x / n * g, fy = y / n * g, xi = Math.floor(fx), yi = Math.floor(fy), u = fx - xi, w = fy - yi, uu = u * u * (3 - 2 * u), ww = w * w * (3 - 2 * w), at = (X2, Y2) => v[(((Y2 % g) + g) % g) * g + (((X2 % g) + g) % g) + o * 7 % (G * G * 4)];
+        s += a * ((at(xi, yi) * (1 - uu) + at(xi + 1, yi) * uu) * (1 - ww) + (at(xi, yi + 1) * (1 - uu) + at(xi + 1, yi + 1) * uu) * ww); a *= 0.5; g *= 2; }
+      out[y * n + x] = s;
+    }
+    return out;
+  }
+  // 2.2.0 高さから凹凸の向きの絵（法線マップ）を作る
+  function normalTex(n, hgtArr, k) {
+    return canvasTex(n, (g) => {
+      const im = g.createImageData(n, n), H2 = (x, y) => hgtArr[((y + n) % n) * n + ((x + n) % n)];
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+        const dx = (H2(x + 1, y) - H2(x - 1, y)) * k, dy = (H2(x, y + 1) - H2(x, y - 1)) * k, l = Math.hypot(dx, dy, 1), q = (y * n + x) * 4;
+        im.data[q] = (-dx / l * 0.5 + 0.5) * 255; im.data[q + 1] = (dy / l * 0.5 + 0.5) * 255; im.data[q + 2] = (1 / l * 0.5 + 0.5) * 255; im.data[q + 3] = 255;
+      }
+      g.putImageData(im, 0, 0);
+    }, true);
+  }
+  // 2.2.0 地面の凹凸：地面の模様の明るさ（草の筋・土の粒）を高さとみなす
+  function groundNormal(cvs) {
+    const n = cvs.width, d = cvs.getContext('2d').getImageData(0, 0, n, n).data, h = new Float32Array(n * n);
+    for (let i = 0; i < n * n; i++) h[i] = (d[i * 4] + d[i * 4 + 1] + d[i * 4 + 2]) / 765;
+    return normalTex(n, h, 3.5);
+  }
   // 2.1.0 地面の模様：細かい草・土の粒・小石・土の色むら
   function groundTex() {
     return canvasTex(512, (g, n) => {
@@ -208,7 +237,7 @@
     const m = new T.MeshLambertMaterial({ map: texGrass, alphaTest: 0.45, side: T.DoubleSide });
     m.onBeforeCompile = (sh) => {
       sh.uniforms.gT = gTime;
-      sh.vertexShader = 'uniform float gT;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\n vec4 gw = modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0); transformed *= 1.0 - smoothstep(70.0, 115.0, distance(cameraPosition.xz, gw.xz)); float gk = position.y / 0.55; transformed.x += sin(gT * 1.6 + gw.x * 0.35 + gw.z * 0.22) * 0.13 * gk; transformed.z += cos(gT * 1.3 + gw.x * 0.2 + gw.z * 0.31) * 0.08 * gk;\n#endif');
+      sh.vertexShader = 'uniform float gT;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\n vec4 gw = modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0); transformed *= 1.0 - smoothstep(150.0, 230.0, distance(cameraPosition.xz, gw.xz)); float gk = position.y / 0.55; transformed.x += sin(gT * 1.6 + gw.x * 0.35 + gw.z * 0.22) * 0.13 * gk; transformed.z += cos(gT * 1.3 + gw.x * 0.2 + gw.z * 0.31) * 0.08 * gk;\n#endif');
       sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(0.55, 1.12, vUv.y);');
     };
     return m;
@@ -226,12 +255,31 @@
     const bg = new T.BufferGeometry(); bg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); bg.setAttribute('normal', new T.Float32BufferAttribute(nor, 3)); bg.setAttribute('color', new T.Float32BufferAttribute(col, 3)); return bg;
   }
 
+  // 2.2.0 水：空と山が映り込む（戦場ごとに一度だけ周りの景色を写し取る）・さざ波が2重に流れる
+  let mtnM = null;
+  function waterMat(col, rep, op) {
+    if (!wOff.value) wOff.value = new T.Vector4();
+    if (!waterT.base) waterT.base = normalTex(256, tileNoise(256, 6, 4, 77), 9);
+    const nt = waterT.base.clone(); nt.needsUpdate = true; nt.repeat.set(rep, rep); waterT.push(nt);
+    const m = new T.MeshStandardMaterial({ color: col, roughness: 0.05, metalness: 0, normalMap: nt, normalScale: new T.Vector2(0.4, 0.4), envMap: envT, transparent: op < 1, opacity: op });
+    m.onBeforeCompile = (sh) => { sh.uniforms.wO = wOff; sh.fragmentShader = 'uniform vec4 wO;\n' + sh.fragmentShader.replace('#include <normal_fragment_maps>', 'vec3 mapN = (texture2D(normalMap, vUv + wO.xy).xyz + texture2D(normalMap, vUv * 1.63 + wO.zw).xyz) - 1.0; mapN.xy *= normalScale; normal = perturbNormal2Arb(-vViewPosition, normal, mapN, faceDirection);'); };
+    return m;
+  }
+  function makeEnv(F) {
+    const es = new T.Scene(); es.background = new T.Color(tod ? tod.haze : 0xcfdde6);
+    scene.remove(sky); es.add(sky); sky.position.set(0, 0, 0);
+    if (mtnM) { const m2 = new T.Mesh(mtnM.geometry, mtnM.material); m2.position.set(-F.w / 2, -3, -F.h / 2); es.add(m2); }
+    const pm = new T.PMREMGenerator(rd); if (envT) envT.dispose(); envT = pm.fromScene(es, 0, 1, 3200).texture; pm.dispose();
+    es.remove(sky); scene.add(sky);
+    for (const t of trees) if (t.material && t.material.normalMap && waterT.includes(t.material.normalMap)) { t.material.envMap = envT; t.material.needsUpdate = true; }
+  }
+
   // 1.6.64 地図に合わせた景色：遠くの山（その方角に山地があるとき）・海・川や堀の水面。見た目だけ
   function backdrop(id, F) {
     const E = ter.find((t) => t.k === 'e') || {}, cx = F.w / 2, cy = F.h / 2, r = rng(String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0), 41));
     const add = (m) => { scene.add(m); trees.push(m); return m; };
-    if (ter.some((t) => t.k === 'w' || t.k === 'm')) { const wm = add(new T.Mesh(new T.PlaneGeometry(F.w + 80, F.h + 80).rotateX(-Math.PI / 2).translate(cx, -0.45, cy), new T.MeshPhongMaterial({ color: 0x2f86d0, specular: 0xd0e8ff, shininess: 90, transparent: true, opacity: 0.72 }))); wm.receiveShadow = true; }
-    if (E.sea != null) { const sm = add(new T.Mesh(new T.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), new T.MeshPhongMaterial({ color: 0x35627e, specular: 0xa8c0d0, shininess: 60 }))); sm.position.set(cx + Math.cos(E.sea) * 2400, -0.2, cy + Math.sin(E.sea) * 2400); }
+    if (ter.some((t) => t.k === 'w' || t.k === 'm')) { const wm = add(new T.Mesh(new T.PlaneGeometry(F.w + 80, F.h + 80).rotateX(-Math.PI / 2).translate(cx, -0.45, cy), waterMat(0x1f5f86, (F.w + 80) / 10, 0.86))); wm.receiveShadow = true; }
+    if (E.sea != null) { const sm = add(new T.Mesh(new T.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), waterMat(0x234f6a, 4000 / 18, 1))); sm.position.set(cx + Math.cos(E.sea) * 2400, -0.2, cy + Math.sin(E.sea) * 2400); }
     let list = (E.mtn || []).slice(); if (!list.length) for (let i = 0; i < 5; i++) list.push([r() * 6.28, 20, 1]); /* 山が近くにないときは遠くの低い丘並み */
     const hz = new T.Color(tod ? tod.haze : 0xcfdde6), base = new T.Color(0x4c5e44), pos = [], col = [], c = new T.Color();
     for (const [a, dk, low] of list) for (let k = 0; k < 3; k++) {
@@ -253,7 +301,7 @@
       for (let i = 0; i < P.count; i++) { const l = 0.65 + 0.5 * Math.max(0, n.getX(i) * -0.4 + n.getY(i) * 0.75 + n.getZ(i) * 0.25); col.push(c.r * l, c.g * l, c.b * l); }
     }
     const bg = new T.BufferGeometry(); bg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); bg.setAttribute('color', new T.Float32BufferAttribute(col, 3));
-    const mm = add(new T.Mesh(bg, new T.MeshBasicMaterial({ vertexColors: true, fog: false }))); mm.frustumCulled = false; mm.renderOrder = 0;
+    const mm = add(new T.Mesh(bg, new T.MeshBasicMaterial({ vertexColors: true, fog: false }))); mtnM = mm; mm.frustumCulled = false; mm.renderOrder = 0;
   }
 
   // 2.1.0 時刻（戦場ごとに朝・昼・夕のどれか。昼が多い）で太陽・空・かすみの色を変える
@@ -267,7 +315,7 @@
     tod = TODS[k]; tod.v = new T.Vector3(...tod.dir).normalize();
     sun.color.set(tod.sun); sun.intensity = tod.si; hemi.color.set(tod.hs); hemi.groundColor.set(tod.hg); hemi.intensity = tod.hi;
     const U = sky.material.uniforms; U.top.value.set(tod.top); U.hor.value.set(tod.hor); U.sunC.value.set(tod.sun); U.sunD.value.copy(tod.v);
-    scene.background = new T.Color(tod.haze); scene.fog = new T.Fog(tod.haze, 140, 560); rd.toneMappingExposure = tod.ex;
+    scene.background = new T.Color(tod.haze); scene.fog = new T.Fog(tod.haze, 170, 850); rd.toneMappingExposure = tod.ex;
   }
 
   // ---- 戦場ごとの地面と木 ----
@@ -303,10 +351,12 @@
     groundG.setAttribute('color', new T.BufferAttribute(col, 3)); groundG.computeVertexNormals();
     if (!texG) { texG = groundTex(); texG.repeat.set((F.w + 80) / 7, (F.h + 80) / 7); }
     if (!texMacro) texMacro = macroTex();
-    const gmat = new T.MeshLambertMaterial({ vertexColors: true, map: texG });
+    if (!texGN) { texGN = groundNormal(texG.image); texGN.repeat.copy(texG.repeat); }
+    const gmat = new T.MeshStandardMaterial({ vertexColors: true, map: texG, normalMap: texGN, normalScale: new T.Vector2(0.9, 0.9), roughness: 0.93, metalness: 0 }); /* 2.2.0 凹凸のある地面 */
     gmat.onBeforeCompile = (sh) => { sh.uniforms.mT = { value: texMacro }; sh.fragmentShader = 'uniform sampler2D mT;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(0.8, 1.14, texture2D(mT, vUv * 0.083).r) * mix(0.9, 1.08, texture2D(mT, vUv * 0.019 + 0.37).g);'); };
     groundM = new T.Mesh(groundG, gmat); groundM.receiveShadow = true; scene.add(groundM);
-    backdrop(id, F);
+    for (const t of waterT.splice(0)) t.dispose(); mtnM = null;
+    backdrop(id, F); makeEnv(F);
     // 森の木
     const pts = [], rr = rng(String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0), 3));
     for (const t of ter) if (t.k === 'f') { const n = Math.min(160, Math.round(t.r * t.r * 0.07)); for (let i = 0; i < n; i++) { const a = rr() * 7, d = Math.sqrt(rr()) * t.r; pts.push([t.x + Math.cos(a) * d, t.y + Math.sin(a) * d, 0.8 + rr() * 0.6]); } }
@@ -329,7 +379,7 @@
     }
     // 0.65.0 草むらと石（戦場の中に散らす。水・曲輪の中には置かない）
     if (!texGrass) texGrass = grassTex();
-    const NG = 27000, grass = new T.InstancedMesh((() => { const g1 = new T.PlaneGeometry(0.9, 0.55).translate(0, 0.27, 0), g2 = g1.clone().rotateY(Math.PI / 3), g3 = g1.clone().rotateY(-Math.PI / 3); const pos = [], uv = [], nor = []; for (const g of [g1, g2, g3]) { const ng = g.toNonIndexed(); pos.push(...ng.attributes.position.array); uv.push(...ng.attributes.uv.array); for (let k = 0; k < ng.attributes.position.count; k++) nor.push(0, 1, 0); } const bg = new T.BufferGeometry(); bg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); bg.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); bg.setAttribute('normal', new T.Float32BufferAttribute(nor, 3)); return bg; })(),
+    const NG = 150000, /* 2.2.0 草を増やした（27000→150000） */ grass = new T.InstancedMesh((() => { const g1 = new T.PlaneGeometry(0.9, 0.55).translate(0, 0.27, 0), g2 = g1.clone().rotateY(Math.PI / 3), g3 = g1.clone().rotateY(-Math.PI / 3); const pos = [], uv = [], nor = []; for (const g of [g1, g2, g3]) { const ng = g.toNonIndexed(); pos.push(...ng.attributes.position.array); uv.push(...ng.attributes.uv.array); for (let k = 0; k < ng.attributes.position.count; k++) nor.push(0, 1, 0); } const bg = new T.BufferGeometry(); bg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); bg.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); bg.setAttribute('normal', new T.Float32BufferAttribute(nor, 3)); return bg; })(),
       grassMat(), NG);
     const rocks = new T.InstancedMesh(new T.DodecahedronGeometry(0.45, 0).scale(1, 0.6, 1), new T.MeshLambertMaterial({ color: 0x8a877c, flatShading: true }), 260);
     const o2 = new T.Object3D(), c2 = new T.Color(), rg = rng(String(id).length * 31 + 17);
@@ -456,7 +506,59 @@
 
   // ---- 1.6.65 兵の人型モデル（t1〜t4・馬・武器。js/soldier3d.js でまとめて描く）----
   // 近くの兵はモデル、遠く（LOD m より先）はこれまでの簡単な形。読み込めないときもこれまでの形
-  const LOD2 = 180 * 180, DEADN = 120;
+  // 2.2.0 画面の仕上げ（PC向け）：物陰の暗さ（SSAO）・光のにじみ（ブルーム）・色調・周辺を少し暗く
+  let PP = null;
+  function ppMake() {
+    const VS = 'varying vec2 vU; void main(){ vU = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+    const sm = (u, fs) => new T.ShaderMaterial({ uniforms: u, vertexShader: VS, fragmentShader: fs, depthTest: false, depthWrite: false });
+    const qs = new T.Scene(), quad = new T.Mesh(new T.PlaneGeometry(2, 2)); quad.frustumCulled = false; qs.add(quad);
+    const ao = sm({ tD: { value: null }, pInv: { value: new T.Matrix4() }, p11: { value: 1 }, asp: { value: 1 } }, [
+      'uniform sampler2D tD; uniform mat4 pInv; uniform float p11; uniform float asp; varying vec2 vU;',
+      'vec3 vp(vec2 u){ float d = texture2D(tD, u).x; vec4 p = pInv * vec4(vec3(u, d) * 2.0 - 1.0, 1.0); return p.xyz / p.w; }',
+      'void main(){ float d = texture2D(tD, vU).x; if (d >= 1.0) { gl_FragColor = vec4(1.0, 9999.0, 0.0, 1.0); return; }',
+      ' vec3 P = vp(vU), N = normalize(cross(dFdx(P), dFdy(P))); float z = -P.z, R = 1.3, rs = min(0.08, R * p11 / z * 0.5);',
+      ' float an = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) * 6.2832, o = 0.0;',
+      ' for (int i = 0; i < 14; i++) { float f = (float(i) + 0.5) / 14.0, a = an + f * 18.85; vec2 off = vec2(cos(a) / asp, sin(a)) * rs * f;',
+      '  vec3 v = vp(vU + off) - P; float vv = dot(v, v); o += max(0.0, 1.0 - vv / (R * R)) * max(0.0, dot(v, N) * inversesqrt(vv + 1e-4) - 0.12); }',
+      ' float k = clamp(1.0 - o / 14.0 * 2.2, 0.0, 1.0); k = mix(k, 1.0, smoothstep(120.0, 220.0, z));',
+      ' gl_FragColor = vec4(k, z, 0.0, 1.0); }'].join('\n'));
+    const bright = sm({ tC: { value: null } }, 'uniform sampler2D tC; varying vec2 vU; void main(){ vec3 c = texture2D(tC, vU).rgb; float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); gl_FragColor = vec4(c * smoothstep(0.9, 1.8, l), 1.0); }');
+    const blur = sm({ tC: { value: null }, dir: { value: new T.Vector2() } }, 'uniform sampler2D tC; uniform vec2 dir; varying vec2 vU; void main(){ vec3 c = texture2D(tC, vU).rgb * 0.2270; c += (texture2D(tC, vU + dir * 1.3846).rgb + texture2D(tC, vU - dir * 1.3846).rgb) * 0.3162; c += (texture2D(tC, vU + dir * 3.2308).rgb + texture2D(tC, vU - dir * 3.2308).rgb) * 0.0703; gl_FragColor = vec4(c, 1.0); }');
+    const comp = sm({ tC: { value: null }, tA: { value: null }, tB1: { value: null }, tB2: { value: null }, aPx: { value: new T.Vector2() } }, [
+      'uniform sampler2D tC; uniform sampler2D tA; uniform sampler2D tB1; uniform sampler2D tB2; uniform vec2 aPx; varying vec2 vU;',
+      'void main(){ vec3 c = texture2D(tC, vU).rgb; float z0 = texture2D(tA, vU).y, s = 0.0, w = 0.0;',
+      ' for (int x = -2; x <= 2; x++) for (int y = -2; y <= 2; y++) { vec2 a = texture2D(tA, vU + vec2(float(x), float(y)) * aPx).xy; float ww = 1.0 / (1.0 + abs(a.y - z0) * 3.0); s += a.x * ww; w += ww; }',
+      ' c *= s / w; c += texture2D(tB1, vU).rgb * 0.35 + texture2D(tB2, vU).rgb * 0.45;',
+      ' float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); c = mix(vec3(l), c, 1.12); vec2 q = vU - 0.5; c *= 1.0 - dot(q, q) * 0.5;',
+      ' gl_FragColor = vec4(c, 1.0);', ' #include <tonemapping_fragment>', ' #include <encodings_fragment>', '}'].join('\n'));
+    return { qs, quad, qc: new T.OrthographicCamera(-1, 1, 1, -1, 0, 1), ao, bright, blur, comp, w: 0, h: 0, ok: true };
+  }
+  function ppSize(w, h) {
+    for (const k of ['rt', 'a', 'b1', 'b1b', 'b2', 'b2b']) if (PP[k]) PP[k].dispose();
+    const hf = { type: T.HalfFloatType, depthBuffer: false };
+    PP.rt = new T.WebGLRenderTarget(w, h, { type: T.HalfFloatType, samples: 4 }); PP.rt.depthTexture = new T.DepthTexture(w, h, T.UnsignedIntType);
+    PP.a = new T.WebGLRenderTarget(Math.ceil(w / 2), Math.ceil(h / 2), hf);
+    PP.b1 = new T.WebGLRenderTarget(Math.ceil(w / 4), Math.ceil(h / 4), hf); PP.b1b = PP.b1.clone();
+    PP.b2 = new T.WebGLRenderTarget(Math.ceil(w / 8), Math.ceil(h / 8), hf); PP.b2b = PP.b2.clone();
+    PP.w = w; PP.h = h;
+  }
+  function ppRender() {
+    if (!rd.capabilities.isWebGL2) return false;
+    if (!PP) PP = ppMake(); if (!PP.ok) return false;
+    const pr = rd.getPixelRatio(), w = Math.max(1, Math.floor(W * pr)), h = Math.max(1, Math.floor(H * pr));
+    if (PP.w !== w || PP.h !== h) ppSize(w, h);
+    const pass = (m, tg) => { PP.quad.material = m; rd.setRenderTarget(tg); rd.render(PP.qs, PP.qc); };
+    rd.setRenderTarget(PP.rt); rd.render(scene, cam3);
+    const A = PP.ao.uniforms; A.tD.value = PP.rt.depthTexture; A.pInv.value.copy(cam3.projectionMatrixInverse); A.p11.value = cam3.projectionMatrix.elements[5]; A.asp.value = w / h; pass(PP.ao, PP.a);
+    PP.bright.uniforms.tC.value = PP.rt.texture; pass(PP.bright, PP.b1);
+    const B = PP.blur.uniforms, bl = (src, dst, dx, dy) => { B.tC.value = src.texture; B.dir.value.set(dx / src.width, dy / src.height); pass(PP.blur, dst); };
+    bl(PP.b1, PP.b1b, 1, 0); bl(PP.b1b, PP.b1, 0, 1); bl(PP.b1, PP.b2, 1, 0); bl(PP.b2, PP.b2b, 0, 1); bl(PP.b2b, PP.b2, 1, 0); bl(PP.b2, PP.b2b, 0, 1);
+    const C3 = PP.comp.uniforms; C3.tC.value = PP.rt.texture; C3.tA.value = PP.a.texture; C3.tB1.value = PP.b1.texture; C3.tB2.value = PP.b2b.texture; C3.aPx.value.set(1 / PP.a.width, 1 / PP.a.height);
+    pass(PP.comp, null);
+    return true;
+  }
+
+  const LOD2 = 400 * 400, /* 2.2.0 人型で描く距離 180m→400m */ DEADN = 120;
   let SK90 = null, Mh = null, Mw = null, Ms = null, Mc = null, Mcw = null;
   function wepName(wk, tr) {
     if (wk === 'spearS') return tr <= 1 ? 'takeyari' : 'yari';
@@ -539,7 +641,7 @@
     py = Math.max(py, hgt(px, pz) + 0.4);
     cam3.position.set(px, py, pz); cam3.lookAt(px + dx, py + dy, pz + dz);
     { const v = tod ? tod.v : new T.Vector3(-0.45, 0.82, 0.32); sun.position.set(hx + v.x * 150, th + v.y * 150, hy + v.z * 150); sun.target.position.set(hx, th, hy); }
-    sky.position.copy(cam3.position); sky.material.uniforms.tm.value = clock; gTime.value = clock;
+    sky.position.copy(cam3.position); sky.material.uniforms.tm.value = clock; gTime.value = clock; if (wOff.value) wOff.value.set(clock * 0.006, clock * 0.0025, -clock * 0.004, clock * 0.005);
     for (const k in M) cnt[k] = 0;
     const S3 = SGK.SOLD3D, skOn = !!(S3 && S3.ready); if (skOn) S3.begin();
     const A = b.act, live = (s) => s.hp > 0 && !s.gone;
@@ -637,7 +739,7 @@
       fm.position.set(hh.x, hgt(hh.x, hh.y) + 0.9, hh.y); fm.rotation.set(0, -hh.sw.a, 0); fm.scale.set(hh.sw.r, 1, hh.sw.r); fi++;
     }
     for (; fi < X.fans.length; fi++) X.fans[fi].visible = false;
-    rd.render(scene, cam3);
+    if (X.vid.pp !== 0 && ppRender()) { /* 2.2.0 仕上げ処理つきで描いた */ } else { rd.setRenderTarget(null); rd.render(scene, cam3); }
     // 掃除：いなくなった兵の記録を消す
     if (last.size > A.s.length * 2 + 50) { const ids = new Set(A.s.map((s) => s.id)); for (const k of last.keys()) if (!ids.has(k)) last.delete(k); }
     return true;

@@ -1229,9 +1229,10 @@
   actDefLbl();
   act3dLbl();
   // 0.75.0 ビデオ設定（影・草の量）
-  const vidLbl = () => { const V = R.act3d && R.act3d.vid; if (!V) return; $('mShadow').textContent = `影：${['切', '低', '高'][V.sh]}`; $('mGrass').textContent = `草の量：${['なし', '少なめ', '普通', '多め'][V.gr]}`; };
+  const vidLbl = () => { const V = R.act3d && R.act3d.vid; if (!V) return; $('mShadow').textContent = `影：${['切', '低', '高'][V.sh]}`; $('mGrass').textContent = `草の量：${['なし', '少なめ', '普通', '多め'][V.gr]}`; $('mPost').textContent = `画面の仕上げ：${V.pp === 0 ? '切' : '入'}`; };
   $('mShadow').onclick = () => { if (R.act3d) R.act3d.setVid('sh', (R.act3d.vid.sh + 1) % 3); vidLbl(); };
   $('mGrass').onclick = () => { if (R.act3d) R.act3d.setVid('gr', (R.act3d.vid.gr + 1) % 4); vidLbl(); };
+  $('mPost').onclick = () => { if (R.act3d) R.act3d.setVid('pp', R.act3d.vid.pp === 0 ? 1 : 0); vidLbl(); };
   vidLbl();
   const VOL = { all: 'vAll', bgm: 'vBgm', sfx: 'vSfx' };
   for (const k in VOL) $(VOL[k]).textContent = SGK.AUDIO.label(k);
