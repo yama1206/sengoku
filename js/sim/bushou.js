@@ -277,6 +277,7 @@
     }
     if (h) { h.vass.push(pr.id); pr.castle = h.id; }
   }
+  SIM.powValue = (p) => (p.pow ? (p.powV || Math.round(p.pow * SIM.TROOPS.nohei.cost * SIM.POW.pay)) : 0); // 1.6.82 兵の捕虜の身代金の合計
   SIM.ransom = (pr) => SIM.POW.gen; // 1.6.81 城で交換するときの身代金
   const atCastle = (w, p) => { const s = p.at && p.tx == null && SIM.settlement(w, p.at); return !!(s && s.type === 'castle' && !s.site); };
   SIM.atCastle = atCastle;
@@ -297,11 +298,10 @@
   };
   SIM.commands.ransomPow = (w, p) => {
     if (!atCastle(w, p)) return SIM.say(p.id, '身代金と交換できるのは城にいるときです');
-    const n = p.pow || 0; if (!n) return; const m = n * SIM.POW.pay; p.pow = 0; p.money += m;
+    const n = p.pow || 0; if (!n) return; const m = SIM.powValue(p); p.pow = 0; p.powV = 0; p.money += m;
     SIM.say(p.id, `捕虜${n}人を身代金${SIM.money(m)}と交換しました`);
   };
-  SIM.commands.releasePow = (w, p) => { const n = p.pow || 0; if (!n) return; p.pow = 0; SIM.say(p.id, `捕虜${n}人を逃がしました`); };
-  SIM.commands.killCaptive = captiveCmd(true);
+  SIM.commands.releasePow = (w, p) => { const n = p.pow || 0; if (!n) return; p.pow = 0; p.powV = 0; SIM.say(p.id, `捕虜${n}人を逃がしました`); };
   // 近くの城の家臣の一覧（参加者の画面用）
   const basePriv2 = SIM.privateState;
   SIM.privateState = function (w, pid) {
@@ -312,7 +312,7 @@
       v[s.id] = { lord: lord ? [lord.name, lord.tou, lord.bu] : null, vass: (s.vass || []).filter((id) => live(w, id)).map((id) => { const q = w.people[id]; return [q.name, q.tou, q.bu]; }) };
     }
     r.me.vass = v;
-    r.me.pow = p.pow || 0; r.me.atCastle = atCastle(w, p); r.me.captives = (p.captives || []).map((id) => { const q = w.people[id]; return q ? [id, q.name, fNm(w, q.faction), q.tou, q.bu, SIM.ransom(q)] : null; }).filter(Boolean);
+    r.me.pow = p.pow || 0; r.me.powV = SIM.powValue(p); r.me.atCastle = atCastle(w, p); r.me.captives = (p.captives || []).map((id) => { const q = w.people[id]; return q ? [id, q.name, fNm(w, q.faction), q.tou, q.bu, SIM.ransom(q)] : null; }).filter(Boolean);
     return r;
   };
 })();

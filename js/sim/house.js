@@ -20,12 +20,6 @@
     p.retainers.push(c.id);
     SIM.say(p.id, `${pr.name}が家臣になりました！`);
   };
-  // ---- 斬ると悪名（登用・調略がしにくくなる） ----
-  const baseKill = SIM.commands.killCaptive;
-  SIM.commands.killCaptive = (w, p, c) => {
-    const had = (p.captives || []).includes(c.id); baseKill(w, p, c);
-    if (had && w.people[c.id] && w.people[c.id].dead) { p.infamy = (p.infamy || 0) + 1; SIM.say(p.id, `悪名が${p.infamy}になりました（登用や調略がしにくくなります）`); }
-  };
   const basePC = SIM.persuadeChance;
   if (basePC) SIM.persuadeChance = (w, p, s) => basePC(w, p, s) * Math.max(0.3, 1 - (p.infamy || 0) * HS.infamyPersuade);
 

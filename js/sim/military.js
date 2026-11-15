@@ -472,9 +472,10 @@
         p.money += share + bonus; p.fame += fame;
         SIM.say(pid, `勝利！ ${SIM.money(share + bonus)}を手に入れました（戦利品${SIM.money(share)}＋討ち取り${kills}人分${SIM.money(bonus)}、名声+${fame}）。${lt}`);
         { const room = Math.max(0, SIM.troopCount(after) - (p.pow || 0)), c = Math.min(room, Math.floor((kills * SIM.POW.rate) / b.pids.length)); /* 1.6.81 敵兵の一部を捕虜に（見張りの兵の数まで） */
-          if (c > 0) { p.pow = (p.pow || 0) + c; SIM.say(pid, `敵兵${c}人を捕虜にしました（城へ連れて行くと身代金と交換できます）`); } else if (kills > 0 && !room) SIM.say(pid, '見張りの兵が足りず、捕虜は取れませんでした（捕虜は率いる兵の数まで）'); }
+          if (c > 0) { const dd = b.units.filter((u) => u.side === 'B' && u.type !== 'hero').map((u) => [Math.max(0, (u.n0 || 0) - Math.max(0, u.n || 0)), (TR[u.type] && TR[u.type].cost) || TR.nohei.cost]), dn = dd.reduce((a, [d]) => a + d, 0), per = Math.round((dn ? dd.reduce((a, [d, k]) => a + d * k, 0) / dn : TR.nohei.cost) * SIM.POW.pay); /* 1.6.82 身代金は倒した兵を雇う値段の半分 */
+            p.powV = (p.powV || 0) + c * per; p.pow = (p.pow || 0) + c; SIM.say(pid, `敵兵${c}人を捕虜にしました（城へ連れて行くと身代金と交換できます）`); } else if (kills > 0 && !room) SIM.say(pid, '見張りの兵が足りず、捕虜は取れませんでした（捕虜は率いる兵の数まで）'); }
       } else if (res === 'lose') {
-        const lost = Math.floor(p.money * 0.3); p.money -= lost; if (p.pow) { SIM.say(pid, `捕虜${p.pow}人に逃げられました`); p.pow = 0; } /* 1.6.81 */
+        const lost = Math.floor(p.money * 0.3); p.money -= lost; if (p.pow) { SIM.say(pid, `捕虜${p.pow}人に逃げられました`); p.pow = 0; p.powV = 0; } /* 1.6.81 */
         const s = nearestSettlement(w, p); p.x = s.x; p.y = s.y; p.at = s.id; p.tx = p.ty = null;
         SIM.say(pid, `敗北…… ${SIM.money(lost)}を奪われ、気がつくと${s.name}で手当てを受けていました。${lt}`);
       } else SIM.say(pid, `戦場から退きました。${lt}`);
@@ -621,7 +622,7 @@
     return r;
   };
   SIM.FIELD = FIELD;
-  SIM.POW = { rate: 0.3, pay: 150, gen: 3000 }; /* 1.6.81 捕虜：倒した敵の3割を捕らえる。身代金は兵1人150文・武将3貫 */
+  SIM.POW = { rate: 0.3, pay: 0.5, gen: 3000 }; /* 1.6.81 捕虜：倒した敵の3割を捕らえる。1.6.82 兵の身代金は雇う値段の半分（野盗は農兵扱い）・武将3貫 */
   SIM.KILL_PAY = 60; /* 1.6.26 敵を1人倒すごとの褒美（文） */
   SIM._finishBattle = finish; // 0.56.0 アクション戦闘から使う
   SIM._mil = { addUnits, genTerrain, inField, power, surviving }; // 攻城戦（siege.js）から使う
