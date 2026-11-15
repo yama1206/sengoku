@@ -227,7 +227,7 @@
     for (const p of Object.values(w.players)) {
       const b = p.busy; if (!b || b.kind !== 'qlabor' || w.time.min < b.until) continue;
       p.busy = null; const q = p.quests.find((x) => x.id === b.qid);
-      if (q) done(w, p, q, `${q.title}を終えました。`);
+      if (q) { if (SIM.workGrow) SIM.workGrow(w, st(w, q.from), q.hours || 12, p.id); done(w, p, q, `${q.title}を終えました。`); } /* 1.6.44 */
     }
   });
   SIM.systems.push(function questTick(w) {

@@ -115,6 +115,7 @@
       for (const p of Object.values(w.players)) {
         const b = p.busy; if (!b || w.time.min < b.until) continue;
         p.busy = null;
+        if ((b.kind === 'labor' || b.kind === 'gather') && SIM.workGrow) SIM.workGrow(w, SIM.settlement(w, b.at), (b.until - b.t0) / 60 || 6, p.id); /* 1.6.44 */
         if (b.kind === 'labor') { p.money += b.pay; SIM.say(p.id, `人足仕事を終えました（${SIM.money(b.pay)}）`); }
         if (b.kind === 'gather') {
           const n = b.amount;
@@ -228,9 +229,9 @@
       const s = needTown(w, p); if (!s) return;
       if (c.kind === 'labor' && s.type !== 'village') {
         const pay = Math.round(((100 + 60 * s.size + SIM.rand(w) * 40) * 5) / 10) * 10; // 0.28.0 5倍
-        p.busy = { kind: 'labor', label: '人足仕事', until: w.time.min + 8 * 60, pay };
+        p.busy = { kind: 'labor', label: '人足仕事', until: w.time.min + 8 * 60, pay, at: s.id, t0: w.time.min };
       } else if (c.kind === 'gather' && s.type === 'village') {
-        p.busy = { kind: 'gather', label: '薪拾い', until: w.time.min + 6 * 60, amount: 3 + Math.floor(SIM.rand(w) * 3) };
+        p.busy = { kind: 'gather', label: '薪拾い', at: s.id, t0: w.time.min, until: w.time.min + 6 * 60, amount: 3 + Math.floor(SIM.rand(w) * 3) };
       } else return;
       SIM.say(p.id, `${p.busy.label}を始めました`);
     },

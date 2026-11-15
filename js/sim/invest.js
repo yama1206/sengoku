@@ -45,6 +45,14 @@
     } else SIM.say(p.id, `${s.name}に${SIM.money(amt)}を投資しました（次の規模まであと${SIM.money(need(s))}）`);
   };
 
+  // 1.6.44 拠点で働くと、ほんの少しだけ規模が育つ（1時間あたり workPer 文ぶん、だれの投資にも数えない）
+  INV.workPer = 5;
+  SIM.workGrow = (w, s, hours, pid) => {
+    if (!s || s.site || !need(s)) return;
+    s.invPts = (s.invPts || 0) + hours * INV.workPer;
+    if (!need(s)) { s.invPts = 0; s.inv = lvOf(s) + 1; if (pid) SIM.say(pid, `働く人々の力で、${s.name}が「${INV.names[s.inv]}${s.type === 'village' ? '村' : s.type === 'town' ? '町' : '城下'}」になりました！`); }
+  };
+
   // ---- 毎月の配当（30日ごと） ----
   SIM.systems.push(function investMonth(w) {
     const d = Math.floor(w.time.min / 1440);
