@@ -558,7 +558,7 @@
     // 0.60.0 移動の速さ（足もとの地形の倍率込み）と、自分との比べ
     const myS = G.priv && G.priv.me && G.priv.me.speed;
     const spdTxt = u.spd ? (() => {
-      const mul = SIM.speedAt ? SIM.speedAt(u.x, u.y) : 1, now = Math.round(u.spd * mul), tr = SIM.terrainAt ? SIM.terrainAt(u.x, u.y) : '';
+      const mul = SIM.speedAt ? SIM.speedAt(u.x, u.y) : 1, now = Math.round(u.spd * mul), tr = SIM.terrainHere ? SIM.terrainHere(u.x, u.y) : '';
       const cmp = myS ? (u.spd > myS * 1.05 ? '<b style="color:#e07a6a">こちらより速い</b>' : u.spd < myS * 0.95 ? '<b style="color:#6fbf73">こちらより遅い</b>' : 'こちらと同じくらい') : '';
       return `<br>移動の速さ：${u.spd}km/日<span class="muted">（いまの${tr || '地形'}では約${now}km/日）</span>${cmp ? '　' + cmp : ''}`;
     })() : '';
