@@ -19,7 +19,7 @@
   };
   SIM.QUEST = QC;
   const OUTLAWS = ['鬼熊', '赤鬼の権太', '闇の五郎蔵', '猿の佐吉', '人斬り半兵衛', '黒狐の六', '石川の小太郎', '辻斬り弥平', '山犬の源八', '火付けの藤六'];
-  const LABOR = ['刈り入れの手伝い', '田植えの手伝い', '用水路の普請', '堤の修繕', '屋根の葺き替え'];
+  const LABOR = ['用水路の普請', /* 1.6.44 田植え・稲刈りは季節の依頼へ */ '堤の修繕', '屋根の葺き替え'];
 
   // 陸の上の、中心から rmin〜rmax km の場所
   function spot(w, cx, cy, rmin, rmax) {
@@ -70,7 +70,9 @@
       const k = pick(w, ['bandit', 'defend', 'labor']);
       if (k === 'bandit') return Object.assign(base, { type: k, days: 6, reward: r10(400 + rnd(w) * 400 + grow(w) * 30), title: '野盗退治', what: '村の近くに巣くう野盗を討つ' });
       if (k === 'defend') { const wait = 2 + Math.floor(rnd(w) * 3); return Object.assign(base, { type: k, wait, days: wait + 2, reward: r10(700 + rnd(w) * 500 + grow(w) * 40), title: '村の守り', what: `${wait}日後に野盗が村を襲う。村の外で迎え撃つ` }); }
-      const hours = pick(w, [12, 18, 24]);
+      const hours = pick(w, [12, 18, 24]), mon = SIM.month ? SIM.month(w) : 0;
+      if (mon === 5 && rnd(w) < 0.6) return Object.assign(base, { type: 'labor', hours, days: 4, reward: r10(hours * 110 + rnd(w) * 300), title: '田植えの手伝い', what: `田植えの季節。村の田で${hours}時間はたらく（受けるとすぐ始まります）` }); /* 1.6.44 5月だけ・高め */
+      if (mon === 9 && rnd(w) < 0.6) { const rice = Math.max(1, Math.round(hours / 6)); return Object.assign(base, { type: 'labor', hours, rice, days: 4, reward: r10(hours * 60 + rnd(w) * 150), title: '稲刈りの手伝い', what: `稲刈りの季節。村の田で${hours}時間はたらく（お礼に米${rice}俵も。受けるとすぐ始まります）` }); } /* 1.6.44 9月だけ・米つき */
       return Object.assign(base, { type: k, hours, days: 4, reward: r10(hours * 55 + rnd(w) * 200), title: pick(w, LABOR), what: `村で${hours}時間はたらく（受けるとすぐ始まります）` });
     }
     if (s.type === 'town') {
@@ -106,7 +108,8 @@
   function done(w, p, q, msg) {
     const fm = QC.fame[q.type] || 0.5;
     p.money += q.reward; p.fame += fm; p.quests = p.quests.filter((x) => x !== q);
-    SIM.say(p.id, `${msg ? msg + ' ' : ''}依頼「${q.title}」達成！ ${SIM.money(q.reward)}を受け取りました（名声+${fm}）`);
+    if (q.rice) p.inv.rice = (p.inv.rice || 0) + q.rice; /* 1.6.44 稲刈りのお礼の米 */
+    SIM.say(p.id, `${msg ? msg + ' ' : ''}依頼「${q.title}」達成！ ${SIM.money(q.reward)}${q.rice ? `と米${q.rice}俵` : ''}を受け取りました（名声+${fm}）`);
     const s = st(w, q.from);
     if (SIM.addMerit && p.clan && s && s.owner === p.clan) SIM.addMerit(w, p, (s.type === 'castle' ? 12 : 6) + q.reward / 100, `${w.factions[p.clan] ? w.factions[p.clan].name : ''}の領地の依頼`);
   }

@@ -103,6 +103,7 @@
   const tell = (w, s, m) => { const h = s.holder && w.players[s.holder]; if (h) SIM.say(h.id, m); news(w, m); };
   const ryo = (w, c) => [c].concat(SIM.landsOf ? SIM.landsOf(w, c) : []);
   // 0.72.0 田植え（5月）：農民は田に出ていて戦に加われない
+  SIM.month = (w) => monthOf(dayIdx(w)); /* 1.6.44 */
   SIM.taue = (w) => { const m = monthOf(dayIdx(w)); return m === 5 || m === 9; }; // 0.73.2 9月の稲刈りも
   function season(w, di) {
     const m = monthOf(di), castles = w.settlements.filter((s) => s.type === 'castle' && !s.site);
