@@ -132,7 +132,7 @@
       for (const n of Object.values(w.npcs)) if (n.home === v.id && n.faction === from) n.faction = to;
     }
   };
-  const landInc = (p, v) => Math.round((KN.landInc[v.type] * SIM.minatoMul(v) * (SIM.popF ? SIM.popF(v) : 1) * (SIM.prodMul ? SIM.prodMul(v) : 1) * (1 + (SIM.at(p, 'sei') - 3) * 0.03) * (SIM.incMul ? SIM.incMul(v) : 1)) / 10) * 10;
+  const landInc = (p, v) => Math.round((KN.landInc[v.type] * SIM.minatoMul(v) * (SIM.popF ? SIM.popF(v) : 1) * (SIM.prodMul ? SIM.prodMul(v) : 1) * (1 + (SIM.at(p, 'sei') - 3) * 0.03) * (SIM.incMul ? SIM.incMul(v) : 1) * (SGK.DATA.isBig(v) ? 3 : 1)) / 10) * 10; // 1.6.79 大きな町は3倍
   SIM.landsIncome = (w, p, c) => SIM.landsOf(w, c).reduce((a, v) => a + landInc(p, v), 0);
   function landsMonth(w) {
     for (const c of w.settlements) {
