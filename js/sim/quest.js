@@ -232,6 +232,7 @@
     for (const p of Object.values(w.players)) for (const q of (p.quests || []).slice()) {
       const s = st(w, q.from), to = q.to && st(w, q.to); if (!s) continue;
       q.mk = q.from; q.pt = null;
+      if (q.type === 'deliver') { q.mk = q.to; continue; } /* 1.6.43 届け物は届け先に印 */
       if (q.type === 'bandit' || q.type === 'outlaw' || q.type === 'defend') {
         if (q.type === 'defend' && !q.npc) {
           q.where = `${s.name}（あと${Math.max(0, Math.ceil((q.raid - now) / 1440))}日で野盗が来る）`;
@@ -246,6 +247,7 @@
         if (q.type === 'outlaw' && q.stage === 1) { q.where = `${s.name}へ連れていく`; continue; }
         const n = q.npc && w.npcs[q.npc];
         if (!n) { drop(w, p, q, 'ほかの者に討たれてしまいました'); continue; }
+        if (q.type !== 'defend') q.mk = null; /* 1.6.43 野盗・お尋ね者は相手の位置だけに印 */
         if (!n.battle) { q.pt = [Math.round(n.x * 10) / 10, Math.round(n.y * 10) / 10]; q.where = `${q.type === 'outlaw' ? q.oname : '野盗'}：${whereXY(w, n.x, n.y)}`; }
       } else if (q.type === 'labor') {
         q.where = p.busy && p.busy.qid === q.id ? `${s.name}ではたらいている` : `${s.name}で（あと${q.hours}時間）`;

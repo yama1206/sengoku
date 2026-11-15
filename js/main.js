@@ -1376,10 +1376,27 @@
 
   // 近い拠点を順番に選ぶ（キーボードのTab／コントローラーのX）
   let nearIdx = 0;
-  function cycleNear() {
+  function questMarks() { /* 1.6.43 依頼の作業する場所（ダイヤ印）：拠点の id と、動く相手の位置 pts */
+    const P = G.priv, marks = new Set(); marks.pts = [];
+    if (!P || !P.me) return marks;
+    for (const q of P.me.quests || []) {
+      const k = q.type === 'deliver' ? q.to : q.mk !== undefined ? q.mk : q.from;
+      if (k) marks.add(k);
+      if (q.pt) marks.pts.push(q.pt);
+    }
+    if (P.me.nin && P.me.nin.q && P.me.nin.q.to) marks.add(P.me.nin.q.to); /* 忍びの依頼 */
+    return marks;
+  }
+  function cycleNear() { /* 1.6.43 □：受けている依頼の場所を先に（近い順）、そのあと近くの拠点 */
     const m = me(); if (!m) return;
-    const list = [...G.view.settlements].sort((a, b) => Math.hypot(a.x - m.x, a.y - m.y) - Math.hypot(b.x - m.x, b.y - m.y)).slice(0, 6);
-    const s = list[nearIdx++ % list.length]; selectSettlement(s); R.cam.follow = false; R.cam.x = s.x; R.cam.y = s.y;
+    const dd = (a) => Math.hypot(a.x - m.x, a.y - m.y), mk = questMarks();
+    const qs = [...G.view.settlements.filter((s) => mk.has(s.id)), ...mk.pts.map((p) => ({ x: p[0], y: p[1], pt: 1 }))].sort((a, b) => dd(a) - dd(b));
+    const near = [...G.view.settlements].filter((s) => !mk.has(s.id)).sort((a, b) => dd(a) - dd(b)).slice(0, 6);
+    const list = [...qs, ...near]; if (!list.length) return;
+    const s = list[nearIdx++ % list.length];
+    if (s.pt) { if (G.selected) selectSettlement(null); toast('依頼の相手', 800); } else selectSettlement(s);
+    R.cam.follow = false; R.cam.x = s.x; R.cam.y = s.y;
+    if (G.pcurOn) G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2];
   }
 
   // ---------- コントローラー（Xbox配置：A決定 B戻る X近くの拠点 Y追従 LB/RB拡大縮小 START メニュー／左スティック カーソル 右スティック視点） ----------
@@ -1590,9 +1607,7 @@
       }
       const md = m && G.disp[m.id];
       if (R.cam.follow && md) { R.cam.x += (md.x - R.cam.x) * k; R.cam.y += (md.y - R.cam.y) * k; }
-      const P = G.priv, marks = new Set();
-      if (P) P.me.quests.forEach((q) => marks.add(q.mk || (q.type === 'deliver' ? q.to : q.from)));
-      marks.pts = P ? P.me.quests.filter((q) => q.pt).map((q) => q.pt) : [];
+      const marks = questMarks();
       if (BT) {
         for (const u of BT.units) {
           const key = 'u' + BT.id + '_' + u[0], d = G.disp[key];
