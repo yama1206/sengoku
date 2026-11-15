@@ -106,19 +106,26 @@
     }
     for (const [pid2, pr] of Object.entries(w.people)) if (pr.faction === from && w.factions[from] && w.factions[from].leader !== pid2) pr.loyal = Math.max(0, pr.loyal - 3);
     news(w, `${s.name}が${fName(w, from)}から${fName(w, to)}の手に渡りました${lord ? (joined ? `（${lord.name}は降りました）` : `（${lord.name}は落ち延びました）`) : ''}`);
-    if (!castles(w, from).length) ruin(w, from);
+    if (!castles(w, from).length) ruin(w, from, to);
     if (!s.lord && !s.holder && SIM.assignLord) SIM.assignLord(w, s);
     SIM.ensure(w);
     return joined;
   }
   SIM.capture = capture;
-  function ruin(w, fid) { // 城をすべて失った家は滅ぶ
+  function ruin(w, fid, to) { // 城をすべて失った家は滅ぶ
     const f = w.factions[fid]; if (!f || f.dead) return;
     f.dead = true;
     for (const k of Object.keys(w.wars)) if (k.split('|').includes(fid)) delete w.wars[k];
-    for (const pr of Object.values(w.people)) if (pr.faction === fid) pr.faction = null;
+    const nf = to && w.factions[to] && !w.factions[to].dead ? to : null; let took = 0;
+    for (const [id, pr] of Object.entries(w.people)) if (pr.faction === fid) { // 1.6.84 滅ぼした家が武将をすべて登用する（捕虜も含む）
+      pr.faction = nf;
+      if (nf && !pr.dead) {
+        pr.captive = null; pr.refused = null; pr.loyal = Math.min(pr.loyal == null ? 45 : pr.loyal, 45); took++;
+        for (const p of Object.values(w.players)) if (p.captives && p.captives.includes(id)) { p.captives = p.captives.filter((x) => x !== id); SIM.say(p.id, `${pr.name}は${w.factions[nf].name}に召し抱えられました`); }
+      }
+    }
     for (const p of Object.values(w.players)) if (p.clan === fid) { p.clan = null; p.rank = 0; p.merit = 0; p.status = '浪人'; SIM.say(p.id, `${f.name}は滅び、浪人になりました`); }
-    news(w, `${f.name}が滅びました`);
+    news(w, `${f.name}が滅びました${took ? `（武将${took}人は${w.factions[nf].name}に召し抱えられました）` : ''}`);
   }
 
   // ---- 攻城戦（プレイヤーが攻める） ----
