@@ -95,7 +95,7 @@
   // ---- 1日ごとの処理 ----
   function daily(w) {
     const now = w.time.min;
-    for (const s of w.settlements) { const wr = SIM.inWar(w, s); for (const k in I()) { const t = target(s, k); s.stock[k] = Math.max(0, s.stock[k] + (wr ? 0 : pm(s, k)) - I()[k].cons * sz(s)); if (s.stock[k] > t * 1.3) s.stock[k] -= (s.stock[k] - t * 1.3) * 0.25; } } // 1.6.89 戦をしている家の拠点は作らない（使うだけ）。目安の1.3倍を超えた分は傷んだり蔵からよそへ流れたりして減る
+    for (const s of w.settlements) { const wr = SIM.inWar(w, s); for (const k in I()) { const t = target(s, k); s.stock[k] = Math.max(0, s.stock[k] + (wr ? 0 : pm(s, k)) - I()[k].cons * sz(s)); if (s.stock[k] > t * 1.3) s.stock[k] -= (s.stock[k] - t * 1.3) * 0.25; } } // 1.6.90 攻城戦の準備をされている城は作らない（使うだけ）。目安の1.3倍を超えた分は傷んだり蔵からよそへ流れたりして減る
     share(w);
     for (const j of Object.values(w.jobs)) if (j.expires < now) delete w.jobs[j.id];
     const JC = {}; for (const j of Object.values(w.jobs)) JC[j.from] = (JC[j.from] || 0) + 1; /* 1.6.50 数えるのを1回に */
@@ -135,9 +135,9 @@
     if (best) { const q = Math.min(30, Math.floor(from.stock[best] - target(from, best) * 0.8)); if (q > 0) { from.stock[best] -= q; n.cargo = { item: best, qty: q }; } }
   };
   // 行き先：積んだ品がいちばん足りない拠点を選びやすい（町を優先）
-  SIM.inWar = (w, s) => { const o = s && s.owner; if (!o) return false; for (const k in w.wars || {}) if (k.split('|').includes(o)) return true; return false; }; // 1.6.89
+  SIM.inWar = (w, s) => !!(s && SIM.besieged && SIM.besieged(w, s.id)); // 1.6.90 攻城戦の準備をされている城（囲まれている）
   SIM.merchantDest = (w, n, cands) => {
-    if (n.cargo) { const ok = cands.filter((s) => !SIM.inWar(w, s)); if (ok.length) cands = ok; } // 1.6.89 荷を戦をしている家の拠点へは運ばない
+    if (n.cargo) { const ok = cands.filter((s) => !SIM.inWar(w, s)); if (ok.length) cands = ok; } // 1.6.90 荷を囲まれている城へは運ばない
     if (!n.cargo) return cands[Math.floor(SIM.rand(w) * cands.length)];
     let best = null, bs = -1;
     for (const s of cands) { const sc = (target(s, n.cargo.item) / (s.stock[n.cargo.item] + 1)) * (s.type === 'town' ? 1.5 : 1) * (0.7 + SIM.rand(w) * 0.6); if (sc > bs) { bs = sc; best = s; } }
@@ -159,7 +159,7 @@
         const ta = target(a, k), tb = target(b, k), ra = a.stock[k] / ta, rb = b.stock[k] / tb;
         if (Math.abs(ra - rb) < 0.4) continue; // 近い拠点どうしの融通は控えめ（地域ごとの値段の差を残す）
         const [hi, lo, th, tl] = ra > rb ? [a, b, ta, tb] : [b, a, tb, ta];
-        if (SIM.inWar(w, lo)) continue; // 1.6.89 戦をしている家の拠点には流れ込まない
+        if (SIM.inWar(w, lo)) continue; // 1.6.90 囲まれている城には流れ込まない
         const q = Math.min(hi.stock[k] * 0.05, Math.abs(ra - rb) * Math.min(th, tl) * 0.05);
         hi.stock[k] -= q; lo.stock[k] += q;
       }
