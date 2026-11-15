@@ -98,7 +98,7 @@
       const cap = SIM.troopCap(p); let room = cap - SIM.troopCount(p.troops), came = 0;
       for (const k in n.army) { const q = Math.min(n.army[k], Math.max(0, room)); if (q > 0) { p.troops[k] = (p.troops[k] || 0) + q; room -= q; came += q; } }
       delete w.npcs[n.id];
-      return SIM.say(p.id, `${pr.name}が家臣になりました！（支度金${SIM.money(n.fee)}・手勢${came}人が加わり、率いる人数+${RET_CAP}）`);
+      return SIM.say(p.id, `${pr.name}が家臣になりました！（支度金${SIM.money(n.fee)}・手勢${came}人が加わりました）`);
     }
     p.kao = p.kao || {};
     if (f && !p.kao[n.faction]) {
@@ -109,7 +109,7 @@
   };
   // 家臣（もと浪人）の分だけ率いる人数が増える
   const baseCap = SIM.troopCap;
-  SIM.troopCap = (p) => baseCap(p) + (p.retainers ? p.retainers.length * RET_CAP : 0);
+  SIM.troopCap = (p) => baseCap(p); // 1.6.73 家臣では率いる人数は増えない
   SIM.serveFame = (p, fid) => (p.kao && p.kao[fid] ? 2 : SIM.RANKS[1].fame);
 
   const basePriv = SIM.privateState;

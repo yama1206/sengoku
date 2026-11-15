@@ -18,7 +18,7 @@
     p.captives = p.captives.filter((x) => x !== c.id);
     pr.captive = null; pr.refused = null; pr.retainerOf = p.id; pr.faction = p.clan || null; pr.castle = null;
     p.retainers.push(c.id);
-    SIM.say(p.id, `${pr.name}が家臣になりました！（率いる人数が増えました）`);
+    SIM.say(p.id, `${pr.name}が家臣になりました！`);
   };
   // ---- 斬ると悪名（登用・調略がしにくくなる） ----
   const baseKill = SIM.commands.killCaptive;

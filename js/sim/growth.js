@@ -9,7 +9,7 @@
   const ATTRS = SIM.ATTRS = { bu: '武勇', tou: '統率', chi: '知略', sei: '政務', mi: '魅力' };
   const SKILLS = SIM.SKILLS = {
     bugei: { name: '武芸', attr: 'bu', desc: '本人の強さ' },
-    shiki: { name: '指揮', attr: 'tou', desc: '率いる人数・兵の攻撃' },
+    shiki: { name: '指揮', attr: 'tou', desc: '兵の攻撃・守り' },
     kyujutsu: { name: '弓術', attr: 'bu', desc: '弓・鉄砲の兵の攻撃' },
     bajutsu: { name: '馬術', attr: 'bu', desc: '移動の速さ・騎馬の攻撃' },
     sanjutsu: { name: '算術', attr: 'sei', desc: '売り買いの値段' },
@@ -23,8 +23,8 @@
   const PERKS = SIM.PERKS = [
     ['bugei', 25, 'onimusha', '鬼武者', '本人の攻撃+25%', { heroAtk: 0.25 }], ['bugei', 25, 'fujimi', '不死身', '本人の体力+40', { heroHp: 40 }],
     ['bugei', 50, 'ikki', '一騎当千', '本人の攻撃+40%', { heroAtk: 0.4 }], ['bugei', 50, 'teppeki', '鉄壁', '本人の守り+3', { heroDef: 3 }],
-    ['shiki', 25, 'jinbo', '人望', '率いる人数+10', { troopCap: 10 }], ['shiki', 25, 'kobu', '鼓舞', '兵の攻撃+8%', { troopAtk: 0.08 }],
-    ['shiki', 50, 'taisho', '大将の器', '率いる人数+20', { troopCap: 20 }], ['shiki', 50, 'kenjin', '堅陣', '兵の守り+1', { troopDef: 1 }],
+    ['shiki', 25, 'jinbo', '人望', '兵の攻撃+5%', { troopAtk: 0.05 }], ['shiki', 25, 'kobu', '鼓舞', '兵の攻撃+8%', { troopAtk: 0.08 }],
+    ['shiki', 50, 'taisho', '大将の器', '兵の守り+1', { troopDef: 1 }], ['shiki', 50, 'kenjin', '堅陣', '兵の守り+1', { troopDef: 1 }],
     ['kyujutsu', 25, 'sokusha', '速射', '弓・鉄砲の攻撃+15%', { rangedAtk: 0.15 }], ['kyujutsu', 25, 'tooya', '遠矢', '弓・鉄砲の射程+8m', { rangedRange: 8 }],
     ['kyujutsu', 50, 'sogeki', '狙撃', '弓・鉄砲の攻撃+25%', { rangedAtk: 0.25 }], ['kyujutsu', 50, 'yumigumi', '弓組統率', '弓・鉄砲の兵の体力+20%', { rangedHp: 0.2 }],
     ['bajutsu', 25, 'hayagake', '早駆け', '移動の速さ+4', { speed: 4 }], ['bajutsu', 25, 'kibashinan', '騎馬指南', '騎馬の攻撃+15%', { cavAtk: 0.15 }],
@@ -83,7 +83,7 @@
 
   // ---- 成長が効くところ（military.js・economy.js の差し込み口を上書き） ----
   const baseCap = SIM.troopCap;
-  SIM.troopCap = (p) => Math.ceil(Math.min(200, baseCap(p) + (at(p, 'tou') - 3) * 2 + Math.floor(lvOf(p, 'shiki') / 5) + fx(p, 'troopCap')));
+  SIM.troopCap = (p) => baseCap(p); // 1.6.73 統率・指揮・技能では率いる人数は増えない（身分だけで決まる）
   const baseWage = SIM.wage;
   SIM.wage = (tr, p) => Math.round(baseWage(tr) * (p ? 1 + fx(p, 'wage') : 1));
   SIM.costMod = (p) => Math.max(0.5, 1 - (at(p, 'mi') - 3) * 0.03 - lvOf(p, 'kosho') * 0.002);
