@@ -199,11 +199,10 @@
     b.n++; return true;
   };
   // 歩きながら攻撃：上半身（rowUp）を下半身（rowLow）の腰につなぐ。cs＝体を動かす用、cw＝武器などを置く用
-  let mH1, mH2;
   S.combo = (b, rowLow, rowUp, cs, cw) => {
-    if (!mH1) { mH1 = new T.Matrix4(); mH2 = new T.Matrix4(); }
-    mH1.fromArray(b.att.Hips, rowLow * 16); mH2.fromArray(b.att.Hips, rowUp * 16).invert();
-    cw.multiplyMatrices(mH1, mH2);
+    // 1.6.69 向きは攻撃の動きのまま、位置だけ腰に合わせる（腰ごと回すと、腰をひねって構える槍の突きが横を向いていた）
+    const lo = b.att.Hips, i = rowLow * 16, j = rowUp * 16;
+    cw.makeTranslation(lo[i + 12] - lo[j + 12], lo[i + 13] - lo[j + 13], lo[i + 14] - lo[j + 14]);
     cs.multiplyMatrices(b.base, cw).multiply(b.baseInv);
   };
   S.putW = (name, m) => { const w = S.wep[name]; if (!w || w.n >= w.cap) return; w.im.setMatrixAt(w.n++, m); };
