@@ -30,7 +30,7 @@
   const pickX = (id, n) => EXTRA[hash(id, n) % EXTRA.length];
   function defProd(s) {
     const o = {}, add = (k, v) => (o[k] = (o[k] || 0) + v);
-    if (s.type === 'village') { add('rice', 5); add('firewood', 6); add(pickX(s.id, 1), 7); add(pickX(s.id, 2), 3); } // 1.6.77 1つめが特産（多く作り、安い）
+    if (s.type === 'village') { add('rice', 5); add('firewood', 6); add(pickX(s.id, 1), 3); add(pickX(s.id, 2), 2); } // 1.6.87 特産は toku で別に決める（economy.js で7にする）
     else if (s.type === 'town') { add('rice', 1); add('firewood', 2); add(pickX(s.id, 1), 6); add(pickX(s.id, 2), 5); add(pickX(s.id, 3), 4); }
     else { add('rice', 2); add('firewood', 4); add(pickX(s.id, 1), 2); add(pickX(s.id, 2), 1); }
     return o;
@@ -39,7 +39,27 @@
   // 1.6.78 大きな町（地方ごとに1つ以上）。武具はここでしか売り買いできない
   const BIG = ['sakata', 'shinagawa', 'niigata', 'tsuruga', 'tsushima', 'kyo', 'sakai', 'yamaguchi', 'utazu', 'hakata'];
   SGK.DATA.isBig = (s) => !!(s && BIG.includes(s.id));
-  SGK.DATA.toku = (s) => (s && s.type === 'village' ? pickX(s.id, 1) : null); // 1.6.77 村の特産（地図の村の上に印を出す）
+  // 1.6.87 村の特産：地形で決める（塩＝海・鉄＝山・酒＝川・木綿＝森・茶＝平地に近い）。1つの城の領内の村のうち1つだけ
+  let TOKU = null;
+  function buildToku() {
+    const SIM = SGK.SIM, T = SGK.DATA.terrain || {}, D = SGK.DATA.settlements, MAXD = 30;
+    const cs = D.filter((x) => x.type === 'castle'), dd = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    const near = (v, name) => { let best = MAXD; for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; for (let d = 1; d < best; d += 1) if (SIM.terrainAt(v.x + Math.cos(a) * d, v.y + Math.sin(a) * d) === name) { best = d; break; } } return best; };
+    const riv = (v) => { let best = MAXD; for (const rv of T.rivers || []) for (let k = 1; k < rv.pts.length; k++) {
+      const [ax, ay] = rv.pts[k - 1], [bx, by] = rv.pts[k], dx = bx - ax, dy = by - ay, l = dx * dx + dy * dy, q = l ? Math.max(0, Math.min(1, ((v.x - ax) * dx + (v.y - ay) * dy) / l)) : 0;
+      best = Math.min(best, Math.hypot(v.x - ax - q * dx, v.y - ay - q * dy)); } return best; };
+    const plain = (v) => { let n = 0, c = 0; for (const r of [3, 6, 9]) for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6, t = SIM.terrainAt(v.x + Math.cos(a) * r, v.y + Math.sin(a) * r); n++; if (t === '平地' || t === '街道') c++; } return c / n; };
+    const cl = (d) => Math.max(0, 1 - d / MAXD);
+    const best = {}; // 城ごとに一番ふさわしい村
+    for (const v of D) if (v.type === 'village') {
+      const sc = { salt: cl(near(v, '海')) * 1.05, iron: cl(near(v, '山地')) * 1.08, sake: cl(riv(v)) * 1.02, cotton: cl(near(v, '森')) * 0.98, tea: plain(v) * 0.78 };
+      let k = 'tea'; for (const x in sc) if (sc[x] > sc[k]) k = x;
+      const c = cs.slice().sort((a, b) => dd(a, v) - dd(b, v))[0], key = c ? c.id : v.id, h = (hash(v.id, 3) % 1000) / 1e6; // 同点は決まった順
+      if (!best[key] || sc[k] + h > best[key].s) best[key] = { id: v.id, k, s: sc[k] + h };
+    }
+    TOKU = {}; for (const c in best) TOKU[best[c].id] = best[c].k;
+  }
+  SGK.DATA.toku = (s) => { if (!s || s.type !== 'village') return null; if (!TOKU) { if (!(SGK.SIM && SGK.SIM.terrainAt)) return null; buildToku(); } return TOKU[s.id] || null; };
   SGK.DATA.mk = (k) => (SGK.DATA.items[k] && SGK.DATA.items[k].mk) || '';
   SGK.DATA.settlements.forEach((s) => (s.prod = prod[s.id] || defProd(s)));
 })();

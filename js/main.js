@@ -668,7 +668,7 @@
     if (townTab === 'market') {
       html += `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　${loadTxt(me)}</div><div class="grid">`;
       html += '<span class="h">品</span><span class="h">買値</span><span class="h">売値</span><span class="h">在庫</span><span class="h">所持</span><span></span><span></span><span></span><span></span>';
-      for (const [k, buy, sell, stock] of h.market) {
+      for (const [k, buy, sell, stock] of h.market.slice().sort((a, b) => IT[a[0]].base - IT[b[0]].base)) { // 1.6.87 相場の安い順
         const it = IT[k], have = me.inv[k] || 0;
         const memo = ''; // 0.74.4 相場の記録（高く売れる・安く買える）は表示しない
         html += `<span>${it.mk || ''}${it.name}${SGK.DATA.toku(hs) === k ? '<b style="color:#e8b923">（特産）</b>' : ''}<span class="muted">/${it.unit}・${it.wt}kg<br>相場${it.base}文</span>${memo}</span><span style="color:${priceCol(buy / 1.1 / it.base)}">${buy}文</span><span style="color:${priceCol(sell / 0.9 / it.base)}">${sell}文</span><span>${stock}</span><span>${have}${have && me.cost && me.cost[k] != null ? `<br><span style="font-size:11px;color:${sell >= me.cost[k] ? '#6fbf73' : '#e07a6a'}">平均${Math.round(me.cost[k])}文</span>` : ''}</span>`
