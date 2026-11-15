@@ -2,13 +2,13 @@
 (function () {
   SGK.DATA.items = {
     // 1.6.0 wt＝1つの重さ(kg)。1つの量を「持ち運びやすい小分け」にそろえ、中身の重さ（密度）で決める。鉄は重く、木綿・茶は軽い
-    rice: { name: '米', unit: '俵', base: 12, cons: 2, wt: 6 },       // 小俵（米 約4升）
-    salt: { name: '塩', unit: '袋', base: 400, cons: 1, wt: 2 },      // 小袋（塩 約1升）
-    cotton: { name: '木綿', unit: '反', base: 300, cons: 1, wt: 0.7 }, // 1反は本物も約0.7kg
-    sake: { name: '酒', unit: '樽', base: 500, cons: 1, wt: 4 },      // 小樽（酒 約2升）
-    firewood: { name: '薪', unit: '束', base: 40, cons: 3, wt: 3 },
-    iron: { name: '鉄', unit: '貫', base: 800, cons: 0.5, wt: 3.75 },  // 1貫は本物も3.75kg
-    tea: { name: '茶', unit: '斤', base: 350, cons: 0.5, wt: 0.6 },   // 1斤は本物も約0.6kg
+    rice: { name: '米', mk: '🌾', unit: '俵', base: 12, cons: 2, wt: 6 },       // 小俵（米 約4升）
+    salt: { name: '塩', mk: '🧂', unit: '袋', base: 400, cons: 1, wt: 2 },      // 小袋（塩 約1升）
+    cotton: { name: '木綿', mk: '🧶', unit: '反', base: 300, cons: 1, wt: 0.7 }, // 1反は本物も約0.7kg
+    sake: { name: '酒', mk: '🍶', unit: '樽', base: 500, cons: 1, wt: 4 },      // 小樽（酒 約2升）
+    firewood: { name: '薪', mk: '🪵', unit: '束', base: 40, cons: 3, wt: 3 },
+    iron: { name: '鉄', mk: '⛏️', unit: '貫', base: 800, cons: 0.5, wt: 3.75 },  // 1貫は本物も3.75kg
+    tea: { name: '茶', mk: '🍵', unit: '斤', base: 350, cons: 0.5, wt: 0.6 },   // 1斤は本物も約0.6kg
   };
   const prod = {
     inabayama: { rice: 3, iron: 1, tea: 1 }, ogaki: { rice: 4 }, inuyama: { firewood: 4, sake: 1 },
@@ -30,11 +30,13 @@
   const pickX = (id, n) => EXTRA[hash(id, n) % EXTRA.length];
   function defProd(s) {
     const o = {}, add = (k, v) => (o[k] = (o[k] || 0) + v);
-    if (s.type === 'village') { add('rice', 5); add('firewood', 6); add(pickX(s.id, 1), 4); add(pickX(s.id, 2), 3); }
+    if (s.type === 'village') { add('rice', 5); add('firewood', 6); add(pickX(s.id, 1), 7); add(pickX(s.id, 2), 3); } // 1.6.77 1つめが特産（多く作り、安い）
     else if (s.type === 'town') { add('rice', 1); add('firewood', 2); add(pickX(s.id, 1), 6); add(pickX(s.id, 2), 5); add(pickX(s.id, 3), 4); }
     else { add('rice', 2); add('firewood', 4); add(pickX(s.id, 1), 2); add(pickX(s.id, 2), 1); }
     return o;
   }
   SGK.DATA.defProd = defProd;
+  SGK.DATA.toku = (s) => (s && s.type === 'village' ? pickX(s.id, 1) : null); // 1.6.77 村の特産（地図の村の上に印を出す）
+  SGK.DATA.mk = (k) => (SGK.DATA.items[k] && SGK.DATA.items[k].mk) || '';
   SGK.DATA.settlements.forEach((s) => (s.prod = prod[s.id] || defProd(s)));
 })();

@@ -29,6 +29,7 @@
       const d = SGK.DATA.settlements.find((x) => x.id === s.id) || {};
       s.prod = s.prod || d.prod || {};
       if (!Object.keys(s.prod).length) s.prod = JSON.parse(JSON.stringify(d.prod && Object.keys(d.prod).length ? d.prod : SGK.DATA.defProd(s))); // 古いセーブで生産のない拠点に付ける
+      { const tk = SGK.DATA.toku(s); if (tk && !((s.prod[tk] || 0) >= 7)) s.prod[tk] = 7; } // 1.6.77 特産は多く作る（古いセーブも）
       s.size = s.size || SIZE[s.type];
       s.stock = s.stock || {};
       for (const k in I()) if (s.stock[k] == null) s.stock[k] = Math.max(6, target(s, k) * (0.5 + SIM.rand(w) * 0.6)); // 開始時からどこもある程度の在庫（多すぎない程度）
@@ -65,7 +66,7 @@
   SIM.stockTarget = target;
   // 0.70.0 物資のそろい具合（0〜1.3）。品ごとに 在庫÷目安 を1.3までで平均。米は2倍に数える
   SIM.supplyF = (s) => { if (!s || !s.stock) return 1; let a = 0, n = 0; for (const k in I()) { const wt = k === 'rice' ? 2 : 1; a += Math.min(1.3, s.stock[k] / target(s, k)) * wt; n += wt; } return n ? a / n : 1; };
-  SIM.price = (s, k) => { const b = I()[k].base; return Math.max(b * 0.4, Math.min(b * 3, b * Math.sqrt(target(s, k) / (s.stock[k] + 1)))); };
+  SIM.price = (s, k) => { const b = I()[k].base * (SGK.DATA.toku(s) === k ? 0.8 : 1); /* 1.6.77 村の特産は2割安い */ return Math.max(b * 0.4, Math.min(b * 3, b * Math.sqrt(target(s, k) / (s.stock[k] + 1)))); };
   SIM.cargoPrice = (k, p) => Math.ceil(I()[k].base * 0.95 * (p && SIM.tradeMod ? SIM.tradeMod(p, 'buy') : 1));
   SIM.buyPrice = (s, k, p) => Math.ceil(SIM.price(s, k) * 1.1 * (p && SIM.tradeMod ? SIM.tradeMod(p, 'buy') : 1));
   SIM.sellPrice = (s, k, p) => Math.floor(SIM.price(s, k) * 0.9 * (p && SIM.tradeMod ? SIM.tradeMod(p, 'sell') : 1));

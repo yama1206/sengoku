@@ -671,7 +671,7 @@
       for (const [k, buy, sell, stock] of h.market) {
         const it = IT[k], have = me.inv[k] || 0;
         const memo = ''; // 0.74.4 相場の記録（高く売れる・安く買える）は表示しない
-        html += `<span>${it.name}<span class="muted">/${it.unit}・${it.wt}kg<br>相場${it.base}文</span>${memo}</span><span style="color:${priceCol(buy / 1.1 / it.base)}">${buy}文</span><span style="color:${priceCol(sell / 0.9 / it.base)}">${sell}文</span><span>${stock}</span><span>${have}${have && me.cost && me.cost[k] != null ? `<br><span style="font-size:11px;color:${sell >= me.cost[k] ? '#6fbf73' : '#e07a6a'}">平均${Math.round(me.cost[k])}文</span>` : ''}</span>`
+        html += `<span>${it.mk || ''}${it.name}${SGK.DATA.toku(hs) === k ? '<b style="color:#e8b923">（特産）</b>' : ''}<span class="muted">/${it.unit}・${it.wt}kg<br>相場${it.base}文</span>${memo}</span><span style="color:${priceCol(buy / 1.1 / it.base)}">${buy}文</span><span style="color:${priceCol(sell / 0.9 / it.base)}">${sell}文</span><span>${stock}</span><span>${have}${have && me.cost && me.cost[k] != null ? `<br><span style="font-size:11px;color:${sell >= me.cost[k] ? '#6fbf73' : '#e07a6a'}">平均${Math.round(me.cost[k])}文</span>` : ''}</span>`
           + ((h.noBuy || []).includes(k) ? `<button id="b1-${k}" disabled title="調達の依頼が出ているので買えない">依頼品</button><button id="b10-${k}" disabled>－</button>` : `<button id="b1-${k}" data-act="buy" data-item="${k}" data-qty="1">買1</button><button id="b10-${k}" data-act="buy" data-item="${k}" data-qty="10">買10</button>`)
           + `<button id="s1-${k}" data-act="sell" data-item="${k}" data-qty="1" ${have ? '' : 'disabled'}>売1</button><button id="sa-${k}" data-act="sell" data-item="${k}" data-qty="999" ${have ? '' : 'disabled'}>全部</button>`;
       }
@@ -1177,7 +1177,7 @@
     const IT = SGK.DATA.items, inv = Object.entries(me.inv || {}).filter(([, n]) => n > 0);
     let html = `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　${loadTxt(me)}</div>`;
     if (!inv.length) html += '<div class="card">何も持っていません</div>';
-    for (const [k, n] of inv) { const it = IT[k]; if (!it) continue; html += `<div class="card"><div><b>${it.name}</b>　${n}${it.unit}</div><span class="muted">相場 約${SIM.money(it.base * n)}</span></div>`; }
+    for (const [k, n] of inv) { const it = IT[k]; if (!it) continue; html += `<div class="card"><div><b>${it.mk || ''}${it.name}</b>　${n}${it.unit}</div><span class="muted">相場 約${SIM.money(it.base * n)}</span></div>`; }
     return html;
   }
   function toggleMenu(open) {
