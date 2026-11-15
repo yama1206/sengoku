@@ -15,7 +15,7 @@
   X.toggle = () => { X.on = !X.on; try { localStorage.setItem('sgk-act3d', X.on ? '1' : '0'); } catch (e) { /* 無視 */ } if (!X.on && cv) cv.style.display = 'none'; return X.on; };
 
   let T, rd, scene, cam3, cv, sun, hideT, W = 0, H = 0, clock = 0;
-  let built = null, groundG = null, groundM = null, gateM = [], trees = [], ter = [], hills = [], sky = null;
+  let built = null, groundG = null, groundM = null, gateM = [], trees = [], ter = [], hills = [], sky = null, hemi = null, tod = null, texMacro = null; const gTime = { value: 0 };
   const L4 = { m: null }; // 足などの部分を動かすための行列
   const M = {}; // 兵の各部分（まとめて描く InstancedMesh）
   const CAP = { body: 700, dead: 520, arrow: 300, ring: 120 };
@@ -42,29 +42,40 @@
     cv = document.createElement('canvas'); cv.id = 'act3d';
     cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none';
     const m = document.getElementById('map'); m.parentNode.insertBefore(cv, m);
+    if (T.ColorManagement) T.ColorManagement.legacyMode = false; /* 2.1.0 色を正しく扱う（明暗がはっきりする） */
     try { rd = new T.WebGLRenderer({ canvas: cv, antialias: true }); } catch (e) { X.failed = true; return false; }
     rd.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     rd.shadowMap.enabled = true; rd.shadowMap.type = T.PCFSoftShadowMap;
+    rd.outputEncoding = T.sRGBEncoding; rd.toneMapping = T.ACESFilmicToneMapping; rd.toneMappingExposure = 1.0;
     scene = new T.Scene(); scene.background = new T.Color(0xcfdde6); scene.fog = new T.Fog(0xcfdde6, 150, 520);
     cam3 = new T.PerspectiveCamera(45, 1, 0.5, 2000);
-    scene.add(new T.HemisphereLight(0xd6e6f5, 0x4f5a34, 0.72));
+    hemi = new T.HemisphereLight(0xd6e6f5, 0x4f5a34, 0.72); scene.add(hemi);
     sun = new T.DirectionalLight(0xffe6c0, 1.0); sun.castShadow = true;
     sun.shadow.normalBias = 0.03;
-    // 0.65.0 空（色の移り変わり・太陽・ゆっくり流れる雲）
+    // 2.1.0 空：地平のかすみ・太陽のまわりの光・陰のある雲・高い筋雲。時刻（朝・昼・夕）で色が変わる
     sky = new T.Mesh(new T.SphereGeometry(1500, 32, 16), new T.ShaderMaterial({
       side: T.BackSide, depthWrite: false, fog: false,
-      uniforms: { top: { value: new T.Color(0x4f86c2) }, hor: { value: new T.Color(0xcfdde6) }, sunD: { value: new T.Vector3(0.4, 0.8, -0.3) }, tm: { value: 0 } },
+      uniforms: { top: { value: new T.Color(0x4f86c2) }, hor: { value: new T.Color(0xcfdde6) }, sunC: { value: new T.Color(0xfff0d0) }, sunD: { value: new T.Vector3(0.4, 0.8, -0.3) }, tm: { value: 0 } },
       vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
       fragmentShader: [
-        'uniform vec3 top; uniform vec3 hor; uniform vec3 sunD; uniform float tm; varying vec3 vP;',
+        'uniform vec3 top; uniform vec3 hor; uniform vec3 sunC; uniform vec3 sunD; uniform float tm; varying vec3 vP;',
         'float hs(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
         'float ns(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hs(i), hs(i + vec2(1.0, 0.0)), f.x), mix(hs(i + vec2(0.0, 1.0)), hs(i + vec2(1.0, 1.0)), f.x), f.y); }',
-        'float fb(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { v += a * ns(p); p *= 2.03; a *= 0.5; } return v; }',
-        'void main(){ float h = max(vP.y, 0.0); vec3 c = mix(hor, top, pow(h, 0.5));',
-        ' if (vP.y > 0.0) { vec2 q = vP.xz / (vP.y + 0.12) * 1.6 + vec2(tm * 0.012, tm * 0.004); float cl = smoothstep(0.52, 0.78, fb(q)) * smoothstep(0.0, 0.25, vP.y); c = mix(c, vec3(0.97, 0.97, 0.95), cl * 0.85); }',
-        ' else c = hor * 0.95;',
-        ' float s = max(dot(vP, normalize(sunD)), 0.0); c += vec3(1.0, 0.9, 0.7) * (pow(s, 900.0) * 1.5 + pow(s, 10.0) * 0.16);',
-        ' gl_FragColor = vec4(c, 1.0); }',
+        'float fb(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { v += a * ns(p); p *= 2.03; a *= 0.5; } return v; }',
+        'void main(){ vec3 d = normalize(vP), sd = normalize(sunD); float h = max(d.y, 0.0), s = max(dot(d, sd), 0.0);',
+        ' vec3 c = mix(hor, top, pow(h, 0.45)); c = mix(c, hor * 1.04, exp(-h * 14.0) * 0.45);',
+        ' c += sunC * (pow(s, 6.0) * 0.2 + pow(s, 48.0) * 0.3) * (1.0 - h * 0.4);',
+        ' if (d.y > 0.0) { vec2 q = d.xz / (d.y + 0.1) * 1.4 + vec2(tm * 0.010, tm * 0.003);',
+        '  float n = fb(q), cl = smoothstep(0.5, 0.8, n) * smoothstep(0.0, 0.2, d.y), n2 = fb(q + sd.xz * 0.09);',
+        '  float lit = clamp(0.62 + (n - n2) * 3.2, 0.32, 1.1); vec3 cc = mix(hor * 0.7, vec3(1.0), lit); cc = mix(cc, sunC, pow(s, 8.0) * 0.55);',
+        '  c = mix(c, cc, cl * 0.9);',
+        '  float st = smoothstep(0.56, 0.78, fb(vec2(q.x * 0.3, q.y * 1.9) + tm * 0.004)) * smoothstep(0.1, 0.5, d.y) * 0.22; c = mix(c, vec3(1.0), st); }',
+        ' else c = hor * 0.92;',
+        ' c += sunC * pow(s, 1200.0) * 2.0;',
+        ' gl_FragColor = vec4(c, 1.0);',
+        ' #include <tonemapping_fragment>',
+        ' #include <encodings_fragment>',
+        '}',
       ].join('\n'),
     }));
     sky.frustumCulled = false; sky.renderOrder = -1; scene.add(sky);
@@ -158,13 +169,31 @@
 
   // 0.65.0 絵の具（画面の中で作る模様。外から画像は読まない）
   let texG = null, texGrass = null;
-  function canvasTex(n, fn) { const c = document.createElement('canvas'); c.width = c.height = n; fn(c.getContext('2d'), n); const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = rd.capabilities.getMaxAnisotropy ? Math.min(8, rd.capabilities.getMaxAnisotropy()) : 1; return t; }
+  function canvasTex(n, fn, lin) { const c = document.createElement('canvas'); c.width = c.height = n; fn(c.getContext('2d'), n); const t = new T.CanvasTexture(c); if (!lin) t.encoding = T.sRGBEncoding; t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = rd.capabilities.getMaxAnisotropy ? Math.min(8, rd.capabilities.getMaxAnisotropy()) : 1; return t; }
+  // 2.1.0 地面の模様：細かい草・土の粒・小石・土の色むら
   function groundTex() {
-    return canvasTex(256, (g, n) => {
-      const r = rng(11); g.fillStyle = '#e6e6e6'; g.fillRect(0, 0, n, n);
-      for (let i = 0; i < 2600; i++) { const v = 170 + Math.floor(r() * 85); g.fillStyle = `rgba(${v},${v},${v},0.55)`; const w = 1 + r() * 3; g.fillRect(r() * n, r() * n, w, w); }
-      for (let i = 0; i < 700; i++) { const v = 255; g.strokeStyle = `rgba(${v},${v},${v},0.35)`; g.lineWidth = 1; const x = r() * n, y = r() * n; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 3, y - 3 - r() * 4); g.stroke(); }
+    return canvasTex(512, (g, n) => {
+      const r = rng(11); g.fillStyle = '#dcdcdc'; g.fillRect(0, 0, n, n);
+      for (let i = 0; i < 90; i++) { const v = 150 + Math.floor(r() * 60), x = r() * n, y = r() * n, rr = 6 + r() * 26; const gr = g.createRadialGradient(x, y, 0, x, y, rr); gr.addColorStop(0, `rgba(${v + 10},${v},${v - 20},0.35)`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - rr, y - rr, rr * 2, rr * 2); }
+      for (let i = 0; i < 9000; i++) { const v = 150 + Math.floor(r() * 105); g.fillStyle = `rgba(${v},${v},${v},0.5)`; const w = 1 + r() * 2.5; g.fillRect(r() * n, r() * n, w, w); }
+      for (let i = 0; i < 2600; i++) { const v = 200 + Math.floor(r() * 55); g.strokeStyle = `rgba(${v},${v},${v},${0.25 + r() * 0.3})`; g.lineWidth = 1 + r(); const x = r() * n, y = r() * n; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 5, y - 3 - r() * 7); g.stroke(); }
+      for (let i = 0; i < 160; i++) { const v = 120 + Math.floor(r() * 50); g.fillStyle = `rgba(${v},${v},${v},0.6)`; g.beginPath(); g.arc(r() * n, r() * n, 1 + r() * 2.2, 0, 7); g.fill(); }
     });
+  }
+  // 2.1.0 大きな色むら（模様のくり返しを目立たなくする）
+  function macroTex() {
+    return canvasTex(128, (g, n) => {
+      const r = rng(23), G = 8, v = []; for (let i = 0; i < G * G * 2; i++) v.push(r());
+      const at = (k, x, y) => v[k * G * G + ((y % G + G) % G) * G + ((x % G + G) % G)];
+      const im = g.createImageData(n, n);
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+        const o = [0, 0];
+        for (let k = 0; k < 2; k++) { let s = 0, a = 0.6, f = 1; for (let oc = 0; oc < 3; oc++) { const fx = x / n * G * f, fy = y / n * G * f, xi = Math.floor(fx), yi = Math.floor(fy), u = fx - xi, w = fy - yi, uu = u * u * (3 - 2 * u), ww = w * w * (3 - 2 * w);
+          s += a * ((at(k, xi, yi) * (1 - uu) + at(k, xi + 1, yi) * uu) * (1 - ww) + (at(k, xi, yi + 1) * (1 - uu) + at(k, xi + 1, yi + 1) * uu) * ww); a *= 0.5; f *= 2; } o[k] = s / 1.05; }
+        const q = (y * n + x) * 4; im.data[q] = o[0] * 255; im.data[q + 1] = o[1] * 255; im.data[q + 2] = 128; im.data[q + 3] = 255;
+      }
+      g.putImageData(im, 0, 0);
+    }, true);
   }
   function grassTex() {
     const t = canvasTex(128, (g, n) => {
@@ -174,6 +203,20 @@
     });
     t.wrapS = t.wrapT = T.ClampToEdgeWrapping; return t;
   }
+  // 2.1.0 草：風でなびく・根元は暗く先は明るい・遠くの草は小さくして消す
+  function grassMat() {
+    const m = new T.MeshLambertMaterial({ map: texGrass, alphaTest: 0.45, side: T.DoubleSide });
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.gT = gTime;
+      sh.vertexShader = 'uniform float gT;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\n vec4 gw = modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0); transformed *= 1.0 - smoothstep(70.0, 115.0, distance(cameraPosition.xz, gw.xz)); float gk = position.y / 0.55; transformed.x += sin(gT * 1.6 + gw.x * 0.35 + gw.z * 0.22) * 0.13 * gk; transformed.z += cos(gT * 1.3 + gw.x * 0.2 + gw.z * 0.31) * 0.08 * gk;\n#endif');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(0.55, 1.12, vUv.y);');
+    };
+    return m;
+  }
+  // 2.1.0 なめらかな乱数の模様（地面の色むら用）
+  const vh = (a, b) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return s - Math.floor(s); };
+  const vn = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), u = x - xi, v = y - yi, uu = u * u * (3 - 2 * u), ww = v * v * (3 - 2 * v); return (vh(xi, yi) * (1 - uu) + vh(xi + 1, yi) * uu) * (1 - ww) + (vh(xi, yi + 1) * (1 - uu) + vh(xi + 1, yi + 1) * uu) * ww; };
+  const fbm = (x, y) => vn(x, y) * 0.5 + vn(x * 2.1, y * 2.1) * 0.3 + vn(x * 4.3, y * 4.3) * 0.2;
   const water = (t, x, y) => { const d = Math.hypot(x - t.x, y - t.y); return (t.k === 'm' && d < t.r && d > (t.ri || 0) && !SGK.SIM.onBridge(ter, x, y)) || (!['f', 'h', 'm', 'k', 's', 'e'].includes(t.k) && d < t.r); };
 
   // いくつかの形を1つにまとめる（部分ごとに色を付ける）
@@ -190,7 +233,7 @@
     if (ter.some((t) => t.k === 'w' || t.k === 'm')) { const wm = add(new T.Mesh(new T.PlaneGeometry(F.w + 80, F.h + 80).rotateX(-Math.PI / 2).translate(cx, -0.45, cy), new T.MeshPhongMaterial({ color: 0x2f86d0, specular: 0xd0e8ff, shininess: 90, transparent: true, opacity: 0.72 }))); wm.receiveShadow = true; }
     if (E.sea != null) { const sm = add(new T.Mesh(new T.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), new T.MeshPhongMaterial({ color: 0x35627e, specular: 0xa8c0d0, shininess: 60 }))); sm.position.set(cx + Math.cos(E.sea) * 2400, -0.2, cy + Math.sin(E.sea) * 2400); }
     let list = (E.mtn || []).slice(); if (!list.length) for (let i = 0; i < 5; i++) list.push([r() * 6.28, 20, 1]); /* 山が近くにないときは遠くの低い丘並み */
-    const hz = new T.Color(0xcfdde6), base = new T.Color(0x4c5e44), pos = [], col = [], c = new T.Color();
+    const hz = new T.Color(tod ? tod.haze : 0xcfdde6), base = new T.Color(0x4c5e44), pos = [], col = [], c = new T.Color();
     for (const [a, dk, low] of list) for (let k = 0; k < 3; k++) {
       const aa = a + (r() - 0.5) * 0.45, D = 560 + dk * 32 + r() * 60, H = (low ? 35 + r() * 30 : 110 + r() * 150) * (1 - dk / 60), R = H * (1.6 + r() * 1.2);
       const g = new T.ConeGeometry(R, H, 28, 6).toNonIndexed(), P = g.attributes.position, sd = r() * 100;
@@ -200,22 +243,50 @@
       pos.push(...P.array); const n = g.attributes.normal; c.copy(base).lerp(hz, Math.min(0.85, 0.35 + dk / 45));
       for (let i = 0; i < P.count; i++) { const l = 0.7 + 0.45 * Math.max(0, n.getX(i) * -0.4 + n.getY(i) * 0.75 + n.getZ(i) * 0.25), sn = P.getY(i) > 190 ? 0.5 : 0; col.push(Math.min(1, c.r * l + sn), Math.min(1, c.g * l + sn), Math.min(1, c.b * l + sn)); }
     }
+    // 2.1.0 手前の低い丘並み（ぐるりと一回り。海の方角には置かない）。遠くほどかすむ
+    for (let k = 0; k < 22; k++) {
+      const aa = k / 22 * 6.283 + (r() - 0.5) * 0.25; if (E.sea != null && Math.cos(aa - E.sea) > 0.55) continue;
+      const D = 330 + r() * 120, H = 14 + r() * 26, R = H * (3 + r() * 2), g = new T.ConeGeometry(R, H, 20, 3).toNonIndexed(), P = g.attributes.position, sd = r() * 100;
+      for (let i = 0; i < P.count; i++) { const vx = P.getX(i), vy = P.getY(i) + H / 2, vz = P.getZ(i), an = Math.atan2(vz, vx), f = 1 + 0.25 * Math.sin(an * 4 + sd) + 0.1 * Math.sin(an * 9 + sd); P.setXYZ(i, vx * f, vy * (0.8 + 0.2 * f), vz * f); }
+      g.computeVertexNormals(); g.translate(cx + Math.cos(aa) * D, -1.5, cy + Math.sin(aa) * D); pos.push(...P.array);
+      const n = g.attributes.normal; c.set(0x46603a).lerp(hz, 0.25 + (D - 330) / 600);
+      for (let i = 0; i < P.count; i++) { const l = 0.65 + 0.5 * Math.max(0, n.getX(i) * -0.4 + n.getY(i) * 0.75 + n.getZ(i) * 0.25); col.push(c.r * l, c.g * l, c.b * l); }
+    }
     const bg = new T.BufferGeometry(); bg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); bg.setAttribute('color', new T.Float32BufferAttribute(col, 3));
     const mm = add(new T.Mesh(bg, new T.MeshBasicMaterial({ vertexColors: true, fog: false }))); mm.frustumCulled = false; mm.renderOrder = 0;
   }
 
+  // 2.1.0 時刻（戦場ごとに朝・昼・夕のどれか。昼が多い）で太陽・空・かすみの色を変える
+  const TODS = {
+    day: { dir: [-0.45, 0.82, 0.32], sun: 0xfff1d8, si: 1.25, hs: 0xcfe3f7, hg: 0x5a603a, hi: 0.62, top: 0x3d7ac4, hor: 0xd3e2ec, haze: 0xcbdbe6, ex: 1.0 },
+    morning: { dir: [0.85, 0.4, -0.3], sun: 0xffd2a0, si: 1.15, hs: 0xc6d6ec, hg: 0x4f5634, hi: 0.58, top: 0x5487c8, hor: 0xf0dccb, haze: 0xdcd6d0, ex: 1.0 },
+    evening: { dir: [-0.85, 0.3, 0.35], sun: 0xffa866, si: 1.2, hs: 0xd6c2bc, hg: 0x4a4630, hi: 0.55, top: 0x46679f, hor: 0xf2b98a, haze: 0xd8b8a0, ex: 1.05 },
+  };
+  function setTod(id) {
+    const r = rng(String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0) * 7, 13))(), k = r < 0.6 ? 'day' : r < 0.8 ? 'morning' : 'evening';
+    tod = TODS[k]; tod.v = new T.Vector3(...tod.dir).normalize();
+    sun.color.set(tod.sun); sun.intensity = tod.si; hemi.color.set(tod.hs); hemi.groundColor.set(tod.hg); hemi.intensity = tod.hi;
+    const U = sky.material.uniforms; U.top.value.set(tod.top); U.hor.value.set(tod.hor); U.sunC.value.set(tod.sun); U.sunD.value.copy(tod.v);
+    scene.background = new T.Color(tod.haze); scene.fog = new T.Fog(tod.haze, 140, 560); rd.toneMappingExposure = tod.ex;
+  }
+
   // ---- 戦場ごとの地面と木 ----
   function build(id, list) {
-    built = id; ter = list || []; hills = ter.filter((t) => t.k === 'h').map((t) => ({ x: t.x, y: t.y, r: t.r * 1.15, hh: Math.min(14, t.r * 0.16) }));
+    built = id; ter = list || []; setTod(id); hills = ter.filter((t) => t.k === 'h').map((t) => ({ x: t.x, y: t.y, r: t.r * 1.15, hh: Math.min(14, t.r * 0.16) }));
     if (groundM) { scene.remove(groundM); groundG.dispose(); }
     for (const t of trees) { scene.remove(t); t.geometry.dispose(); if (t.material) t.material.dispose(); if (t.dispose) t.dispose(); }
     trees = [];
     const F = SIM.FIELD;
     groundG = new T.PlaneGeometry(F.w + 80, F.h + 80, 190, 130).rotateX(-Math.PI / 2).translate(F.w / 2, 0, F.h / 2);
     const P = groundG.attributes.position, col = new Float32Array(P.count * 3), c = new T.Color(), r = rng(7);
+    const GC = { g: new T.Color(0x7e9450), dry: new T.Color(0xa3a05e), lush: new T.Color(0x5c7d38), dirt: new T.Color(0x8c7652) };
     for (let i = 0; i < P.count; i++) {
       const x = P.getX(i), y = P.getZ(i); P.setY(i, hgt(x, y));
-      c.setHex(0x7e9450);
+      // 2.1.0 草地に色むら：枯れ草・土の出た所・濃い草
+      c.copy(GC.g); const dr = fbm(x * 0.018, y * 0.018), dt2 = vn(x * 0.07 + 50, y * 0.07 + 9), lu = fbm(x * 0.05 + 30, y * 0.05 + 70);
+      if (dr > 0.56) c.lerp(GC.dry, Math.min(0.8, (dr - 0.56) * 3));
+      if (lu < 0.36) c.lerp(GC.lush, Math.min(0.7, (0.36 - lu) * 4));
+      if (dt2 > 0.74) c.lerp(GC.dirt, Math.min(0.75, (dt2 - 0.74) * 4));
       for (const t of ter) {
         const d = Math.hypot(x - t.x, y - t.y);
         if (t.k === 'f' && d < t.r) c.lerp(new T.Color(0x4f6c34), 0.75);
@@ -227,11 +298,14 @@
         else if (!['f', 'h', 'm', 'k', 's', 'e', 'w'].includes(t.k) && d < t.r) c.setHex(0x2f78bf);
       }
       if (x < 0 || y < 0 || x > F.w || y > F.h) c.multiplyScalar(0.85);
-      const n = (0.95 + r() * 0.08) * (0.94 + 0.08 * Math.sin(x * 0.045 + 2) * Math.sin(y * 0.05)); col[i * 3] = c.r * n; col[i * 3 + 1] = c.g * n; col[i * 3 + 2] = c.b * n; // 0.65.0 広いまだら模様（0.68.1 色を入れる文がコメントの中に入って地面が黒くなっていたのを直した）
+      const n = (0.96 + r() * 0.06) * (0.9 + 0.2 * fbm(x * 0.04 + 7, y * 0.04 + 3)); col[i * 3] = c.r * n; col[i * 3 + 1] = c.g * n; col[i * 3 + 2] = c.b * n; // 0.65.0 広いまだら模様（0.68.1 色を入れる文がコメントの中に入って地面が黒くなっていたのを直した）
     }
     groundG.setAttribute('color', new T.BufferAttribute(col, 3)); groundG.computeVertexNormals();
     if (!texG) { texG = groundTex(); texG.repeat.set((F.w + 80) / 7, (F.h + 80) / 7); }
-    groundM = new T.Mesh(groundG, new T.MeshLambertMaterial({ vertexColors: true, map: texG })); groundM.receiveShadow = true; scene.add(groundM);
+    if (!texMacro) texMacro = macroTex();
+    const gmat = new T.MeshLambertMaterial({ vertexColors: true, map: texG });
+    gmat.onBeforeCompile = (sh) => { sh.uniforms.mT = { value: texMacro }; sh.fragmentShader = 'uniform sampler2D mT;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(0.8, 1.14, texture2D(mT, vUv * 0.083).r) * mix(0.9, 1.08, texture2D(mT, vUv * 0.019 + 0.37).g);'); };
+    groundM = new T.Mesh(groundG, gmat); groundM.receiveShadow = true; scene.add(groundM);
     backdrop(id, F);
     // 森の木
     const pts = [], rr = rng(String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0), 3));
@@ -248,15 +322,15 @@
       const blf2 = new T.InstancedMesh(new T.IcosahedronGeometry(1.3, 1).translate(0.9, 4.4, 0.4), new T.MeshLambertMaterial({ color: 0xffffff, flatShading: true }), Math.max(1, broad.length));
       let ti = 0;
       const place = (x, y, s, rot) => { o.position.set(x, hgt(x, y) - 0.1, y); o.scale.set(s, s * (0.9 + (s * 13 % 0.3)), s); o.rotation.set(0, rot, 0); o.updateMatrix(); };
-      pine.forEach(([x, y, s], i) => { place(x, y, s, s * 9); trunk.setMatrixAt(ti++, o.matrix); for (const m of [pin1, pin2, pin3]) { m.setMatrixAt(i, o.matrix); m.setColorAt(i, cc.setHSL(0.3 + (s * 7 % 0.05), 0.42, 0.2 + (s * 11 % 0.06))); } });
-      broad.forEach(([x, y, s], i) => { place(x, y, s, s * 9); trunk.setMatrixAt(ti++, o.matrix); for (const m of [blf, blf2]) { m.setMatrixAt(i, o.matrix); m.setColorAt(i, cc.setHSL(0.24 + (s * 5 % 0.06), 0.45, 0.26 + (s * 13 % 0.07))); } });
+      pine.forEach(([x, y, s], i) => { place(x, y, s, s * 9); trunk.setMatrixAt(ti++, o.matrix); for (const m of [pin1, pin2, pin3]) { m.setMatrixAt(i, o.matrix); m.setColorAt(i, cc.setHSL(0.3 + (s * 7 % 0.05), 0.42, 0.2 + (s * 11 % 0.06), T.SRGBColorSpace)); } });
+      broad.forEach(([x, y, s], i) => { place(x, y, s, s * 9); trunk.setMatrixAt(ti++, o.matrix); for (const m of [blf, blf2]) { m.setMatrixAt(i, o.matrix); m.setColorAt(i, cc.setHSL(0.24 + (s * 5 % 0.06), 0.45, 0.26 + (s * 13 % 0.07), T.SRGBColorSpace)); } });
       pin1.count = pin2.count = pin3.count = pine.length; blf.count = blf2.count = broad.length;
       for (const m of [trunk, pin1, pin2, pin3, blf, blf2]) { m.castShadow = true; m.receiveShadow = true; scene.add(m); trees.push(m); }
     }
     // 0.65.0 草むらと石（戦場の中に散らす。水・曲輪の中には置かない）
     if (!texGrass) texGrass = grassTex();
     const NG = 27000, grass = new T.InstancedMesh((() => { const g1 = new T.PlaneGeometry(0.9, 0.55).translate(0, 0.27, 0), g2 = g1.clone().rotateY(Math.PI / 3), g3 = g1.clone().rotateY(-Math.PI / 3); const pos = [], uv = [], nor = []; for (const g of [g1, g2, g3]) { const ng = g.toNonIndexed(); pos.push(...ng.attributes.position.array); uv.push(...ng.attributes.uv.array); for (let k = 0; k < ng.attributes.position.count; k++) nor.push(0, 1, 0); } const bg = new T.BufferGeometry(); bg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); bg.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); bg.setAttribute('normal', new T.Float32BufferAttribute(nor, 3)); return bg; })(),
-      new T.MeshLambertMaterial({ map: texGrass, alphaTest: 0.45, side: T.DoubleSide }), NG);
+      grassMat(), NG);
     const rocks = new T.InstancedMesh(new T.DodecahedronGeometry(0.45, 0).scale(1, 0.6, 1), new T.MeshLambertMaterial({ color: 0x8a877c, flatShading: true }), 260);
     const o2 = new T.Object3D(), c2 = new T.Color(), rg = rng(String(id).length * 31 + 17);
     let gi = 0, ri = 0;
@@ -266,7 +340,7 @@
       const inF = ter.some((t) => t.k === 'f' && Math.hypot(x - t.x, y - t.y) < t.r);
       const s = 0.7 + rg() * 0.9;
       o2.position.set(x, hgt(x, y) - 0.03, y); o2.rotation.set(0, rg() * 6.28, 0); o2.scale.set(s, s * (0.8 + rg() * 0.6), s); o2.updateMatrix();
-      grass.setMatrixAt(gi, o2.matrix); grass.setColorAt(gi, c2.setHSL(0.2 + rg() * 0.07, 0.45, (inF ? 0.22 : 0.3) + rg() * 0.1)); gi++;
+      grass.setMatrixAt(gi, o2.matrix); grass.setColorAt(gi, c2.setHSL(0.2 + rg() * 0.07, 0.45, (inF ? 0.22 : 0.3) + rg() * 0.1, T.SRGBColorSpace)); gi++;
       if (ri < 260 && rg() < 0.018) { o2.scale.set(0.5 + rg() * 1.4, 0.5 + rg(), 0.5 + rg() * 1.2); o2.rotation.set(rg(), rg() * 6.28, 0); o2.position.y = hgt(x, y) + 0.05; o2.updateMatrix(); rocks.setMatrixAt(ri++, o2.matrix); }
     }
     grassM = grass; grass.userData.full = gi; X.applyVid(); rocks.count = ri; rocks.castShadow = true; rocks.receiveShadow = true; grass.receiveShadow = false;
@@ -464,8 +538,8 @@
     let px = hx - dx * D + rx * 0.55, py = th - dy * D + 0.3, pz = hy - dz * D + rz * 0.55;
     py = Math.max(py, hgt(px, pz) + 0.4);
     cam3.position.set(px, py, pz); cam3.lookAt(px + dx, py + dy, pz + dz);
-    sun.position.set(hx - 60, th + 120, hy + 40); sun.target.position.set(hx, th, hy);
-    sky.position.copy(cam3.position); sky.material.uniforms.tm.value = clock; sky.material.uniforms.sunD.value.set(-60, 120, 40);
+    { const v = tod ? tod.v : new T.Vector3(-0.45, 0.82, 0.32); sun.position.set(hx + v.x * 150, th + v.y * 150, hy + v.z * 150); sun.target.position.set(hx, th, hy); }
+    sky.position.copy(cam3.position); sky.material.uniforms.tm.value = clock; gTime.value = clock;
     for (const k in M) cnt[k] = 0;
     const S3 = SGK.SOLD3D, skOn = !!(S3 && S3.ready); if (skOn) S3.begin();
     const A = b.act, live = (s) => s.hp > 0 && !s.gone;
