@@ -196,18 +196,46 @@
   const ROUT = 15; // 士気がこれ以下で潰走
   SIM.moraleBase = SIM.moraleBase || (() => 65);
 
-  function genTerrain(w) {
-    const ter = [], nf = 16 + Math.floor(rnd(w) * 12), nh = 6 + Math.floor(rnd(w) * 5);
-    for (let i = 0; i < nf + nh; i++) {
-      const hill = i >= nf;
-      ter.push({ k: hill ? 'h' : 'f', x: Math.round(30 + rnd(w) * (FIELD.w - 60)), y: Math.round(15 + rnd(w) * (FIELD.h - 30)), r: Math.round(hill ? 22 + rnd(w) * 14 : 11 + rnd(w) * 15) });
+  /* 1.6.64 戦場の地形を地図に合わせる：森の多さ・山の近さ・川・海。遠くの山や海は見た目だけ（k:'e' に入れる） */
+  function envAt(x, y) {
+    const E = { fo: 0, mt: 0, mtn: [], sea: null, riv: null };
+    if (x == null || !SIM.terrainAt) return E;
+    let n = 0;
+    for (const r of [0, 0.8, 1.6, 2.4]) for (let i = 0; i < (r ? 8 : 1); i++) { const a = i * Math.PI / 4, t = SIM.terrainAt(x + Math.cos(a) * r, y + Math.sin(a) * r); n++; if (t === '森') E.fo++; else if (t === '山地') E.mt++; }
+    E.fo /= n; E.mt /= n; if (SIM.forestAt(x, y)) E.fo = Math.max(E.fo, 0.85);
+    for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; let hit = 0;
+      for (let d = 2; d <= 26; d += 2) { const t = SIM.terrainAt(x + Math.cos(a) * d, y + Math.sin(a) * d);
+        if (t === '山地') { hit++; if (hit === 1) E.mtn.push([+a.toFixed(2), d]); }
+        else if (t === '海' && E.sea == null && d <= 8) E.sea = +a.toFixed(2); } }
+    let best = 1.6;
+    for (const rv of (SGK.DATA.terrain && SGK.DATA.terrain.rivers) || []) for (let k = 1; k < rv.pts.length; k++) {
+      const [ax, ay] = rv.pts[k - 1], [bx, by] = rv.pts[k], dx = bx - ax, dy = by - ay, l = dx * dx + dy * dy, q = l ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l)) : 0, d = Math.hypot(x - ax - q * dx, y - ay - q * dy);
+      if (d < best) { best = d; E.riv = rv.name; } }
+    return E;
+  }
+  function genTerrain(w, x, y) {
+    const E = envAt(x, y), ter = [];
+    const nf = Math.round((x == null ? 16 : 5) + rnd(w) * (x == null ? 12 : 7) + E.fo * 34), nh = Math.round((x == null ? 6 : 3) + rnd(w) * (x == null ? 5 : 3) + E.mt * 9);
+    const away = (px, py, r) => !E.riv || Math.abs(px - rx(py)) > r + 14;
+    const rx0 = FIELD.w / 2 + (rnd(w) - 0.5) * 140, ph = rnd(w) * 6, amp = 18 + rnd(w) * 30;
+    const rx = (py) => rx0 + Math.sin(py * 0.012 + ph) * amp + Math.sin(py * 0.031 + ph * 2) * amp * 0.35;
+    for (let i = 0, tries = 0; i < nf + nh && tries < 400; tries++) {
+      const hill = i >= nf, r = Math.round(hill ? 22 + rnd(w) * 14 + E.mt * 12 : 11 + rnd(w) * 15 + E.fo * 10);
+      const px = Math.round(30 + rnd(w) * (FIELD.w - 60)), py = Math.round(15 + rnd(w) * (FIELD.h - 30));
+      if (!away(px, py, r)) continue;
+      ter.push({ k: hill ? 'h' : 'f', x: px, y: py, r }); i++;
     }
+    if (E.riv) { /* 川：両軍の間を縦に流れる。浅瀬（渡れる所）を2〜3か所あける */
+      const fords = []; for (let i = 0, nfd = 2 + Math.floor(rnd(w) * 2); i < nfd; i++) fords.push(40 + rnd(w) * (FIELD.h - 80));
+      for (let py = -30; py <= FIELD.h + 30; py += 7) { if (fords.some((f) => Math.abs(py - f) < 13)) continue; ter.push({ k: 'w', x: Math.round(rx(py)), y: py, r: 10 }); }
+    }
+    ter.push({ k: 'e', x: -9999, y: -9999, r: 0, fo: +E.fo.toFixed(2), mt: +E.mt.toFixed(2), mtn: E.mtn, sea: E.sea, riv: E.riv }); /* 見た目用（計算には使わない） */
     return ter;
   }
   SIM.CAV_FOREST = 0.33; // 0.73.6 林の中の騎馬は歩きの兵と同じくらいの速さ（以前は0.5）
   SIM.terAt = (b, u) => terAt(b, u);
   function terAt(b, u) {
-    const o = { f: false, h: false, k: false, m: false, s: false }; // 0.37.0 k：曲輪（城の中）・m：堀・s：急な斜面（ri があれば輪の形）
+    const o = { f: false, h: false, k: false, m: false, s: false, w: false }; // 0.37.0 k：曲輪（城の中）・m：堀・s：急な斜面（ri があれば輪の形）
     for (const t of b.ter || []) { const d = Math.hypot(u.x - t.x, u.y - t.y); if (d < t.r && !(t.ri && d < t.ri)) o[t.k] = true; }
     return o;
   }
@@ -256,7 +284,7 @@
   function startBattle(w, n, p) {
     const id = 'b' + w.nextId++;
     const b = w.battles[id] = { id, npc: n.id, foe: '野盗', foeN: n.size, loot: n.loot, pids: [], units: [], next: 1, t: 0, start: {}, routed: false, hd: {}, rd: {},
-      ter: genTerrain(w), lk: { A: null, B: { x: FIELD.ax, y: FIELD.h / 2 } }, visA: [] };
+      ter: genTerrain(w, n.x, n.y), lk: { A: null, B: { x: FIELD.ax, y: FIELD.h / 2 } }, visA: [] };
     n.battle = id; n.tx = n.ty = null;
     const joiners = Object.values(w.players).filter((q) => q === p || (inField(q) && dist(q, n) < 1.5));
     for (const q of joiners) {
@@ -294,7 +322,7 @@
     const goTo = (u, x, y, spd) => { const d = Math.hypot(x - u.x, y - u.y); if (d < 0.3) return true; const s = Math.min(spd * dt, d); u.x += ((x - u.x) / d) * s; u.y += ((y - u.y) / d) * s; u.f = Math.atan2(y - u.y, x - u.x); return false; };
     for (const u of us) {
       const t = TR[u.type], tu = terAt(b, u);
-      const gen = u.type === 'hero' && !u.owner && !u.cmd, spd = (gen ? TR.kiba.spd : t.spd) * ((t.cav || gen) && tu.f ? SIM.CAV_FOREST : 1) // 0.73.8 CPUの武将は騎馬 * (tu.h ? 0.85 : 1) * (tu.m ? 0.4 : 1) * (tu.s ? (t.cav ? 0.3 : 0.5) : 1);
+      const gen = u.type === 'hero' && !u.owner && !u.cmd, spd = (gen ? TR.kiba.spd : t.spd) * ((t.cav || gen) && tu.f ? SIM.CAV_FOREST : 1) /* 0.73.8 CPUの武将は騎馬（1.6.64 行の途中の // で後ろが消えていたのを直した） */ * (tu.h ? 0.85 : 1) * (tu.m ? 0.4 : 1) * (tu.w ? 0.45 : 1) * (tu.s ? (t.cav ? 0.3 : 0.5) : 1);
       if (u.order === 'retreat' || u.order === 'rout') {
         const ex = u.side === 'A' ? -4 : FIELD.w + 4; u.x += Math.sign(ex - u.x) * spd * (u.order === 'rout' ? 1.1 : 1) * dt; u.f = u.side === 'A' ? Math.PI : 0;
         if ((u.side === 'A' && u.x < FIELD.ax - 120) || (u.side === 'B' && u.x > FIELD.bx + 120) || u.x < 1 || u.x > FIELD.w - 1) u.gone = true; // 120m 退けば戦場を離れる

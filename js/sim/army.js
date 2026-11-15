@@ -163,7 +163,7 @@
   function newBattle(w, n, extra) {
     const id = 'b' + w.nextId++;
     const b = w.battles[id] = Object.assign({ id, npc: n.id, war: 1, foe: armyName(w, n), foeN: n.size, loot: n.loot, pids: [], units: [], next: 1, t: 0, start: {}, routed: false, hd: {}, rd: {},
-      ter: M.genTerrain(w), lk: { A: null, B: { x: SIM.FIELD.ax, y: SIM.FIELD.h / 2 } }, visA: [] }, extra);
+      ter: M.genTerrain(w, n.x, n.y), lk: { A: null, B: { x: SIM.FIELD.ax, y: SIM.FIELD.h / 2 } }, visA: [] }, extra);
     n.battle = id; return b;
   }
   function join(w, b, q, msg) {

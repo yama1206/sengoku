@@ -30,7 +30,8 @@
     }
     h += 0.35 * Math.sin(x * 0.07 + 1.3) * Math.sin(y * 0.06 + 0.7) + 0.18 * Math.sin(x * 0.17 - y * 0.13); // 0.65.0 地面の小さな起伏
     for (const t of ter) if (t.k === 'm') { const d = Math.hypot(x - t.x, y - t.y); if (d < t.r && d > (t.ri || 0) && !SGK.SIM.onBridge(ter, x, y)) h -= 1.4; }
-    return h;
+    let wd = 0; for (const t of ter) if (t.k === 'w') { const d = Math.hypot(x - t.x, y - t.y); if (d < t.r + 4) wd = Math.max(wd, 1 - Math.pow(d / (t.r + 4), 2)); } /* 1.6.64 川の底（岸はなだらか） */
+    return h - 1.7 * wd;
   }
   X.hgt = hgt;
 
@@ -173,13 +174,34 @@
     });
     t.wrapS = t.wrapT = T.ClampToEdgeWrapping; return t;
   }
-  const water = (t, x, y) => { const d = Math.hypot(x - t.x, y - t.y); return (t.k === 'm' && d < t.r && d > (t.ri || 0) && !SGK.SIM.onBridge(ter, x, y)) || (!['f', 'h', 'm', 'k', 's'].includes(t.k) && d < t.r); };
+  const water = (t, x, y) => { const d = Math.hypot(x - t.x, y - t.y); return (t.k === 'm' && d < t.r && d > (t.ri || 0) && !SGK.SIM.onBridge(ter, x, y)) || (!['f', 'h', 'm', 'k', 's', 'e'].includes(t.k) && d < t.r); };
 
   // いくつかの形を1つにまとめる（部分ごとに色を付ける）
   function merge(list) {
     const pos = [], nor = [], col = [], c = new T.Color();
     for (const [g, hex] of list) { const ng = g.index ? g.toNonIndexed() : g; c.setHex(hex); pos.push(...ng.attributes.position.array); nor.push(...ng.attributes.normal.array); for (let k = 0; k < ng.attributes.position.count; k++) col.push(c.r, c.g, c.b); }
     const bg = new T.BufferGeometry(); bg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); bg.setAttribute('normal', new T.Float32BufferAttribute(nor, 3)); bg.setAttribute('color', new T.Float32BufferAttribute(col, 3)); return bg;
+  }
+
+  // 1.6.64 地図に合わせた景色：遠くの山（その方角に山地があるとき）・海・川や堀の水面。見た目だけ
+  function backdrop(id, F) {
+    const E = ter.find((t) => t.k === 'e') || {}, cx = F.w / 2, cy = F.h / 2, r = rng(String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0), 41));
+    const add = (m) => { scene.add(m); trees.push(m); return m; };
+    if (ter.some((t) => t.k === 'w' || t.k === 'm')) { const wm = add(new T.Mesh(new T.PlaneGeometry(F.w + 80, F.h + 80).rotateX(-Math.PI / 2).translate(cx, -0.75, cy), new T.MeshPhongMaterial({ color: 0x3e6a84, specular: 0x9fb8c8, shininess: 70, transparent: true, opacity: 0.82 }))); wm.receiveShadow = true; }
+    if (E.sea != null) { const sm = add(new T.Mesh(new T.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), new T.MeshPhongMaterial({ color: 0x35627e, specular: 0xa8c0d0, shininess: 60 }))); sm.position.set(cx + Math.cos(E.sea) * 2400, -0.2, cy + Math.sin(E.sea) * 2400); }
+    let list = (E.mtn || []).slice(); if (!list.length) for (let i = 0; i < 5; i++) list.push([r() * 6.28, 20, 1]); /* 山が近くにないときは遠くの低い丘並み */
+    const hz = new T.Color(0xcfdde6), base = new T.Color(0x4c5e44), pos = [], col = [], c = new T.Color();
+    for (const [a, dk, low] of list) for (let k = 0; k < 3; k++) {
+      const aa = a + (r() - 0.5) * 0.45, D = 560 + dk * 32 + r() * 60, H = (low ? 35 + r() * 30 : 110 + r() * 150) * (1 - dk / 60), R = H * (1.6 + r() * 1.2);
+      const g = new T.ConeGeometry(R, H, 28, 6).toNonIndexed(), P = g.attributes.position, sd = r() * 100;
+      for (let i = 0; i < P.count; i++) { const vx = P.getX(i), vy = P.getY(i) + H / 2, vz = P.getZ(i), an = Math.atan2(vz, vx), f = 1 + 0.22 * Math.sin(an * 5 + sd) + 0.12 * Math.sin(an * 11 + sd * 2) + 0.1 * Math.sin(vy * 0.08 + an * 3);
+        const top = vy >= H - 0.01 ? 1 : f; P.setXYZ(i, vx * top, Math.max(0, vy * (0.85 + 0.15 * f)), vz * top); }
+      g.computeVertexNormals(); g.translate(cx + Math.cos(aa) * D, -2, cy + Math.sin(aa) * D);
+      pos.push(...P.array); const n = g.attributes.normal; c.copy(base).lerp(hz, Math.min(0.85, 0.35 + dk / 45));
+      for (let i = 0; i < P.count; i++) { const l = 0.7 + 0.45 * Math.max(0, n.getX(i) * -0.4 + n.getY(i) * 0.75 + n.getZ(i) * 0.25), sn = P.getY(i) > 190 ? 0.5 : 0; col.push(Math.min(1, c.r * l + sn), Math.min(1, c.g * l + sn), Math.min(1, c.b * l + sn)); }
+    }
+    const bg = new T.BufferGeometry(); bg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); bg.setAttribute('color', new T.Float32BufferAttribute(col, 3));
+    const mm = add(new T.Mesh(bg, new T.MeshBasicMaterial({ vertexColors: true, fog: false }))); mm.frustumCulled = false; mm.renderOrder = 0;
   }
 
   // ---- 戦場ごとの地面と木 ----
@@ -201,7 +223,8 @@
         else if (t.k === 'm' && d < t.r && d > (t.ri || 0)) c.setHex(SGK.SIM.onBridge(ter, x, y) ? 0x9a8660 : 0x4d6f8e);
         else if (t.k === 'k' && d < t.r) c.setHex(0xb9a57c);
         else if (t.k === 's' && d < t.r && d > (t.ri || 0)) c.lerp(new T.Color(0x8b7d55), 0.5);
-        else if (!['f', 'h', 'm', 'k', 's'].includes(t.k) && d < t.r) c.setHex(0x4d6f8e);
+        else if (t.k === 'w' && d < t.r + 3) c.lerp(new T.Color(0x6b6448), 0.8); /* 1.6.64 川底と岸 */
+        else if (!['f', 'h', 'm', 'k', 's', 'e', 'w'].includes(t.k) && d < t.r) c.setHex(0x4d6f8e);
       }
       if (x < 0 || y < 0 || x > F.w || y > F.h) c.multiplyScalar(0.85);
       const n = (0.95 + r() * 0.08) * (0.94 + 0.08 * Math.sin(x * 0.045 + 2) * Math.sin(y * 0.05)); col[i * 3] = c.r * n; col[i * 3 + 1] = c.g * n; col[i * 3 + 2] = c.b * n; // 0.65.0 広いまだら模様（0.68.1 色を入れる文がコメントの中に入って地面が黒くなっていたのを直した）
@@ -209,6 +232,7 @@
     groundG.setAttribute('color', new T.BufferAttribute(col, 3)); groundG.computeVertexNormals();
     if (!texG) { texG = groundTex(); texG.repeat.set((F.w + 80) / 7, (F.h + 80) / 7); }
     groundM = new T.Mesh(groundG, new T.MeshLambertMaterial({ vertexColors: true, map: texG })); groundM.receiveShadow = true; scene.add(groundM);
+    backdrop(id, F);
     // 森の木
     const pts = [], rr = rng(String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0), 3));
     for (const t of ter) if (t.k === 'f') { const n = Math.min(160, Math.round(t.r * t.r * 0.07)); for (let i = 0; i < n; i++) { const a = rr() * 7, d = Math.sqrt(rr()) * t.r; pts.push([t.x + Math.cos(a) * d, t.y + Math.sin(a) * d, 0.8 + rr() * 0.6]); } }

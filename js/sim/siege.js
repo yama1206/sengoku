@@ -133,7 +133,7 @@
     if (!SIM.troopCount(p.troops)) return SIM.say(p.id, '兵がいないと城は攻められません');
     const id = 'b' + w.nextId++, gar = Object.assign({}, s.gar);
     const b = w.battles[id] = { id, npc: null, siege: s.id, war: 1, foe: `${s.name}の守備兵`, foeN: SIM.troopCount(gar), loot: 1500 + SIM.troopCount(gar) * 40,
-      pids: [], units: [], next: 1, t: 0, start: {}, routed: false, hd: {}, rd: {}, ter: M.genTerrain(w), lk: { A: null, B: { x: SIM.FIELD.ax, y: SIM.FIELD.h / 2 } }, visA: [] };
+      pids: [], units: [], next: 1, t: 0, start: {}, routed: false, hd: {}, rd: {}, ter: M.genTerrain(w, s.x, s.y), lk: { A: null, B: { x: SIM.FIELD.ax, y: SIM.FIELD.h / 2 } }, visA: [] };
     const joiners = Object.values(w.players).filter((q) => q === p || (q.clan === p.clan && M.inField(q) && !q.busy && dist(q, p) < 1.5));
     for (const q of joiners) {
       b.pids.push(q.id); q.battle = id; q.tx = q.ty = null; q.dest = null; q.at = null; b.start[q.id] = Object.assign({}, q.troops);
@@ -154,7 +154,7 @@
     const id = 'b' + w.nextId++, gar = Object.assign({}, s.gar);
     const lead = ps.slice().sort((a, c) => (c.rank || 0) - (a.rank || 0))[0], isLead = lead && (lead.rank >= SIM.ARMY_LEAD_RANK || (w.factions[lead.clan] || {}).leader === lead.id);
     const b = w.battles[id] = { id, npc: null, siege: s.id, war: 1, foe: `${s.name}の守備兵`, foeN: SIM.troopCount(gar), loot: 1500 + SIM.troopCount(gar) * 40,
-      pids: [], units: [], next: 1, t: 0, start: {}, routed: false, hd: {}, rd: {}, ter: M.genTerrain(w), lk: { A: null, B: { x: SIM.FIELD.ax, y: SIM.FIELD.h / 2 } }, visA: [],
+      pids: [], units: [], next: 1, t: 0, start: {}, routed: false, hd: {}, rd: {}, ter: M.genTerrain(w, s.x, s.y), lk: { A: null, B: { x: SIM.FIELD.ax, y: SIM.FIELD.h / 2 } }, visA: [],
       ally: n.id, allyArmy: n.id, lead: isLead ? lead.id : null };
     for (const q of ps) {
       b.pids.push(q.id); q.battle = id; q.tx = q.ty = null; q.dest = null; q.at = null; q.busy = null; b.start[q.id] = Object.assign({}, q.troops);

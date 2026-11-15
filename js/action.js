@@ -133,7 +133,7 @@
   function terMul(b, s, dx, dy, cav) {
     if (!b.ter || !b.ter.length) return 1;
     const t = SIM.terAt(b, s); let m = t.f ? (cav ? SIM.CAV_FOREST : 0.8) : 1;
-    if (t.m && !SIM.onBridge(b.ter, s.x, s.y)) m *= 0.4; if (t.s) m *= cav ? 0.3 : 0.5;
+    if (t.m && !SIM.onBridge(b.ter, s.x, s.y)) m *= 0.4; if (t.w) m *= cav ? 0.4 : 0.45; /* 1.6.64 川（浅瀬はあいている） */ if (t.s) m *= cav ? 0.3 : 0.5;
     if (t.h && (dx || dy)) { const l = Math.hypot(dx, dy) || 1, h0 = hgt(b, s.x, s.y), h1 = hgt(b, s.x + dx / l, s.y + dy / l); if (h1 > h0 + 0.002) m *= 0.85; else if (h1 < h0 - 0.002) m *= 1.05; }
     return m;
   }
