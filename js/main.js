@@ -1373,7 +1373,7 @@
     else if (k === 'p' || k === 'P') openChar(true);
     else if (k === 'Enter' && G.selected) $('infoGo').click();
     else if (k === '+' || k === '=' || k === ';') anyZoom(1.2); else if (k === '-') anyZoom(1 / 1.2);
-    else if (G.mode === 'host' && '1234'.includes(k)) { G.speed = [0, 1, 2, 4][+k - 1]; G.autoPause = 0; }
+    else if (G.mode === 'host' && '12345'.includes(k)) { G.speed = [0, 1, 2, 4, 8][+k - 1]; G.autoPause = 0; }
   });
   window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
   window.addEventListener('blur', () => keys.clear());
@@ -1549,7 +1549,7 @@
       }
       if (down(1)) { if (G.selected) selectSettlement(null); else if (G.pcurOn || !R.cam.follow) { G.pcurOn = false; R.cam.follow = true; } else command({ type: 'stop' }); }
       if (down(8)) openChar(true);
-      if (G.mode === 'host' && !infoOpen && (down(14) || down(15))) { const S = [0, 1, 2, 4], i = S.indexOf(G.speed); G.autoPause = 0; G.speed = S[Math.max(0, Math.min(3, i + (down(15) ? 1 : -1)))]; toast(G.speed ? `時間の速さ ×${G.speed}` : '時間を止めました', 900); }
+      if (G.mode === 'host' && !infoOpen && (down(14) || down(15))) { const S = [0, 1, 2, 4, 8], i = S.indexOf(G.speed); G.autoPause = 0; G.speed = S[Math.max(0, Math.min(4, i + (down(15) ? 1 : -1)))]; toast(G.speed ? `時間の速さ ×${G.speed}` : '時間を止めました', 900); }
       if (down(2)) cycleNear();
       if (down(3)) openSub('inv'); // 1.3.0 △：持っている物資
       if (down(10)) { // L3：カーソルを自分の場所へ戻す（地図も自分に合わせて追従）
