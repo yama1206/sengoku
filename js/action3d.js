@@ -375,7 +375,7 @@
     if (s.hero) { const n = s.wep && s.wep.name; return n === '槍' ? 'spearL' : n === '弓' ? 'bow' : n === '鉄砲' ? 'gun' : n === '脇差' ? 'waki' : n === '手裏剣' ? 'shuri' : 'sword'; }
     const t = s.type; if (!t || s.kat) return 'sword'; // 0.73.8 近づかれた弓・鉄砲は刀
     if (t === 'take' || t === 'shiyori' || t === 'takegashira') return 'waki';
-    if (t === 'yumi' || t === 'tsuyoyumi' || t === 'yumigashira') return 'bow'; if (t === 'teppo' || t === 'teppogashira') return 'gun';
+    if (t === 'yumi' || t === 'tsuyoyumi' || t === 'yumigashira' || t === 'banditBow') return 'bow'; /* 1.6.67 野盗の弓 */ if (t === 'teppo' || t === 'teppogashira') return 'gun';
     if (t === 'nagayari' || t === 'yarigashira') return 'spearL'; if (t === 'bandit') return 'sword';
     return 'spearS';
   }
