@@ -308,11 +308,14 @@
       hero.wep = W; if (hero.pc === A.pid) A.wep = W;
       hero.cd -= dt; hero.dcd -= dt; hero.dash -= dt; hero.blk = !!inp.blk && hero.dash <= 0;
       let mx = inp.mx || 0, my = inp.my || 0; const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }
+      /* 1.6.76 弓・鉄砲は構えている間と撃った直後は動けない。刀・槍は振っている間ゆっくり */
+      const shoot = !!W.shot && (hero.hold > 0 || hero.cd > W.cd - 0.5 || (inp.atk && kk !== 'yumi'));
+      if (shoot) { mx = my = 0; inp.dash = false; }
       if (inp.dash && hero.dcd <= 0 && (mx || my)) { hero.dash = ACT.DASH.t; hero.dcd = ACT.DASH.cd; hero.dx = mx; hero.dy = my; }
       const hasH = !!(pl && pl.equip && pl.equip.horse); A.rq = A.rq || {};
       if (A.rq[hero.pc]) { A.rq[hero.pc] = false; if (!hasH) SIM.say(hero.pc, '馬を装備していません'); else { hero.off = !hero.off; SIM.say(hero.pc, hero.off ? '馬から降りました' : '馬に乗りました'); } } // 1.6.17 △長押し／Rキー
       hero.rd = hasH && !hero.off ? 1 : 0; // 1.6.16 馬を装備していれば本人も馬に乗る
-      const sp = (hero.rd ? TR.kiba.spd : TR.hero.spd) * ACT.SPD * 1.1 * (hero.blk ? 0.5 : 1) * (hero.tate ? 0.85 : 1) * (pl && pl.nin ? SIM.NIN.actSpd : 1); // 0.77.0 忍びは速い
+      const sp = (hero.rd ? TR.kiba.spd : TR.hero.spd) * ACT.SPD * 1.1 * (hero.blk ? 0.5 : 1) * (!hero.rd && (hero.sw || (hero.hold > 0 && !W.shot)) ? 0.45 : 1) * (hero.tate ? 0.85 : 1) * (pl && pl.nin ? SIM.NIN.actSpd : 1); // 0.77.0 忍びは速い
       if (hero.rd) { /* 1.6.75 馬：真横には動けない。前は速く、後ろはゆっくり。動きながらの向き変えはゆっくり */
         if (hero.hh == null) hero.hh = hero.f || 0;
         const il = Math.hypot(mx, my), hv = hero.hv || 0, r = Math.min(1, Math.abs(hv) / sp);
@@ -325,7 +328,8 @@
         if (hero.dash > 0) tv = sp * ACT.DASH.mul;
         const ac = (tv > hv ? 1.4 : 2.6) * sp * dt; hero.hv = hv + Math.max(-ac, Math.min(ac, tv - hv));
         const cx = Math.cos(hero.hh), cy = Math.sin(hero.hh), tm = terMul(b, hero, cx, cy, true);
-        hero.x += cx * hero.hv * tm * dt; hero.y += cy * hero.hv * tm * dt; hero.f = hero.hh;
+        hero.x += cx * hero.hv * tm * dt; hero.y += cy * hero.hv * tm * dt;
+        { const am = inp.aim != null ? inp.aim : hero.hh; let d = am - hero.hh; d = Math.atan2(Math.sin(d), Math.cos(d)); hero.f = hero.hh + Math.max(-1.6, Math.min(1.6, d)); } // 1.6.76 上半身をひねって、馬の向きから左右90度まで狙える
       } else {
         hero.hh = null; hero.hv = 0;
         if (hero.dash > 0) { hero.x += hero.dx * sp * ACT.DASH.mul * dt; hero.y += hero.dy * sp * ACT.DASH.mul * dt; }
@@ -501,7 +505,7 @@
     const A = b.act, L = A.s.filter(live), o = { id: b.id, s: [], pr: [], dc: A.dc, dead: A.dead.slice(-40).map((d) => [q10(d.x), q10(d.y), d.side === 'A' ? 0 : 1]) };
     for (const s of L) o.s.push(s.id, q10(s.x), q10(s.y), Math.round((s.f || 0) * 100), Math.round((s.hp / s.mh) * 100), (s.fl ? 1 : 0) | (s.at && performance.now() / 1000 - s.at < 0.3 ? 2 : 0) | (s.kat ? 4 : 0));
     for (const p of A.pr) o.pr.push(q10(p.x), q10(p.y), Math.round(p.vx), Math.round(p.vy), p.gun ? 1 : 0, q10(p.h || 0));
-    o.h = A.s.filter((s) => s.pc && live(s)).map((s) => [s.id, s.sw ? [Math.round(s.sw.t * 100), Math.round(s.sw.a * 100), Math.round(s.sw.arc * 100), q10(s.sw.r), Math.round((s.sw.d || 0.18) * 100)] : null, s.wep ? s.wep.name : '', s.blk ? 1 : 0, Math.round((s.jp || 0) * 100), s.rd ? 1 : 0, s.hn || 0, s.hw || '', s.hd || 0, s.tate ? 1 : 0, s.hold > 0 ? 1 : 0]);
+    o.h = A.s.filter((s) => s.pc && live(s)).map((s) => [s.id, s.sw ? [Math.round(s.sw.t * 100), Math.round(s.sw.a * 100), Math.round(s.sw.arc * 100), q10(s.sw.r), Math.round((s.sw.d || 0.18) * 100)] : null, s.wep ? s.wep.name : '', s.blk ? 1 : 0, Math.round((s.jp || 0) * 100), s.rd ? 1 : 0, s.hn || 0, s.hw || '', s.hd || 0, s.tate ? 1 : 0, s.hold > 0 ? 1 : 0, s.rd && s.hh != null ? Math.round(s.hh * 100) : null]);
     if (A.gt) o.gt = A.gt;
     o.u = b.units.filter((u) => u.hp > 0 && !u.gone).map((u) => [u.id, u.side, u.owner || u.cmd || null, u.type, u.n, u.order, u.idx || 0, u.gname || '']);
     if (full) o.st = A.s.filter(live).map((s) => [s.id, s.side === 'A' ? 0 : 1, s.g, s.type || '', s.hero ? 1 : 0, s.pc || 0]);
@@ -524,7 +528,7 @@
     A.s = list; A.pr = [];
     for (let i = 0; i < o.pr.length; i += 6) A.pr.push({ x: o.pr[i] / 10, y: o.pr[i + 1] / 10, vx: o.pr[i + 2], vy: o.pr[i + 3], gun: !!o.pr[i + 4], h: o.pr[i + 5] / 10 });
     const nd = o.dc - A.dc; if (nd > 0) { for (const [x, y, sd] of o.dead.slice(-Math.min(nd, o.dead.length))) A.dead.push({ x: x / 10, y: y / 10, side: sd ? 'B' : 'A' }); if (A.dead.length > 500) A.dead.splice(0, A.dead.length - 500); } A.dc = o.dc;
-    for (const [id, sw, wn, bl, jp, rd, hn, hw, hd, tt, hl] of o.h) { const s = V.byId[id]; if (!s) continue; s.tate = tt ? 1 : 0; s.hold = hl ? 1 : 0; s.rd = rd ? 1 : 0; s.hn = hn; s.hw = hw; s.hd = hd; s.wep = { name: wn }; s.blk = !!bl; if (jp && !(s.jp > 0)) s.jp = jp / 100; const was = s.sw; s.sw = sw ? { t: sw[0] / 100, a: sw[1] / 100, arc: sw[2] / 100, r: sw[3] / 10, d: (sw[4] || 18) / 100 } : null; if (sw && !was && s.pc === SIM.localPid) SGK.AUDIO.sfx('slash'); }
+    for (const [id, sw, wn, bl, jp, rd, hn, hw, hd, tt, hl, hh] of o.h) { const s = V.byId[id]; if (!s) continue; s.hh = hh == null ? null : hh / 100; s.tate = tt ? 1 : 0; s.hold = hl ? 1 : 0; s.rd = rd ? 1 : 0; s.hn = hn; s.hw = hw; s.hd = hd; s.wep = { name: wn }; s.blk = !!bl; if (jp && !(s.jp > 0)) s.jp = jp / 100; const was = s.sw; s.sw = sw ? { t: sw[0] / 100, a: sw[1] / 100, arc: sw[2] / 100, r: sw[3] / 10, d: (sw[4] || 18) / 100 } : null; if (sw && !was && s.pc === SIM.localPid) SGK.AUDIO.sfx('slash'); }
     V.units = o.u.map(([id, side, owner, type, n, order, idx, gname]) => ({ id, side, owner, type, n, order, idx, gname: gname || undefined, hp: n > 0 ? 1 : 0, gone: false }));
     A.byG = {}; for (const u of V.units) A.byG[u.id] = u;
     A.gt = o.gt || null;

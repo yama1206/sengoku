@@ -414,12 +414,14 @@
     let c, up = 0, fw = 0;
     if (cav) { // 馬に乗る：馬の背に座った姿勢で
       const hb = S3.horses[s.hero || s.type === 'horo' ? 'white' : 'brown'];
+      const hh = s.hh != null ? s.hh : null; if (hh != null) { O.rotation.set(0, -hh, 0); O.updateMatrix(); } /* 1.6.76 馬は馬の向き、乗り手は狙う方へ少しひねる */
       Mx.copy(O.matrix).multiply(SK90).multiply(Ms.makeScale(S3.hk, S3.hk, S3.hk));
       const hr = S3.rowAt(hb, mv < 0.6 ? 'idle' : mv < 6 ? 'walk' : 'gallop', ph, true); S3.put(hb, Mx, hr, 0);
       up = S3.seat - b.hipSit * sc;
       const HB = hb.att.Back; if (HB) { const i0 = hb.rows.idle.r0 * 16; up += (HB[hr * 16 + 13] - HB[i0 + 13]) * S3.hk; fw = (HB[hr * 16 + 14] - HB[i0 + 14]) * S3.hk; } /* 1.6.71 馬の背の揺れに合わせて乗り手も上下・前後に動く */
       const ride = { nm: 'ride', t: 0, loop: false }, ca = skClip(s, wk, mv, nowS, ph);
       c = ca.atk ? Object.assign({}, ca, { low: ride }) : ride; // 馬の上でも上半身は攻撃する
+      if (hh != null) { let d = f - hh; d = Math.atan2(Math.sin(d), Math.cos(d)); O.rotation.set(0, -(hh + d * 0.6), 0); O.updateMatrix(); }
     } else c = skClip(s, wk, mv, nowS, ph);
     Mu.copy(O.matrix); Mu.elements[13] += up; if (fw) Mu.multiply(Ms.makeTranslation(Math.max(-0.3, Math.min(0.3, fw)), 0, 0)); // 体の位置（前が +X）。指物などはこれに付ける
     Mx.copy(Mu).multiply(SK90); if (sc !== 1) Mx.multiply(Ms.makeScale(sc, sc, sc));
