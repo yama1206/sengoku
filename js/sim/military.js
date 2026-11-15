@@ -262,7 +262,7 @@
     for (const q of joiners) {
       b.pids.push(q.id); q.battle = id; q.tx = q.ty = null; q.dest = null; b.start[q.id] = Object.assign({}, q.troops);
       addUnits(w, b, 'A', q.id, Object.assign({ hero: 1 }, q.troops));
-      SIM.say(q.id, n.fight ? `巡回兵に加勢し、野盗${n.size}人に攻めかかります！` : `野盗${n.size}人に襲われました！ 敵の姿はまだ見えません。偵察に出すか、待ち構えるか…`);
+      SIM.say(q.id, n.fight ? `巡回兵に加勢し、野盗${n.size}人に攻めかかります！` : `野盗${n.size}人に襲われました！`);
     }
     const pa = n.fight && w.npcs[n.fight];
     if (pa && pa.army && SIM.troopCount(pa.army)) { // 味方の巡回兵も戦場に出る（自動で突撃）
