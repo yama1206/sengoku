@@ -97,8 +97,9 @@
     for (const s of w.settlements) for (const k in I()) { const t = target(s, k); s.stock[k] = Math.max(0, s.stock[k] + pm(s, k) - I()[k].cons * sz(s)); if (s.stock[k] > t * 1.3) s.stock[k] -= (s.stock[k] - t * 1.3) * 0.25; } // 目安の1.3倍を超えた分は傷んだり蔵からよそへ流れたりして減る
     share(w);
     for (const j of Object.values(w.jobs)) if (j.expires < now) delete w.jobs[j.id];
+    const JC = {}; for (const j of Object.values(w.jobs)) JC[j.from] = (JC[j.from] || 0) + 1; /* 1.6.50 数えるのを1回に */
     for (const s of w.settlements) {
-      const n = Object.values(w.jobs).filter((j) => j.from === s.id).length;
+      const n = JC[s.id] || 0;
       if (n < 3 && SIM.rand(w) < 0.5) genJob(w, s);
     }
     for (const p of Object.values(w.players)) {

@@ -605,11 +605,14 @@
       if (!m || m.battle || dist(m, n) > FLEE.safeKm + 2) { n.gfl = null; if (!n.ref) { n.tx = n.ty = null; n.path = null; n.wait = 30; } continue; }
       if (!n.ref) runTo(w, n, m);
     }
+    const GB = new Map(), gk = (x, y) => Math.floor(x / 4) * 4096 + Math.floor(y / 4); /* 1.6.50 近くの隊だけ調べる（4kmのます） */
+    for (const x of gens) { const k = gk(x.x, x.y); let a = GB.get(k); if (!a) GB.set(k, (a = [])); a.push(x); }
+    const nearGens = (n) => { const out = [], i0 = Math.floor(n.x / 4), j0 = Math.floor(n.y / 4); for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) { const a = GB.get((i0 + di) * 4096 + j0 + dj); if (a) for (const x of a) out.push(x); } return out; };
     for (const n of gens) { // 攻めかかる
       if (n.fight || n.battle || n.hunt || n.flee || n.gfl || n.ref || n.packOf || n.pack || (n.calm || 0) > now || (n.size || 0) < 6) { if (n.gh && (n.hunt || n.fight || n.battle)) n.gh = null; continue; }
       let m = n.gh && w.npcs[n.gh];
-      const ok = (x) => x && x !== n && (x.kind === 'patrol' || x.kind === 'bushou') && x.army && !x.battle && !x.fight && !inCastle(x) && SIM.atWar(w, n.faction, x.faction) && dist(n, x) < GW.km + (x === m ? 1 : 0) && M.power(n.army) >= M.power(x.army) * GW.ratio;
-      if (!ok(m)) { m = gens.filter(ok).sort((a, b) => dist(a, n) - dist(b, n))[0] || null; n.gh = m ? m.id : null; }
+      const ok = (x) => x && x !== n && x.faction !== n.faction && dist(n, x) < GW.km + (x === m ? 1 : 0) && (x.kind === 'patrol' || x.kind === 'bushou') && x.army && !x.battle && !x.fight && !inCastle(x) && SIM.atWar(w, n.faction, x.faction) && M.power(n.army) >= M.power(x.army) * GW.ratio;
+      if (!ok(m)) { m = nearGens(n).filter(ok).sort((a, b) => dist(a, n) - dist(b, n))[0] || null; n.gh = m ? m.id : null; }
       if (!m) continue;
       if (!m.gfl) { m.gfl = n.id; m.hunt = null; if (m.pack) disband(w, m); }
       n.tx = m.x; n.ty = m.y; n.path = null; n.dest = null; n.at = null;

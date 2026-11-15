@@ -157,6 +157,7 @@
   }
   function patrolTick(w, dt) {
     const bandits = Object.values(w.npcs).filter((n) => n.kind === 'bandit' && !n.battle);
+    const BB = new Map(); for (const b of bandits) { const k = Math.floor(b.x / SEEK_KM) * 4096 + Math.floor(b.y / SEEK_KM); let a = BB.get(k); if (!a) BB.set(k, (a = [])); a.push(b); } /* 1.6.50 近くの野盗だけ調べる */
     for (const pa of Object.values(w.npcs)) {
       if (pa.kind !== 'patrol' || pa.battle || !pa.army || pa.hunt || pa.flee) continue;
       if (pa.fight) {
@@ -176,7 +177,8 @@
       }
       if (pa.size < 6) continue; // 弱っている巡回兵は戦わない
       let tg = null, td = SEEK_KM;
-      for (const b of bandits) { if (b.fight) continue; const d = dist(pa, b); if (d < td) { td = d; tg = b; } }
+      const i0 = Math.floor(pa.x / SEEK_KM), j0 = Math.floor(pa.y / SEEK_KM);
+      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) for (const b of BB.get((i0 + di) * 4096 + j0 + dj) || []) { if (b.fight) continue; const d = dist(pa, b); if (d < td) { td = d; tg = b; } }
       if (!tg) continue;
       if (td < FIGHT_KM) {
         pa.fight = tg.id; tg.fight = pa.id; tg.f0 = tg.size; pa.fa = tg.fa = 0;
