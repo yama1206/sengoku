@@ -424,7 +424,7 @@
     Mx.copy(Mu).multiply(SK90); if (sc !== 1) Mx.multiply(Ms.makeScale(sc, sc, sc));
     const row = S3.rowAt(b, c.nm, c.t, c.loop), rowL = c.low ? S3.rowAt(b, c.low.nm, c.low.t, c.low.loop) : row;
     if (c.low) S3.combo(b, rowL, row, Mc, Mcw);
-    S3.put(b, Mx, rowL, s.fl ? 0.6 : 0, c.low ? row : null, c.low ? Mc : null);
+    S3.put(b, Mx, rowL, s.fl ? 0.22 * Math.min(1, s.fl / 0.15) : 0, c.low ? row : null, c.low ? Mc : null); // 1.6.68 打たれた光りを控えめに（0.6→0.22）
     // 武器を手に持たせる（弓は左手）
     const wn = wepName(wk, tr), kind = wk === 'spearS' || wk === 'spearL' ? 'spear' : wk === 'bow' || wk === 'gun' ? wk : 'sword';
     if (wn || wk === 'shuri') {
@@ -483,9 +483,12 @@
       // 1.6.65 近くは人型モデル（カメラの後ろは描かない）、遠くはこれまでの形
       const ex = s.x - px, ez = s.y - pz;
       if (skOn && ex * ex + ez * ez < LOD2) {
-        const rate = mv < 0.4 ? 1 : mv < 3.6 ? Math.min(1.8, Math.max(0.6, mv / 1.5)) : Math.min(1.5, Math.max(0.7, mv / 5));
-        const pp = last.get(s.id); if (pp) pp[2] = (pp[2] || s.id * 0.37) + dt * rate;
-        if (ex * dx + ez * dz > -4) drawSk(s, u, cav, mv, nowS, gy, f, own, col, pp ? pp[2] : s.id * 0.37);
+        // 1.6.68 速さはならして使う（押し合いの小さな動きで、待機と歩くが毎コマ入れ替わってチラついていた）。止まる・歩き出すの境目にも幅を持たせる
+        const pp = last.get(s.id); let ms = mv;
+        if (pp) { pp[3] = pp[3] == null ? mv : pp[3] + (mv - pp[3]) * Math.min(1, dt * 3); pp[4] = pp[4] ? pp[3] > 0.35 : pp[3] > 0.9; ms = pp[4] ? Math.max(0.5, pp[3]) : 0; }
+        const rate = ms < 0.4 ? 1 : ms < 3.6 ? Math.min(1.8, Math.max(0.6, ms / 1.5)) : Math.min(1.5, Math.max(0.7, ms / 5));
+        if (pp) pp[2] = (pp[2] || s.id * 0.37) + dt * rate;
+        if (ex * dx + ez * dz > -4) drawSk(s, u, cav, ms, nowS, gy, f, own, col, pp ? pp[2] : s.id * 0.37);
       } else {
       if (cav) {
         O.position.set(s.x, gy + bob * 0.5, s.y); O.rotation.set(0, -f, 0); O.scale.set(1, 1, 1); O.updateMatrix();
