@@ -1069,6 +1069,13 @@
   function ordMenu(m) { R.ordMenu = m; R.ordItems = m ? ORDM[m] : null; }
   function myUnits3(AB) { return AB.units.filter((u) => u.idx && (u.owner === G.myPid || u.cmd === G.myPid) && u.hp > 0 && !u.gone && u.order !== 'rout'); }
   function cen3(AB, f) { let x = 0, y = 0, n = 0; for (const s of AB.act.s) if (s.hp > 0 && !s.gone && f(s)) { x += s.x; y += s.y; n++; } return n ? { x: x / n, y: y / n } : null; }
+  // 1.6.66 照準（3Dは画面の真ん中、2Dはマウス・カーソル）と、そこが指す敵の隊。突撃・回り込みはその隊へ
+  function aimXY() { return R.act3dOn ? [cv.clientWidth / 2, cv.clientHeight / 2] : G.vcurOn && G.vcur ? G.vcur : G.mouseXY || null; }
+  function chargeTo(AB, c) {
+    if (c.order !== 'charge' && c.order !== 'flank') return '';
+    const a = aimXY(), id = a && R.actFoeAt ? R.actFoeAt(a[0], a[1], AB.act, G.myPid) : null, u = id != null && AB.units.find((x) => x.id === id);
+    if (!u) return ''; c.tg = id; return `${u.gname ? u.gname + '隊・' : ''}${SIM.TROOPS[u.type].short || SIM.TROOPS[u.type].name}へ`;
+  }
   function ord3(kind) {
     const AB = actB(); if (!AB) return; ordMenu(null);
     const all = G.selUnit == null || G.selUnit === 'all', L = myUnits3(AB).filter((u) => all || u.id === G.selUnit);
@@ -1078,7 +1085,7 @@
       if (fk[1] === 'form') { if (all) L.forEach((u) => command({ type: 'order', unit: u.id, order: 'form', fm: fk[2] })); else command({ type: 'order', unit: G.selUnit, order: 'form', fm: fk[2] }); toast(`${SIM.ACT.FORMS[fk[2]]}に組め！`, 900); }
       else { each((un) => command({ type: 'order', unit: un, order: 'fire', on: fk[2] === '1' })); toast(fk[2] === '1' ? '自由に射て！' : '射撃をやめよ！', 900); }
       return; }
-    if (!['move', 'back', 'faceHere', 'faceFoe'].includes(kind)) { command({ type: 'order', unit: all ? 'all' : G.selUnit, order: kind }); toast({ follow: 'ついて来い！', charge: '突撃！', flank: '回り込め！', hold: 'その場で止まれ！', retreat: '退却！', ai: '各自の判断で戦え！（AIに任せる）' }[kind] || '', 900); return; }
+    if (!['move', 'back', 'faceHere', 'faceFoe'].includes(kind)) { const c = { type: 'order', unit: all ? 'all' : G.selUnit, order: kind }, to = chargeTo(AB, c); command(c); if (to) { toast(`${to}${kind === 'flank' ? '回り込め' : '突撃'}！`, 1100); return; } toast({ follow: 'ついて来い！', charge: '突撃！', flank: '回り込め！', hold: 'その場で止まれ！', retreat: '退却！', ai: '各自の判断で戦え！（AIに任せる）' }[kind] || '', 900); return; }
     const cs = L.map((u) => [u, cen3(AB, (s) => s.g === u.id)]).filter((a) => a[1]); if (!cs.length) return;
     const mx = cs.reduce((a, c) => a + c[1].x, 0) / cs.length, my = cs.reduce((a, c) => a + c[1].y, 0) / cs.length;
     const [px, py] = R.act3d.toWorld(cv.clientWidth / 2, cv.clientHeight / 2), foe = cen3(AB, (s) => s.side === 'B') || { x: mx + 100, y: my };
@@ -1092,7 +1099,7 @@
   // 0.59.0 移動先を決めたあと、向く方向を決める（G.fpick = 移動先。次に押した所の方を向く）
   function moveFace(unit, x, y, face) { command({ type: 'order', unit, order: 'move', x, y }); if (face != null) command({ type: 'order', unit, order: 'face', f: face }); }
   function pickFace(fx, fy) { const P = G.fpick; G.fpick = null; if (!P) return false; if (Math.hypot(fx - P.x, fy - P.y) < 2) { toast('向きはそのままにしました', 800); return true; } command({ type: 'order', unit: P.unit, order: 'face', f: Math.atan2(fy - P.y, fx - P.x) }); toast('その方向を向かせます', 800); return true; }
-  function actOrder(o, x, y) { if (G.selUnit == null) { toast('先に部隊を選んでください（右スティックのカーソルを隊に合わせてA・LB/RB・数字キー）', 1500); return; } const c = { type: 'order', unit: G.selUnit, order: o }; if (o === 'move') { c.x = x; c.y = y; } command(c); }
+  function actOrder(o, x, y) { if (G.selUnit == null) { toast('先に部隊を選んでください（右スティックのカーソルを隊に合わせてA・LB/RB・数字キー）', 1500); return; } const c = { type: 'order', unit: G.selUnit, order: o }; if (o === 'move') { c.x = x; c.y = y; } const to = actB() ? chargeTo(actB(), c) : ''; command(c); if (to) toast(`${to}${o === 'flank' ? '回り込め' : '突撃'}！`, 1100); }
   function actSel(d) { const AB = actB(); if (!AB) return; const l = [null, 'all', ...AB.units.filter((u) => u.idx && (u.owner === G.myPid || u.cmd === G.myPid) && u.hp > 0 && !u.gone).sort((a, b) => a.idx - b.idx).map((u) => u.id)]; const i = Math.max(0, l.indexOf(G.selUnit)); G.selUnit = l[(i + d + l.length) % l.length]; battleHtml = ''; }
   // 0.61.0 カーソルの所の自分の隊を選ぶ（何もなければ選択をやめる）／選んだ隊をそこへ動かす
   function actPick(sx, sy) {
@@ -1665,7 +1672,7 @@
             if (inp.dash || inp.sw || inp.jmp || inp.ride || (key !== G.actLastKey && G.actSendAcc > 0.05) || G.actSendAcc > 0.5) { G.actSendAcc = 0; G.actLastKey = key; command(Object.assign({ type: 'actIn' }, inp)); }
             SIM.actSmooth(AB, dt, G.myPid, inp);
           }
-          R.actPad = !!G.padUsed; R.actCur = G.vcurOn && G.vcur ? { p: G.vcur, d: G.padRD } : null; R.drawAction(ctx, AB, G.myPid, G.selUnit, dt, BT.ter); renderBattle(BT);
+          R.actPad = !!G.padUsed; R.actCur = G.vcurOn && G.vcur ? { p: G.vcur, d: G.padRD } : null; R.aimXY = aimXY(); R.drawAction(ctx, AB, G.myPid, G.selUnit, dt, BT.ter); renderBattle(BT);
         } else { R.drawBattle(ctx, BT, G.disp, G.myPid, G.selUnit); renderBattle(BT); }
         if (G.bcur && !AB) { const L = R.battleLayout(SIM.FIELD); drawCross(L.ox + G.bcur[0] * L.sc, L.oy + G.bcur[1] * L.sc, '#f2c14e'); }
         { // 0.59.0 向きを決める矢印

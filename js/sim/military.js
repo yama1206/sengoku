@@ -574,6 +574,7 @@
         if (c.order === 'fire') { u.nofire = !c.on; continue; } // 0.75.0 射撃の許可
         if (c.order === 'face') { if (Number.isFinite(+c.f)) u.mf = +c.f; continue; } // 0.59.0 着いたら（止まっているなら今）この向きを向く
         u.order = c.order; if (c.order !== 'hold') u.mf = null;
+        { const tg = (c.order === 'charge' || c.order === 'flank') && c.tg != null && b.units.find((v) => v.id === +c.tg); u.ct = tg && tg.side !== u.side ? tg.id : null; } // 1.6.66 突撃先の隊
         if (c.order === 'move') { u.mx = Math.max(2, Math.min(FIELD.w - 2, +c.x || 0)); u.my = Math.max(2, Math.min(FIELD.h - 2, +c.y || 0)); }
       }
     },

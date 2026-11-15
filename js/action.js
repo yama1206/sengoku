@@ -277,9 +277,10 @@
       u.isAI = u.order === 'ai' || (u.side === 'B' && u.order !== 'rout' && u.order !== 'retreat');
       if (u.isAI && u.order !== 'rout' && u.order !== 'retreat') aiThink(A, b, u, c, center, all, dt); else { u.eo = null; u.kite = 0; }
       const o = u.eo || u.order;
-      if (o === 'charge' || o === 'flank') { // 近い敵の隊へ
+      if (o === 'charge' || o === 'flank') { // 近い敵の隊へ（1.6.66 突撃先を指したときはその隊へ）
         let best = null, bd = 1e9;
-        for (const id in center) { const v = A.byG[id]; if (v.side === u.side) continue; const d = Math.hypot(center[id].x - c.x, center[id].y - c.y); if (d < bd) { bd = d; best = center[id]; } }
+        if (u.ct != null) { const v = A.byG[u.ct]; if (center[u.ct] && v && v.side !== u.side) best = center[u.ct]; else u.ct = null; }
+        if (!best) for (const id in center) { const v = A.byG[id]; if (v.side === u.side) continue; const d = Math.hypot(center[id].x - c.x, center[id].y - c.y); if (d < bd) { bd = d; best = center[id]; } }
         if (!best) for (const s of all) if (s.hero && s.side !== u.side) best = s;
         u.tgt = best;
       } else u.tgt = null;
@@ -569,6 +570,17 @@
   const cam = R.acam = { x: 350, y: 230, z: 9 };
   let W = 0, H = 0;
   R.actToWorld = (sx, sy) => (R.act3dOn ? R.act3d.toWorld(sx, sy) : [(sx - W / 2) / cam.z + cam.x, (sy - H / 2) / cam.z + cam.y]);
+  // 1.6.66 画面の点 (sx, sy) が指す敵の隊（隊の名前の上、または地面で敵の隊の近く6m以内）。なければ null
+  R.actFoeAt = function (sx, sy, A, myPid) {
+    if (!A || !A.s) return null;
+    const mine = A.s.find((s) => s.pc === myPid), side = mine ? mine.side : 'A';
+    for (const l of R._lbl || []) if (l.side !== side && sx >= l.x0 - 6 && sx <= l.x1 + 6 && sy >= l.y0 - 6 && sy <= l.y1 + 6) return l.id;
+    const [gx, gy] = R.actToWorld(sx, sy), cen = {};
+    for (const s of A.s) if (s.hp > 0 && !s.gone && !s.hero && s.side !== side) { const q = cen[s.g] || (cen[s.g] = { x: 0, y: 0, n: 0 }); q.x += s.x; q.y += s.y; q.n++; }
+    let best = null, bd = 36;
+    for (const id in cen) { const q = cen[id], d = (q.x / q.n - gx) ** 2 + (q.y / q.n - gy) ** 2; if (d < bd) { bd = d; best = +id; } }
+    return best;
+  };
   R.drawAction = function (ctx, b, myPid, sel, dt, ter) {
     const A = b.act, cv = ctx.canvas, d = window.devicePixelRatio || 1; W = cv.width / d; H = cv.height / d;
     const hero = A.s.find((s) => s.pc === myPid);
@@ -618,12 +630,14 @@
     const cen = {};
     for (const s of A.s) if (live(s) && !s.hero) { const q = cen[s.g] || (cen[s.g] = { x: 0, y: 0, n: 0 }); q.x += s.x; q.y += s.y; q.n++; }
     const ON = { charge: '突撃', hold: '待機', retreat: '後退', flank: '回り込み', move: '移動', rout: '潰走', follow: '随行' };
+    const lbl = [], aimG = R.aimXY ? R.actFoeAt(R.aimXY[0], R.aimXY[1], A, myPid) : null; R._lbl = lbl; // 1.6.66 カーソルの指す敵の隊（枠で囲む）
     ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
     for (const id in cen) {
       const u = A.byG[id], q = cen[id]; if (!u) continue;
       const [a, c] = S(q.x / q.n, q.y / q.n - 4);
       const own = u.owner === myPid, t = `${own && u.idx ? u.idx + ' ' : ''}${u.gname ? u.gname + '隊・' : ''}${TR[u.type].short || TR[u.type].name} ${u.n}${own || u.side === 'A' ? '［' + (ON[u.order] || '') + '］' : ''}`;
       ctx.fillStyle = 'rgba(0,0,0,.55)'; const tw = ctx.measureText(t).width + 8; ctx.fillRect(a - tw / 2, c - 9, tw, 15);
+      lbl.push({ id: +id, side: u.side, x0: a - tw / 2, y0: c - 9, x1: a + tw / 2, y1: c + 6 }); if (+id === aimG) { ctx.strokeStyle = '#ffd040'; ctx.lineWidth = 2; ctx.strokeRect(a - tw / 2 - 1, c - 10, tw + 2, 17); }
       ctx.fillStyle = u.side === 'B' ? '#ffb4a8' : own && (u.id === selG || selG === 'all') ? '#ffe680' : '#dfe9f5'; ctx.fillText(t, a, c + 2);
     }
     // 照準
@@ -654,12 +668,14 @@
     // 隊の旗（名前・人数・指図）
     const cen = {};
     for (const s of A.s) if (live(s) && !s.hero) { const q = cen[s.g] || (cen[s.g] = { x: 0, y: 0, n: 0 }); q.x += s.x; q.y += s.y; q.n++; }
+    const lbl = [], aimG = R.aimXY ? R.actFoeAt(R.aimXY[0], R.aimXY[1], A, myPid) : null; R._lbl = lbl; // 1.6.66 照準の指す敵の隊（枠で囲む）
     ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
     for (const id in cen) {
       const u = A.byG[id], q = cen[id]; if (!u) continue;
       const [a, c] = S(q.x / q.n, q.y / q.n, 4.5); if (a < -50 || a > W + 50 || c < -20 || c > H + 20) continue;
       const own = u.owner === myPid || u.cmd === myPid, t = `${own && u.idx ? u.idx - 1 + ' ' : ''}${u.gname ? u.gname + '隊・' : ''}${TR[u.type].short || TR[u.type].name} ${u.n}${own || u.side === 'A' ? '［' + (ON3[u.order] || '') + '］' : ''}`;
       ctx.fillStyle = 'rgba(0,0,0,.55)'; const tw = ctx.measureText(t).width + 8; ctx.fillRect(a - tw / 2, c - 9, tw, 15);
+      lbl.push({ id: +id, side: u.side, x0: a - tw / 2, y0: c - 9, x1: a + tw / 2, y1: c + 6 }); if (+id === aimG) { ctx.strokeStyle = '#ffd040'; ctx.lineWidth = 2; ctx.strokeRect(a - tw / 2 - 1, c - 10, tw + 2, 17); }
       ctx.fillStyle = u.side === 'B' ? '#ffb4a8' : own && (u.id === sel || sel === 'all') ? '#ffe680' : '#dfe9f5'; ctx.fillText(t, a, c + 2);
     }
     // 仲間の本人の名前
