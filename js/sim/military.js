@@ -123,6 +123,8 @@
       { // 1.6.67 追いかけてきたプレイヤーに追いつかれたら戦になる（野盗が落ち着いている・こちらが身を隠しているときも）
         const ch = Object.values(w.players).find((p) => p.follow === n.id && inField(p) && !p.battle && dist(n, p) < 0.35);
         if (ch) { startBattle(w, n, ch); continue; }
+        const cz = Object.values(w.players).find((p) => p.follow === n.id && inField(p) && !p.battle); /* 1.6.74 追いかけられている野盗は、追う側の7割の速さまでしか出ない（必ず追いつける） */
+        if (cz) n.speed = Math.min(n.speed, (cz.speed || 28) * 0.7 * SIM.moveMul(cz, cz.x, cz.y) / (SIM.moveMul(n, n.x, n.y) || 1));
       }
       if (n.tgt) { // 狙っていた相手が拠点に入ったらあきらめて根城へ帰る
         const tp = w.players[n.tgt];
