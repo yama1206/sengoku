@@ -81,7 +81,7 @@
       }
       const tos = w.settlements.filter((t) => t.type === 'town' && t !== s && dist(s, t) < 100 && !SIM.foeDest(w, s, t)); if (!tos.length) return null; // 0.74.3 100km以内・戦の相手の町はなし
       const to = pick(w, tos), k = pick(w, Object.keys(I())), it = I()[k], qty = 6 + Math.floor(rnd(w) * 10); /* 1.6.34 品物を預かって代わりに売る。売上は依頼主のもの、報酬は安め */
-      return Object.assign(base, { type: 'sell', given: 1, to: to.id, item: k, qty, left: qty, days: 15, reward: r10(it.base * qty * 0.08 + 100), title: `${to.name}で預かった${it.name}${qty}${it.unit}を売る`, what: `預かった${it.name}${qty}${it.unit}を${to.name}の市で売りさばく（売上は依頼主に渡す。報酬は別）`, look: to.id });
+      return Object.assign(base, { type: 'sell', given: 1, to: to.id, item: k, qty, left: qty, days: 15, reward: r10(it.base * qty * 0.08 + 100), title: `預かった${it.name}${qty}${it.unit}を${to.name}で売る`, what: `預かった${it.name}${qty}${it.unit}を${to.name}の市で売りさばく（売上は依頼主に渡す。報酬は別）`, look: to.id });
     }
     if (s.type !== 'castle' || !s.owner || !w.factions[s.owner]) return null;
     let k = pick(w, ['scout', 'supply', 'outlaw', 'envoy']); if (k === 'supply' && rnd(w) < 0.5) k = pick(w, ['scout', 'outlaw', 'envoy']); // 0.74.1 兵糧運びを半分に
