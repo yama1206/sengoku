@@ -660,7 +660,7 @@
     const me = P.me, h = P.here, hs = G.view.settlements.find((x) => x.id === h.id);
     $('tab-castle').classList.toggle('hidden', !hs || hs.type !== 'castle');
     if (townTab === 'castle' && (!hs || hs.type !== 'castle')) townTab = 'market';
-    $('townName').textContent = sName(h.id);
+    $('townName').textContent = sName(h.id) + (SGK.DATA.isBig(hs) ? '（大きな町）' : '');
     document.querySelectorAll('#town [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === townTab));
     let html = '';
     const NJ = me.nin; // 0.77.0 忍び：工作の城に入ったら「忍び込む」
@@ -880,14 +880,14 @@
         html += `<div class="card"><div><b>${EQ.slotName[sl]}</b>　${e ? `${e.name}<br><span class="muted">${desc(sl === 'wep2' ? 'wep' : sl, e)}${sl === 'wep2' ? '（持ち替えると効く）' : ''}</span>` : '<span class="muted">なし</span>'}</div>${sl === 'wep2' && e ? '<button id="uq-swap" data-cact="swapWep">主と入れ替え</button>' : ''}${off}</div>`;
       }
       const ids = Object.keys(G2).filter((k) => G2[k] > 0);
-      html += `<div class="muted" style="margin-top:10px">荷の中の武具${me.canSell ? '（ここで半値で売れます）' : '（売るのは町・城で）'}</div>`;
+      html += `<div class="muted" style="margin-top:10px">荷の中の武具${me.canSell ? '（ここで半値で売れます）' : '（売るのは大きな町で）'}</div>`;
       if (!ids.length) html += '<div class="muted" style="margin:4px 0">なし</div>';
       for (const id of ids) {
         const sl = EQ.slotOf(id), e = EQ[sl][id];
         const bt = sl === 'wep' ? `<button id="gq-${id}" data-cact="equipGear" data-id="${id}" data-to="wep">主に</button><button id="gq2-${id}" data-cact="equipGear" data-id="${id}" data-to="wep2">副に</button>` : `<button id="gq-${id}" data-cact="equipGear" data-id="${id}" data-to="${sl}">付ける</button>`;
         html += `<div class="card"><div><b>${e.name}</b>${G2[id] > 1 ? ` ×${G2[id]}` : ''}　<span class="muted">${EQ.slotName[sl]}<br>${desc(sl, e)}</span></div><div class="row">${bt}${me.canSell ? `<button id="gs-${id}" data-cact="sellGear" data-id="${id}">売る ${SIM.money(Math.floor(e.cost * EQ.sell))}</button>` : ''}</div></div>`;
       }
-      if (C.off) html += '<div class="muted" style="margin-top:8px">いまは能力値・技能・特技はありません。本人の強さは装備で変わります（武具は町・城で買えます）</div>';
+      if (C.off) html += '<div class="muted" style="margin-top:8px">いまは能力値・技能・特技はありません。本人の強さは装備で変わります（武具は京・堺・博多などの大きな町で買えます）</div>';
     } else if (charTab === 'skill') { // 0.76.0 技能：使うと伸び、25・50・75・100で特技が自動で付く
       const WS = SIM.WSKILL, K = C.wsk || {};
       if (me.grow) html += `<div class="muted" style="margin-bottom:4px">成長の型：<b>${me.grow}</b></div>`;

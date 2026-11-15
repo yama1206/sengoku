@@ -86,9 +86,9 @@
   // ---- 買う ----
   const here = (w, p) => (p.at && p.tx == null ? SIM.settlement(w, p.at) : null);
   function shopList(s) {
-    if (!s || s.site || s.type === 'village') return [];
+    if (!s || s.site || !SGK.DATA.isBig(s)) return []; // 1.6.78 武具は大きな町だけ
     const out = [];
-    for (const slot of ['wep', 'arm', 'horse']) for (const id in EQ[slot]) { const e = EQ[slot][id]; if (e.cost && (!e.castle || s.type === 'castle')) out.push([slot, id]); }
+    for (const slot of ['wep', 'arm', 'horse']) for (const id in EQ[slot]) { const e = EQ[slot][id]; if (e.cost) out.push([slot, id]); }
     return out;
   }
   SIM.commands.buyEquip = (w, p, c) => {
@@ -113,7 +113,7 @@
     const nm = item(to === 'wep2' ? 'wep' : to, e[to]).name; gAdd(p, e[to]); e[to] = null; SIM.say(p.id, `${nm}を外しました`);
   };
   SIM.commands.sellGear = (w, p, c) => {
-    const s = here(w, p); if (!shopList(s).length) return SIM.say(p.id, '武具は町か城でしか売れません');
+    const s = here(w, p); if (!shopList(s).length) return SIM.say(p.id, '武具は大きな町（京・堺・博多など）でしか売れません');
     const sl = EQ.slotOf(c.id); if (!sl || !(p.gear[c.id] > 0)) return;
     const v = Math.floor(EQ[sl][c.id].cost * EQ.sell); gAdd(p, c.id, -1); p.money += v; SIM.say(p.id, `${EQ[sl][c.id].name}を${SIM.money(v)}で売りました`);
   };

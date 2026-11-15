@@ -36,6 +36,9 @@
     return o;
   }
   SGK.DATA.defProd = defProd;
+  // 1.6.78 大きな町（地方ごとに1つ以上）。武具はここでしか売り買いできない
+  const BIG = ['sakata', 'shinagawa', 'niigata', 'tsuruga', 'tsushima', 'kyo', 'sakai', 'yamaguchi', 'utazu', 'hakata'];
+  SGK.DATA.isBig = (s) => !!(s && BIG.includes(s.id));
   SGK.DATA.toku = (s) => (s && s.type === 'village' ? pickX(s.id, 1) : null); // 1.6.77 村の特産（地図の村の上に印を出す）
   SGK.DATA.mk = (k) => (SGK.DATA.items[k] && SGK.DATA.items[k].mk) || '';
   SGK.DATA.settlements.forEach((s) => (s.prod = prod[s.id] || defProd(s)));

@@ -30,7 +30,7 @@
       s.prod = s.prod || d.prod || {};
       if (!Object.keys(s.prod).length) s.prod = JSON.parse(JSON.stringify(d.prod && Object.keys(d.prod).length ? d.prod : SGK.DATA.defProd(s))); // 古いセーブで生産のない拠点に付ける
       { const tk = SGK.DATA.toku(s); if (tk && !((s.prod[tk] || 0) >= 7)) s.prod[tk] = 7; } // 1.6.77 特産は多く作る（古いセーブも）
-      s.size = s.size || SIZE[s.type];
+      s.size = s.size || SIZE[s.type]; if (SGK.DATA.isBig(s)) s.size = Math.max(s.size, 3); // 1.6.78 大きな町は品物が多い
       s.stock = s.stock || {};
       for (const k in I()) if (s.stock[k] == null) s.stock[k] = Math.max(6, target(s, k) * (0.5 + SIM.rand(w) * 0.6)); // 開始時からどこもある程度の在庫（多すぎない程度）
     }
