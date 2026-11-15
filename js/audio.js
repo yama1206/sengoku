@@ -157,6 +157,7 @@
     thud(t + 0.18, v * 0.8, pan, 0.6);
   }
   // 鬨の声：大勢で「えい、えい、おー」の「おー」
+  function shout(t, v, vow, dur) { for (let i = 0; i < 10; i++) { const f = 125 + R() * 80; voice(t + R() * 0.05, v * 0.25, (R() - 0.5) * 1.4, f, f * (vow === 'o' ? 1.15 : 0.95), dur + R() * 0.15, vow); } } /* 1.6.58 大勢の掛け声 */
   function warcry(t, v) {
     for (let i = 0; i < 9; i++) { const f = 120 + R() * 90; voice(t + R() * 0.25, v * 0.25, (R() - 0.5) * 1.4, f * 0.9, f * 1.08, 1.4 + R() * 0.5, 'o'); }
   }
@@ -209,6 +210,20 @@
     bow: (t) => bowshot(t, 0.5, 0),
     gun: (t) => gunshot(t, 0.7, 0),
     battleEnd: (t) => { bell(t, 196, 0.4, 3.5); taiko(t, 0.6, true, sfxBus); },
+    /* 1.6.58 結果の音 */
+    victory: (t) => { // 勝ち鬨：太鼓の連打→法螺貝→箏の駆け上がり→鐘→「えい、えい、おう！」
+      for (let i = 0; i < 10; i++) taiko(t + i * 0.09 * (1 - i * 0.04), 0.35 + i * 0.05, i % 3 === 0, sfxBus);
+      taiko(t + 0.85, 1, true, sfxBus); taiko(t + 1.05, 0.8, false, sfxBus);
+      horagai(t + 0.85, 0.32);
+      [62, 64, 67, 69, 71, 74, 76, 79, 81, 86].forEach((m, i) => koto(t + 0.9 + i * 0.07, m, 0.22, sfxBus));
+      [74, 79, 83, 86].forEach((m) => koto(t + 1.65, m, 0.2, sfxBus)); bell(t + 1.65, 880, 0.2, 3); bell(t + 1.65, 1318, 0.12, 2.5);
+      shout(t + 2.3, 0.28, 'a', 0.35); shout(t + 2.85, 0.28, 'a', 0.35); shout(t + 3.4, 0.38, 'o', 0.9); taiko(t + 2.3, 0.7, true, sfxBus); taiko(t + 2.85, 0.7, true, sfxBus); taiko(t + 3.4, 1, true, sfxBus);
+    },
+    defeat: (t) => { taiko(t, 0.7, true, sfxBus); [69, 68, 64, 62, 57].forEach((m, i) => koto(t + 0.2 + i * 0.32, m, 0.2, sfxBus)); bell(t + 1.9, 147, 0.3, 4); },
+    promote: (t) => { tsuzumi(t, 0.4, sfxBus); tsuzumi(t + 0.18, 0.4, sfxBus); [67, 71, 74, 79].forEach((m, i) => koto(t + 0.35 + i * 0.09, m, 0.24, sfxBus)); bell(t + 0.75, 1046, 0.22, 3); bell(t + 0.75, 1568, 0.12, 2.5); taiko(t + 0.75, 0.6, true, sfxBus); },
+    quest: (t) => { bell(t, 2093, 0.16, 0.4); bell(t + 0.08, 2637, 0.15, 0.5); koto(t + 0.15, 74, 0.22, sfxBus); koto(t + 0.27, 79, 0.24, sfxBus); koto(t + 0.27, 86, 0.14, sfxBus); },
+    lost: (t) => { [2637, 2349, 2093, 1760].forEach((f, i) => bell(t + i * 0.07, f, 0.12, 0.3)); koto(t + 0.35, 57, 0.2, sfxBus); },
+    join: (t) => { horagai(t, 0.25); taiko(t + 0.2, 0.8, true, sfxBus); taiko(t + 0.45, 0.6, false, sfxBus); },
   };
   let lastSfx = {};
   A.sfx = (name) => {

@@ -21,6 +21,11 @@
   $('updateBtn').onclick = () => { location.href = location.pathname + '?v=' + Date.now(); };
   // 1.6.4 エラーは2分出しておく（タップで消える）
   function errToast(text) { const t = document.createElement('div'); t.className = 'toast'; t.style.background = '#5a1a1a'; t.style.pointerEvents = 'auto'; t.textContent = text + '（タップで消す）'; t.onclick = () => t.remove(); $('toasts').appendChild(t); setTimeout(() => t.remove(), 120000); console.error(text); }
+  /* 1.6.58 知らせの言葉に合わせて効果音を鳴らす */
+  const MSG_SFX = [[/^勝利|を退けました|守り抜|攻め落と|城を落とし/, 'victory'], [/^敗北|落城しました|援軍に敗れ/, 'defeat'], [/取り立てられました|に昇進/, 'promote'], [/」達成|を終えました/, 'quest'], [/を落としました|を奪われ/, 'lost'], [/合戦に加わりました|駆けつけました/, 'join']];
+  let resultSfxT = 0;
+  function msgSfx(text) { if (/^【/.test(text)) return; for (const [re, k] of MSG_SFX) if (re.test(text)) { if (k === 'victory' || k === 'defeat') resultSfxT = performance.now(); SGK.AUDIO.sfx(k); return; } }
+  function toastMsg(text) { msgSfx(text); toast(text, 4000); }
   function toast(text, ms = 3000) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = text; $('toasts').appendChild(t); setTimeout(() => t.remove(), ms); }
   function titleMsg(text) { $('titleMsg').textContent = text || ''; }
   function show(id) { ['title', 'game'].forEach((s) => $(s).classList.toggle('hidden', s !== id)); if (id === 'game') requestAnimationFrame(() => R.resize($('map'))); }
@@ -421,7 +426,7 @@
     titleMsg('接続しています…');
     G.mode = 'connecting';
     myProf();
-    const onState0 = (m) => { G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; G.priv = m.priv; (m.msgs || []).forEach((t) => toast(t, 4000)); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } };
+    const onState0 = (m) => { G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; G.priv = m.priv; (m.msgs || []).forEach(toastMsg); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } };
     G.net = SGK.NET.join(code, token, myName(), {
       onWelcome: (m) => { SGK.NET.addFriend(m.hostCode || code, m.hostName); G.mode = 'client'; G.myPid = m.pid; SIM.localPid = m.pid; G.actView = null; G.dyn = null; G.stat = m.static; setTimeout(() => { if (G.mode === 'client' && !G.dyn) errToast('ホストから様子が届いていません（ホストの画面にエラーが出ていないか見てください）'); }, 6000); G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
       onErr: (m) => { if (G.lastErr !== m.text) { G.lastErr = m.text; errToast(m.text); } },
@@ -1611,11 +1616,11 @@
     const padMove = pollPad(dt);
     if (G.mode === 'title') SGK.AUDIO.scene('title');
     if ((G.mode === 'host' || G.mode === 'client') && buildView()) {
-      if (G.mode === 'host') { G.priv = SIM.privateState(G.world, G.myPid); SIM.drain(G.myPid).forEach((t) => toast(t, 4000)); }
+      if (G.mode === 'host') { G.priv = SIM.privateState(G.world, G.myPid); SIM.drain(G.myPid).forEach(toastMsg); }
       // WASDで直接移動
       const BT = G.priv && G.priv.battle;
       if (BT && $('battle').classList.contains('hidden')) { SGK.AUDIO.sfx('battleStart'); $('battle').classList.remove('hidden'); openTown(false); openChar(false); selectSettlement(null); battleHtml = ''; }
-      if (!BT && !$('battle').classList.contains('hidden')) { SGK.AUDIO.sfx('battleEnd'); $('battle').classList.add('hidden'); battleHtml = ''; }
+      if (!BT && !$('battle').classList.contains('hidden')) { setTimeout(() => { if (performance.now() - resultSfxT > 1500) SGK.AUDIO.sfx('battleEnd'); }, 400); /* 1.6.58 勝ち負けの音が鳴るときは重ねない */ $('battle').classList.add('hidden'); battleHtml = ''; }
       let mx = BT ? 0 : padMove[0] + (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0);
       let my = BT ? 0 : padMove[1] + (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0);
       const m = me(); dirSendAcc += dt;
