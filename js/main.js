@@ -1486,10 +1486,12 @@
       const inBattle = activeMenu() === $('battle');
       if (inBattle) { // 戦闘：十字キーの左右で下のボタン（自動で決着・退却）を選び、もう一度押すと選択をやめる。ボタン選択中だけ ×/A で押す
         const bb = menuButtons($('battle'));
-        if (!ML() && (down(14) || down(15))) { const i = bb.indexOf(G.bpick), d = down(15) ? 1 : -1, j = i + d; G.bpick = j >= 0 && j < bb.length && i !== -1 ? bb[j] : i === -1 ? bb[d > 0 ? 0 : bb.length - 1] : null; setFocus($('battle'), G.bpick || null); }
+        if (down(8)) { G.bpick = G.bpick ? null : bb[0] || null; G.bshare = !!G.bpick; setFocus($('battle'), G.bpick || null); } /* 1.6.62 シェアボタンで下のボタンへ移る／戻る */
+        if ((!ML() || G.bpick) && (down(14) || down(15))) { const i = bb.indexOf(G.bpick), d = down(15) ? 1 : -1, j = i + d; G.bpick = j >= 0 && j < bb.length && i !== -1 ? bb[j] : G.bshare && i !== -1 ? bb[i] : i === -1 ? bb[d > 0 ? 0 : bb.length - 1] : null; setFocus($('battle'), G.bpick || null); }
         if (G.bpick && !bb.includes(G.bpick)) G.bpick = null;
-        if (down(0) && G.bpick) { const b = G.bpick; G.bpick = null; setFocus($('battle'), null); b.click(); }
-        else if (ML()) { // 0.64.0 りょうさんの配置：R1攻撃 L1防御 L2ホイールで隊選び R2そこへ移動 十字↑突撃↓停止→照準の方を向く←AI任せ ✕ジャンプ ○回避 △武器持ち替え □随行
+        if (G.bshare && !G.bpick) G.bshare = false;
+        if (down(0) && G.bpick) { const b = G.bpick; G.bpick = null; G.bshare = false; setFocus($('battle'), null); b.click(); }
+        else if (ML() && !G.bpick) { // 0.64.0 りょうさんの配置：R1攻撃 L1防御 L2ホイールで隊選び R2そこへ移動 十字↑突撃↓停止→照準の方を向く←AI任せ ✕ジャンプ ○回避 △武器持ち替え □随行
           G.padMv = [lx, ly]; G.padAim = null; G.padUsed = true; G.vcurOn = false;
           const wh = btn(6), AB0 = actB(), r2 = btn(7); // 0.75.0 R2：短く押すとそこへ移動、長押しで隊形のホイール
           if (r2) G.r2t = (G.r2t || 0) + dt;
