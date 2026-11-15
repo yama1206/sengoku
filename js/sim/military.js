@@ -17,11 +17,11 @@
     yari: { name: '足軽（槍）', short: '槍', tier: 2, hp: 10, atk: 2, def: 1, spd: 4, range: 2.5, cost: 300, wage: 10, up: ['nagayari', 'kiba'] },
     yumi: { name: '弓足軽', short: '弓', tier: 2, hp: 7, atk: 1.5, def: 0, spd: 4, range: 35, ranged: true, cost: 500, wage: 15, up: ['teppo', 'tsuyoyumi'] },
     nagayari: { name: '長槍足軽', short: '長槍', tier: 3, hp: 12, atk: 2.6, def: 1.5, spd: 4, range: 3.5, cost: 700, wage: 18, up: ['yarigashira'] },
-    kiba: { name: '騎馬武者', short: '騎', tier: 3, hp: 18, atk: 4, def: 2, spd: 12, range: 4, cav: true, cost: 750, wage: 40, fame: 5, up: ['horo'] },
+    kiba: { name: '騎馬武者', short: '騎', tier: 3, hp: 23, /* 1.6.67 18→23 */ atk: 4, def: 2, spd: 12, range: 4, cav: true, cost: 750, wage: 40, fame: 5, up: ['horo'] },
     teppo: { name: '鉄砲足軽', short: '鉄砲', tier: 3, hp: 7, atk: 4, def: 0, spd: 3.5, range: 40, ranged: true, cost: 1000, wage: 25, up: ['teppogashira'] },
     yarigashira: { name: '槍組頭', short: '組頭', tier: 4, hp: 15, atk: 3.4, def: 2.2, spd: 4.2, range: 3.5, cost: 1200, wage: 30 },
     teppogashira: { name: '鉄砲頭', short: '鉄砲頭', tier: 4, hp: 9, atk: 5.2, def: 0.5, spd: 3.5, range: 45, ranged: true, cost: 1800, wage: 40 },
-    horo: { name: '母衣衆', short: '母衣', tier: 4, hp: 24, atk: 5, def: 3, spd: 13, range: 4, cav: true, cost: 3000, wage: 70, fame: 15 },
+    horo: { name: '母衣衆', short: '母衣', tier: 4, hp: 30, /* 1.6.67 24→30 */ atk: 5, def: 3, spd: 13, range: 4, cav: true, cost: 3000, wage: 70, fame: 15 },
     bandit: { name: '野盗', hp: 10, atk: 2.0, def: 0, spd: 4.5, range: 2.5 },
     banditBow: { name: '野盗（弓）', hp: 6, atk: 1.4, def: 0, spd: 4.5, range: 30, ranged: true },
   };
@@ -119,6 +119,10 @@
       if (n.fight) { // 巡回兵と交戦中：近づいたプレイヤーは加勢になる
         for (const p of Object.values(w.players)) if (inField(p) && dist(n, p) < 0.6) { startBattle(w, n, p); break; }
         continue;
+      }
+      { // 1.6.67 追いかけてきたプレイヤーに追いつかれたら戦になる（野盗が落ち着いている・こちらが身を隠しているときも）
+        const ch = Object.values(w.players).find((p) => p.follow === n.id && inField(p) && !p.battle && dist(n, p) < 0.35);
+        if (ch) { startBattle(w, n, ch); continue; }
       }
       if (n.tgt) { // 狙っていた相手が拠点に入ったらあきらめて根城へ帰る
         const tp = w.players[n.tgt];
