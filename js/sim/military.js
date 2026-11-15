@@ -535,7 +535,7 @@
   SIM.sizeSpeed = (n) => (n ? 1 - Math.min(0.4, 0.04 + Math.sqrt(n) * 0.03) : 1);
   SIM.systems.push(
     function militaryDay(w) { const d = Math.floor(w.time.min / 1440); while (w.mday < d) { w.mday++; daily(w); } },
-    function partySpeed(w) { for (const p of Object.values(w.players)) p.speed = (CFG.WALK_KM_PER_DAY + SIM.speedBonus(p)) * SIM.sizeSpeed(SIM.troopCount(p.troops)) * SIM.mixSpeed(p.troops) * (SIM.loadSpeed ? SIM.loadSpeed(p) : 1); }, // 0.74.0 荷が重いと遅い
+    function partySpeed(w) { for (const p of Object.values(w.players)) p.speed = (CFG.WALK_KM_PER_DAY + SIM.speedBonus(p)) * SIM.sizeSpeed(SIM.troopCount(p.troops)) * SIM.mixSpeed(p.troops) * (SIM.loadSpeed ? SIM.loadSpeed(p) : 1) * SIM.powSpeed(p); }, // 0.74.0 荷が重いと遅い
     // 0.60.1 武将・巡回隊・浪人もプレイヤーと同じ式（人数と騎馬の割合）で速さを決める。以前は人数に関係なく35km/日だった
     function npcSpeed(w) {
       for (const n of Object.values(w.npcs)) {
@@ -622,6 +622,7 @@
     return r;
   };
   SIM.FIELD = FIELD;
+  SIM.powSpeed = (p) => { const n = (p.pow || 0) + ((p.captives && p.captives.length) || 0) * 5; if (!n) return 1; return 0.92 - 0.08 * Math.min(1, n / Math.max(1, SIM.troopCount(p.troops))); }; /* 1.6.85 捕虜を連れていると遅い（0.92倍、捕虜が兵と同じ数なら0.84倍。武将は5人分） */
   SIM.POW = { rate: 0.3, pay: 0.5, gen: 3000 }; /* 1.6.81 捕虜：倒した敵の3割を捕らえる。1.6.82 兵の身代金は雇う値段の半分（野盗は農兵扱い）・武将3貫 */
   SIM.KILL_PAY = 60; /* 1.6.26 敵を1人倒すごとの褒美（文） */
   SIM._finishBattle = finish; // 0.56.0 アクション戦闘から使う
