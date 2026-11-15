@@ -19,7 +19,8 @@
     }
     return inside;
   };
-  SIM.isSea = (x, y) => { const T = SGK.DATA.terrain; return (T.lands ? !T.lands.some((l) => SIM.pointInPoly(x, y, l.pts)) : false) || T.seas.some((p) => SIM.pointInPoly(x, y, p)); };
+  const inLand = (x, y, l) => { /* 1.6.48 細かい海岸線でも速いよう、囲む四角で先にふるい分け */ if (!l.bb) { let a = 1e9, b = 1e9, c = -1e9, d = -1e9; for (const [px, py] of l.pts) { a = Math.min(a, px); b = Math.min(b, py); c = Math.max(c, px); d = Math.max(d, py); } l.bb = [a, b, c, d]; } const q = l.bb; return x >= q[0] && y >= q[1] && x <= q[2] && y <= q[3] && SIM.pointInPoly(x, y, l.pts); };
+  SIM.isSea = (x, y) => { const T = SGK.DATA.terrain; return (T.lands ? !T.lands.some((l) => inLand(x, y, l)) : false) || T.seas.some((p) => SIM.pointInPoly(x, y, p)); };
 
   SIM.createWorld = function (seed) {
     const D = SGK.DATA;

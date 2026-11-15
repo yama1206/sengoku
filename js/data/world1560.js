@@ -160,22 +160,9 @@
     ],
     terrain: {
       seas: [
-        // 日本海（若狭湾・越前）
-        poly([[36.2, 135.0], [36.2, 136.12], [36.0, 136.03], [35.8, 135.98], [35.7, 136.03], [35.66, 136.07], [35.63, 135.98], [35.57, 135.90],
-          [35.53, 135.78], [35.49, 135.73], [35.55, 135.62], [35.51, 135.50], [35.47, 135.38], [35.55, 135.33], [35.77, 135.25], [35.78, 135.0]]),
         // 琵琶湖（いまは海と同じく通れない）
         poly([[35.52, 136.15], [35.45, 136.21], [35.38, 136.25], [35.27, 136.22], [35.15, 136.08], [35.10, 136.03], [35.03, 135.94], [34.98, 135.91],
           [35.00, 135.87], [35.07, 135.88], [35.20, 135.93], [35.32, 136.02], [35.41, 136.04], [35.48, 136.07]]),
-        // 大坂湾
-        poly([[34.75, 135.0], [34.70, 135.1], [34.68, 135.20], [34.71, 135.30], [34.71, 135.42], [34.62, 135.44], [34.57, 135.46], [34.46, 135.36],
-          [34.37, 135.25], [34.28, 135.1], [34.2, 135.0]]),
-        // 伊勢湾・三河湾・遠州灘・駿河湾
-        poly([[35.04, 136.70], [35.07, 136.78], [35.10, 136.84], [35.11, 136.90], [35.06, 136.89], [34.96, 136.85], [34.85, 136.84], [34.75, 136.86],
-          [34.69, 136.93], [34.72, 136.98], [34.80, 136.99], [34.86, 137.02], [34.86, 137.10], [34.82, 137.17], [34.79, 137.26], [34.76, 137.33],
-          [34.72, 137.35], [34.68, 137.25], [34.64, 137.12], [34.60, 137.02], [34.57, 137.01], [34.60, 137.20], [34.63, 137.40], [34.66, 137.60],
-          [34.67, 137.78], [34.65, 137.98], [34.60, 138.18], [34.62, 138.23], [34.75, 138.27], [34.88, 138.33], [34.94, 138.41], [35.00, 138.50],
-          [35.05, 138.6], [34.2, 138.6], [34.2, 136.88], [34.30, 136.88], [34.40, 136.88], [34.48, 136.84], [34.51, 136.74], [34.53, 136.65],
-          [34.60, 136.56], [34.72, 136.53], [34.84, 136.59], [34.95, 136.64], [35.02, 136.68]]),
       ],
       // 山地（移動が遅くなる。街道が通っていれば峠道として街道の速さ）
       mountains: [
@@ -204,43 +191,6 @@
 
   // ===== 全国（九州〜奥州）：陸地・山・川・勢力・拠点を足す =====
   const D0 = SGK.DATA;
-  // 陸地（この外は海）。近畿・東海の細かい海岸は terrain.seas（湾・湖）で削る
-  D0.terrain.lands = [
-    { name: '本州', pts: poly([[33.95, 131.0], [33.94, 130.93], [34.05, 130.9], [34.15, 130.92], [34.3, 131.1], [34.42, 131.4], [34.6, 131.65], [34.7, 131.85], [34.9, 132.08], [35.02, 132.25],
-      [35.2, 132.45], [35.38, 132.63], [35.48, 132.9], [35.55, 133.05], [35.57, 133.3], [35.48, 133.3], [35.43, 133.35], [35.5, 133.6], [35.52, 133.9], [35.54, 134.2], [35.6, 134.45],
-      [35.65, 134.6], [35.67, 134.8], [35.75, 135.0], [35.79, 135.25], [35.55, 135.33], [35.47, 135.38], [35.51, 135.50], [35.55, 135.62], [35.49, 135.73], [35.53, 135.78],
-      [35.57, 135.90], [35.63, 135.98], [35.66, 136.07], [35.7, 136.03], [35.8, 135.98], [36.0, 136.03], [36.2, 136.12], [36.3, 136.25], [36.45, 136.4], [36.6, 136.58], [36.8, 136.7],
-      [36.95, 136.75], [37.1, 136.72], [37.25, 136.75], [37.38, 136.88], [37.45, 137.05], [37.5, 137.3], [37.45, 137.36], [37.3, 137.25], [37.15, 137.05], [37.05, 136.97], [36.9, 137.0],
-      [36.78, 137.1], [36.76, 137.25], [36.85, 137.45], [36.95, 137.6], [37.05, 137.85], [37.15, 138.15], [37.25, 138.4], [37.4, 138.58], [37.65, 138.78], [37.85, 138.95], [37.95, 139.1],
-      [38.1, 139.38], [38.3, 139.48], [38.5, 139.55], [38.7, 139.7], [38.95, 139.83], [39.2, 139.9], [39.45, 140.05], [39.7, 140.05], [39.85, 139.85], [39.95, 139.7], [40.0, 139.75],
-      [40.0, 139.92], [40.2, 140.0], [40.45, 139.95], [40.65, 139.9], [40.8, 140.15], [41.0, 140.3], [41.25, 140.35], [41.15, 140.62], [40.95, 140.68], [40.83, 140.75], [40.9, 140.88],
-      [41.1, 140.82], [41.25, 140.78], [41.45, 140.88], [41.53, 140.95], [41.4, 141.2], [41.43, 141.46], [41.2, 141.4], [40.95, 141.37], [40.68, 141.4], [40.52, 141.55], [40.3, 141.75],
-      [40.0, 141.92], [39.65, 141.98], [39.3, 141.92], [39.0, 141.72], [38.7, 141.55], [38.3, 141.5], [38.4, 141.3], [38.27, 141.05], [38.0, 140.93], [37.75, 140.98], [37.4, 141.03],
-      [37.0, 140.97], [36.8, 140.75], [36.55, 140.63], [36.3, 140.58], [36.0, 140.68], [35.73, 140.87], [35.55, 140.45], [35.35, 140.4], [35.15, 140.32], [34.98, 140.0], [34.9, 139.85],
-      [35.0, 139.82], [35.15, 139.83], [35.32, 139.85], [35.45, 139.98], [35.6, 140.1], [35.67, 139.85], [35.65, 139.75], [35.5, 139.65], [35.3, 139.67], [35.15, 139.62], [35.25, 139.55],
-      [35.3, 139.45], [35.28, 139.2], [35.15, 139.12], [34.97, 139.1], [34.8, 139.05], [34.65, 138.95], [34.6, 138.85], [34.75, 138.77], [34.95, 138.75], [35.08, 138.85], [35.12, 138.68],
-      [35.05, 138.55], [35.00, 138.50], [34.94, 138.41], [34.88, 138.33], [34.75, 138.27], [34.62, 138.23], [34.60, 138.18], [34.65, 137.98], [34.67, 137.78], [34.66, 137.60],
-      [34.63, 137.40], [34.60, 137.20], [34.57, 137.01], [34.60, 137.02], [34.64, 137.12], [34.68, 137.25], [34.72, 137.35], [34.76, 137.33], [34.79, 137.26], [34.82, 137.17],
-      [34.86, 137.10], [34.86, 137.02], [34.80, 136.99], [34.72, 136.98], [34.69, 136.93], [34.75, 136.86], [34.85, 136.84], [34.96, 136.85], [35.06, 136.89], [35.11, 136.90],
-      [35.10, 136.84], [35.07, 136.78], [35.04, 136.70], [35.02, 136.68], [34.95, 136.64], [34.84, 136.59], [34.72, 136.53], [34.60, 136.56], [34.53, 136.65], [34.51, 136.74],
-      [34.48, 136.84], [34.40, 136.88], [34.30, 136.88], [34.27, 136.9], [34.25, 136.75], [34.18, 136.45], [34.07, 136.22], [33.88, 136.1], [33.72, 136.0], [33.55, 135.9], [33.43, 135.76],
-      [33.5, 135.6], [33.68, 135.37], [33.88, 135.15], [34.05, 135.12], [34.25, 135.13], [34.37, 135.25], [34.46, 135.36], [34.57, 135.46], [34.62, 135.44], [34.71, 135.42],
-      [34.71, 135.30], [34.68, 135.20], [34.66, 135.1], [34.65, 134.98], [34.73, 134.75], [34.76, 134.6], [34.75, 134.4], [34.65, 134.15], [34.6, 133.95], [34.47, 133.8], [34.45, 133.55],
-      [34.4, 133.37], [34.4, 133.2], [34.35, 133.0], [34.3, 132.85], [34.2, 132.6], [34.35, 132.45], [34.25, 132.3], [34.15, 132.22], [33.95, 132.12], [33.92, 131.95], [34.03, 131.8],
-      [34.0, 131.55], [33.95, 131.3]]) },
-    { name: '九州', pts: poly([[33.95, 130.97], [33.88, 130.88], [33.93, 130.72], [33.88, 130.6], [33.75, 130.45], [33.62, 130.38], [33.6, 130.2], [33.55, 130.05], [33.5, 129.95],
-      [33.55, 129.85], [33.4, 129.8], [33.35, 129.6], [33.2, 129.62], [33.1, 129.7], [32.95, 129.65], [32.8, 129.8], [32.6, 129.75], [32.75, 129.88], [32.7, 129.95], [32.82, 130.02],
-      [32.73, 130.15], [32.6, 130.2], [32.68, 130.33], [32.8, 130.38], [32.88, 130.27], [32.9, 130.12], [33.02, 130.16], [33.12, 130.12], [33.18, 130.3], [33.15, 130.45], [33.02, 130.45],
-      [32.88, 130.55], [32.75, 130.6], [32.65, 130.6], [32.6, 130.45], [32.5, 130.58], [32.35, 130.5], [32.2, 130.38], [32.05, 130.2], [31.85, 130.2], [31.65, 130.28], [31.45, 130.18],
-      [31.27, 130.2], [31.22, 130.35], [31.18, 130.53], [31.25, 130.65], [31.4, 130.56], [31.6, 130.57], [31.73, 130.74], [31.6, 130.73], [31.48, 130.72], [31.3, 130.75], [31.15, 130.68],
-      [30.99, 130.66], [31.1, 130.82], [31.3, 131.05], [31.45, 131.12], [31.4, 131.35], [31.6, 131.4], [31.9, 131.47], [32.2, 131.55], [32.42, 131.66], [32.6, 131.72], [32.8, 131.9],
-      [32.95, 132.05], [33.1, 131.85], [33.2, 131.75], [33.26, 131.62], [33.3, 131.5], [33.45, 131.6], [33.6, 131.72], [33.65, 131.6], [33.6, 131.2], [33.73, 131.02], [33.88, 131.0]]) },
-    { name: '四国', pts: poly([[34.22, 134.6], [34.07, 134.6], [33.9, 134.72], [33.75, 134.6], [33.6, 134.35], [33.4, 134.2], [33.25, 134.18], [33.45, 134.0], [33.52, 133.8], [33.5, 133.57],
-      [33.4, 133.32], [33.25, 133.2], [33.0, 133.05], [32.72, 133.02], [32.8, 132.88], [32.93, 132.72], [33.1, 132.5], [33.22, 132.55], [33.4, 132.45], [33.34, 132.02], [33.47, 132.25],
-      [33.55, 132.45], [33.75, 132.65], [33.85, 132.7], [34.0, 132.78], [34.1, 132.98], [33.95, 133.15], [33.97, 133.35], [34.02, 133.57], [34.15, 133.65], [34.3, 133.8], [34.35, 134.05],
-      [34.3, 134.3], [34.23, 134.45]]) },
-    { name: '淡路', pts: poly([[34.6, 134.99], [34.45, 134.95], [34.34, 134.9], [34.22, 134.82], [34.17, 134.73], [34.3, 134.72], [34.45, 134.83], [34.57, 134.95]]) },
-  ];
   D0.terrain.mountains.push(
     { name: '両白山地', pts: poly([[36.45, 136.5], [36.2, 136.45], [35.95, 136.5], [35.7, 136.4], [35.58, 136.5], [35.6, 136.8], [35.85, 136.95], [36.15, 136.9], [36.4, 136.75]]) },
     { name: '美濃の山々', pts: poly([[35.75, 136.55], [35.55, 136.6], [35.5, 137.1], [35.45, 137.2], [35.55, 137.4], [35.75, 137.2], [35.85, 136.85]]) },
@@ -528,146 +478,7 @@
     S('kaseda', '加世田城', 'castle', 31.42, 130.32, 'shimazu', null),
   );
 
-  // 街道（拠点のidか [緯度, 経度] の通過点を順につなぐ）。速く歩ける
-  const ROADS = [
-    { name: '東海道', via: ['kyo', 'kusatsu', [34.97, 136.17], [34.88, 136.33], 'kameyama', [34.97, 136.62], [35.065, 136.68], 'nagashima', 'tsushima', 'atsuta',
-      'narumi', 'chiryu', 'okazaki', [34.83, 137.30], 'yoshida', 'hikuma', 'kakegawa', 'tanaka', 'sunpu'] },
-    { name: '中山道', via: ['kusatsu', [35.07, 136.0], 'kannonji', [35.29, 136.27], [35.365, 136.47], [35.37, 136.53], 'ogaki', 'inabayama', [35.40, 136.97], 'inuyama'] },
-    { name: '美濃路', via: ['ogaki', 'sunomata', 'ichinomiya', 'kiyosu', 'nagoya', 'atsuta'] },
-    { name: '北国街道', via: [[35.29, 136.27], 'kunitomo', 'odani', [35.50, 136.22], [35.66, 136.24], [35.77, 136.20], 'ichijodani'] },
-    { name: '塩津・敦賀道', via: [[35.50, 136.22], [35.58, 136.13], 'tsuruga', [35.72, 136.14], [35.77, 136.20]] },
-    { name: '西国街道', via: ['kyo', 'shoryuji', 'akutagawa', 'koshimizu', 'hyogo'] },
-    { name: '京街道', via: ['akutagawa', 'ishiyama', 'sakai'] },
-    { name: '奈良街道', via: ['kyo', [34.89, 135.80], 'nara', 'shigisan'] },
-    { name: '暗越奈良街道', via: ['ishiyama', 'iimori', 'nara'] },
-    { name: '伊勢街道', via: ['kameyama', 'kanbe', 'ano', 'okawachi', 'tamaru', 'ujiyamada'] },
-    { name: '紀州街道', via: ['sakai', 'kishiwada'] },
-    { name: '東高野街道', via: ['iimori', 'takaya'] },
-    { name: '飯田街道', via: ['nagoya', 'suemori', 'kutsukake', 'chiryu'] },
-    { name: '姫街道・秋葉道', via: ['hikuma', 'futamata'] },
-    { name: '伊那街道', via: ['okazaki', 'nagashino'] },
-    { name: '郡上街道', via: ['seki', 'gujo'] },
-    { name: '日野道', via: ['kannonji', 'hino', [34.97, 136.17]] },
-    { name: '上街道', via: ['nagoya', 'komaki', 'inuyama'] },
-    { name: '関への道', via: ['inabayama', 'seki'] },
-    { name: '三河の道', via: ['chiryu', 'anjo', 'okazaki'] },
-    { name: '大高道', via: ['narumi', 'odaka'] },
-    // 全国
-    { name: '東海道（東）', via: ['sunpu', [35.05, 138.52], [35.12, 138.7], [35.1, 138.86], [35.12, 138.92], [35.19, 139.03], 'odawara', [35.33, 139.3], 'tamanawa', [35.47, 139.6], 'edo'] }, // 0.40.0 三島から箱根越え
-    { name: '鎌倉道', via: ['tamanawa', 'kamakura'] },
-    { name: '鎌倉街道', via: ['edo', 'kawagoe', 'hachigata', 'umayabashi', 'minowa'] },
-    { name: '中山道（東）', via: ['inuyama', [35.48, 137.2], 'naegi', [35.65, 137.55], 'kisofukushima', [36.0, 137.85], 'uehara', [36.2, 138.25], 'komoro', [36.35, 138.6], 'minowa'] },
-    { name: '甲州道', via: ['uehara', [35.85, 138.3], 'kofu', [35.6, 138.85], 'takiyama', 'edo'] },
-    { name: '伊那道', via: ['uehara', 'takato', 'iida', [35.25, 137.65], 'nagashino'] },
-    { name: '北国街道（信越）', via: ['komoro', 'zenkoji', [36.9, 138.25], 'kasugayama', 'naoetsu'] },
-    { name: '善光寺道', via: ['fukashi', 'zenkoji'] },
-    { name: '三国街道', via: ['umayabashi', 'numata', [36.85, 138.95], 'sakado', [37.3, 138.85], 'tochio', [37.7, 139.1], 'shibata', 'honjo'] },
-    { name: '北陸道', via: ['ichijodani', 'mikuni', [36.35, 136.4], 'oyama', [36.68, 136.85], 'masuyama', 'toyamajo', 'matsukura', [36.95, 137.75], [37.1, 138.0], 'naoetsu'] },
-    { name: '能登路', via: ['oyama', [36.85, 136.8], 'nanao'] },
-    { name: '飛騨街道', via: ['gujo', 'sakurabora', 'takayama', [36.45, 137.2], 'toyamajo'] },
-    { name: '奥州街道', via: ['edo', [36.0, 139.75], 'utsunomiya', [36.9, 140.05], 'shirakawa', 'sukagawa', [37.75, 140.47], [38.0, 140.6], [38.25, 140.85], 'nakaniida', 'teraike', [39.3, 141.12], [39.7, 141.15], 'sannohe', [40.6, 140.75], 'ishikawa_t'] },
-    { name: '羽州街道', via: [[37.75, 140.47], 'yonezawa', 'yamagata', [38.75, 140.3], 'yokote', [39.72, 140.15], 'hiyama'] },
-    { name: '会津道', via: ['shirakawa', 'kurokawa', 'yonezawa'] },
-    { name: '越後・会津道', via: ['shibata', 'kurokawa'] },
-    { name: '出羽の浜街道', via: ['honjo', 'oura', 'sakata', [39.4, 140.05], [39.72, 140.15]] },
-    { name: '浜街道', via: ['edo', 'odajo', 'hitachiota', 'iwakiodate', 'odaka_m', [38.25, 140.85]] },
-    { name: '八戸道', via: ['sannohe', 'nejo'] },
-    { name: '房総の道', via: ['edo', 'sakura', 'kururi', 'sanuki', 'okamoto'] },
-    { name: '若狭街道', via: ['tsuruga', 'nochiseyama', 'tatebeyama'] },
-    { name: '山陰道', via: ['kyo', 'yagi', [35.2, 135.15], 'konosumi', [35.6, 134.6], 'fuse', [35.45, 133.8], 'odaka_y', 'gassantoda', 'kizuki', 'yamabuki', [34.85, 132.0], [34.4, 131.45], 'yamaguchi'] },
-    { name: '山陽道', via: ['hyogo', [34.68, 134.98], 'miki', 'gochaku', 'himeji', [34.85, 134.4], 'tenjinyama', [34.7, 133.95], [34.6, 133.6], 'kannabe', 'onomichi', 'niitakayama',
-      [34.4, 132.5], [34.2, 132.1], [34.1, 131.75], 'yamaguchi', 'katsuyama_c', 'akamagaseki', 'moji'] },
-    { name: '播磨の道', via: ['himeji', 'oshio'] },
-    { name: '備中の道', via: [[34.7, 133.95], 'bmatsuyama', 'takada_m', 'gassantoda'] },
-    { name: '石見・安芸の道', via: ['yamabuki', 'hinoyama', 'koriyama', 'niitakayama'] },
-    { name: '淡路の渡し', via: ['hyogo', [34.62, 135.0], 'sumoto', [34.2, 134.65], 'shozui'] },
-    { name: '讃岐の渡し', via: ['bmatsuyama', [34.47, 133.8], [34.3, 133.85], 'sogo', 'shozui'] },
-    { name: '伊予・土佐の道', via: ['sogo', [34.0, 133.55], [33.95, 133.15], 'yuzuki', [33.55, 132.6], 'kurose', [33.1, 132.6], 'nakamura', [33.3, 133.15], 'asakura_t', 'oko', 'akijo', [33.6, 134.25], [33.9, 134.6], 'shozui'] },
-    { name: '芸予の渡し', via: ['niitakayama', [34.2, 132.95], 'yuzuki'] },
-    { name: '豊予の渡し', via: ['jizogatake', [33.45, 132.42], [33.39, 132.2], [33.34, 132.02], [33.27, 131.88], [33.24, 131.74], 'funai'] }, // 佐田岬〜佐賀関
-    { name: '西海道', via: ['moji', [33.85, 130.8], 'tachibanayama', 'hakata', 'iwaya', [33.32, 130.5], 'yanagawa', 'kumamoto', [32.5, 130.65], 'hitoyoshi', [31.95, 130.6], 'kajiki', 'uchijo'] },
-    { name: '肥前の道', via: ['hakata', [33.4, 130.2], 'muranaka', [33.3, 129.95], 'hirado'] },
-    { name: '島原の道', via: ['muranaka', [33.0, 130.1], 'hinoe'] },
-    { name: '豊後・日向の道', via: ['moji', [33.65, 131.1], [33.4, 131.4], 'funai', [32.95, 131.6], [32.6, 131.6], 'tonokori', 'obi', [31.45, 131.05], 'koyama_o', 'kajiki'] },
-    { name: '豊後・肥後の道', via: ['funai', [33.1, 131.3], 'iwao', 'kumamoto'] },
-    { name: '薩摩の道', via: ['uchijo', [31.75, 130.35], 'izumi_s', [32.3, 130.45], [32.5, 130.65]] },
-    { name: '坊津道', via: ['uchijo', [31.45, 130.4], 'bonotsu'] },
-    // 0.19.0 地方の道
-    { name: '北国街道（信濃）', via: ['toishi', 'kaizu', 'zenkoji'] },
-    { name: '甲州道（郡内）', via: [[35.6, 138.85], 'iwadono'] },
-    { name: '越後の道', via: ['tochio', 'yoita', 'sanjo', 'niigata', 'shibata'] },
-    { name: '北陸道（越後）', via: ['naoetsu', 'kashiwazaki', 'yoita'] },
-    { name: '中山道（武蔵・上野）', via: ['kawagoe', 'musashimatsuyama', 'oshi', 'tatebayashi', 'kanayama', 'ashikaga_v', 'umayabashi'] },
-    { name: '日光道', via: ['edo', 'iwatsuki', 'sekiyado', 'yuki', 'mibu', 'utsunomiya'] },
-    { name: '水戸道', via: ['konodai', 'tsuchiura', 'mito', 'hitachiota'] },
-    { name: '房総往還', via: ['kururi', 'otaki'] },
-    { name: '下田街道', via: [[35.12, 138.92], 'nirayama', 'shimoda'] },
-    // 0.40.0 街道の見直しで足した道
-    { name: '若狭街道（鯖街道）', via: ['obama', 'kutsuki', 'kyo'] },
-    { name: '千国街道（塩の道）', via: ['itoigawa', [36.7, 137.86], 'fukashi'] },
-    { name: '伊勢本街道', via: ['nara', [34.55, 136.0], [34.5, 136.3], 'ujiyamada'] },
-    { name: '出雲街道', via: ['himeji', [35.07, 134.0], [35.3, 133.6], 'odaka_y'] },
-    { name: '奥州の脇道', via: ['nishiyama', 'kakuda', 'iwakiri', 'iwadeyama', 'sanuma', 'ishinomaki'] },
-    { name: '羽州の脇道', via: ['kaminoyama', 'yamagata', 'tendo'] },
-    { name: '会津の道', via: ['kurokawa', 'inawashiro'] },
-    { name: '仙北の道', via: ['yokote', 'yuzawa'] },
-    { name: '秋田の道', via: ['hiyama', 'noshiro', 'minato'] },
-    { name: '九戸の道', via: ['sannohe', 'kunohe'] },
-    { name: '北陸道（越前・加賀）', via: ['tsuruga', 'kanegasaki', 'ichijodani', 'mikuni', 'daishoji', 'oyama', 'torigoe'] },
-    { name: '能登・越中の道', via: ['nanao', 'wajima'] },
-    { name: '越中の道', via: ['masuyama', 'moriyama_e', 'himi', 'nanao'] },
-    { name: '魚津道', via: ['matsukura', 'uozu'] },
-    { name: '若狭の道', via: ['nochiseyama', 'obama'] },
-    { name: '但馬・因幡の道', via: ['konosumi', 'takeda_t', 'ikuno', 'oshio'] },
-    { name: '因幡の道', via: ['fuse', 'tottori'] },
-    { name: '紀州の道', via: ['kishiwada', 'negoro', [33.9, 135.2], [33.7, 135.5], 'shingu'] },
-    { name: '出雲の道', via: ['gassantoda', 'suetsugu', 'kizuki', 'mitoya'] },
-    { name: '石見の道', via: ['yamabuki', 'masuda', 'tsuwano', 'yamaguchi'] },
-    { name: '備前の道', via: ['tenjinyama', 'bfukuoka', 'okayama'] },
-    { name: '鞆の道', via: ['kannabe', 'tomo'] },
-    { name: '安芸の道', via: [[34.4, 132.5], 'sakurao'] },
-    { name: '讃岐の道', via: ['sogo', 'utazu', 'amagiri'] },
-    { name: '阿波の道', via: ['shozui', 'ichinomiya_a'] },
-    { name: '伊予の道', via: ['yuzuki', 'mitsu', 'kurushima'] },
-    { name: '大洲の道', via: [[33.55, 132.6], 'jizogatake'] },
-    { name: '土佐の浜の道', via: ['oko', 'urado', 'hasuike', 'asakura_t'] },
-    { name: '豊後の道', via: ['funai', 'usuki'] },
-    { name: '秋月道', via: ['iwaya', 'kosho'] },
-    { name: '肥後の道', via: ['kumamoto', 'uto', 'furufumoto', 'minamata', 'izumi_s'] },
-    { name: '大村・長崎の道', via: ['muranaka', 'omura', 'nagasaki'] },
-    { name: '唐津の道', via: [[33.3, 129.95], 'kishidake'] },
-    { name: '日向の道', via: ['agata', 'mimitsu', 'sadowara', 'tonokori'] },
-    { name: '薩摩・大隅の道', via: ['kiyoshiki', 'uchijo', 'chiran'] },
-    { name: '大隅の道', via: ['kajiki', 'kokubu', 'shibushi', 'koyama_o'] },
-  ];
-  // 0.19.2 地方の拠点を近くの拠点へつなぐ脇道
-  for (const [a, b] of [['kaizu', 'kuzuo'], ['fukashi', 'hayashi_s'], ['komoro', 'uchiyama'], ['zenkoji', 'iiyama'], ['kofu', 'enzan'], ['kofu', 'kofu_t'], ['kofu_t', 'ichikawa'], ['honjo', 'hirabayashi'], ['kashiwazaki', 'kitajo'], ['kasugayama', 'itoigawa'], ['yoita', 'teradomari'], ['tamanawa', 'fujisawa'], ['nirayama', 'atami'], ['kozukue', 'kanagawa_m'], ['kozukue', 'shinagawa'], ['konodai', 'kasai_c'], ['kanagawa_m', 'kozukue'], ['takiyama', 'tsukui'], ['umayabashi', 'kuragano'], ['minowa', 'annaka'], ['annaka', 'kunimine'], ['usui', 'oyumi'], ['sakura', 'usui'], ['okamoto', 'inamura'], ['otaki', 'katsuura'], ['sanuki', 'kisarazu'], ['yuki', 'shimodate'], ['shimodate', 'shimotsuma'], ['mito', 'kasama'], ['utsunomiya', 'karasuyama'], ['karasuyama', 'otawara'], ['edosaki', 'kashima_c'], ['tsuchiura', 'edosaki'], ['sekiyado', 'koga'], ['ashikaga_v', 'karasawa'], ['kanayama', 'kiryu'], ['utsunomiya', 'nikko'], ['nihonmatsu', 'omori_f'], ['omori_f', 'nihonmatsu'], ['nihonmatsu', 'miharu'], ['shirakawa', 'tanagura'], ['kurokawa', 'shigiyama'], ['kurokawa', 'yanaizu'], ['yanaizu', 'tsugawa'], ['iwakiri', 'chiyo'], ['kakuda', 'watari'], ['iwakiri', 'shiogama'], ['teraike', 'kesennuma'], ['mizusawa', 'hiraizumi'], ['hiraizumi', 'mizusawa'], ['mizusawa', 'toyasaki'], ['toyasaki', 'kozukata'], ['kunohe', 'kuji'], ['nejo', 'shichinohe'], ['ishikawa_t', 'daikoji'], ['daikoji', 'namioka'], ['yokote', 'kakunodate'], ['tendo', 'sagae'], ['tendo', 'nobesawa'], ['yonezawa', 'takahata'], ['somayama', 'fuchu_e'], ['mikuni', 'maruoka'], ['matto', 'komatsu'], ['oyama', 'matto'], ['wajima', 'anamizu'], ['himi', 'hakui'], ['moriyama_e', 'hojozu'], ['masuyama', 'johana'], ['takayama', 'furukawa_h'], ['furukawa_h', 'takahara'], ['kutsuki', 'kumagawa'], ['tatebeyama', 'miyazu'], ['takeda_t', 'yagi_t'], ['konosumi', 'toyooka'], ['fuse', 'utsubuki'], ['kozuki', 'mitsuboshi'], ['yamabuki', 'akana'], ['yamabuki', 'yunotsu'], ['oshio', 'tatsuno'], ['tenjinyama', 'ako'], ['mitsuboshi', 'kozuki'], ['gochaku', 'takasago'], ['himeji', 'shikama'], ['saidaiji', 'numa'], ['bfukuoka', 'saidaiji'], ['bmatsuyama', 'sarukake'], ['okayama', 'btakamatsu'], ['sakurao', 'kusatsu_a'], ['kusatsu_a', 'kabe'], ['kabe', 'kure'], ['yamaguchi', 'hofu'], ['yamaguchi', 'hagi'], ['shozui', 'muya'], ['ichinomiya_a', 'ushiki'], ['konpira', 'hakuchi'], ['amagiri', 'konpira'], ['yuzuki', 'kokubuyama'], ['hakuchi', 'butsuden'], ['kurose', 'itajima'], ['oko', 'motoyama_c'], ['hasuike', 'susaki'], ['hita', 'kiidani'], ['kizuki_b', 'usa'], ['tachibanayama', 'munakata'], ['yanagawa', 'kora'], ['suko', 'tsukazaki'], ['ogi', 'suko'], ['tsukazaki', 'imari'], ['hinoe', 'shimabara'], ['omura', 'isahaya'], ['suko', 'ogi'], ['kishidake', 'karatsu'], ['yamaga', 'waifu'], ['waifu', 'yamaga'], ['kumamoto', 'kawajiri'], ['usuki', 'togamure'], ['usa', 'kizuki_b'], ['funai', 'okajo'], ['funai', 'beppu'], ['kosho', 'hita'], ['tonokori', 'takajo_h'], ['sadowara', 'miyazaki'], ['miyakonojo', 'mitsuyama'], ['kokubu', 'miyakonojo'], ['obi', 'aburatsu'], ['kiyoshiki', 'ichiki'], ['izumi_s', 'akune'], ['hitoyoshi', 'okuchi'], ['koyama_o', 'kanoya'], ['kanoya', 'nejime'], ['chiran', 'ibusuki'], ['chiran', 'kaseda']]) ROADS.push({ name: '脇道', via: [a, b] });
-  const D = SGK.DATA, byId = {};
-  D.settlements.forEach((s) => (byId[s.id] = s));
-  // 0.26.0 街道を増やす：近い拠点どうし（40km以内・近い順に3つまで）を、海を渡らず遠回りの道もない所だけつなぐ
-  (() => {
-    const inPoly = (x, y, pts) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c; } return c; };
-    const T = D.terrain, sea = (x, y) => (T.lands ? !T.lands.some((l) => inPoly(x, y, l.pts)) : false) || T.seas.some((q) => inPoly(x, y, q));
-    const adj = {}; const link = (a, b) => { (adj[a] = adj[a] || new Set()).add(b); (adj[b] = adj[b] || new Set()).add(a); };
-    for (const r of ROADS) for (let i = 1; i < r.via.length; i++) { let j = i - 1; while (j >= 0 && typeof r.via[j] !== 'string') j--; if (typeof r.via[i] === 'string' && j >= 0) link(r.via[j], r.via[i]); }
-    const S = D.settlements, d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-    const viaOk = (a, b) => { const n = Math.ceil(d(a, b) / 1.5); for (let i = 1; i < n; i++) if (sea(a.x + ((b.x - a.x) * i) / n, a.y + ((b.y - a.y) * i) / n)) return false; return true; };
-    const detour = (a, b) => [...(adj[a.id] || [])].some((c) => c !== b.id && adj[c] && adj[c].has(b.id) && d(a, byId[c]) + d(byId[c], b) < d(a, b) * 1.25);
-    const pairs = [['muranaka', 'yanagawa']]; // 頼まれた道は必ず
-    for (const a of S) {
-      const near = S.filter((b) => b !== a && d(a, b) < 40).sort((x, y) => d(a, x) - d(a, y)).slice(0, 3);
-      for (const b of near) pairs.push([a.id, b.id]);
-    }
-    for (const [ai, bi] of pairs) {
-      const a = byId[ai], b = byId[bi]; if (!a || !b || (adj[ai] && adj[ai].has(bi))) continue;
-      if (!viaOk(a, b) || detour(a, b)) continue;
-      ROADS.push({ name: '脇道', via: [ai, bi] }); link(ai, bi);
-    }
-  })();
-  // 0.40.0 道の格（1=大街道 2=街道 3=脇道）。格が高いほど速く歩ける（route.js）
-  const MAJOR = ['東海道', '東海道（東）', '中山道', '中山道（東）', '北陸道', '北陸道（越前・加賀）', '北陸道（越後）', '北国街道', '山陰道', '山陽道', '西国街道', '西海道', '奥州街道', '甲州道', '美濃路'];
-  const rankOf = (r) => (MAJOR.includes(r.name) ? 1 : r.name === '脇道' || r.name === '街道' ? 3 : 2);
-  D.terrain.roads = ROADS.map((r) => ({ name: r.name, rank: rankOf(r), pts: r.via.map((v) => (typeof v === 'string' ? [byId[v].x, byId[v].y] : poly([v])[0])) }));
+  /* 1.6.48 陸地（海岸線）と街道は js/data/geo.js（tools/gen_geo.js で作る） */
 })();
 
 // 1.1.0 各家の実在の武将（城主・家臣・隊の大将はこの順に使う。足りなくなったら架空の名前）。浪人は ronin

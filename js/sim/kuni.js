@@ -154,13 +154,13 @@
   KN.mineInc = { kin: 1500, gin: 1000 }; KN.mineKm = 60;
   const MINES = SGK.DATA.mines = [
     ['kurokawa_m', '黒川金山', 'kin', 35.78, 138.85], ['yunooku', '湯之奥金山', 'kin', 35.43, 138.48], ['abe_m', '安倍金山', 'kin', 35.20, 138.33],
-    ['toi_m', '土肥金山', 'kin', 34.91, 138.79], ['sado_m', '佐渡金山', 'kin', 38.04, 138.25], ['osarizawa', '尾去沢金山', 'kin', 40.19, 140.76],
+    ['toi_m', '土肥金山', 'kin', 34.91, 138.79], ['sado_m', '佐渡金山', 'kin', 38.04, 138.25, 'kasugayama'] /* 1.6.48 春日山城の所属 */, ['osarizawa', '尾去沢金山', 'kin', 40.19, 140.76],
     ['iwami_m', '石見銀山', 'gin', 35.11, 132.44], ['ikuno_m', '生野銀山', 'gin', 35.17, 134.80], ['tada_m', '多田銀山', 'gin', 34.88, 135.39],
     ['innai', '院内銀山', 'gin', 39.02, 140.43], ['handa', '半田銀山', 'gin', 37.88, 140.53],
-  ].map(([id, name, k, la, lo]) => Object.assign({ id, name, k }, ll(la, lo)));
+  ].map(([id, name, k, la, lo, castle]) => Object.assign({ id, name, k, castle }, ll(la, lo)));
   let MC = null;
   SIM.mineCastle = (m) => {
-    if (!MC) { MC = {}; const cs = SGK.DATA.settlements.filter((x) => x.type === 'castle'); for (const mm of MINES) { const c = cs.slice().sort((a, b) => dist(a, mm) - dist(b, mm))[0]; if (c && dist(c, mm) <= KN.mineKm) MC[mm.id] = c.id; } }
+    if (!MC) { MC = {}; const cs = SGK.DATA.settlements.filter((x) => x.type === 'castle'); for (const mm of MINES) { if (mm.castle) { MC[mm.id] = mm.castle; continue; } const c = cs.slice().sort((a, b) => dist(a, mm) - dist(b, mm))[0]; if (c && dist(c, mm) <= KN.mineKm) MC[mm.id] = c.id; } }
     return MC[m.id] || null;
   };
   SIM.minesOf = (c) => (c ? MINES.filter((m) => SIM.mineCastle(m) === c.id) : []);
