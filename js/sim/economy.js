@@ -32,7 +32,7 @@
       { const tk = SGK.DATA.toku(s); if (s.type === 'village') for (const k in s.prod) if (k !== 'rice' && k !== 'firewood' && k !== tk && s.prod[k] > 3) s.prod[k] = 3; if (tk && !((s.prod[tk] || 0) >= 7)) s.prod[tk] = 7; } // 1.6.77 特産は多く作る（古いセーブも）。1.6.87 特産でなくなった品は3まで
       s.size = s.size || SIZE[s.type]; if (SGK.DATA.isBig(s)) s.size = Math.max(s.size, 3); // 1.6.78 大きな町は品物が多い
       s.stock = s.stock || {};
-      for (const k in I()) if (s.stock[k] == null) s.stock[k] = Math.max(6, target(s, k) * (0.5 + SIM.rand(w) * 0.6)); // 開始時からどこもある程度の在庫（多すぎない程度）
+      for (const k in I()) if (s.stock[k] == null) s.stock[k] = Math.max(6, Math.round(target(s, k))); // 1.6.88 開始時はどこも目安どおりの在庫（相場どおりの値段から始まる）
     }
     for (const p of Object.values(w.players)) SIM.ensurePlayer(p);
     if (!Object.keys(w.jobs).length) w.settlements.forEach((s) => { genJob(w, s); genJob(w, s); });
