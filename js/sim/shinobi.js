@@ -57,6 +57,19 @@
   for (const k of ['recruit']) { const b = C[k]; if (b) C[k] = (w, p, c) => (p.nin ? SIM.say(p.id, '忍びの間は兵を雇えません') : b(w, p, c)); }
   // 身軽さ
   const baseSpd = SIM.speedBonus; SIM.speedBonus = (p) => baseSpd(p) + (p.nin ? NIN.mapSpd : 0);
+  /* 1.6.57 忍びが敵の部隊（野盗以外）との戦から退くと、ときどき逃げそこねて所持金の何割かを落とす */
+  NIN.fleeFail = 0.4; NIN.fleeLoss = [0.2, 0.4];
+  const baseFleeN = C.battleFlee;
+  C.battleFlee = (w, p, c) => {
+    const b = p.nin && p.battle && w.battles[p.battle], n = b && w.npcs[b.npc];
+    const risky = b && !(n && n.kind === 'bandit') && SIM.rand(w) < NIN.fleeFail;
+    baseFleeN(w, p, c);
+    if (!risky || p.battle) return;
+    const r = NIN.fleeLoss[0] + SIM.rand(w) * (NIN.fleeLoss[1] - NIN.fleeLoss[0]), lost = Math.floor((p.money || 0) * r);
+    if (lost <= 0) return;
+    p.money -= lost; if (n && w.npcs[n.id]) n.loot = (n.loot || 0) + lost;
+    SIM.say(p.id, `逃げそこねて追いすがられ、${SIM.money(lost)}（所持金の${Math.round(r * 100)}%）を落としました`);
+  };
   const baseMM = SIM.moveMul; SIM.moveMul = (e, x, y) => (e.nin && SIM.forestAt(x, y) ? 1 : baseMM(e, x, y)); /* 1.6.56 忍びは森でも遅くならない（平地と同じ） */
   // 戦の城に入れる：請け負った工作の城だけ
   const baseCan = SIM.canEnter; SIM.canEnter = (w, p, s) => baseCan(w, p, s) || !!(p.nin && p.ninQ && p.ninQ.to === s.id);
