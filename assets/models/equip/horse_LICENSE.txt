@@ -1,0 +1,5 @@
+Horse / Horse_White
+by Quaternius - Ultimate Animated Animal Pack
+License: CC0 1.0 (public domain)
+https://quaternius.com/packs/ultimateanimatedanimals.html
+Animations: Walk, Gallop, Gallop_Jump, Idle, Idle_2, Idle_Headlow, Eating, Attack_Headbutt, Attack_Kick, Death, Idle_HitReact_Left/Right, Jump_toIdle
