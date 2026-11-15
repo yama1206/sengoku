@@ -121,6 +121,21 @@
       for (let i = 0; i < out.length - 1 && len < LIM; i++) { const d = dd(out[i], x0, y0); if (d < best - 0.01) { best = d; k = i; } len += dd(out[i + 1], out[i][0], out[i][1]); }
       if (k > 0 && best < 3) out.splice(0, k);
     }
+    /* 1.6.59 拠点の出入り：近く（6km以内）でぐるっと回るときは、見通せる所からまっすぐ入る（出る） */
+    const clearL = (ax, ay, bx, by) => { const n = Math.ceil(Math.hypot(bx - ax, by - ay) / 0.4); for (let s2 = 1; s2 < n; s2++) { const x = ax + (bx - ax) * s2 / n, y = ay + (by - ay) * s2 / n; if (!PASS[cellAt(x, y)] || cellAt(x, y) % 4 === 0) return false; } return true; };
+    const NEAR = 6;
+    if (out.length > 1) { // 終わり側
+      let len = 0;
+      for (let i = out.length - 2; i >= 0; i--) { const nx = out[i + 1]; len += dd(out[i], nx[0], nx[1]); }
+      let acc = 0, cut = -1;
+      for (let i = 0; i < out.length - 1; i++) { const d = dd(out[i], x1, y1), rest = len - acc; if (d <= NEAR && rest > d * 1.15 + 0.3 && clearL(out[i][0], out[i][1], x1, y1)) { cut = i; break; } acc += dd(out[i + 1], out[i][0], out[i][1]); }
+      if (cut >= 0) out.splice(cut + 1, out.length - cut - 1, [x1, y1]);
+    }
+    if (out.length > 1) { // 始まり側
+      let acc = Math.hypot(out[0][0] - x0, out[0][1] - y0), cut = -1;
+      for (let i = 0; i < out.length - 1; i++) { const d = dd(out[i], x0, y0); if (d > NEAR) break; if (acc > d * 1.15 + 0.3 && clearL(x0, y0, out[i][0], out[i][1])) cut = i; acc += dd(out[i + 1], out[i][0], out[i][1]); }
+      if (cut > 0) out.splice(0, cut);
+    }
     return out;
   }
   SIM.findPath = function (x0, y0, x1, y1) {
