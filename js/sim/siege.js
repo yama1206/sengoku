@@ -28,13 +28,14 @@
     gar: 70, garHome: 120, garWall: 8, garInv: 8, // 守備兵の上限（ふつうの城・大名の居城・城壁1段ごと・0.51.0 規模1つごと）
     take: 0.5,                          // 近くの城（3つまで）から出す守備兵の割合
     levyPer: 20, levyMax: 120,          // 陣触れ：持っている城1つにつき農兵20人（最大120）
-    min: 30,                            // 0.44.0 これより少ない人数では攻めない
+    min: 30,
+    defMul: 1.9,                        // 1.6.49 総攻めの守りの強さ（攻者三倍：守備兵の3倍で6〜7割勝てるくらい）                            // 0.44.0 これより少ない人数では攻めない
         rate: 0.08, weakRate: 0.6, weakFrac: 0.4, // 1週ごとに攻める見込み（ふつう／手薄な城）、手薄とみなす兵の割合
   };
   // 0.45.0 大名の気性（好戦度 1慎重〜5好戦）。表にない家は3前後をくじで決める
   const KOU = SIM.KOU = {
     names: ['', '慎重', 'やや慎重', 'ふつう', 'やや好戦的', '好戦的'],
-    ratio: [0, 2.8, 2.4, 2.0, 1.7, 1.4],   // 相手の守りの何倍の兵で攻めるか
+    ratio: [0, 2.9, 2.65, 2.4, 2.15, 1.9], // 相手の守りの何倍の兵で攻めるか（1.6.49 守備兵のおよそ2.4〜3.6倍）
     rate: [0, 0.4, 0.7, 1, 1.4, 1.9],      // 攻める見込みの倍率
     reach: [0, 45, 50, 60, 70, 80],        // 攻める城までの距離（km）
     start: [0, 0.3, 0.6, 1, 1.6, 2.4],     // 新しく戦を始める見込みの重み
@@ -287,8 +288,8 @@
     const defs = Object.values(w.players).filter((p) => p.at === s.id && p.tx == null && !p.battle && p.clan === s.owner);
     const aPow = M.power(c.army) * (0.75 + rnd(w) * 0.5);
     const kf = SIM.kaiF ? SIM.kaiF(s) : 1, ck = 1 + ({ yama: 0.35, mizu: 0.25 }[SIM.castleKind(s)] || 0.1) * kf; // 0.37.0 山城ほど守りやすい／0.40.0 改築の段階で変わる
-    let dPow = M.power(s.gar) * (1 + 0.25 * kf + wall * 0.12) * ck;
-    for (const p of defs) dPow += (M.power(p.troops) + TR.hero.hp * TR.hero.atk) * (1 + 0.3 * kf + wall * 0.1) * ck;
+    let dPow = M.power(s.gar) * (1 + 0.25 * kf + wall * 0.12) * ck * SIEGE_N.defMul;
+    for (const p of defs) dPow += (M.power(p.troops) + TR.hero.hp * TR.hero.atk) * (1 + 0.3 * kf + wall * 0.1) * ck * SIEGE_N.defMul;
     dPow *= (0.75 + rnd(w) * 0.5) * (0.75 + 0.25 * SIM.gateF(s)); /* 1.6.39 門の傷み */
     const win = aPow > dPow, loss = Math.min(0.85, (win ? dPow / aPow : aPow / dPow) * 0.6);
     for (const p of defs) {
@@ -372,7 +373,7 @@
     if (!tgt || !SIM.atWar(w, att, tgt.owner) || SIM.armyTo(w, tgt.id) || w.musters.some((m) => m.tgt === tgt.id)) return false;
     const src = mine.slice().sort((a, b) => dist(a, tgt) - dist(b, tgt))[0]; if (!src) return false;
     w.musters = w.musters || [];
-    return musterFor(w, att, tgt.owner, src, tgt, Math.max(SIEGE_N.min, Math.ceil(defPow(tgt) * 1.5)), mine, true);
+    return musterFor(w, att, tgt.owner, src, tgt, Math.max(SIEGE_N.min, Math.ceil(defPow(tgt) * KOU.ratio[3])), mine, true); /* 1.6.49 */
   };
   // 兵を集め終えたら出陣する。狙いの城がもう敵の城でなければ取りやめて兵を城に戻す
   function musterTick(w) {
