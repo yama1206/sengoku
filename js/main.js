@@ -592,7 +592,7 @@
       return { name: `${t ? t.name : '軍勢'} ${u.size}人`, act: act || jf, body: `${u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}${war ? '　<b style="color:#e06050">交戦中</b>' : ''}<br>${t ? t.text : ''}${spdTxt}<br>兵：${ar}<br><span class="muted">${war ? `敵の軍勢。${(G.priv.me.war && G.priv.me.war.ar ? G.priv.me.war.ar.fightKm : 2)}km以内まで近づくと攻めかかれます。打ち破れば攻城戦の準備が崩れます` : '武将たちが率いる軍勢'}</span>${war ? '' : trade}`, go: '追いかける' };
     }
     if (u.kind === 'bandit') {
-      return { name: `野盗 ${u.size}人`, act: jf, body: `${u.battle === 2 ? '<b style="color:#ff6a4a">巡回兵と交戦中</b>（近づくと加勢できる）<br>' : u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}${where}${spdTxt}<br>手勢：${ar}<br><span class="muted">近づくと襲ってくる。倒すと金品が手に入る。</span>`, go: u.battle === 2 ? '加勢する' : '攻めかかる' };
+      return { name: `野盗 ${u.size}人`, act: jf, body: `${u.battle === 2 ? '<b style="color:#ff6a4a">巡回兵と交戦中</b>（近づくと加勢できる）<br>' : u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}${where}${spdTxt}<br>手勢：${ar}<br><span class="muted">近づくと襲ってくる。倒すと金品が手に入る。</span>`, go: u.battle === 2 ? '追いかけて加勢する' : '追いかけて攻めかかる' } /* 1.6.67 */;
     }
     // 他のプレイヤー（0.54.0 1.5km以内なら取引）
     const M = G.priv && G.priv.me; let ptr = '';
