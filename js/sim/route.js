@@ -137,6 +137,9 @@
       for (let i = 0; i < out.length - 1 && len < LIM; i++) { const d = dd(out[i], x0, y0); if (d < best - 0.01) { best = d; k = i; } len += dd(out[i + 1], out[i][0], out[i][1]); }
       if (k > 0 && best < 3) out.splice(0, k);
     }
+    /* 2.2.2 はじめの点が後ろ（次の点と逆向き）で近いときは、まっすぐ次の点へ向かう（通れるときだけ） */
+    const passL = (ax, ay, bx, by) => { const n = Math.ceil(Math.hypot(bx - ax, by - ay) / 0.4); for (let s2 = 1; s2 < n; s2++) if (!PASS[cellAt(ax + (bx - ax) * s2 / n, ay + (by - ay) * s2 / n)]) return false; return true; };
+    while (out.length > 1) { const a = out[0], b = out[1]; if (dd(a, x0, y0) < 2.5 && (a[0] - x0) * (b[0] - a[0]) + (a[1] - y0) * (b[1] - a[1]) < 0 && passL(x0, y0, b[0], b[1])) out.shift(); else break; }
     /* 1.6.59 拠点の出入り：近く（6km以内）でぐるっと回るときは、見通せる所からまっすぐ入る（出る） */
     const clearL = (ax, ay, bx, by) => { const n = Math.ceil(Math.hypot(bx - ax, by - ay) / 0.4); for (let s2 = 1; s2 < n; s2++) { const x = ax + (bx - ax) * s2 / n, y = ay + (by - ay) * s2 / n; if (!PASS[cellAt(x, y)] || cellAt(x, y) % 4 === 0) return false; } return true; };
     const NEAR = 6;
@@ -196,6 +199,12 @@
     const isRoad = (k) => g[k] >= 3 && rd[k] >= 0;
     // 道 ri の位置 pos の座標
     const at = (ri, pos) => { const P = R[ri].pts, n = Math.min(P.length - 2, Math.max(0, Math.floor(pos))), f = pos - n; return [P[n][0] + (P[n + 1][0] - P[n][0]) * f, P[n][1] + (P[n + 1][1] - P[n][1]) * f]; };
+    // 2.2.2 (x,y) にいちばん近い道 ri の上の位置（near のあたりだけ見る）。3km以上離れていれば null
+    const proj = (ri, x, y, near) => {
+      const P = R[ri].pts, n0 = Math.max(0, Math.floor(near) - 3), n1 = Math.min(P.length - 2, Math.floor(near) + 3); let bd = 3, bp = null;
+      for (let n = n0; n <= n1; n++) { const [ax2, ay2] = P[n], [bx2, by2] = P[n + 1], dx = bx2 - ax2, dy = by2 - ay2, l = dx * dx + dy * dy, f = l ? Math.max(0, Math.min(1, ((x - ax2) * dx + (y - ay2) * dy) / l)) : 0, d = Math.hypot(x - ax2 - f * dx, y - ay2 - f * dy); if (d < bd) { bd = d; bp = n + f; } }
+      return bp;
+    };
     function clear(ax, ay, b, kind) {
       const bx = cx(b), by = cy(b), n = Math.ceil(Math.hypot(bx - ax, by - ay) / (CELL * 0.25));
       for (let s2 = 1; s2 <= n; s2++) {
@@ -209,11 +218,14 @@
     while (i < cells.length) {
       if (isRoad(cells[i])) {
         // 同じ道が続くあいだをひとまとめにし、その道の線（曲がり角の点も含む）をたどる
-        const ri = rd[cells[i]], p0 = rpos[cells[i]];
+        const ri = rd[cells[i]]; let p0 = rpos[cells[i]];
         let j = i; while (j + 1 < cells.length && isRoad(cells[j + 1]) && rd[cells[j + 1]] === ri) j++;
         // 交差点で別の道のマスを1つだけかすめた時は、その寄り道をしない
         if (i === j && i > 0 && j + 1 < cells.length && isRoad(cells[i - 1]) && isRoad(cells[j + 1]) && rd[cells[i - 1]] === rd[cells[j + 1]]) { i++; continue; }
-        const p1 = rpos[cells[j]];
+        let p1 = rpos[cells[j]];
+        /* 2.2.2 出発・到着のマスでは、マスの真ん中ではなく本人（目的地）の位置を道に当てる（追いかけるたびに道を戻る動きをなくす） */
+        if (i === 0) { const q = proj(ri, x0, y0, p0); if (q) p0 = q; }
+        if (j === cells.length - 1) { const q = proj(ri, x1, y1, p1); if (q) p1 = q; }
         pts.push(at(ri, p0));
         if (p1 > p0) for (let v = Math.floor(p0) + 1; v < p1; v++) pts.push(R[ri].pts[v].slice());
         else for (let v = Math.ceil(p0) - 1; v > p1; v--) pts.push(R[ri].pts[v].slice());
