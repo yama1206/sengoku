@@ -188,6 +188,17 @@
         if (n.pname && cam.scale >= 3) { const t = n.pname + '隊'; ctx.font = 'bold 11px sans-serif'; ctx.textBaseline = 'top'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)'; ctx.strokeText(t, x, y + 8); ctx.fillStyle = '#2a2118'; ctx.fillText(t, x, y + 8); } // 0.53.5 見回りの隊にも大将の名前
       }
     }
+    // 1.6.51 合戦の印（味方が戦っている所。視界の外でも出す。近くの戦闘中の部隊にも赤い輪）
+    for (const n of view.npcs) if (n.battle === 1 && n.kind !== 'bandit' && n.kind !== 'army') { const d = disp[n.id] || n, [x, y] = R.toScreen(d.x, d.y); ctx.strokeStyle = '#ff5533'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, 12, 0, 7); ctx.stroke(); }
+    if (view.bm && view.bm.length) {
+      const pul = 0.5 + 0.5 * Math.sin(performance.now() / 250);
+      for (const [bx, by, foe, who] of view.bm) {
+        const [x, y] = R.toScreen(bx, by);
+        ctx.strokeStyle = `rgba(255,70,40,${(0.5 + 0.5 * pul).toFixed(2)})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, 16 + pul * 4, 0, 7); ctx.stroke();
+        ctx.strokeStyle = '#ffdd88'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - 7, y - 7); ctx.lineTo(x + 7, y + 7); ctx.moveTo(x + 7, y - 7); ctx.lineTo(x - 7, y + 7); ctx.stroke();
+        const t = `合戦：${who}（${foe}）`; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(20,16,12,.85)'; ctx.strokeText(t, x, y + 21); ctx.fillStyle = '#ffb090'; ctx.fillText(t, x, y + 21);
+      }
+    }
     // 0.73.4 部隊の移動の速さ（km/日）を印の上に。こちらより速いと赤、遅いと緑
     if (cam.scale >= 2) {
       const mS = meV && meV.spd; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.lineWidth = 3;

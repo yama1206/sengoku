@@ -55,7 +55,7 @@
       layout(u, L); for (const s of L) place(s, u);
   }
   // 1.6.12 合戦の途中参加：戦場の地図上の場所（敵の部隊・城・戦っているプレイヤー）
-  const JOIN_KM = 1.5;
+  const JOIN_KM = 2.5; /* 1.6.51 1.5→2.5 加わりやすく */
   SIM.battleSpot = (w, b) => {
     const n = b.npc && w.npcs[b.npc]; if (n) return n;
     const s = b.siege && SIM.settlement(w, b.siege); if (s) return s;
@@ -71,6 +71,19 @@
     }
     return null;
   };
+  /* 1.6.51 加われる合戦（味方の戦）は視界の外でも地図に印を出す */
+  SIM.battleMarks = (w, pid) => {
+    const p = w.players[pid], out = []; if (!p) return out;
+    for (const b of Object.values(w.battles || {})) {
+      const qs = (b.pids || []).map((id) => w.players[id]).filter((q) => q && q.battle === b.id); if (!qs.length) continue;
+      if (!qs.includes(p) && (b.war || b.siege) && !(p.clan && qs.some((q) => q.clan === p.clan))) continue;
+      const at = SIM.battleSpot(w, b); if (!at) continue;
+      out.push([Math.round(at.x * 100) / 100, Math.round(at.y * 100) / 100, b.foe, qs.map((q) => q.name).join('・')]);
+    }
+    return out;
+  };
+  const baseDynJ = SIM.dynamicState;
+  SIM.dynamicState = function (w, pid) { const d = baseDynJ(w, pid); if (pid) d.bm = SIM.battleMarks(w, pid); return d; };
   SIM.commands.joinBattle = (w, p) => {
     const b = SIM.joinableBattle(w, p); if (!b) return SIM.say(p.id, '加われる合戦が近くにありません');
     SIM.joinInto(w, p, b);
