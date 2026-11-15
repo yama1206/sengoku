@@ -313,9 +313,25 @@
       if (A.rq[hero.pc]) { A.rq[hero.pc] = false; if (!hasH) SIM.say(hero.pc, '馬を装備していません'); else { hero.off = !hero.off; SIM.say(hero.pc, hero.off ? '馬から降りました' : '馬に乗りました'); } } // 1.6.17 △長押し／Rキー
       hero.rd = hasH && !hero.off ? 1 : 0; // 1.6.16 馬を装備していれば本人も馬に乗る
       const sp = (hero.rd ? TR.kiba.spd : TR.hero.spd) * ACT.SPD * 1.1 * (hero.blk ? 0.5 : 1) * (hero.tate ? 0.85 : 1) * (pl && pl.nin ? SIM.NIN.actSpd : 1); // 0.77.0 忍びは速い
-      if (hero.dash > 0) { hero.x += hero.dx * sp * ACT.DASH.mul * dt; hero.y += hero.dy * sp * ACT.DASH.mul * dt; }
-      else { const tm = terMul(b, hero, mx, my, !!hero.rd); hero.x += mx * sp * tm * dt; hero.y += my * sp * tm * dt; }
-      if (inp.aim != null) hero.f = inp.aim; else if (mx || my) hero.f = Math.atan2(my, mx);
+      if (hero.rd) { /* 1.6.75 馬：真横には動けない。前は速く、後ろはゆっくり。動きながらの向き変えはゆっくり */
+        if (hero.hh == null) hero.hh = hero.f || 0;
+        const il = Math.hypot(mx, my), hv = hero.hv || 0, r = Math.min(1, Math.abs(hv) / sp);
+        let tv = 0;
+        if (il > 0.1) {
+          let d = Math.atan2(my, mx) - hero.hh; d = Math.atan2(Math.sin(d), Math.cos(d));
+          if (Math.abs(d) > 2.0 && hv < sp * 0.3) tv = -sp * 0.3 * il; // 後ろへ下がる（向きは変えない）
+          else { const tr = (3.2 - 2.5 * r) * dt; hero.hh += Math.max(-tr, Math.min(tr, d)); tv = sp * il * Math.max(0.15, Math.cos(d)); }
+        }
+        if (hero.dash > 0) tv = sp * ACT.DASH.mul;
+        const ac = (tv > hv ? 1.4 : 2.6) * sp * dt; hero.hv = hv + Math.max(-ac, Math.min(ac, tv - hv));
+        const cx = Math.cos(hero.hh), cy = Math.sin(hero.hh), tm = terMul(b, hero, cx, cy, true);
+        hero.x += cx * hero.hv * tm * dt; hero.y += cy * hero.hv * tm * dt; hero.f = hero.hh;
+      } else {
+        hero.hh = null; hero.hv = 0;
+        if (hero.dash > 0) { hero.x += hero.dx * sp * ACT.DASH.mul * dt; hero.y += hero.dy * sp * ACT.DASH.mul * dt; }
+        else { const tm = terMul(b, hero, mx, my, false); hero.x += mx * sp * tm * dt; hero.y += my * sp * tm * dt; }
+        if (inp.aim != null) hero.f = inp.aim; else if (mx || my) hero.f = Math.atan2(my, mx);
+      }
       /* 1.6.41 槍・弓は押して構え（溜め）、離すと突く・放つ。長く構えるほど少し強い（0.8秒で+40%） */
       const rel = kk === 'yari' || kk === 'yumi'; let fire = !!inp.atk, chg = 0;
       if (rel) { if (hero.blk) hero.hold = 0; else if (inp.atk) hero.hold = (hero.hold || 0) + dt; else if (hero.hold > 0) { hero.rq = Math.min(1, hero.hold / 0.8); hero.hold = 0; } fire = hero.rq != null && hero.cd <= 0; if (fire) { chg = hero.rq; hero.rq = null; } } else hero.hold = 0;
