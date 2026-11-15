@@ -133,7 +133,7 @@
     while (left > 0 && e.path.length) {
       const [wx, wy] = e.path[0];
       const dx = wx - e.x, dy = wy - e.y, d = Math.hypot(dx, dy);
-      const v = (e.speed / 1440) * SIM.speedAt(e.x, e.y); // km/分
+      const v = (e.speed / 1440) * SIM.moveMul(e, e.x, e.y); // km/分（1.6.47 森では騎馬の速さが出ない）
       if (d <= v * left) { e.x = wx; e.y = wy; left -= v > 0 ? d / v : left; e.path.shift(); continue; }
       e.x += (dx / d) * v * left; e.y += (dy / d) * v * left; left = 0;
     }

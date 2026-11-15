@@ -478,7 +478,7 @@
 
   // ---------- 拠点の情報 ----------
   function selectSettlement(s) {
-    G.selected = s ? s.id : null; G.selKind = s ? 's' : null; $('infoGo').textContent = 'ここへ向かう'; $('infoAct').classList.add('hidden');
+    G.selected = s ? s.id : null; G.selKind = s ? 's' : null; G.lookJob = null; $('infoGo').textContent = 'ここへ向かう'; $('infoAct').classList.add('hidden');
     if (!s) { $('info').classList.add('hidden'); return; }
     const f = G.view.factions[s.owner], lord = lordName(s);
     const kind = { castle: '城', town: '町', village: '村' }[s.type];
@@ -529,7 +529,9 @@
   $('infoAct').onclick = () => { if (typeof G.infoCmd === 'function') G.infoCmd(); else if (G.infoCmd) command(G.infoCmd); };
   $('infoGo').onclick = () => {
     if (G.selKind === 'u') { const u = findUnit(G.selected); if (u) command({ type: 'follow', id: u.id }); selectSettlement(null); return; } // 0.60.0 追いかけると閉じる
-    const s = G.view.settlements.find((x) => x.id === G.selected); if (s) { moveTo(s.x, s.y, s.id); selectSettlement(null); } // 0.54.4 向かうと閉じる
+    const s = G.view.settlements.find((x) => x.id === G.selected);
+    if (s && G.lookJob) { command({ type: 'acceptJob', id: G.lookJob }); G.lookJob = null; } /* 1.6.47 依頼を受けてから向かう */
+    if (s) { moveTo(s.x, s.y, s.id); selectSettlement(null); } // 0.54.4 向かうと閉じる
   };
 
   // ---------- 部隊（CPU・他プレイヤー）の情報 ----------
@@ -704,7 +706,7 @@
         const km = to && fr ? Math.round(Math.hypot(to.x - fr.x, to.y - fr.y)) : null;
         const what = j.what ? j.what : j.type === 'deliver' ? `届け先：${sName(j.to)}${km != null ? `（${dirOf(fr, to)}へ約${km}km）` : ''}` : `${IT[j.item].name}を${j.qty}${IT[j.item].unit}、ここへ納品`;
         html += `<div class="card"><div><b>${j.title}</b>　<span class="muted">依頼主：${j.giver}</span><br><span class="muted">${what}　報酬 ${SIM.money(j.reward)}　期限${j.days}日</span></div><div class="row">`
-          + (to || j.look ? `<button id="lk-${j.id}" data-look="${to ? j.to : j.look}">地図で見る</button>` : '') + `<button id="ac-${j.id}" data-act="acceptJob" data-id="${j.id}">受ける</button></div></div>`;
+          + (to || j.look ? `<button id="lk-${j.id}" data-look="${to ? j.to : j.look}" data-job="${j.id}">地図で見る</button>` : '') + `<button id="ac-${j.id}" data-act="acceptJob" data-id="${j.id}">受ける</button></div></div>`;
       }
     } else if (townTab === 'work') {
       const s = G.view.settlements.find((x) => x.id === h.id);
@@ -806,15 +808,16 @@
   }
   function dirOf(a, b) { const ang = Math.atan2(-(b.y - a.y), b.x - a.x) * 180 / Math.PI; return ['東', '北東', '北', '北西', '西', '南西', '南', '南東'][Math.round(((ang + 360) % 360) / 45) % 8]; }
   // 依頼の届け先を地図で見る（「依頼に戻る」で拠点の画面へ戻れる）
-  function lookAt(id) {
+  function lookAt(id, job) {
     const to = G.view.settlements.find((x) => x.id === id); if (!to) return;
     const back = { label: '依頼の画面に戻る', fn: () => { selectSettlement(null); R.cam.follow = true; openTown(true, true); } };
     openTown(false); R.cam.follow = false; R.cam.x = to.x; R.cam.y = to.y; G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; selectSettlement(to);
     G.infoCmd = back.fn; $('infoAct').textContent = back.label; $('infoAct').classList.remove('hidden');
-    setFocus($('info'), $('infoAct'));
+    if (job) { G.lookJob = job; $('infoGo').textContent = '依頼を受けて、ここへ向かう'; } /* 1.6.47 */
+    setFocus($('info'), job ? $('infoGo') : $('infoAct'));
   }
   $('townBody').addEventListener('click', (e) => {
-    const lb = e.target.closest('button[data-look]'); if (lb) return lookAt(lb.dataset.look);
+    const lb = e.target.closest('button[data-look]'); if (lb) return lookAt(lb.dataset.look, lb.dataset.job);
     const lx = e.target.closest('button[data-lookxy]'); if (lx) { const [x, y] = lx.dataset.lookxy.split(',').map(Number); openTown(false); R.cam.follow = false; R.cam.x = x; R.cam.y = y; G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; return; }
     const nj = e.target.closest('button[data-nj]'); // 0.77.0 忍び込む
     if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; openTown(false); SGK.NINJA.start(N.q.k, N.d, (ok) => { if (ok === null) toast('いったん退きました（工作はまだ請け負ったまま）', 1500); else command({ type: 'ninResult', ok: !!ok }); }); return; }

@@ -31,23 +31,39 @@
     ctx.fillStyle = '#1a1712'; ctx.fillRect(0, 0, W, H);
     // 陸
     const [x0, y0] = R.toScreen(0, 0), [x1, y1] = R.toScreen(B.w, B.h);
-    if (T.lands) { ctx.fillStyle = '#7d9fae'; ctx.fillRect(x0, y0, x1 - x0, y1 - y0); ctx.fillStyle = '#d8cda6'; for (const l of T.lands) { path(ctx, l.pts, true); ctx.fill(); } }
-    else { ctx.fillStyle = '#d8cda6'; ctx.fillRect(x0, y0, x1 - x0, y1 - y0); }
+    const SEA = '#79aecb', LAND = '#b7d39a'; /* 1.6.47 鳥瞰の絵地図風の色 */
+    if (T.lands) { ctx.fillStyle = SEA; ctx.fillRect(x0, y0, x1 - x0, y1 - y0); ctx.fillStyle = LAND; for (const l of T.lands) { path(ctx, l.pts, true); ctx.fill(); } }
+    else { ctx.fillStyle = LAND; ctx.fillRect(x0, y0, x1 - x0, y1 - y0); }
     // 海
-    ctx.fillStyle = '#7d9fae';
+    ctx.fillStyle = SEA;
     for (const s of T.seas) { path(ctx, s, true); ctx.fill(); }
-    // 山地
-    ctx.fillStyle = 'rgba(120,128,82,.45)'; ctx.strokeStyle = 'rgba(80,86,50,.5)'; ctx.lineWidth = 1;
-    for (const m of T.mountains || []) { path(ctx, m.pts, true); ctx.fill(); ctx.stroke(); }
-    // 山の印（∧）を散らす
-    ctx.strokeStyle = 'rgba(70,62,40,.55)'; ctx.lineWidth = 1.2;
-    const step = Math.max(4, 28 / cam.scale);
-    for (const m of T.mountains || []) {
-      let x0m = Infinity, y0m = Infinity, x1m = -Infinity, y1m = -Infinity;
-      for (const [x, y] of m.pts) { x0m = Math.min(x0m, x); y0m = Math.min(y0m, y); x1m = Math.max(x1m, x); y1m = Math.max(y1m, y); }
-      for (let y = Math.ceil(y0m / step) * step; y < y1m; y += step) for (let x = Math.ceil(x0m / step) * step + ((y / step) % 2 ? step / 2 : 0); x < x1m; x += step) {
-        const [a, b] = R.toScreen(x, y);
-        if (a < -10 || b < -10 || a > W + 10 || b > H + 10 || !SGK.SIM.pointInPoly(x, y, m.pts)) continue; ctx.beginPath(); ctx.moveTo(a - 5, b + 3); ctx.lineTo(a, b - 4); ctx.lineTo(a + 5, b + 3); ctx.stroke();
+    // 1.6.47 山（通れない）と森（遅い）：マス目から1回だけ下絵を作り、引き伸ばして描く
+    const TG = SGK.SIM.terrainGrid && SGK.SIM.terrainGrid();
+    if (TG) {
+      if (!R.tlay || R.tlay.g !== TG.g) {
+        const c = document.createElement('canvas'); c.width = TG.gw; c.height = TG.gh; const x = c.getContext('2d'), im = x.createImageData(TG.gw, TG.gh);
+        for (let q = 0; q < TG.g.length; q++) { const t = TG.g[q] % 4, o = q * 4; if (t === 2) { im.data[o] = 128; im.data[o + 1] = 140; im.data[o + 2] = 96; im.data[o + 3] = 235; } else if (t === 3) { im.data[o] = 92; im.data[o + 1] = 138; im.data[o + 2] = 70; im.data[o + 3] = 200; } }
+        x.putImageData(im, 0, 0); R.tlay = { g: TG.g, c };
+      }
+      ctx.imageSmoothingEnabled = true; ctx.drawImage(R.tlay.c, x0, y0, TG.gw * TG.CELL * cam.scale, TG.gh * TG.CELL * cam.scale);
+      // 近づいたら山と木を立体の絵で
+      const C = TG.CELL, [wa, wb] = R.toWorld(0, 0), [wc, wd] = R.toWorld(W, H);
+      const i0 = Math.max(0, Math.floor(wa / C) - 1), i1 = Math.min(TG.gw - 1, Math.ceil(wc / C) + 1), j0 = Math.max(0, Math.floor(wb / C) - 1), j1 = Math.min(TG.gh - 1, Math.ceil(wd / C) + 1);
+      const hs = (i, j, k) => { let h = (i * 73856093) ^ (j * 19349663) ^ (k * 83492791); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+      const mstep = cam.scale >= 6 ? 1 : cam.scale >= 3 ? 2 : cam.scale >= 1.5 ? 4 : 8, tOn = cam.scale >= 5;
+      if ((i1 - i0) * (j1 - j0) / (mstep * mstep) < 40000) for (let j = j0 - (j0 % mstep); j <= j1; j += mstep) for (let i = i0 - (i0 % mstep); i <= i1; i += mstep) {
+        const t = TG.g[j * TG.gw + i];
+        if (t === 2) { // 山：明るい面と影の面、雪の頂
+          const [px, py] = R.toScreen((i + 0.5 + (hs(i, j, 1) - 0.5) * 0.6) * C, (j + 0.5 + (hs(i, j, 2) - 0.5) * 0.6) * C), r = Math.max(5, Math.min(26, C * mstep * cam.scale * 0.6)) * (0.8 + hs(i, j, 3) * 0.4);
+          ctx.fillStyle = '#86a364'; ctx.beginPath(); ctx.moveTo(px - r, py + r * 0.5); ctx.lineTo(px, py - r * 1.1); ctx.lineTo(px + r, py + r * 0.5); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#5d7744'; ctx.beginPath(); ctx.moveTo(px, py - r * 1.1); ctx.lineTo(px + r, py + r * 0.5); ctx.lineTo(px + r * 0.25, py + r * 0.5); ctx.closePath(); ctx.fill();
+          if (r > 9) { ctx.fillStyle = '#f4f4ee'; ctx.beginPath(); ctx.moveTo(px - r * 0.3, py - r * 0.5); ctx.lineTo(px, py - r * 1.1); ctx.lineTo(px + r * 0.3, py - r * 0.5); ctx.closePath(); ctx.fill(); }
+        } else if (t === 3 && tOn) { // 森：小さな針葉樹を2〜3本
+          for (let k = 0; k < 3; k++) { if (k === 2 && hs(i, j, 9) < 0.5) break;
+            const [px, py] = R.toScreen((i + 0.2 + hs(i, j, k * 2 + 4) * 0.6) * C, (j + 0.2 + hs(i, j, k * 2 + 5) * 0.6) * C), r = Math.min(9, 2 + cam.scale * 0.35);
+            ctx.fillStyle = '#6b4a2b'; ctx.fillRect(px - r * 0.12, py, r * 0.24, r * 0.45);
+            ctx.fillStyle = k % 2 ? '#3f6b33' : '#4d7c3c'; ctx.beginPath(); ctx.moveTo(px - r * 0.6, py + r * 0.1); ctx.lineTo(px, py - r * 1.4); ctx.lineTo(px + r * 0.6, py + r * 0.1); ctx.closePath(); ctx.fill(); }
+        }
       }
     }
     // 街道

@@ -100,9 +100,11 @@
   function nearRoad(x, y) { for (const [dx, dy] of [[0, 0], [1.5, 0], [-1.5, 0], [0, 1.5], [0, -1.5]]) if (SIM.terrainAt(x + dx, y + dy) === '街道') return true; return false; }
   function moveTo(e, dtMin) {
     if (e.tx == null) return false;
-    const dx = e.tx - e.x, dy = e.ty - e.y, d = Math.hypot(dx, dy), step = (e.speed / 1440) * dtMin * SIM.speedAt(e.x, e.y);
+    const dx = e.tx - e.x, dy = e.ty - e.y, d = Math.hypot(dx, dy), step = (e.speed / 1440) * dtMin * SIM.moveMul(e, e.x, e.y);
     if (d <= step) { e.x = e.tx; e.y = e.ty; e.tx = e.ty = null; return true; }
-    e.x += (dx / d) * step; e.y += (dy / d) * step; return false;
+    const nx = e.x + (dx / d) * step, ny = e.y + (dy / d) * step;
+    if (SIM.blockedAt(nx, ny) && !SIM.blockedAt(e.x, e.y)) { e.tx = e.ty = null; return true; } /* 1.6.47 山には入れない */
+    e.x = nx; e.y = ny; return false;
   }
   SIM.HIDE_MIN = 180; SIM.hidden = (w, p) => (p.hideT || 0) > w.time.min; /* 1.6.20 逃げたり戦が終わったあと3時間は敵に見つからない */
   const inField = (p) => !p.battle && !(p.at && p.tx == null); // 拠点にいる人は襲われない
