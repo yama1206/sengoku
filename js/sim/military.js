@@ -46,7 +46,7 @@
     const ey = Math.round(extra * 0.7); army.yari = (army.yari || 0) + ey; army.yumi = (army.yumi || 0) + extra - ey;
     return army;
   };
-  SIM.troopCap = (p) => Math.min(60, Math.ceil(10 + p.fame * 1.5)); // 0.30.3 半分に
+  SIM.troopCap = (p) => 10; // 1.6.72 名声では増えない。浪人10人、身分が1段上がるごとに+5（rank.js）
   SIM.wage = (tr) => Math.round(Object.entries(tr || {}).reduce((a, [k, n]) => a + (TR[k].wage || 0) * n, 0) * 0.4); // 0.28.0 給金は兵種の値の4割
   // 成長要素（growth.js）が上書きする差し込み口
   SIM.unitMods = () => ({ am: 1, da: 0, ra: 0, hm: 1 });
@@ -560,7 +560,7 @@
       if (t.fame && p.fame < t.fame) return SIM.say(p.id, `${t.name}を雇うには名声${t.fame}が必要です`);
       const cost = Math.round(t.cost * SIM.costMod(p));
       const q = Math.min(Math.max(1, +c.qty || 1), Math.floor(s.pool[c.kind] || 0), SIM.troopCap(p) - SIM.troopCount(p.troops), Math.floor(p.money / cost));
-      if (q <= 0) return SIM.say(p.id, (s.pool[c.kind] || 0) < 1 ? 'いま雇える者がいません' : SIM.troopCount(p.troops) >= SIM.troopCap(p) ? 'これ以上は率いられません（名声を上げると増えます）' : 'お金が足りません');
+      if (q <= 0) return SIM.say(p.id, (s.pool[c.kind] || 0) < 1 ? 'いま雇える者がいません' : SIM.troopCount(p.troops) >= SIM.troopCap(p) ? 'これ以上は率いられません（身分が上がると増えます）' : 'お金が足りません');
       p.money -= q * cost; s.pool[c.kind] -= q; p.troops[c.kind] = (p.troops[c.kind] || 0) + q;
       SIM.say(p.id, `${t.name}を${q}人雇いました（${SIM.money(q * cost)}）`);
     },
