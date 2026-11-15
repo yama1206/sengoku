@@ -301,7 +301,7 @@
     const n = p.pow || 0; if (!n) return; const m = SIM.powValue(p); p.pow = 0; p.powV = 0; p.money += m;
     SIM.say(p.id, `捕虜${n}人を身代金${SIM.money(m)}と交換しました`);
   };
-  SIM.commands.releasePow = (w, p) => { const n = p.pow || 0; if (!n) return; p.pow = 0; p.powV = 0; SIM.say(p.id, `捕虜${n}人を逃がしました`); };
+  SIM.commands.releasePow = (w, p) => { const n = p.pow || 0; if (!n) return; const f = Math.max(1, Math.floor(n / 10)); p.pow = 0; p.powV = 0; p.fame = (p.fame || 0) + f; SIM.say(p.id, `捕虜${n}人を逃がしました（名声+${f}）`); }; // 1.6.83 10人ごとに名声+1（最低1）
   // 近くの城の家臣の一覧（参加者の画面用）
   const basePriv2 = SIM.privateState;
   SIM.privateState = function (w, pid) {

@@ -1149,8 +1149,8 @@
     const list = me.captives || [], el = $('captive'), on = (list.length || me.pow) && !(G.priv && G.priv.battle);
     el.classList.toggle('hidden', !on); if (!on) { captiveHtml = ''; return; }
     const AC = me.atCastle; /* 1.6.81 身代金と交換できるのは城だけ */
-    const html = (me.pow ? `<div class="cp"><span>捕虜の兵 ${me.pow}人</span>${AC ? `<button id="cp_ransom" data-cap="ransomPow">身代金と交換（${SIM.money(me.powV || 0)}）</button>` : '<span class="muted">城で身代金と交換できる</span>'}<button id="cp_rel" data-cap="releasePow">逃がす</button></div>` : '')
-      + list.map(([id, nm, fn, t, b, rm, rc]) => `<div class="cp"><span>${fn}の${nm}</span>${AC ? `<button id="cx_${id}" data-cap="ransomCaptive" data-id="${id}">身代金と交換（${SIM.money(rm || 0)}）</button>` : `<span class="muted">城で身代金${SIM.money(rm || 0)}</span>`}<button id="cr_${id}" data-cap="releaseCaptive" data-id="${id}">逃がす</button><button id="cg_${id}" data-cap="recruitCaptive" data-id="${id}" ${rc == null ? 'disabled' : ''}>${rc == null ? '登用（断られた）' : `登用する（${rc}%）`}</button></div>`).join('');
+    const html = (me.pow ? `<div class="cp"><span>捕虜の兵 ${me.pow}人</span>${AC ? `<button id="cp_ransom" data-cap="ransomPow">身代金と交換（${SIM.money(me.powV || 0)}）</button>` : '<span class="muted">城で身代金と交換できる</span>'}<button id="cp_rel" data-cap="releasePow">逃がす（名声+${Math.max(1, Math.floor(me.pow / 10))}）</button></div>` : '')
+      + list.map(([id, nm, fn, t, b, rm, rc]) => `<div class="cp"><span>${fn}の${nm}</span>${AC ? `<button id="cx_${id}" data-cap="ransomCaptive" data-id="${id}">身代金と交換（${SIM.money(rm || 0)}）</button>` : `<span class="muted">城で身代金${SIM.money(rm || 0)}</span>`}<button id="cr_${id}" data-cap="releaseCaptive" data-id="${id}">逃がす（名声+1）</button><button id="cg_${id}" data-cap="recruitCaptive" data-id="${id}" ${rc == null ? 'disabled' : ''}>${rc == null ? '登用（断られた）' : `登用する（${rc}%）`}</button></div>`).join('');
     if (html !== captiveHtml) { captiveHtml = html; $('captiveBody').innerHTML = html; }
   }
   $('captiveBody').addEventListener('click', (e) => {
