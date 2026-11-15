@@ -125,7 +125,7 @@
   // ===== 0.34.0 家臣の武将：城ごとに2〜4人（本城は多め）。能力（統率・武勇）を持ち、見回りの隊や軍勢を率いる =====
   const isMain = (w, s) => { const f = w.factions[s.owner]; return f && f.leader && s.lord === f.leader; };
   const want = (w, s) => (isMain(w, s) ? 4 : 2 + (s.id.length % 2));
-  SIM.genStats = (w, pr, lord) => { if (pr.tou == null) { const b = lord ? 50 : 35; pr.tou = b + Math.floor(rnd(w) * 40); pr.bu = b + Math.floor(rnd(w) * 40); } return pr; };
+  SIM.genStats = (w, pr, lord) => { pr.tou = pr.bu = 55; return pr; }; // 1.6.80 武将のステータスはなし（みな同じ。効き目なし）
   const cpuCastle = (w, s) => s.type === 'castle' && !s.site && s.owner && w.factions[s.owner] && !w.factions[s.owner].dead && !s.holder;
   const live = (w, id) => w.people[id] && !w.people[id].dead && !w.people[id].captive; // 捕らわれている武将は動けない
   function newVassal(w, s) { const id = newPerson(w, s.owner, { role: 'vassal', castle: s.id, loyal: 50 + Math.floor(rnd(w) * 30) }); if (!id) return null; SIM.genStats(w, w.people[id]); s.vass.push(id); return id; }
@@ -273,7 +273,7 @@
     }
     if (h) { h.vass.push(pr.id); pr.castle = h.id; }
   }
-  SIM.ransom = (pr) => { return 500 + ((pr.tou || 50) + (pr.bu || 50)) * 8; }; // 0.35.1 逃がすときの身代金
+  SIM.ransom = (pr) => 1380; // 0.35.1 逃がすときの身代金
   const captiveCmd = (kill) => (w, p, c) => {
     const i = (p.captives || []).indexOf(c.id); if (i < 0) return;
     p.captives.splice(i, 1);
