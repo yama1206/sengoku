@@ -102,7 +102,8 @@
     b.pids.push(p.id); p.battle = b.id; p.tx = p.ty = null; p.dest = null; p.path = null; p.at = null; p.busy = null; b.start[p.id] = Object.assign({}, p.troops);
     SIM.addPlayerSide(w, b, p);
     const nu = b.units.slice(k);
-    for (const u of nu) { u.x -= 20; u.order = u.type === 'hero' ? u.order : 'charge'; } // 後ろから駆けつける
+    if (b.defend && SIM.placeOutside) SIM.placeOutside(b, nu); /* 1.6.61 城を守る戦には城の外から */
+    else for (const u of nu) { u.x -= 20; u.order = u.type === 'hero' ? u.order : 'charge'; } // 後ろから駆けつける
     const A = b.act;
     if (A) { A.pids.push(p.id); for (const u of nu) { A.byG[u.id] = u; actAdd(A, b, u); } let ix = 2; for (const u of b.units) if ((u.owner || u.cmd) === p.id && u.type !== 'hero' && u.m0) u.idx = ix++; }
     SIM.say(p.id, `合戦に加わりました！（相手：${b.foe}）`);

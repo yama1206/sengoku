@@ -74,7 +74,7 @@
   SIM.besieged = (w, sid) => Object.values(w.npcs).some((n) => n.kind === 'army' && n.mode === 'siege' && n.to === sid && n.until != null)
     || Object.values(w.players).some((p) => p.siege && p.siege.sid === sid);
   /* 1.6.60 攻城戦の準備をされている城には入れない（中にいた人はそのまま守れる。外からは野戦で救う） */
-  const baseCanE = SIM.canEnter; SIM.canEnter = (w, p, s) => !(s.type === 'castle' && p.at !== s.id && SIM.besieged(w, s.id) && !(p.nin && p.ninQ && p.ninQ.to === s.id)) && baseCanE(w, p, s);
+  const baseCanE = SIM.canEnter; SIM.canEnter = (w, p, s) => !(s.type === 'castle' && p.at !== s.id && SIM.besieged(w, s.id) && !p.nin) && baseCanE(w, p, s); /* 1.6.61 忍びはいつでも入れる */
   SIM._armyGoHome = (w, n) => goHome(w, n);
   function goHome(w, n) {
     let h = SIM.settlement(w, n.home);
@@ -122,8 +122,9 @@
     for (const a of [n, t]) if (w.npcs[a.id] && !a.size) delete w.npcs[a.id];
   }
   function assault(w, n, s) { // 攻城戦準備が終わって総攻め
-    const defs = n.noDef ? [] : Object.values(w.players).filter((p) => p.clan === s.owner && !p.battle && p.at === s.id); /* 1.6.60 城の中にいる人だけ */
-    if (defs.length) return defenseBattle(w, n, s, defs);
+    const defs = n.noDef ? [] : Object.values(w.players).filter((p) => p.clan === s.owner && !p.battle && p.at === s.id); /* 1.6.60 城の中にいる人 */
+    const outs = n.noDef ? [] : Object.values(w.players).filter((p) => p.clan === s.owner && !p.battle && p.at !== s.id && dist(p, s) <= AR.fightKm); /* 1.6.61 近くにいる人は城の外から加わる */
+    if (defs.length || outs.length) return defenseBattle(w, n, s, defs, outs);
     const mine = Object.values(w.players).filter((p) => p.camp === n.id && !p.battle && dist(p, s) < AR.liftKm); // 0.50.0 参陣している人がいればいっしょに戦う
     if (mine.length && !n.solo) return SIM._armyAssault(w, n, s, mine);
     const r = SIM._campArrive(w, { to: s.id, att: n.faction, army: n.army });
@@ -193,16 +194,24 @@
     if (hs.length) { b.foe += `ほか${hs.length}隊`; for (const pid of b.pids) SIM.say(pid, `${hs.map((h) => armyName(w, h)).join('・')}も加わってきました！（敵は計${b.foeN}人）`); }
     n.with = null;
   }
-  function defenseBattle(w, n, s, defs) { // 防衛戦：城の丘で迎え撃つ
+  function defenseBattle(w, n, s, defs, outs = []) { // 防衛戦：城の丘で迎え撃つ
     const b = newBattle(w, n, { defend: s.id, loot: 800 + n.size * 20 });
     for (const q of defs) join(w, b, q, `${s.name}に${b.foe}${n.size}人が総攻めをかけてきました！ 城兵とともに${SIM.ckName(SIM.castleKind(s)) + 'の曲輪'}で迎え撃ちます`);
+    const ko = b.units.length;
+    for (const q of outs) join(w, b, q, `${s.name}に${b.foe}${n.size}人が総攻めをかけました！ 城の外から敵の背後を突きます`);
+    const outU = b.units.slice(ko);
     const wall = Math.floor((s.dev && s.dev.wall) || 0), k = b.units.length;
     M.addUnits(w, b, 'A', null, s.gar || {});
     for (const u of b.units.slice(k)) { u.gar = 1; u.order = 'hold'; u.da += 0.6 + wall * 0.15; u.mor = u.mo = 75 + wall * 2; u.y = Math.max(4, u.y - 18); }
     s.gar = {};
     M.addUnits(w, b, 'B', null, n.army);
     SIM.castleLayout(w, b, s, 'A'); // 0.37.0 平城・山城の攻城戦マップ
+    SIM.placeOutside(b, outU);
   }
+  SIM.placeOutside = (b, us) => { /* 1.6.61 城の外（攻め手の背後）に出る */
+    const F = SIM.FIELD, owners = [...new Set(us.map((u) => u.owner))];
+    for (const u of us) { const oi = owners.indexOf(u.owner); u.out = 1; u.x = F.w - 25 - (u.type === 'hero' ? 0 : 6); u.y = Math.max(10, Math.min(F.h - 10, u.y + (oi - (owners.length - 1) / 2) * 50)); u.f = Math.PI; u.order = u.type === 'hero' ? u.order : 'charge'; }
+  };
 
   // ---- 戦いの後 ----
   function allyTally(b, pid) { const t = {}; for (const u of b.units) if (u.owner === pid && u.ally && u.hp > 0) t[u.type] = (t[u.type] || 0) + u.n; return t; }
