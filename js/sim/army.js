@@ -73,6 +73,8 @@
   SIM.armyTo = (w, sid) => Object.values(w.npcs).some((n) => n.kind === 'army' && n.mode === 'siege' && n.to === sid);
   SIM.besieged = (w, sid) => Object.values(w.npcs).some((n) => n.kind === 'army' && n.mode === 'siege' && n.to === sid && n.until != null)
     || Object.values(w.players).some((p) => p.siege && p.siege.sid === sid);
+  /* 1.6.60 攻城戦の準備をされている城には入れない（中にいた人はそのまま守れる。外からは野戦で救う） */
+  const baseCanE = SIM.canEnter; SIM.canEnter = (w, p, s) => !(s.type === 'castle' && p.at !== s.id && SIM.besieged(w, s.id) && !(p.nin && p.ninQ && p.ninQ.to === s.id)) && baseCanE(w, p, s);
   SIM._armyGoHome = (w, n) => goHome(w, n);
   function goHome(w, n) {
     let h = SIM.settlement(w, n.home);
@@ -93,7 +95,7 @@
   function beginSiege(w, n, s) {
     n.until = w.time.min + AR.siegeDays * 1440; n.tx = n.ty = null; n.dest = null; n.x = s.x + 0.7; n.y = s.y + 0.4;
     news(w, `${armyName(w, n)}（${n.size}人）が${s.name}の前に陣を敷き、攻城戦の準備に入りました（${AR.siegeDays}日後に総攻め）`);
-    for (const p of Object.values(w.players)) if (p.clan === s.owner) SIM.say(p.id, `【急報】${s.name}の前に敵が陣を敷き、攻城戦の準備に入りました！ ${AR.siegeDays}日後に総攻めが来ます。城に入っていれば一緒に戦えます`);
+    for (const p of Object.values(w.players)) if (p.clan === s.owner) SIM.say(p.id, `【急報】${s.name}の前に敵が陣を敷き、攻城戦の準備に入りました！ ${AR.siegeDays}日後に総攻めが来ます。城の中にいれば一緒に守れます（外からはもう入れません。敵の陣に攻めかかれば野戦で追い払えます）`);
     sendRelief(w, s.owner, s, { army: n.id });
     for (const p of Object.values(w.players)) if (p.camp === n.id) SIM.say(p.id, `${s.name}の前に陣を敷き、攻城戦の準備に入りました。${AR.siegeDays}日後に総攻めです。軍勢のそばにいれば総攻めに加われます`);
   }
@@ -120,7 +122,7 @@
     for (const a of [n, t]) if (w.npcs[a.id] && !a.size) delete w.npcs[a.id];
   }
   function assault(w, n, s) { // 攻城戦準備が終わって総攻め
-    const defs = n.noDef ? [] : Object.values(w.players).filter((p) => p.clan === s.owner && !p.battle && dist(p, s) <= AR.fightKm && (p.at === s.id || p.tx == null));
+    const defs = n.noDef ? [] : Object.values(w.players).filter((p) => p.clan === s.owner && !p.battle && p.at === s.id); /* 1.6.60 城の中にいる人だけ */
     if (defs.length) return defenseBattle(w, n, s, defs);
     const mine = Object.values(w.players).filter((p) => p.camp === n.id && !p.battle && dist(p, s) < AR.liftKm); // 0.50.0 参陣している人がいればいっしょに戦う
     if (mine.length && !n.solo) return SIM._armyAssault(w, n, s, mine);

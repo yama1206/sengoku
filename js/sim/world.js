@@ -92,7 +92,7 @@
   // ===== コマンド（プレイヤーの操作はすべてここを通る：通信・セーブ・記録を同じ形で扱える） =====
   // 0.74.3 戦をしている家の城には入れない（調略の使いでその城へ行くときだけは入れる）
   SIM.canEnter = (w, p, s) => !(s.type === 'castle' && p.clan && SIM.atWar && SIM.atWar(w, p.clan, s.owner)) || (p.quests || []).some((q) => q.type === 'envoy' && q.to === s.id);
-  const denyEnter = (p, s) => { if (p.denied !== s.id) { p.denied = s.id; SIM.say(p.id, `${s.name}は戦をしている家の城なので入れません`); } };
+  const denyEnter = (p, s, w) => { if (p.denied !== s.id) { p.denied = s.id; SIM.say(p.id, w && SIM.besieged && SIM.besieged(w, s.id) ? `${s.name}は敵に囲まれていて入れません（攻城戦の準備中）。敵の陣に攻めかかって追い払いましょう` : `${s.name}は戦をしている家の城なので入れません`); } };
   SIM.commands = {
     move(w, p, c) {
       if (p.busy) return SIM.say(p.id, `${p.busy.label}の最中です（取りやめると報酬はもらえません）`);
@@ -182,11 +182,11 @@
     function playerMove(w, dt) {
       for (const p of Object.values(w.players)) {
         if (p.follow) followStep(w, p);
-        if (moveEntity(p, dt) && p.dest) { const s = SIM.settlement(w, p.dest); p.dest = null; if (s && !SIM.canEnter(w, p, s)) { denyEnter(p, s); continue; } p.at = s ? s.id : null; if (p.at) SIM.onPlayerArrive(w, p); continue; }
+        if (moveEntity(p, dt) && p.dest) { const s = SIM.settlement(w, p.dest); p.dest = null; if (s && !SIM.canEnter(w, p, s)) { denyEnter(p, s, w); continue; } p.at = s ? s.id : null; if (p.at) SIM.onPlayerArrive(w, p); continue; }
         // 歩いて（WASD・スティック）拠点の上で止まったときも「到着」とみなす
         if (p.tx == null && !p.at && !p.battle && !p.follow && !p.camp) { // 0.50.0 参陣中は軍勢といっしょ
           const s = w.settlements.find((x) => Math.hypot(x.x - p.x, x.y - p.y) < 0.8);
-          if (s && !SIM.canEnter(w, p, s)) denyEnter(p, s);
+          if (s && !SIM.canEnter(w, p, s)) denyEnter(p, s, w);
           else if (s) { p.x = s.x; p.y = s.y; p.at = s.id; SIM.onPlayerArrive(w, p); }
         }
       }
