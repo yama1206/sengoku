@@ -1,104 +1,120 @@
-// 通信（PeerJS・部屋コード方式。ホストが世界を計算し、参加者は命令を送って結果を受け取るだけ）
+// 通信（2.3.0 イセログ方式：世界コード＋ホストの掲示板。ホストが世界を計算し、参加者は命令を送って結果を受け取る）
+// 掲示板 worlds/sg世界コード/host ＝ { id:ホストのPeerJS ID, n:合言葉, at:サーバー時刻, name, cnt:人数, ver }
+// ホストは HOST_BEAT ごとに at を更新する。HOST_TTL より古ければ「空き」で、次に入った人がホストになる
 (function () {
   const NET = SGK.NET = {};
-  const CODE_CHARS = '0123456789';
+  const CL = SGK.CLOUD;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   NET.CODE_LEN = 6;
-  NET.CODE_CHARS = CODE_CHARS;
-  NET.makeCode = () => Array.from({ length: NET.CODE_LEN }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
 
-  // ---- フレンド：自分のフレンドコード（＝ホストするときの部屋コード）と、フレンド一覧 ----
-  NET.myCode = () => {
-    let c = localStorage.getItem('sgk-fcode');
-    if (!c || !/^\d{6}$/.test(c)) { c = NET.makeCode(); localStorage.setItem('sgk-fcode', c); }
-    return c;
-  };
-  NET.friends = () => { try { return JSON.parse(localStorage.getItem('sgk-friends')) || []; } catch (e) { return []; } };
-  NET.saveFriends = (l) => localStorage.setItem('sgk-friends', JSON.stringify(l.slice(0, 30)));
-  NET.addFriend = (code, name) => {
-    code = String(code || '').replace(/\D/g, ''); if (code.length !== NET.CODE_LEN || code === NET.myCode()) return false;
-    const l = NET.friends(), f = l.find((x) => x.code === code);
-    if (f) { if (name) f.name = String(name).slice(0, 12); } else l.unshift({ code, name: String(name || '').slice(0, 12) || 'フレンド' });
-    NET.saveFriends(l); return true;
-  };
-  NET.removeFriend = (code) => NET.saveFriends(NET.friends().filter((x) => x.code !== code));
-  // フレンドが部屋を開いているか調べる：cb(code, info|null)。info = { name, n, max, ver }
-  NET.probe = function (codes, cb) {
-    if (!window.Peer || !codes.length) return { close() {} };
-    const peer = new Peer(), left = new Set(codes);
-    const done = (c, info) => { if (!left.has(c)) return; left.delete(c); cb(c, info); if (!left.size) setTimeout(() => { try { peer.destroy(); } catch (e) {} }, 200); };
-    peer.on('open', () => {
-      for (const c of codes) {
-        const conn = peer.connect(SGK.CFG.PEER_PREFIX + c, { reliable: true });
-        conn.on('open', () => conn.send({ t: 'ping' }));
-        conn.on('data', (m) => { if (m && m.t === 'pong') { done(c, m); conn.close(); } });
+  NET.openPeer = () => new Promise((res, rej) => {
+    if (!window.Peer) return rej(new Error('通信ライブラリを読み込めませんでした'));
+    const p = new Peer(), tm = setTimeout(() => { try { p.destroy(); } catch (e) {} rej(new Error('通信の準備ができませんでした')); }, 10000);
+    p.on('open', () => { clearTimeout(tm); res(p); });
+    p.on('error', (e) => { if (!p.open) { clearTimeout(tm); rej(new Error('通信エラー: ' + e.type)); } });
+  });
+
+  // ホストに名乗り出る：書いてから少し待って読み直し、自分の合言葉が残っていればホスト
+  async function claim(code, peer, info) {
+    const n = Math.random().toString(36).slice(2, 10);
+    await CL.rest(code, 'host', 'PUT', Object.assign({ id: peer ? peer.id : '', n, at: { '.sv': 'timestamp' }, ver: SGK.VERSION }, info()));
+    await sleep(1200 + Math.random() * 400);
+    const h = await CL.rest(code, 'host');
+    return h && h.n === n ? n : null;
+  }
+
+  // 世界に入る：ホストがいれば参加者、いなければ自分がホスト。{ role:'host', peer, nonce } / { role:'guest', peer, board }
+  NET.enter = async function (code, info) {
+    await CL.clock(code);
+    let peer = null; try { peer = await NET.openPeer(); } catch (e) { console.warn(e); } // 使えなくても、ホストとして1人では遊べる
+    try {
+      for (let tr = 0; tr < 4; tr++) {
+        const h = await CL.rest(code, 'host');
+        if (CL.fresh(h)) {
+          if (h.ver !== SGK.VERSION) throw new Error(`この世界はいま ver ${h.ver} で遊ばれています（あなたは ${SGK.VERSION}）。両方とも更新ボタンを押してください`);
+          if (!peer) throw new Error('通信の準備ができませんでした。少し待ってから、もう一度入ってください');
+          if (h.id) return { role: 'guest', peer, board: h };
+          await sleep(2500); continue;
+        }
+        const n = await claim(code, peer, info);
+        if (n) return { role: 'host', peer, nonce: n };
+        await sleep(2500);
       }
-    });
-    peer.on('error', (e) => { if (e.type === 'peer-unavailable') { const m = String(e.message || '').match(/(\d{6})\s*$/); if (m) done(m[1], null); } });
-    setTimeout(() => { for (const c of [...left]) done(c, null); }, 7000);
-    return { close() { left.clear(); try { peer.destroy(); } catch (e) {} } };
+      throw new Error('ホストにつながりませんでした。少し待ってから、もう一度入ってください');
+    } catch (e) { if (peer) try { peer.destroy(); } catch (x) {} throw e; }
   };
 
-  // ホスト：h = { onHello(conn, msg) -> pid|null, onCmd(pid, cmd), onLeave(pid), onReady(code), onError(text), info() -> {name,n,max} }
-  // 部屋コードは自分のフレンドコード（使えないときだけその場で作る）
-  NET.host = function (h) {
-    let code = NET.myCode(), peer, tried = false;
+  // ホスト：h = { onHello(conn, msg) -> pid|null, onCmd(pid, cmd), onLeave(pid), onLost(text), info() -> {name,cnt} }
+  NET.host = function (peer, code, nonce, h) {
     const conns = new Map(); // conn -> pid
-    const open = () => {
-      peer = new Peer(SGK.CFG.PEER_PREFIX + code);
-      peer.on('open', () => h.onReady(code));
-      peer.on('error', (e) => {
-        if (e.type === 'unavailable-id' && !tried) { tried = true; try { peer.destroy(); } catch (x) {} code = NET.makeCode(); open(); return; } // 別のタブなどで使用中
-        h.onError(e.type === 'unavailable-id' ? '部屋コードが重なりました。もう一度お試しください' : '通信エラー: ' + e.type);
-      });
-      peer.on('connection', onConn);
+    let gone = false;
+    const rec = () => Object.assign({ id: peer ? peer.id : '', n: nonce, at: { '.sv': 'timestamp' }, ver: SGK.VERSION }, h.info());
+    let lastBeat = Date.now(), beating = false;
+    const beat = async () => {
+      if (beating) return; beating = true; lastBeat = Date.now();
+      try {
+        const b = await CL.rest(code, 'host'); if (gone) return;
+        if (b && b.n !== nonce && CL.fresh(b)) { gone = true; h.onLost('別の人がこの世界のホストになりました'); return; }
+        await CL.rest(code, 'host', 'PUT', rec());
+      } catch (e) { console.warn(e); } finally { beating = false; }
     };
-    const onConn = (conn) => {
-      conn.on('data', (m) => {
-        if (!m || typeof m !== 'object') return;
-        if (m.t === 'ping') { conn.send(Object.assign({ t: 'pong', ver: SGK.VERSION }, h.info ? h.info() : {})); setTimeout(() => conn.close(), 500); return; }
-        if (m.t === 'hello') {
-          if (m.ver !== SGK.VERSION) { conn.send({ t: 'bye', reason: `バージョンが違います（ホスト ${SGK.VERSION}）。更新ボタンを押してください` }); setTimeout(() => conn.close(), 500); return; }
-          const pid = h.onHello(conn, m);
-          if (!pid) { conn.send({ t: 'bye', reason: '満員です' }); setTimeout(() => conn.close(), 500); return; }
-          conns.set(conn, pid);
-        } else if (m.t === 'cmd' && conns.has(conn)) h.onCmd(conns.get(conn), m.cmd);
+    // 裏のタブでは setInterval が遅くなるので、ホストの進行（Worker の合図）からも呼ぶ
+    const tick = () => { if (!gone && Date.now() - lastBeat >= SGK.CFG.HOST_BEAT) beat(); };
+    const iv = setInterval(tick, 1000);
+    if (peer) {
+      peer.on('connection', (conn) => {
+        conn.on('data', (m) => {
+          if (!m || typeof m !== 'object') return;
+          if (m.t === 'hello') {
+            if (m.ver !== SGK.VERSION) { conn.send({ t: 'bye', reason: `バージョンが違います（ホスト ${SGK.VERSION}）。更新ボタンを押してください` }); setTimeout(() => conn.close(), 500); return; }
+            const pid = h.onHello(conn, m);
+            if (!pid) { conn.send({ t: 'bye', reason: '満員です' }); setTimeout(() => conn.close(), 500); return; }
+            for (const [c, p] of conns) if (p === pid && c !== conn) { conns.delete(c); try { c.close(); } catch (e) {} } // 同じ人がつなぎ直したら古い方を切る
+            conns.set(conn, pid);
+          } else if (m.t === 'cmd' && conns.has(conn)) h.onCmd(conns.get(conn), m.cmd);
+        });
+        conn.on('close', () => { const pid = conns.get(conn); if (!pid) return; conns.delete(conn); if (![...conns.values()].includes(pid)) h.onLeave(pid); });
       });
-      conn.on('close', () => { const pid = conns.get(conn); conns.delete(conn); if (pid) h.onLeave(pid); });
-    };
-    open();
+      peer.on('disconnected', () => setTimeout(() => { try { if (!gone && !peer.destroyed) peer.reconnect(); } catch (e) {} }, 2000));
+    }
     return {
       each(fn) { for (const [c, pid] of conns) if (c.open) { const m = fn(pid); try { c.send(JSON.stringify(m)); } catch (e) { console.error(e); try { c.send({ t: 'err', text: 'エラー(送信): ' + (e && e.message) }); } catch (e2) {} } } },
       sendTo(pid, msg) { const j = JSON.stringify(msg); for (const [c, p] of conns) if (p === pid && c.open) c.send(j); },
       broadcast(msg) { const j = JSON.stringify(msg); for (const c of conns.keys()) if (c.open) c.send(j); },
       count: () => conns.size,
-      pids: () => [...conns.values()],
-      close() { for (const c of conns.keys()) try { c.send({ t: 'bye', reason: 'ホストがワールドを閉じました' }); } catch (e) {} setTimeout(() => peer.destroy(), 300); },
+      pids: () => [...new Set(conns.values())],
+      beat, tick,
+      // 掲示板を消す（すぐ次の人がホストになれるように）。閉じる時は keepalive で送りっぱなし
+      unboard(ka) { return CL.rest(code, 'host', 'DELETE', undefined, ka).catch(() => {}); },
+      close(why) {
+        gone = true; clearInterval(iv);
+        for (const c of conns.keys()) try { c.send({ t: 'bye', reason: why || 'ホストが世界から出ました' }); } catch (e) {}
+        setTimeout(() => { try { if (peer) peer.destroy(); } catch (e) {} }, 300);
+      },
     };
   };
 
-  // 参加者：h = { onWelcome(msg), onState(msg), onBye(reason), onError(text) }
-  NET.join = function (code, token, name, h) {
-    const peer = new Peer();
-    let conn, done = false;
+  // 参加者：h = { onWelcome(msg), onState(msg), onAct(msg), onErr(msg), onBye(reason) }
+  NET.join = function (peer, board, token, name, h) {
+    let conn, done = false, ok = false;
     const end = (why) => { if (done) return; done = true; h.onBye(why); try { peer.destroy(); } catch (e) {} };
-    peer.on('open', () => {
-      conn = peer.connect(SGK.CFG.PEER_PREFIX + code.replace(/\D/g, ''), { reliable: true });
-      conn.on('open', () => conn.send({ t: 'hello', token, name, ver: SGK.VERSION, fcode: NET.myCode(), prof: NET.prof || null }));
-      conn.on('data', (m) => {
-        if (typeof m === 'string') { try { m = JSON.parse(m); } catch (e) { if (h.onErr) h.onErr({ text: 'エラー(受信): ' + e.message }); return; } } // 1.6.5 ホストからは文字列(JSON)で届く
-        if (!m || !m.t) { if (h.onErr) h.onErr({ text: 'エラー(受信): 読めないデータ ' + typeof m }); return; }
-        if (m.t === 'welcome') h.onWelcome(m);
-        else if (m.t === 'state') h.onState(m);
-        else if (m.t === 'act') { if (h.onAct) h.onAct(m); }
-        else if (m.t === 'err') { if (h.onErr) h.onErr(m); }
-        else if (m.t === 'bye') end(m.reason);
-      });
-      conn.on('close', () => end('ホストとの接続が切れました'));
+    const tm = setTimeout(() => { if (!ok) end('ホストから返事がありませんでした。少し待ってから、もう一度入ってください'); }, 12000);
+    conn = peer.connect(board.id, { reliable: true });
+    conn.on('open', () => conn.send({ t: 'hello', token, name, ver: SGK.VERSION, prof: NET.prof || null }));
+    conn.on('data', (m) => {
+      if (typeof m === 'string') { try { m = JSON.parse(m); } catch (e) { if (h.onErr) h.onErr({ text: 'エラー(受信): ' + e.message }); return; } } // ホストからは文字列(JSON)で届く
+      if (!m || !m.t) { if (h.onErr) h.onErr({ text: 'エラー(受信): 読めないデータ ' + typeof m }); return; }
+      if (m.t === 'welcome') { ok = true; clearTimeout(tm); h.onWelcome(m); }
+      else if (m.t === 'state') h.onState(m);
+      else if (m.t === 'act') { if (h.onAct) h.onAct(m); }
+      else if (m.t === 'err') { if (h.onErr) h.onErr(m); }
+      else if (m.t === 'bye') end(m.reason);
     });
-    peer.on('error', (e) => { if (e.type === 'peer-unavailable') end('その部屋が見つかりません（いまは開いていないようです）'); else h.onError('通信エラー: ' + e.type); });
+    conn.on('close', () => end('ホストとの接続が切れました'));
+    peer.on('error', (e) => { if (e.type === 'peer-unavailable') end('ホストが見つかりませんでした（抜けたばかりかもしれません）。20秒ほど待ってから、もう一度入ってください'); else if (!ok) end('通信エラー: ' + e.type); });
     return {
       send(cmd) { if (conn && conn.open) conn.send({ t: 'cmd', cmd }); },
-      close() { done = true; try { peer.destroy(); } catch (e) {} },
+      close() { done = true; clearTimeout(tm); try { peer.destroy(); } catch (e) {} },
     };
   };
 })();

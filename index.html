@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="2.2.2">
+<meta name="sgk-ver" content="2.3.0">
 <title>戦国出世</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -133,10 +133,10 @@
   </div>
   <div class="menu" id="titleMenu">
     <button id="btnName">人物をつくる</button>
-    <button id="btnNew">新しいワールドを作る（ホスト）</button>
-    <button id="btnContinue">続きから（ホスト）</button>
-    <button id="btnFriend">フレンド（コードなしで参加）</button>
-    <button id="btnJoin">部屋コードで参加する</button>
+    <button id="btnNew">新しい世界を作る</button>
+    <button id="btnContinue">続きから（この端末の控え）</button>
+    <button id="btnFriend">世界の一覧（入ったことのある世界）</button>
+    <button id="btnJoin">世界コードで入る</button>
     <button id="btnImport">セーブファイルを読み込む</button>
     <button id="btnSettings">設定（音・操作説明）</button>
     <button id="btnYear" class="yearBtn"></button>
@@ -150,9 +150,9 @@
   <div class="menu hidden" id="mapPanel"><div id="smInfo"></div><div id="smBox"><canvas id="smCv"></canvas><div id="smLayer"></div></div><div class="row"><button id="smOut">－ 縮小</button><button id="smIn">＋ 拡大</button><button id="smRnd">おまかせ</button><button id="smOk">この町に決める</button></div></div>
   <div class="menu hidden" id="createPanel" style="width:min(560px,96vw);max-height:86vh;overflow:auto"><div id="createBody"></div></div>
   <div class="menu hidden" id="joinPanel">
-    <input id="codeInput" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="部屋コード（数字6けた）" style="letter-spacing:.3em;text-align:center">
+    <input id="codeInput" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="世界コード（数字6けた）" style="letter-spacing:.3em;text-align:center">
     <div id="codeKeys" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:6px 0"></div>
-    <div class="row"><button id="btnJoinBack">戻る</button><button id="btnJoinGo">参加</button></div>
+    <div class="row"><button id="btnJoinBack">戻る</button><button id="btnJoinGo">入る</button></div>
   </div>
   <div class="menu hidden" id="slotPanel" style="width:min(520px,94vw)">
     <div class="muted" id="slotTitle" style="text-align:center"></div>
@@ -160,9 +160,8 @@
     <div class="row"><button id="btnSlotBack">戻る</button></div>
   </div>
   <div class="menu hidden" id="friendPanel" style="width:min(520px,94vw)">
-    <div class="muted" style="text-align:center">あなたのフレンドコード <b id="myFcode" style="letter-spacing:.2em"></b><br>ホストするといつもこの番号の部屋になります。一緒に遊んだ相手は自動でフレンドに入ります</div>
+    <div class="muted" style="text-align:center">入ったことのある世界です。ホストがいればその人の世界に入り、誰もいなければあなたがホストになって時間が進みます</div>
     <div id="friendList" style="max-height:46vh;overflow:auto"></div>
-    <div class="row"><input id="fcInput" maxlength="6" inputmode="numeric" placeholder="フレンドコードで追加" style="letter-spacing:.2em;text-align:center"><button id="btnFcAdd">追加</button></div>
     <div class="row"><button id="btnFriendBack">戻る</button><button id="btnFriendRefresh">状況を更新</button></div>
   </div>
   <div id="titleMsg"></div>
@@ -265,7 +264,7 @@
 <script>
   // 更新が確実に反映されるよう、毎回最新のファイルを読み込む
   (function () {
-    const files = ['js/config.js', 'js/data/world1560.js', 'js/data/villages.js', 'js/data/geo.js', 'js/data/items.js', 'js/sim/world.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/sim/castle.js', 'js/sim/daimyo.js', 'js/sim/siege.js', 'js/sim/army.js', 'js/sim/bushou.js', 'js/sim/supply.js', 'js/sim/house.js', 'js/sim/quest.js', 'js/sim/fushin.js', 'js/sim/invest.js', 'js/sim/equip.js', 'js/sim/castlemap.js', 'js/sim/kuni.js', 'js/sim/torihiki.js', 'js/sim/seisaku.js', 'js/sim/skill.js', 'js/sim/shinobi.js', 'js/save.js', 'js/net/net.js', 'js/kamon.js', 'js/render.js', 'js/audio.js', 'js/action.js', 'js/lib/BufferGeometryUtils.js', 'js/lib/GLTFLoader.js', 'js/soldier3d.js', 'js/action3d.js', 'js/ninja.js', 'js/main.js'];
+    const files = ['js/config.js', 'js/data/world1560.js', 'js/data/villages.js', 'js/data/geo.js', 'js/data/items.js', 'js/sim/world.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/sim/castle.js', 'js/sim/daimyo.js', 'js/sim/siege.js', 'js/sim/army.js', 'js/sim/bushou.js', 'js/sim/supply.js', 'js/sim/house.js', 'js/sim/quest.js', 'js/sim/fushin.js', 'js/sim/invest.js', 'js/sim/equip.js', 'js/sim/castlemap.js', 'js/sim/kuni.js', 'js/sim/torihiki.js', 'js/sim/seisaku.js', 'js/sim/skill.js', 'js/sim/shinobi.js', 'js/save.js', 'js/net/cloud.js', 'js/net/net.js', 'js/kamon.js', 'js/render.js', 'js/audio.js', 'js/action.js', 'js/lib/BufferGeometryUtils.js', 'js/lib/GLTFLoader.js', 'js/soldier3d.js', 'js/action3d.js', 'js/ninja.js', 'js/main.js'];
     /* 1.6.54 一度に並べて読み込む（順番は async=false で守る）。版が同じ間はブラウザに残したものを使う（版が上がると新しく読む） */
     const mv = document.querySelector('meta[name="sgk-ver"]'), v = (mv && mv.content) || Date.now();
     for (const f of files) { const s = document.createElement('script'); s.src = f + '?v=' + v; s.async = false; document.body.appendChild(s); }

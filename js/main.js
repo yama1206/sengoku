@@ -105,15 +105,16 @@
     if (slotMode === 'load') {
       try {
         const r = await SGK.SAVE.load(n); if (!r) return titleMsg('このスロットのセーブが読めませんでした');
-        titleBack(); startHost(r.world, r.from === 'main' ? `スロット${n}の続きから再開しました` : 'セーブが読めなかったので、バックアップから再開しました');
+        titleBack(); playWorld(r.world.code || null, r.world, r.from === 'main' ? `スロット${n}の続きから再開しました` : 'セーブが読めなかったので、バックアップから再開しました', n);
       } catch (err) { titleMsg(err.message); }
       return;
     }
     if (used) await SGK.SAVE.remove(n);
     SGK.SAVE.slot = n;
     const w = slotMode === 'import' ? importWorld : SIM.createWorld(Math.floor(Math.random() * 2 ** 31));
-    importWorld = null; titleBack();
-    startHost(w, slotMode === 'import' ? `セーブファイルをスロット${n}に読み込みました` : `スロット${n}に新しいワールドを作りました`);
+    const imp = slotMode === 'import'; importWorld = null; titleBack();
+    if (imp) delete w.code; // 読み込んだセーブは別の世界として新しいコードを付ける
+    playWorld(null, w, imp ? `セーブファイルをスロット${n}に読み込みました` : `スロット${n}に新しい世界を作りました`, n);
   });
   $('btnNew').onclick = () => openSlots('new');
   $('btnContinue').onclick = () => openSlots('load');
@@ -140,40 +141,34 @@
     ci.value = b.dataset.ck === 'del' ? ci.value.slice(0, -1) : (ci.value + b.dataset.ck).slice(0, CL);
     if (ci.value.length === CL && b.dataset.ck !== 'del') setFocus($('joinPanel'), $('btnJoinGo'));
   });
-  function titleBack() { if (probe) { probe.close(); probe = null; } if ($('mSet').parentNode === $('title')) { $('mSet').classList.add('hidden'); $('gameMenu').insertBefore($('mSet'), $('mMain')); } $('slotPanel').classList.add('hidden'); $('friendPanel').classList.add('hidden'); $('joinPanel').classList.add('hidden'); $('namePanel').classList.add('hidden'); $('createPanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); setFocus($('titleMenu'), currentFocus($('titleMenu'))); }
+  function titleBack() { probe = null; if ($('mSet').parentNode === $('title')) { $('mSet').classList.add('hidden'); $('gameMenu').insertBefore($('mSet'), $('mMain')); } $('slotPanel').classList.add('hidden'); $('friendPanel').classList.add('hidden'); $('joinPanel').classList.add('hidden'); $('namePanel').classList.add('hidden'); $('createPanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); setFocus($('titleMenu'), currentFocus($('titleMenu'))); }
   $('btnJoinBack').onclick = titleBack;
-  // ---------- フレンド ----------
+  // ---------- 2.3.0 世界の一覧（入ったことのある世界。ホストがいるか・いつまで進んだか） ----------
   let probe = null; const fstat = {};
   function renderFriends() {
-    const NET = SGK.NET, l = NET.friends();
-    $('myFcode').textContent = NET.myCode();
-    $('friendList').innerHTML = l.length ? l.map((f) => {
-      const st = fstat[f.code], on = st && st !== 'off' && st !== '…';
-      const txt = st === '…' || !st ? '確認中…' : st === 'off' ? '部屋は開いていません' : st.ver !== SGK.VERSION ? `部屋あり（バージョン違い ${st.ver}）` : `部屋あり ${st.n || 1}/${st.max || CFG.MAX_PLAYERS}人`;
-      return `<div class="card"><div><b>${(f.name || 'フレンド').replace(/[<&]/g, '')}</b>　<span class="muted">${f.code}</span><br><span class="${on ? '' : 'muted'}" style="${on ? 'color:#8fe08f' : ''}">${txt}</span></div>`
-        + `<div class="row"><button id="fj-${f.code}" data-fjoin="${f.code}" ${on && st.ver === SGK.VERSION ? '' : 'disabled'}>参加</button><button id="fd-${f.code}" data-fdel="${f.code}">削除</button></div></div>`;
-    }).join('') : '<div class="muted" style="text-align:center;margin:8px">まだフレンドがいません。部屋コードで一度参加するか、フレンドコードを追加してください</div>';
+    const l = SGK.CLOUD.worlds();
+    $('friendList').innerHTML = l.length ? l.map(({ code }) => {
+      const st = fstat[code] || {}, h = st.h, inf = st.i, live = SGK.CLOUD.fresh(h);
+      const txt = !st.done ? '確認中…' : !inf && !live ? 'この世界は見つかりません' : live ? (h.ver !== SGK.VERSION ? `${(h.name || '').replace(/[<&]/g, '')}がホスト（バージョン違い ${h.ver}）` : `${(h.name || '').replace(/[<&]/g, '')}がホスト　${h.cnt || 1}/${CFG.MAX_PLAYERS}人`) : '誰もいません（入るとあなたがホストになり、時間が進みます）';
+      const desc = inf ? `${SIM.formatDate(inf.min || 0)}　${(inf.names || []).join('・').replace(/[<&]/g, '')}` : '';
+      return `<div class="card"><div><b style="letter-spacing:.15em">${code}</b>　<span class="muted">${desc}</span><br><span class="${live ? '' : 'muted'}" style="${live ? 'color:#8fe08f' : ''}">${txt}</span></div>`
+        + `<div class="row"><button id="fj-${code}" data-fjoin="${code}" ${st.done && (inf || live) ? '' : 'disabled'}>入る</button><button id="fd-${code}" data-fdel="${code}">一覧から外す</button></div></div>`;
+    }).join('') : '<div class="muted" style="text-align:center;margin:8px">まだありません。新しい世界を作るか、世界コードで入ってください</div>';
   }
   function refreshFriends() {
-    const codes = SGK.NET.friends().map((f) => f.code);
-    if (probe) probe.close();
-    codes.forEach((c) => (fstat[c] = '…')); renderFriends();
-    probe = SGK.NET.probe(codes, (c, info) => { fstat[c] = info || 'off'; if (info && info.name) SGK.NET.addFriend(c, info.name); renderFriends(); });
+    const my = probe = {}; renderFriends();
+    for (const { code } of SGK.CLOUD.worlds()) {
+      fstat[code] = {};
+      Promise.all([SGK.CLOUD.clock(code).then(() => SGK.CLOUD.rest(code, 'host')).catch(() => null), SGK.CLOUD.info(code)]).then(([h, i]) => { if (probe !== my) return; fstat[code] = { h, i, done: true }; renderFriends(); });
+    }
   }
   $('btnFriend').onclick = () => { $('friendPanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); refreshFriends(); setFocus($('friendPanel'), $('btnFriendRefresh')); };
   $('btnFriendBack').onclick = titleBack;
   $('btnFriendRefresh').onclick = refreshFriends;
-  $('fcInput').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, CL); });
-  $('btnFcAdd').onclick = () => {
-    const c = $('fcInput').value;
-    if (c === SGK.NET.myCode()) return titleMsg('それは自分のフレンドコードです');
-    if (!SGK.NET.addFriend(c)) return titleMsg(`フレンドコード（数字${CL}けた）を入れてください`);
-    $('fcInput').value = ''; titleMsg('フレンドに追加しました'); refreshFriends();
-  };
   $('friendList').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.fjoin) { const c = b.dataset.fjoin; titleBack(); startClient(c); }
-    else if (b.dataset.fdel) { SGK.NET.removeFriend(b.dataset.fdel); renderFriends(); setFocus($('friendPanel'), $('btnFriendRefresh')); }
+    if (b.dataset.fjoin) { const c = b.dataset.fjoin; titleBack(); playWorld(c, null, ''); }
+    else if (b.dataset.fdel) { SGK.CLOUD.forget(b.dataset.fdel); renderFriends(); setFocus($('friendPanel'), $('btnFriendRefresh')); }
   });
   // ---------- 家紋の編集（人物画面とはじめの人物づくりで共用） ----------
   const MON_RANGE = { f: [0, 3], s: [0, 6], n: [1, 8], d: [0, 6], z: [1, 6], r: [0, 7], c: [-1, 6] };
@@ -346,35 +341,69 @@
   $('nkDel').onclick = nkDel;
   $('nkOk').onclick = () => closeNameKb(true);
   $('btnNameBack').onclick = () => closeNameKb(false);
-  $('btnJoinGo').onclick = () => { const c = $('codeInput').value.replace(/\D/g, ''); if (c.length < CL) return titleMsg(`部屋コード（数字${CL}けた）を入れてください`); startClient(c); };
+  $('btnJoinGo').onclick = () => { const c = $('codeInput').value.replace(/\D/g, ''); if (c.length < CL) return titleMsg(`世界コード（数字${CL}けた）を入れてください`); titleBack(); playWorld(c, null, ''); };
 
   // ---------- ホスト ----------
   const timerWorker = new Worker(URL.createObjectURL(new Blob(['let iv;onmessage=e=>{clearInterval(iv);if(e.data>0)iv=setInterval(()=>postMessage(0),e.data)}'], { type: 'text/javascript' })));
   let lastTick = 0, netAcc = 0, saveAcc = 0, saveCount = 0;
 
-  function startHost(world, msg) {
-    G.mode = 'host'; G.world = world; G.speed = 1; G.disp = {}; G.selected = null;
+  // ---------- 2.3.0 世界に入る（イセログ方式）：ホストがいれば参加、いなければ自分がホスト ----------
+  // code：世界コード（null なら新しく作る）／local：この端末の世界（新規・控え・読み込み）／slot：この端末の控えのスロット
+  let entering = false;
+  async function playWorld(code, local, msg, slot) {
+    if (entering) return; entering = true;
+    const CLD = SGK.CLOUD;
+    try {
+      if (!CLD.on()) { if (!local) throw new Error('クラウドが使えません'); SGK.SAVE.slot = slot || 0; startHost(local, msg, null); return; }
+      titleMsg('世界に入っています…');
+      if (!code) { code = await CLD.newCode(); local.code = code; }
+      myProf();
+      const ent = await SGK.NET.enter(code, () => ({ name: myName(), cnt: 1 }));
+      CLD.remember(code);
+      if (ent.role === 'guest') { titleMsg('ホストにつないでいます…'); startClient(ent, code); return; }
+      let w = local, cloud = null;
+      try { cloud = await CLD.load(code); } catch (e) { if (/新しいバージョン/.test(e.message)) { SGK.CLOUD.rest(code, 'host', 'DELETE').catch(() => {}); throw e; } console.warn(e); }
+      if (cloud && (!w || (cloud.savedAt || 0) > (w.savedAt || 0))) { w = cloud; if (local) msg = 'クラウドの方が新しかったので、そちらから再開しました'; }
+      if (!w) { CLD.rest(code, 'host', 'DELETE').catch(() => {}); try { ent.peer && ent.peer.destroy(); } catch (e) {} throw new Error('その世界は見つかりません（世界コードを確かめてください）'); }
+      w.code = code;
+      SGK.SAVE.slot = slot || SGK.SAVE.slotOf(code) || 0;
+      startHost(w, msg || '👑 あなたがホストになりました（いまからこの世界の時間が進みます）', ent);
+    } catch (e) { G.mode = 'title'; titleMsg(e.message); }
+    finally { entering = false; }
+  }
+  // クラウドへ保存（ホストだけ）
+  let cloudAt = 0;
+  function cloudSave(force) {
+    if (G.mode !== 'host' || !G.world || !G.world.code || G.noCloud) return Promise.resolve(false);
+    cloudAt = 0;
+    return SGK.CLOUD.save(G.world.code, G.world).then((ok) => { if (!ok && SGK.CLOUD.err && G.lastCloudErr !== SGK.CLOUD.err) { G.lastCloudErr = SGK.CLOUD.err; toast('☁️ クラウド保存に失敗：' + SGK.CLOUD.err, 5000); } return ok; });
+  }
+  const cloudSoon = () => { if (!cloudAt) cloudAt = performance.now() + CFG.CLOUD_SOON_MS; };
+
+  function startHost(world, msg, ent) {
+    G.mode = 'host'; G.world = world; G.noCloud = false; G.speed = 1; G.disp = {}; G.selected = null;
     G.myPid = SIM.addPlayer(world, token, myName(), myProf()); SIM.localPid = G.myPid;
     G.stat = SIM.staticState(world);
     show('game'); hostUI(true); toast(msg);
     centerOnMe();
     lastTick = performance.now(); netAcc = saveAcc = 0;
     timerWorker.onmessage = hostTick; timerWorker.postMessage(CFG.TICK_MS);
-    SGK.SAVE.save(world);
-    if (window.Peer) {
-      G.net = SGK.NET.host({
-        onReady: (code) => { G.roomCode = code; updateRoom(); },
-        onError: (t) => toast(t, 5000),
-        info: () => ({ name: myName(), n: (G.net ? G.net.count() : 0) + 1, max: CFG.MAX_PLAYERS }),
+    SGK.SAVE.save(world); cloudSave(); G.roomCode = world.code || null; G.evKey = null;
+    titleMsg('');
+    if (ent) {
+      G.net = SGK.NET.host(ent.peer, world.code, ent.nonce, {
+        onLost: (t) => { G.noCloud = true; G.net.close(t); G.net = null; backToTitle(); titleMsg(t); },
+        info: () => ({ name: myName(), cnt: (G.net ? G.net.pids().length : 0) + 1 }),
         onHello: (conn, m) => {
           const pid = SIM.addPlayer(G.world, String(m.token).slice(0, 40), String(m.name || '').slice(0, 12), m.prof);
-          if (pid) { if (m.fcode) SGK.NET.addFriend(m.fcode, m.name); conn.send({ t: 'welcome', pid, static: G.stat, ver: SGK.VERSION, hostCode: G.roomCode, hostName: myName() }); toast(`${G.world.players[pid].name} が参加しました`); updateRoom(); }
+          if (pid) { conn.send({ t: 'welcome', pid, static: G.stat, ver: SGK.VERSION, hostCode: G.roomCode, hostName: myName() }); toast(`${G.world.players[pid].name} が参加しました`); updateRoom(); setTimeout(() => G.net && G.net.beat(), 500); }
           return pid;
         },
         onCmd: (pid, cmd) => SIM.applyCommand(G.world, pid, cmd),
-        onLeave: (pid) => { for (const b of Object.values(G.world.battles || {})) if (b.act) { delete b.act.inp[pid]; } const p = G.world.players[pid]; if (p) toast(`${p.name} が退出しました`); updateRoom(); },
+        onLeave: (pid) => { for (const b of Object.values(G.world.battles || {})) if (b.act) { delete b.act.inp[pid]; } const p = G.world.players[pid]; if (p) toast(`${p.name} が退出しました`); updateRoom(); cloudSoon(); },
       });
-    } else { toast('通信ライブラリを読み込めませんでした（一人で遊べます）', 5000); }
+      if (!ent.peer) toast('通信の準備ができなかったので、ほかの人は入れません（1人で遊べます）', 5000);
+    } else if (SGK.CLOUD.on()) toast('クラウドにつながらないので、この端末だけで遊びます', 5000);
     updateRoom();
   }
   function hostTick() { try { hostTick0(); } catch (e) { const t = 'エラー(ホストの進行): ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastHostErr !== t) { G.lastHostErr = t; errToast(t); } } }
@@ -408,45 +437,52 @@
       for (const pid in SIM.out) if (pid !== G.myPid) delete SIM.out[pid]; // 接続していない人宛ては捨てる
     }
     saveAcc += dt;
-    if (saveAcc >= CFG.AUTOSAVE_SEC) { saveAcc = 0; SGK.SAVE.save(G.world); if (++saveCount % CFG.BACKUP_EVERY === 0) SGK.SAVE.backup(G.world); }
+    if (saveAcc >= CFG.AUTOSAVE_SEC) { saveAcc = 0; SGK.SAVE.save(G.world); cloudSave(); if (++saveCount % CFG.BACKUP_EVERY === 0) SGK.SAVE.backup(G.world); }
+    { // 2.3.0 大事な出来事（合戦が終わった・城や村の持ち主が変わった・仕官や昇進）のあとはすぐクラウドへ
+      const w = G.world, k = Object.keys(w.battles || {}).length + '|' + w.settlements.map((x) => x.owner || '').join(',') + '|' + Object.values(w.players).map((p) => (p.clan || '') + (p.rank && p.rank.id || p.rank || '')).join(',');
+      if (G.evKey != null && k !== G.evKey) cloudSoon(); G.evKey = k;
+      if (cloudAt && now >= cloudAt) cloudSave();
+      if (G.net) G.net.tick();
+    }
   }
   function updateRoom() {
     if (G.mode === 'host') {
       const online = G.net ? G.net.pids() : [];
       const names = [G.world.players[G.myPid].name, ...online.map((p) => (G.world.players[p] || {}).name)].join('・');
-      $('roomInfo').innerHTML = (G.roomCode ? `部屋コード <b>${G.roomCode}</b>` : '部屋を準備中…') + `<br><span class="muted">${online.length + 1}/${CFG.MAX_PLAYERS}人（${names}）</span>`;
-    } else if (G.mode === 'client') $('roomInfo').textContent = '参加中';
+      $('roomInfo').innerHTML = (G.roomCode ? `世界コード <b>${G.roomCode}</b>` : 'この端末だけの世界') + `<br><span class="muted">👑ホスト　${online.length + 1}/${CFG.MAX_PLAYERS}人（${names.replace(/[<&]/g, '')}）</span>`;
+    } else if (G.mode === 'client') $('roomInfo').innerHTML = `世界コード <b>${G.roomCode || ''}</b><br><span class="muted">${(G.hostName || '').replace(/[<&]/g, '')}がホスト</span>`;
   }
   function hostUI(on) { document.querySelectorAll('.hostOnly').forEach((e) => e.classList.toggle('hidden', !on)); }
   document.querySelectorAll('[data-speed]').forEach((b) => (b.onclick = () => { G.speed = +b.dataset.speed; G.autoPause = 0; }));
 
   // ---------- 参加者 ----------
-  function startClient(code) {
-    if (!window.Peer) return titleMsg('通信ライブラリを読み込めませんでした');
-    titleMsg('接続しています…');
-    G.mode = 'connecting';
-    myProf();
+  function startClient(ent, code) {
+    G.mode = 'connecting'; G.roomCode = code;
     const onState0 = (m) => { G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; G.priv = m.priv; (m.msgs || []).forEach(toastMsg); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } };
-    G.net = SGK.NET.join(code, token, myName(), {
-      onWelcome: (m) => { SGK.NET.addFriend(m.hostCode || code, m.hostName); G.mode = 'client'; G.myPid = m.pid; SIM.localPid = m.pid; G.actView = null; G.dyn = null; G.stat = m.static; setTimeout(() => { if (G.mode === 'client' && !G.dyn) errToast('ホストから様子が届いていません（ホストの画面にエラーが出ていないか見てください）'); }, 6000); G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
+    G.net = SGK.NET.join(ent.peer, ent.board, token, myName(), {
+      onWelcome: (m) => { G.hostName = m.hostName; G.mode = 'client'; G.myPid = m.pid; SIM.localPid = m.pid; G.actView = null; G.dyn = null; G.stat = m.static; setTimeout(() => { if (G.mode === 'client' && !G.dyn) errToast('ホストから様子が届いていません（ホストの画面にエラーが出ていないか見てください）'); }, 6000); G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
       onErr: (m) => { if (G.lastErr !== m.text) { G.lastErr = m.text; errToast(m.text); } },
       onAct: (m) => { const BT = G.priv && G.priv.battle; if (BT && BT.id === m.a.id) G.actView = SIM.actApply(G.actView, m.a); },
       onState: (m) => { try { onState0(m); } catch (e) { const t = 'エラー: ' + (e && e.message); if (G.lastErr !== t) { G.lastErr = t; errToast(t); } } },
       onBye: (why) => { backToTitle(); titleMsg(why); },
-      onError: (t) => titleMsg(t),
     });
   }
 
   function backToTitle() {
-    if (G.mode === 'host') { SGK.SAVE.save(G.world); timerWorker.postMessage(0); }
-    if (G.net) G.net.close();
+    if (G.mode === 'host') {
+      SGK.SAVE.save(G.world); timerWorker.postMessage(0);
+      const net = G.net; if (net) net.close();
+      cloudSave().finally(() => { if (net) net.unboard(); }); // 保存が終わってから掲示板を消す（次の人が古い世界を読まないように）
+    } else if (G.net) G.net.close();
     Object.assign(G, { mode: 'title', world: null, net: null, dyn: null, view: null, centered: false, roomCode: null });
     $('gameMenu').classList.add('hidden'); $('info').classList.add('hidden'); $('town').classList.add('hidden'); $('battle').classList.add('hidden'); $('char').classList.add('hidden'); G.priv = null;
     contBtn();
     show('title');
   }
   // タブを閉じるときもセーブ
-  window.addEventListener('pagehide', () => { if (G.mode === 'host') SGK.SAVE.save(G.world); });
+  window.addEventListener('pagehide', () => { if (G.mode === 'host') { SGK.SAVE.save(G.world); if (G.net) G.net.unboard(true); } });
+  // 2.3.0 画面を隠した時（タブの切り替え・閉じる前など）にクラウドへ保存。閉じる瞬間は大きなデータを送れないので、ここで先に送っておく
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && G.mode === 'host') cloudSave(); else if (document.visibilityState === 'visible' && G.mode === 'host' && G.net) G.net.beat(); });
 
   // ---------- 表示用データ ----------
   function buildView() {
@@ -1242,7 +1278,7 @@
   document.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b || (b.dataset.vol && b.dataset.vol !== 'bgm')) return; SGK.AUDIO.sfx(b.dataset.act === 'buy' || b.dataset.act === 'sell' ? 'coin' : 'click'); }, true);
   $('menuBtn').onclick = () => toggleMenu(true);
   $('mClose').onclick = () => toggleMenu(false);
-  $('mSave').onclick = () => { SGK.SAVE.save(G.world).then((ok) => toast(ok ? `スロット${SGK.SAVE.slot}にセーブしました` : 'セーブに失敗しました')); };
+  $('mSave').onclick = () => { Promise.all([SGK.SAVE.save(G.world), cloudSave()]).then(([ok, c]) => toast((SGK.SAVE.slot ? (ok ? `スロット${SGK.SAVE.slot}にセーブしました` : 'セーブに失敗しました') : 'この世界の控えはこの端末にありません') + (G.world.code ? (c ? '・クラウドに保存しました' : '・クラウド保存は後で行います') : ''))); };
   $('mExport').onclick = () => { SGK.SAVE.save(G.world); SGK.SAVE.exportFile(G.world); };
   // 0.46.0 スマホ向け：タッチ端末なら body に touch を付け、地図のボタンを出す
   if (matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window) document.body.classList.add('touch');
@@ -1339,7 +1375,7 @@
   // ---------- キーボード ----------
   const keys = new Set();
   window.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT') { if (e.key === 'Enter' && G.mode === 'title' && e.target.id === 'codeInput') $('btnJoinGo').click(); if (e.key === 'Enter' && e.target.id === 'fcInput') $('btnFcAdd').click(); return; }
+    if (e.target.tagName === 'INPUT') { if (e.key === 'Enter' && G.mode === 'title' && e.target.id === 'codeInput') $('btnJoinGo').click(); return; }
     const k = e.key;
     if (actB() && !activeMenuNotBattle() && k.toLowerCase() === 't') { const on = R.act3d && R.act3d.toggle(); if (!on && document.pointerLockElement) document.exitPointerLock(); toast(on ? '3D表示にしました' : '2D表示にしました', 1000); return; }
     if (ML() && !activeMenuNotBattle()) { // 0.63.0 マウント＆ブレイド2風：0〜9で隊を選び、F1・F2…で指図
