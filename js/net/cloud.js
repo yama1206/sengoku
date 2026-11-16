@@ -52,7 +52,7 @@
     if (C.busy) { C.again = true; return false; }
     C.busy = true;
     try {
-      w.version = SGK.VERSION; w.savedAt = Date.now(); w.code = code;
+      w.version = SGK.VERSION; w.savedAt = C.now(); w.code = code; // 2.4.0 端末の時計のずれに左右されないようサーバーの時刻で
       const data = await gz(JSON.stringify(w));
       await C.rest(code, 'save', 'PUT', { sv: C.SV, ver: SGK.VERSION, at: { '.sv': 'timestamp' }, z: 1, data });
       await C.rest(code, 'info', 'PUT', { ver: SGK.VERSION, at: { '.sv': 'timestamp' }, min: w.time ? w.time.min : 0, names: Object.values(w.players || {}).map((p) => p.name).slice(0, 5), kb: Math.round(data.length / 1024) });

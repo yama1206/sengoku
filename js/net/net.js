@@ -15,6 +15,7 @@
   });
 
   // ホストに名乗り出る：書いてから少し待って読み直し、自分の合言葉が残っていればホスト
+  NET.claim = claim;
   async function claim(code, peer, info) {
     const n = Math.random().toString(36).slice(2, 10);
     await CL.rest(code, 'host', 'PUT', Object.assign({ id: peer ? peer.id : '', n, at: { '.sv': 'timestamp' }, ver: SGK.VERSION }, info()));
@@ -88,33 +89,37 @@
       unboard(ka) { return CL.rest(code, 'host', 'DELETE', undefined, ka).catch(() => {}); },
       close(why) {
         gone = true; clearInterval(iv);
-        for (const c of conns.keys()) try { c.send({ t: 'bye', reason: why || 'ホストが世界から出ました' }); } catch (e) {}
+        for (const c of conns.keys()) try { c.send({ t: 'bye', reason: why || 'ホストが世界から出ました', h: 1 }); } catch (e) {} // h：ホストが抜けた（参加者は引き継ぎへ）
         setTimeout(() => { try { if (peer) peer.destroy(); } catch (e) {} }, 300);
       },
     };
   };
 
-  // 参加者：h = { onWelcome(msg), onState(msg), onAct(msg), onErr(msg), onBye(reason) }
+  // 参加者：h = { onWelcome(msg), onState(msg), onAct(msg), onMine(msg), onErr(msg), onBye(reason), onLost(reason) }
+  // 2.4.0 onLost：ホストが抜けた・届かなくなった（引き継ぎへ）。onBye：入れなかった（タイトルへ）
   NET.join = function (peer, board, token, name, h) {
-    let conn, done = false, ok = false;
-    const end = (why) => { if (done) return; done = true; h.onBye(why); try { peer.destroy(); } catch (e) {} };
+    let conn, done = false, ok = false, lastRx = Date.now();
+    const end = (why, lost) => { if (done) return; done = true; clearInterval(wd); (lost && ok && h.onLost ? h.onLost : h.onBye)(why); try { peer.destroy(); } catch (e) {} };
+    const wd = setInterval(() => { if (ok && Date.now() - lastRx > SGK.CFG.HOST_LOST) end('ホストから届かなくなりました', true); }, 2000);
     const tm = setTimeout(() => { if (!ok) end('ホストから返事がありませんでした。少し待ってから、もう一度入ってください'); }, 12000);
     conn = peer.connect(board.id, { reliable: true });
-    conn.on('open', () => conn.send({ t: 'hello', token, name, ver: SGK.VERSION, prof: NET.prof || null }));
+    conn.on('open', () => conn.send({ t: 'hello', token, name, ver: SGK.VERSION, prof: NET.prof || null, mine: NET.mine ? NET.mine() : null }));
     conn.on('data', (m) => {
+      lastRx = Date.now();
       if (typeof m === 'string') { try { m = JSON.parse(m); } catch (e) { if (h.onErr) h.onErr({ text: 'エラー(受信): ' + e.message }); return; } } // ホストからは文字列(JSON)で届く
       if (!m || !m.t) { if (h.onErr) h.onErr({ text: 'エラー(受信): 読めないデータ ' + typeof m }); return; }
       if (m.t === 'welcome') { ok = true; clearTimeout(tm); h.onWelcome(m); }
       else if (m.t === 'state') h.onState(m);
       else if (m.t === 'act') { if (h.onAct) h.onAct(m); }
+      else if (m.t === 'mine') { if (h.onMine) h.onMine(m); }
       else if (m.t === 'err') { if (h.onErr) h.onErr(m); }
-      else if (m.t === 'bye') end(m.reason);
+      else if (m.t === 'bye') end(m.reason, !!m.h);
     });
-    conn.on('close', () => end('ホストとの接続が切れました'));
-    peer.on('error', (e) => { if (e.type === 'peer-unavailable') end('ホストが見つかりませんでした（抜けたばかりかもしれません）。20秒ほど待ってから、もう一度入ってください'); else if (!ok) end('通信エラー: ' + e.type); });
+    conn.on('close', () => end('ホストとの接続が切れました', true));
+    peer.on('error', (e) => { if (e.type === 'peer-unavailable') end('ホストが見つかりませんでした（抜けたばかりかもしれません）。20秒ほど待ってから、もう一度入ってください'); else if (!ok) end('通信エラー: ' + e.type); else end('通信エラー: ' + e.type, true); });
     return {
       send(cmd) { if (conn && conn.open) conn.send({ t: 'cmd', cmd }); },
-      close() { done = true; clearTimeout(tm); try { peer.destroy(); } catch (e) {} },
+      close() { done = true; clearTimeout(tm); clearInterval(wd); try { peer.destroy(); } catch (e) {} },
     };
   };
 })();

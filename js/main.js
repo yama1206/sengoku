@@ -361,15 +361,71 @@
       const ent = await SGK.NET.enter(code, () => ({ name: myName(), cnt: 1 }));
       CLD.remember(code);
       if (ent.role === 'guest') { titleMsg('ホストにつないでいます…'); startClient(ent, code); return; }
-      let w = local, cloud = null;
-      try { cloud = await CLD.load(code); } catch (e) { if (/新しいバージョン/.test(e.message)) { SGK.CLOUD.rest(code, 'host', 'DELETE').catch(() => {}); throw e; } console.warn(e); }
-      if (cloud && (!w || (cloud.savedAt || 0) > (w.savedAt || 0))) { w = cloud; if (local) msg = 'クラウドの方が新しかったので、そちらから再開しました'; }
-      if (!w) { CLD.rest(code, 'host', 'DELETE').catch(() => {}); try { ent.peer && ent.peer.destroy(); } catch (e) {} throw new Error('その世界は見つかりません（世界コードを確かめてください）'); }
-      w.code = code;
-      SGK.SAVE.slot = slot || SGK.SAVE.slotOf(code) || 0;
-      startHost(w, msg || '👑 あなたがホストになりました（いまからこの世界の時間が進みます）', ent);
+      await hostFromCloud(code, ent, local, msg, slot, null);
     } catch (e) { G.mode = 'title'; titleMsg(e.message); }
     finally { entering = false; }
+  }
+  // ホストになる：クラウドの世界（手元の方が新しければ手元）を読んで始める。mine：引き継いだ人の「自分の分」
+  async function hostFromCloud(code, ent, local, msg, slot, mine) {
+    const CLD = SGK.CLOUD;
+    let w = local, cloud = null;
+    try { cloud = await CLD.load(code); } catch (e) { if (/新しいバージョン/.test(e.message)) { CLD.rest(code, 'host', 'DELETE').catch(() => {}); throw e; } console.warn(e); }
+    if (cloud && (!w || (cloud.savedAt || 0) > (w.savedAt || 0))) { w = cloud; if (local) msg = 'クラウドの方が新しかったので、そちらから再開しました'; }
+    if (!w) { CLD.rest(code, 'host', 'DELETE').catch(() => {}); try { ent.peer && ent.peer.destroy(); } catch (e) {} throw new Error('その世界は見つかりません（世界コードを確かめてください）'); }
+    w.code = code;
+    SGK.SAVE.slot = slot || SGK.SAVE.slotOf(code) || 0;
+    // 2.4.0 引き継ぎの準備：保存より後の「自分の分」を受け付ける／途中だった「自分で戦う」合戦は、その人が戻るか30秒たったら自動で決着
+    G.loadedAt = w.savedAt || 0; G.merged = {}; G.pendingMine = mine;
+    const ids = Object.keys(w.battles || {}).filter((id) => w.battles[id].act);
+    G.autoWait = ids.length ? { t: performance.now(), ids } : null;
+    startHost(w, msg || '👑 あなたがホストになりました（いまからこの世界の時間が進みます）', ent);
+  }
+  // 2.4.0 引き継ぎ：参加者が持っていた「自分の分」（クラウドの保存より新しいもの）で、その人の武将を置きかえる
+  function mergeMine(w, pid, mine) {
+    if (!mine || !mine.p || typeof mine.p !== 'object' || mine.p.id !== pid || !(mine.ma > G.loadedAt) || (G.merged || {})[pid] || !w.players[pid]) return false;
+    const old = w.players[pid], p = mine.p;
+    if (old.battle && w.battles[old.battle] && p.battle !== old.battle) { // 保存のあとに終わっていた合戦からは外す（古い結果で上書きしないように）
+      const b = w.battles[old.battle]; b.pids = b.pids.filter((x) => x !== pid); if (b.act && b.act.inp) delete b.act.inp[pid];
+      if (!b.pids.length) SIM.autoResolve(w, b);
+    }
+    if (p.battle && !w.battles[p.battle]) p.battle = null;
+    delete p.off; SIM.ensurePlayer(p);
+    w.players[pid] = p; G.merged[pid] = 1;
+    return true;
+  }
+  // 2.4.0 参加者：ホストが抜けたら、次のホストを探す。誰もいなければ自分が引き継ぐ
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  async function rejoin(why) {
+    if (G.rejoining || G.mode !== 'client') return; G.rejoining = true;
+    const code = G.roomCode, CLD = SGK.CLOUD, old = G.hostBoard || {}, my = G.myPid;
+    if (G.net) { G.net.close(); G.net = null; }
+    toast(`${why}。引き継ぎ先を探しています…`, 6000); $('roomInfo').innerHTML = `世界コード <b>${code}</b><br><span class="muted">ホストを探しています…</span>`;
+    let firstAt = null;
+    try {
+      for (let tr = 0; tr < 40; tr++) {
+        if (G.mode !== 'client' || G.myPid !== my) return; // タイトルへ戻った
+        const h = await CLD.rest(code, 'host').catch(() => null);
+        if (CLD.fresh(h) && h.id) {
+          if (firstAt == null) firstAt = h.at;
+          if (h.id !== old.id || h.at > firstAt + 1000) { // 新しいホスト（同じ人でも、掲示板がまだ更新されていれば生きている）
+            if (h.ver !== SGK.VERSION) throw new Error(`新しいホストのバージョンが違います（${h.ver}）。更新ボタンを押してください`);
+            const peer = await SGK.NET.openPeer(); startClient({ role: 'guest', peer, board: h }, code, true); return;
+          }
+        } else if (!CLD.fresh(h)) {
+          await sleep(Math.random() * 2000);
+          const h2 = await CLD.rest(code, 'host').catch(() => null);
+          if (!CLD.fresh(h2)) {
+            const peer = await SGK.NET.openPeer().catch(() => null);
+            const n = await SGK.NET.claim(code, peer, () => ({ name: myName(), cnt: 1 })).catch(() => null);
+            if (n) { const mine = G.mine; Object.assign(G, { dyn: null, priv: null, actView: null }); await hostFromCloud(code, { role: 'host', peer, nonce: n }, null, '👑 ホストを引き継ぎました（いまからこの世界の時間が進みます）', 0, mine); return; }
+            if (peer) try { peer.destroy(); } catch (e) {}
+          }
+        }
+        await sleep(3000);
+      }
+      throw new Error('引き継ぎ先が見つかりませんでした。少し待ってから、もう一度入ってください');
+    } catch (e) { G.mode = 'client'; backToTitle(); titleMsg(e.message); }
+    finally { G.rejoining = false; }
   }
   // クラウドへ保存（ホストだけ）
   let cloudAt = 0;
@@ -383,6 +439,7 @@
   function startHost(world, msg, ent) {
     G.mode = 'host'; G.world = world; G.noCloud = false; G.speed = 1; G.disp = {}; G.selected = null;
     G.myPid = SIM.addPlayer(world, token, myName(), myProf()); SIM.localPid = G.myPid;
+    if (G.pendingMine) { mergeMine(world, G.myPid, G.pendingMine); G.pendingMine = null; } G.sentMine = {}; G.mineAcc = 0;
     G.stat = SIM.staticState(world);
     show('game'); hostUI(true); toast(msg);
     centerOnMe();
@@ -396,7 +453,8 @@
         info: () => ({ name: myName(), cnt: (G.net ? G.net.pids().length : 0) + 1 }),
         onHello: (conn, m) => {
           const pid = SIM.addPlayer(G.world, String(m.token).slice(0, 40), String(m.name || '').slice(0, 12), m.prof);
-          if (pid) { conn.send({ t: 'welcome', pid, static: G.stat, ver: SGK.VERSION, hostCode: G.roomCode, hostName: myName() }); toast(`${G.world.players[pid].name} が参加しました`); updateRoom(); setTimeout(() => G.net && G.net.beat(), 500); }
+          if (pid && m.mine && mergeMine(G.world, pid, m.mine)) cloudSoon(); // 2.4.0 引き継ぎで戻ってきた人
+          if (pid) { delete G.sentMine[pid]; conn.send({ t: 'welcome', pid, static: G.stat, ver: SGK.VERSION, hostCode: G.roomCode, hostName: myName() }); toast(`${G.world.players[pid].name} が参加しました`); updateRoom(); setTimeout(() => G.net && G.net.beat(), 500); }
           return pid;
         },
         onCmd: (pid, cmd) => SIM.applyCommand(G.world, pid, cmd),
@@ -429,6 +487,11 @@
       if (G.autoPause && m && (m.tx != null || m.follow)) { G.speed = G.autoPause; G.autoPause = 0; }
       G.lastAt = at;
     }
+    G.mineAcc = (G.mineAcc || 0) + dt * 1000;
+    if (G.net && G.mineAcc >= CFG.MINE_SEND_MS) { // 2.4.0 参加者へ「自分の分」を送る（ホストが抜けた時の引き継ぎ用。変わった時だけ）
+      G.mineAcc = 0;
+      for (const pid of G.net.pids()) { const p = G.world.players[pid]; if (!p) continue; const j = JSON.stringify(p); if (G.sentMine[pid] !== j) { G.sentMine[pid] = j; G.net.sendTo(pid, { t: 'mine', p }); } }
+    }
     netAcc += dt * 1000;
     if (netAcc >= CFG.NET_SEND_MS) {
       netAcc = 0;
@@ -442,6 +505,11 @@
       const w = G.world, k = Object.keys(w.battles || {}).length + '|' + w.settlements.map((x) => x.owner || '').join(',') + '|' + Object.values(w.players).map((p) => (p.clan || '') + (p.rank && p.rank.id || p.rank || '')).join(',');
       if (G.evKey != null && k !== G.evKey) cloudSoon(); G.evKey = k;
       if (cloudAt && now >= cloudAt) cloudSave();
+      if (G.autoWait) { // 2.4.0 引き継ぐ前に途中だった「自分で戦う」合戦：その人たちが戻るか、30秒たったら自動で決着
+        const AW = G.autoWait, late = now - AW.t > CFG.AUTO_WAIT_MS;
+        AW.ids = AW.ids.filter((id) => { const b = w.battles[id]; if (!b || !b.act) return false; if (late || b.pids.every((p) => p === G.myPid || G.merged[p])) { SIM.autoResolve(w, b); b.pids.forEach((p) => SIM.say(p, 'ホストが代わったため、途中だった合戦は自動で決着しました')); cloudSoon(); return false; } return true; });
+        if (!AW.ids.length) G.autoWait = null;
+      }
       if (G.net) G.net.tick();
     }
   }
@@ -456,15 +524,18 @@
   document.querySelectorAll('[data-speed]').forEach((b) => (b.onclick = () => { G.speed = +b.dataset.speed; G.autoPause = 0; }));
 
   // ---------- 参加者 ----------
-  function startClient(ent, code) {
-    G.mode = 'connecting'; G.roomCode = code;
+  function startClient(ent, code, again) {
+    if (!again) { G.mode = 'connecting'; G.mine = null; } G.roomCode = code; G.hostBoard = ent.board;
+    SGK.NET.mine = () => (again && G.mine ? G.mine : null); // 2.4.0 引き継ぎで入り直す時だけ「自分の分」を渡す
     const onState0 = (m) => { G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; G.priv = m.priv; (m.msgs || []).forEach(toastMsg); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } };
     G.net = SGK.NET.join(ent.peer, ent.board, token, myName(), {
-      onWelcome: (m) => { G.hostName = m.hostName; G.mode = 'client'; G.myPid = m.pid; SIM.localPid = m.pid; G.actView = null; G.dyn = null; G.stat = m.static; setTimeout(() => { if (G.mode === 'client' && !G.dyn) errToast('ホストから様子が届いていません（ホストの画面にエラーが出ていないか見てください）'); }, 6000); G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
+      onWelcome: (m) => { G.hostName = m.hostName; G.mode = 'client'; G.myPid = m.pid; SIM.localPid = m.pid; G.actView = null; G.dyn = null; G.stat = m.static; setTimeout(() => { if (G.mode === 'client' && !G.dyn) errToast('ホストから様子が届いていません（ホストの画面にエラーが出ていないか見てください）'); }, 6000); G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast(again ? '新しいホストにつながりました' : '参加しました'); },
       onErr: (m) => { if (G.lastErr !== m.text) { G.lastErr = m.text; errToast(m.text); } },
       onAct: (m) => { const BT = G.priv && G.priv.battle; if (BT && BT.id === m.a.id) G.actView = SIM.actApply(G.actView, m.a); },
       onState: (m) => { try { onState0(m); } catch (e) { const t = 'エラー: ' + (e && e.message); if (G.lastErr !== t) { G.lastErr = t; errToast(t); } } },
-      onBye: (why) => { backToTitle(); titleMsg(why); },
+      onBye: (why) => { if (again && G.mode === 'client') { G.mode = 'client'; } backToTitle(); titleMsg(why); },
+      onLost: (why) => rejoin(why),
+      onMine: (m) => { if (m.p && m.p.id === G.myPid) G.mine = { p: m.p, ma: SGK.CLOUD.now() }; },
     });
   }
 
@@ -474,7 +545,7 @@
       const net = G.net; if (net) net.close();
       cloudSave().finally(() => { if (net) net.unboard(); }); // 保存が終わってから掲示板を消す（次の人が古い世界を読まないように）
     } else if (G.net) G.net.close();
-    Object.assign(G, { mode: 'title', world: null, net: null, dyn: null, view: null, centered: false, roomCode: null });
+    Object.assign(G, { mode: 'title', world: null, net: null, dyn: null, view: null, centered: false, roomCode: null, mine: null, autoWait: null, pendingMine: null });
     $('gameMenu').classList.add('hidden'); $('info').classList.add('hidden'); $('town').classList.add('hidden'); $('battle').classList.add('hidden'); $('char').classList.add('hidden'); G.priv = null;
     contBtn();
     show('title');

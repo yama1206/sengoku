@@ -1,6 +1,6 @@
 // 基本設定（数値はここで調整）
 window.SGK = window.SGK || {};
-SGK.VERSION = '2.3.0'; // 上げるときは index.html の <meta name="sgk-ver"> も同じ値に
+SGK.VERSION = '2.4.0'; // 上げるときは index.html の <meta name="sgk-ver"> も同じ値に
 SGK.SAVE_SCHEMA = 7; // セーブデータの形式番号（形式を変えたら上げて、save.js の migrate に変換を書く）
 SGK.CFG = {
   MIN_PER_SEC: 15,      // 現実1秒 = ゲーム内15分（1日 = 96秒）
@@ -13,7 +13,10 @@ SGK.CFG = {
   FB_URL: 'https://iserog-5ec23-default-rtdb.firebaseio.com', // 2.3.0 クラウド保存（イセログと同じデータベース。worlds/sg世界コード）
   HOST_BEAT: 6000,      // ホストが掲示板を更新する間隔
   HOST_TTL: 20000,      // 掲示板がこれより古ければホストは空き
-  CLOUD_SOON_MS: 3000,  // 大事な出来事のあと、これだけ待ってクラウドへ保存
+  CLOUD_SOON_MS: 3000,
+  HOST_LOST: 15000,     // 2.4.0 ホストからこれだけ届かなければ引き継ぎへ
+  MINE_SEND_MS: 5000,   // 2.4.0 参加者へ「自分の分（武将のデータ）」を送る間隔（変わった時だけ）
+  AUTO_WAIT_MS: 30000,  // 2.4.0 引き継ぎのあと、途中だった合戦の人が戻るのを待つ時間（過ぎたら自動で決着）  // 大事な出来事のあと、これだけ待ってクラウドへ保存
   WALK_KM_PER_DAY: 30,  // 徒歩の移動速度
   SIGHT_KM: 14,         // 地図で他の部隊が見える範囲（km）。山では狭く、城では広い
 };
