@@ -128,7 +128,7 @@
   // 0.79.0 隊形の得手不得手：spd 移動・ma 近接の攻撃・ra 弓鉄砲の攻撃・md 近接で受ける被害・rd 矢弾で受ける被害（倍）
   ACT.FMOD = {}; /* 1.6.37 隊形による強さの違いはなくした（並び方だけ変わる） */
   // 2.6.0 指図による強さ：spd 移動・as 攻撃の速さ・md/rd 受ける被害（突撃は攻めに強く守りに弱い、防御はその逆、追従は少し速い）
-  ACT.OMOD = { charge: { spd: 1.25, as: 1.3, md: 1.25, rd: 1.25 }, guard: { spd: 0.7, as: 0.75, md: 0.65, rd: 0.65 }, follow: { spd: 1.1 } };
+  ACT.OMOD = { charge: { spd: 1.25, as: 1.3, md: 1.1, rd: 1.1 }, guard: { spd: 0.7, as: 0.75, md: 0.8, rd: 0.8 }, hold: { md: 0.7, rd: 0.7 }, follow: { spd: 1.1 } }; // 2.6.3 受ける被害：突撃1.1 防御0.8 待機0.7
   const fmod = (u, k) => { const m = u && ACT.FMOD[u.fm], o = u && !u.isAI && ACT.OMOD[u.order]; return ((m && m[k]) || 1) * ((o && o[k]) || 1); };
   // 0.80.0 地形：丘の高さ（中心1・ふち0）、移動の速さ（林・登り下り・堀・急な斜面）
   const hgt = (b, x, y) => { let h = 0; for (const t of b.ter || []) if (t.k === 'h') { const d = Math.hypot(x - t.x, y - t.y); if (d < t.r) h = Math.max(h, 1 - d / t.r); } return h; };
