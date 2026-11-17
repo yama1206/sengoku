@@ -18,7 +18,16 @@
       if (n < 2) { location.replace(location.pathname + '?v=' + Date.now()); return; } }
     else try { sessionStorage.removeItem('sgkReload'); } catch (e) {} }
   $('verLabel').textContent = 'ver ' + SGK.VERSION;
-  $('updateBtn').onclick = () => { location.href = location.pathname + '?v=' + Date.now(); };
+  $('updateBtn').onclick = () => { /* 2.7.4 更新中はグルグルを出して操作できなくする */
+    if (document.getElementById('updOv')) return;
+    const st = document.createElement('style'); st.textContent = '@keyframes updSpin{to{transform:rotate(360deg)}}'; document.head.appendChild(st);
+    const ov = document.createElement('div'); ov.id = 'updOv'; ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.72);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;font-size:15px;touch-action:none';
+    ov.innerHTML = '<div style="width:46px;height:46px;border:5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:updSpin .8s linear infinite"></div><div>更新しています…</div>';
+    ['pointerdown', 'click', 'touchstart', 'touchmove', 'wheel', 'contextmenu'].forEach((t) => ov.addEventListener(t, (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false }));
+    ['keydown', 'keyup'].forEach((t) => window.addEventListener(t, (e) => { e.preventDefault(); e.stopPropagation(); }, true));
+    document.body.appendChild(ov);
+    setTimeout(() => { location.href = location.pathname + '?v=' + Date.now(); }, 150);
+  };
   // 1.6.4 エラーは2分出しておく（タップで消える）
   function errToast(text) { const t = document.createElement('div'); t.className = 'toast'; t.style.background = '#5a1a1a'; t.style.pointerEvents = 'auto'; t.textContent = text + '（タップで消す）'; t.onclick = () => t.remove(); $('toasts').appendChild(t); setTimeout(() => t.remove(), 120000); console.error(text); }
   /* 1.6.58 知らせの言葉に合わせて効果音を鳴らす */
