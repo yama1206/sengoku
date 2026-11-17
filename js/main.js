@@ -1183,6 +1183,14 @@
     const a = aimXY(), id = a && R.actFoeAt ? R.actFoeAt(a[0], a[1], AB.act, G.myPid) : null, u = id != null && AB.units.find((x) => x.id === id);
     if (!u) return ''; c.tg = id; return `${u.gname ? u.gname + '隊・' : ''}${SIM.TROOPS[u.type].short || SIM.TROOPS[u.type].name}へ`;
   }
+  // 2.5.0 号令の声（法螺貝・太鼓のあと「〇〇隊、突撃！」）
+  const SHOUT = { charge: '突撃！', flank: '回り込め！', hold: '止まれ！', retreat: '退けい！', follow: 'ついて参れ！', ai: '存分に戦え！', move: '進め！', back: '下がれ！' };
+  function shout(AB, unit, kind) {
+    if (!SHOUT[kind] || !SGK.AUDIO || !SGK.AUDIO.call) return;
+    const u = unit != null && unit !== 'all' && AB && AB.units.find((x) => x.id === unit);
+    const who = unit == null || unit === 'all' ? '全軍' : !u ? '' : u.gname ? u.gname + '隊' : (SIM.TROOPS[u.type].short || SIM.TROOPS[u.type].name) + '隊';
+    SGK.AUDIO.call(kind, who ? `${who}、${SHOUT[kind]}` : SHOUT[kind]);
+  }
   function ord3(kind) {
     const AB = actB(); if (!AB) return; ordMenu(null);
     const all = G.selUnit == null || G.selUnit === 'all', L = myUnits3(AB).filter((u) => all || u.id === G.selUnit);
@@ -1192,6 +1200,7 @@
       if (fk[1] === 'form') { if (all) L.forEach((u) => command({ type: 'order', unit: u.id, order: 'form', fm: fk[2] })); else command({ type: 'order', unit: G.selUnit, order: 'form', fm: fk[2] }); toast(`${SIM.ACT.FORMS[fk[2]]}に組め！`, 900); }
       else { each((un) => command({ type: 'order', unit: un, order: 'fire', on: fk[2] === '1' })); toast(fk[2] === '1' ? '自由に射て！' : '射撃をやめよ！', 900); }
       return; }
+    shout(AB, all ? 'all' : G.selUnit, kind);
     if (!['move', 'back', 'faceHere', 'faceFoe'].includes(kind)) { const c = { type: 'order', unit: all ? 'all' : G.selUnit, order: kind }, to = chargeTo(AB, c); command(c); if (to) { toast(`${to}${kind === 'flank' ? '回り込め' : '突撃'}！`, 1100); return; } toast({ follow: 'ついて来い！', charge: '突撃！', flank: '回り込め！', hold: 'その場で止まれ！', retreat: '退却！', ai: '各自の判断で戦え！（AIに任せる）' }[kind] || '', 900); return; }
     const cs = L.map((u) => [u, cen3(AB, (s) => s.g === u.id)]).filter((a) => a[1]); if (!cs.length) return;
     const mx = cs.reduce((a, c) => a + c[1].x, 0) / cs.length, my = cs.reduce((a, c) => a + c[1].y, 0) / cs.length;
@@ -1206,7 +1215,7 @@
   // 0.59.0 移動先を決めたあと、向く方向を決める（G.fpick = 移動先。次に押した所の方を向く）
   function moveFace(unit, x, y, face) { command({ type: 'order', unit, order: 'move', x, y }); if (face != null) command({ type: 'order', unit, order: 'face', f: face }); }
   function pickFace(fx, fy) { const P = G.fpick; G.fpick = null; if (!P) return false; if (Math.hypot(fx - P.x, fy - P.y) < 2) { toast('向きはそのままにしました', 800); return true; } command({ type: 'order', unit: P.unit, order: 'face', f: Math.atan2(fy - P.y, fx - P.x) }); toast('その方向を向かせます', 800); return true; }
-  function actOrder(o, x, y) { if (G.selUnit == null) { toast('先に部隊を選んでください（右スティックのカーソルを隊に合わせてA・LB/RB・数字キー）', 1500); return; } const c = { type: 'order', unit: G.selUnit, order: o }; if (o === 'move') { c.x = x; c.y = y; } const to = actB() ? chargeTo(actB(), c) : ''; command(c); if (to) toast(`${to}${o === 'flank' ? '回り込め' : '突撃'}！`, 1100); }
+  function actOrder(o, x, y) { if (G.selUnit == null) { toast('先に部隊を選んでください（右スティックのカーソルを隊に合わせてA・LB/RB・数字キー）', 1500); return; } shout(actB(), G.selUnit, o); const c = { type: 'order', unit: G.selUnit, order: o }; if (o === 'move') { c.x = x; c.y = y; } const to = actB() ? chargeTo(actB(), c) : ''; command(c); if (to) toast(`${to}${o === 'flank' ? '回り込め' : '突撃'}！`, 1100); }
   function actSel(d) { const AB = actB(); if (!AB) return; const l = [null, 'all', ...AB.units.filter((u) => u.idx && (u.owner === G.myPid || u.cmd === G.myPid) && u.hp > 0 && !u.gone).sort((a, b) => a.idx - b.idx).map((u) => u.id)]; const i = Math.max(0, l.indexOf(G.selUnit)); G.selUnit = l[(i + d + l.length) % l.length]; battleHtml = ''; }
   // 0.61.0 カーソルの所の自分の隊を選ぶ（何もなければ選択をやめる）／選んだ隊をそこへ動かす
   function actPick(sx, sy) {
@@ -1245,7 +1254,7 @@
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.act) { command({ type: 'actStart' }); G.selUnit = null; battleHtml = ''; b.blur(); }
     else if (b.dataset.sel) { G.selUnit = +b.dataset.sel; battleHtml = ''; }
-    else if (b.dataset.order) command({ type: 'order', unit: b.dataset.unit, order: b.dataset.order });
+    else if (b.dataset.order) shout(actB(), b.dataset.unit === 'all' ? 'all' : +b.dataset.unit, b.dataset.order), command({ type: 'order', unit: b.dataset.unit, order: b.dataset.order });
     else if (b.dataset.bact) command({ type: b.dataset.bact });
     else if (b.dataset.lead) command({ type: 'leadAll', on: b.dataset.lead === '1' });
   });
@@ -1477,7 +1486,7 @@
       if (k === 'Enter' || k === ' ') { e.preventDefault(); pressMenu(); return; }
       if (activeMenu() === $('battle')) {
         if (k === 'Escape') { toggleMenu(true); return; }
-        const o = { z: 'charge', x: 'hold', c: 'retreat', v: 'flank' }[k.toLowerCase()]; if (o) { command({ type: 'order', unit: 'all', order: o }); return; }
+        const o = { z: 'charge', x: 'hold', c: 'retreat', v: 'flank' }[k.toLowerCase()]; if (o) { shout(null, 'all', o); command({ type: 'order', unit: 'all', order: o }); return; }
       }
       if (k === 'Escape') { if (activeMenu() === $('mapPanel')) smClose(); else if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else menuBack(); return; }
       if (activeMenu() === $('mapPanel') && (k === '+' || k === '=' || k === '-')) { smZoom(k === '-' ? 1 / 1.5 : 1.5); return; }

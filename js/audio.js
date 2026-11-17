@@ -282,6 +282,23 @@
 
   let scene = null, want = null, step = 0, nextT = 0, fading = false;
   function setLevel(v, time = 0.6) { if (!ctx) return; const t = ctx.currentTime; bgmBus.gain.cancelScheduledValues(t); bgmBus.gain.setValueAtTime(Math.max(0.0001, bgmBus.gain.value), t); bgmBus.gain.linearRampToValueAtTime(v, t + time); }
+  // 2.5.0 号令：法螺貝・太鼓のあとに声で「〇〇隊、突撃！」（ブラウザの読み上げ。あとで VOICEVOX の音声ファイルに差し替えられる）
+  let jaVoice = null;
+  const pickVoice = () => { const vs = (window.speechSynthesis && speechSynthesis.getVoices()) || []; const ja = vs.filter((v) => /^ja/i.test(v.lang)); jaVoice = ja.find((v) => /Keita|Ichiro|Otoya|male|男/i.test(v.name)) || ja[0] || null; };
+  if (window.speechSynthesis) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+  A.speak = (text) => {
+    if (!window.speechSynthesis || !text || !opt.sfx || !opt.all) return;
+    try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'ja-JP'; if (jaVoice) u.voice = jaVoice;
+      u.pitch = 0.6; u.rate = 1.15; u.volume = Math.min(1, (opt.sfx / MAX) * (opt.all / MAX) * 1.3); speechSynthesis.speak(u); } catch (e) {}
+  };
+  A.call = (kind, text) => {
+    let wait = 0;
+    if (init() && ctx.state === 'running') { const t = ctx.currentTime + 0.02;
+      if (kind === 'charge' || kind === 'flank') { horagai(t, 0.4); wait = 900; }
+      else if (kind === 'retreat') { bell(t, 880, 0.3, 0.5); bell(t + 0.25, 880, 0.3, 0.5); bell(t + 0.5, 880, 0.3, 0.5); wait = 500; }
+      else { taiko(t, 0.8, true, sfxBus); wait = 150; } }
+    setTimeout(() => A.speak(text), wait);
+  };
   A.scene = (name) => { want = name; };
   function schedule() {
     if (!ctx || ctx.state !== 'running') return;
