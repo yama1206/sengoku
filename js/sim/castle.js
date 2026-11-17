@@ -96,7 +96,7 @@
   // ---- 築城の普請が進む・できあがる ----
   function siteDone(w, p, s) {
     if (!s || !s.site) return;
-    s.site.prog = Math.min(1, s.site.prog + SIM.siteGain(p));
+    s.site.prog = Math.min(1, s.site.prog + SIM.siteGain(p) / Math.max(0.5, s.site.need || 1)); // 2.12.0 大きな縄張りほど普請に手間がかかる
     SIM.gain(p, 'chikujo', 8);
     if (s.site.prog < 1) return SIM.say(p.id, `${s.name}の普請が進みました（${Math.floor(s.site.prog * 100)}%）`);
     const by = s.site.by; s.site = null;
@@ -161,7 +161,7 @@
     SIM.say(p.id, `${D.act}を始めました（${SIM.money(cost)}）`);
   };
 
-  SIM.commands.buildCastle = (w, p) => { // いまいる野外に新しく城を築く
+  SIM.commands.buildCastle = (w, p, c) => { // いまいる野外に新しく城を築く（2.12.0 c.plan＝自分で描いた縄張り）
     if (p.battle || p.busy) return;
     if (!p.clan || p.rank < BUILD.minRank) return SIM.say(p.id, `城を築けるのは${SIM.RANKS[BUILD.minRank].name}以上です`);
     if (p.at) return SIM.say(p.id, '拠点の外（野外）で築城を始めてください');
@@ -169,13 +169,28 @@
     const near = w.settlements.find((s) => Math.hypot(s.x - p.x, s.y - p.y) < BUILD.minKm);
     if (near) return SIM.say(p.id, `${near.name}に近すぎます（${BUILD.minKm}km以上離れてください）`);
     if (w.settlements.some((s) => s.site && s.site.by === p.id)) return SIM.say(p.id, 'すでに普請中の城があります');
-    if (p.money < BUILD.cost) return SIM.say(p.id, `お金が足りません（${SIM.money(BUILD.cost)}必要）`);
-    p.money -= BUILD.cost;
+    let plan = null, cost = BUILD.cost, kai = 0; // 2.12.0 自分で描いた縄張り（なければ今までどおり決まった形）
+    if (c && c.plan) { plan = c.plan; plan.ck = SIM.siteKind(p.x, p.y); const ck = SIM.nawaPlanCheck(plan); if (!ck.ok) return SIM.say(p.id, `縄張りを直してください：${ck.msg}`); cost = ck.cost; kai = ck.kai; }
+    if (p.money < cost) return SIM.say(p.id, `お金が足りません（${SIM.money(cost)}必要）`);
+    p.money -= cost;
     const id = 'c' + w.nextId++, name = castleName(w, p.x, p.y);
-    const s = { id, name, type: 'castle', owner: p.clan, lord: null, x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100, built: true, holder: null, site: { prog: 0, by: p.id }, prod: {} };
+    const s = { id, name, type: 'castle', owner: p.clan, lord: null, x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100, built: true, holder: null, site: { prog: 0, by: p.id, need: Math.round((cost / SIM.NAWA_PLAN.unit) * 100) / 100 }, prod: {} };
+    if (plan) { s.nawa = { plan: JSON.parse(JSON.stringify(plan)) }; s.kai = kai; }
     w.settlements.push(s); SIM.ensure(w);
     p.x = s.x; p.y = s.y; p.tx = p.ty = null; p.path = null; p.at = s.id;
-    SIM.say(p.id, `${name}の縄張りを始めました（${SIM.money(BUILD.cost)}）。城の画面の「城」で普請を進めましょう`);
+    SIM.say(p.id, `${name}の縄張りを始めました（${SIM.ckName(SIM.castleKind(s))}・${SIM.money(cost)}）。城の画面の「城」で普請を進めましょう`);
+  };
+  // 2.12.0 治めている城の縄張りを描き直す（増築・改築）。増えた分のお金を払うと、その場で直る
+  SIM.commands.nawaEdit = (w, p, c) => {
+    const s = c && SIM.settlement(w, c.id);
+    if (!s || s.holder !== p.id || s.site || !s.nawa) return SIM.say(p.id, '自分で築いて治めている城でないと、縄張りは描き直せません');
+    if (p.battle || p.busy) return SIM.say(p.id, 'いまは描き直せません');
+    const plan = c.plan; if (!plan) return; plan.ck = s.nawa.plan.ck;
+    const ck = SIM.nawaPlanCheck(plan); if (!ck.ok) return SIM.say(p.id, `縄張りを直してください：${ck.msg}`);
+    const old = SIM.nawaPlanCost(s.nawa.plan), pay = Math.max(0, ck.cost - old);
+    if (p.money < pay) return SIM.say(p.id, `お金が足りません（${SIM.money(pay)}必要）`);
+    p.money -= pay; s.nawa = { plan: JSON.parse(JSON.stringify(plan)) }; s.kai = ck.kai;
+    SIM.say(p.id, `${s.name}の縄張りを描き直しました${pay ? `（${SIM.money(pay)}）` : ''}。守りの段階：${SIM.FUSHIN ? SIM.FUSHIN.kai[ck.kai].name : ck.kai}`);
   };
   SIM.commands.buildWork = (w, p) => {
     const s = p.at && p.tx == null && !p.battle ? SIM.settlement(w, p.at) : null;
@@ -192,9 +207,9 @@
     const r = basePriv(w, pid); if (!r) return r;
     const p = w.players[pid];
     r.me.castles = heldAll(w, pid).filter((s) => !s.site).map((s) => ({ id: s.id, name: s.name, tax: SIM.tax(p, s),
-      dev: Object.keys(DEV).map((k) => [k, Math.round(s.dev[k] * 100) / 100, SIM.devCost(p, s, k), Math.round(SIM.devGain(p, s, k) * 100)]), gar: Object.assign({}, s.gar || {}), garMax: SIM.garMax ? SIM.garMax(w, s) : 0 }));
+      dev: Object.keys(DEV).map((k) => [k, Math.round(s.dev[k] * 100) / 100, SIM.devCost(p, s, k), Math.round(SIM.devGain(p, s, k) * 100)]), gar: Object.assign({}, s.gar || {}), garMax: SIM.garMax ? SIM.garMax(w, s) : 0, nawa: s.nawa ? s.nawa.plan : null }));
     r.me.castle = r.me.castles[0] || null;
-    r.me.build = { canRank: !!p.clan && p.rank >= BUILD.minRank, cost: BUILD.cost, minKm: BUILD.minKm, hours: BUILD.hours, gain: Math.round(SIM.siteGain(p) * 100),
+    r.me.build = { canRank: !!p.clan && p.rank >= BUILD.minRank, cost: BUILD.cost, minKm: BUILD.minKm, hours: BUILD.hours, gain: Math.round(SIM.siteGain(p) * 100), ck: SIM.siteKind ? SIM.siteKind(p.x, p.y) : 'hira',
       site: (w.settlements.find((s) => s.site && s.site.by === pid) || {}).name || null };
     if (r.here) { const h = SIM.settlement(w, r.here.id); r.here.holder = h.holder ? (w.players[h.holder] || {}).name || null : null; r.here.site = h.site ? Math.floor(h.site.prog * 100) : null; r.here.mine = h.owner === p.clan; }
     return r;

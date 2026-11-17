@@ -243,6 +243,8 @@
   function terAt(b, u) {
     const o = { f: false, h: false, k: false, m: false, s: false, w: false }; // 0.37.0 k：曲輪（城の中）・m：堀・s：急な斜面（ri があれば輪の形）
     for (const t of b.ter || []) { const d = Math.hypot(u.x - t.x, u.y - t.y); if (d < t.r && !(t.ri && d < t.ri)) o[t.k] = true; }
+    const N = SIM.nawa && SIM.nawa(b.ter); /* 2.12.0 城の地面はパーツ（nawa.js）から：曲輪・堀（土橋も堀あつかい）・斜面 */
+    if (N) { const a = SIM.nawaArea(N, u.x, u.y); if (a === 1) o.k = true; else if (a === 2 || a === 3 || a === 5) o.m = true; else if (a === 4) o.s = true; if (N.hg && SIM.nawaH(N, u.x, u.y) > 12) o.h = true; }
     return o;
   }
   function visRange(b, u) {

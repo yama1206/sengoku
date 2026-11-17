@@ -253,21 +253,22 @@
     for (const t of bt.ter || []) if (t.k === 'h') {
       for (let i = 3; i >= 1; i--) { ctx.fillStyle = `rgba(150,130,80,${0.18 + (3 - i) * 0.08})`; ctx.beginPath(); ctx.arc(sx(t.x), sy(t.y), (t.r * L.sc * i) / 3, 0, 7); ctx.fill(); }
     }
-    // 0.37.0 城：斜面・堀・曲輪
-    for (const t of bt.ter || []) if (t.k === 's' || t.k === 'm') {
-      ctx.fillStyle = t.k === 'm' ? 'rgba(50,90,130,.85)' : 'rgba(110,85,50,.55)';
-      ctx.beginPath(); ctx.arc(sx(t.x), sy(t.y), t.r * L.sc, 0, 7); ctx.arc(sx(t.x), sy(t.y), (t.ri || 0) * L.sc, 0, 7, true); ctx.fill();
-      if (t.k === 's') { ctx.strokeStyle = 'rgba(70,52,30,.6)'; ctx.lineWidth = 1; for (let i = 0; i < 36; i++) { const a = i * Math.PI / 18, r1 = (t.ri || 0) + 4, r2 = t.r - 4; ctx.beginPath(); ctx.moveTo(sx(t.x + Math.cos(a) * r1), sy(t.y + Math.sin(a) * r1)); ctx.lineTo(sx(t.x + Math.cos(a) * r2), sy(t.y + Math.sin(a) * r2)); ctx.stroke(); } }
-    }
-    for (const t of bt.ter || []) if (t.k === 'k') {
-      ctx.fillStyle = '#b8a77e'; ctx.beginPath(); ctx.arc(sx(t.x), sy(t.y), t.r * L.sc, 0, 7); ctx.fill();
-    }
-    for (const c of SGK.SIM.castleWalls ? SGK.SIM.castleWalls(bt.ter) || [] : []) { // 1.6.25 塀（門は切れ目）
-      ctx.strokeStyle = '#ece4d0'; ctx.lineWidth = Math.max(2, 1.6 * L.sc);
-      for (const q of c.rings) { if (q.moat) { ctx.save(); ctx.strokeStyle = '#9a8660'; for (const [ga, gw] of q.gaps) { ctx.lineWidth = Math.max(3, 2 * gw * q.r * L.sc); ctx.beginPath(); ctx.moveTo(sx(c.x + Math.cos(ga) * (q.r - q.w)), sy(c.y + Math.sin(ga) * (q.r - q.w))); ctx.lineTo(sx(c.x + Math.cos(ga) * (q.r + q.w)), sy(c.y + Math.sin(ga) * (q.r + q.w))); ctx.stroke(); } ctx.restore(); continue; } /* 1.6.37 土橋 */ ctx.beginPath(); const n = Math.round(q.r * 2), st = Math.PI * 2 / n; let on = false; for (let i = 0; i <= n; i++) { const a = i * st, w = !SGK.SIM.wallInGap(q, a, 0); if (w) { const X = sx(c.x + Math.cos(a) * q.r), Y = sy(c.y + Math.sin(a) * q.r); on ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } on = w; } ctx.stroke(); }
-      for (const w of c.rad) { ctx.beginPath(); ctx.moveTo(sx(c.x + Math.cos(w.a) * w.r0), sy(c.y + Math.sin(w.a) * w.r0)); ctx.lineTo(sx(c.x + Math.cos(w.a) * w.r1), sy(c.y + Math.sin(w.a) * w.r1)); ctx.stroke(); }
-      { const gt = bt.act && bt.act.gt; ctx.save(); for (const gp of SGK.SIM.gatePts([c])) { const k = Math.cos(gp.a + Math.PI / 2), n = Math.sin(gp.a + Math.PI / 2), op = gt && !(gt[gp.id] > 0); ctx.strokeStyle = op ? 'rgba(90,60,40,.5)' : '#6b4a2e'; ctx.lineWidth = Math.max(3, 1.4 * L.sc); ctx.setLineDash(op ? [3, 3] : []); ctx.beginPath(); ctx.moveTo(sx(gp.x - k * gp.w / 2), sy(gp.y - n * gp.w / 2)); ctx.lineTo(sx(gp.x + k * gp.w / 2), sy(gp.y + n * gp.w / 2)); ctx.stroke(); } ctx.restore(); } /* 1.6.38 門（破られたら点線） */
-      if (c.main) { ctx.fillStyle = '#4a3a2a'; ctx.fillRect(sx(c.x) - 7 * L.sc, sy(c.y) - 7 * L.sc, 14 * L.sc, 14 * L.sc); } // 天守
+    // 0.37.0 城：斜面・堀・曲輪・塀・門・天守（2.12.0 城のパーツ（nawa.js）から）
+    const NW = SGK.SIM.nawa ? SGK.SIM.nawa(bt.ter) : null;
+    if (NW) {
+      const COL = { k: '#b8a77e', m: 'rgba(50,90,130,.85)', d: 'rgba(95,78,50,.75)', s: 'rgba(110,85,50,.55)', b: '#9a8660', r: '#a8956a', l: '#7c8a4f' };
+      if (NW.hg) { // 2.12.0 山の高さ：明るさのむら（左上から光）と等高線
+        if (!NW.shade) { const c = document.createElement('canvas'); c.width = NW.W; c.height = NW.H; const g2 = c.getContext('2d'), im = g2.createImageData(NW.W, NW.H); for (let j = 0; j < NW.H; j++) for (let i = 0; i < NW.W; i++) { const k = j * NW.W + i, h = NW.hg[k], hx = NW.hg[j * NW.W + Math.min(NW.W - 1, i + 1)] - h, hy = NW.hg[Math.min(NW.H - 1, j + 1) * NW.W + i] - h, l = -(hx + hy) * 0.35, ct = Math.abs((h / 8) % 1 - 0.5) > 0.46 ? 1 : 0; im.data[k * 4] = l > 0 ? 255 : 30; im.data[k * 4 + 1] = l > 0 ? 250 : 25; im.data[k * 4 + 2] = l > 0 ? 220 : 10; im.data[k * 4 + 3] = Math.min(200, Math.abs(l) * 255 + ct * 60 + (h > 1 ? 15 : 0)); } g2.putImageData(im, 0, 0); NW.shade = c; }
+        ctx.save(); ctx.imageSmoothingEnabled = true; ctx.drawImage(NW.shade, sx(NW.x0), sy(NW.y0), NW.W * 2 * L.sc, NW.H * 2 * L.sc); ctx.restore();
+      }
+      const shp = (q) => { ctx.beginPath();
+        if (q[0] === 'o') { ctx.arc(sx(q[1]), sy(q[2]), q[3] * L.sc, 0, 7); if (q[4]) { ctx.moveTo(sx(q[1]) + q[4] * L.sc, sy(q[2])); ctx.arc(sx(q[1]), sy(q[2]), q[4] * L.sc, 0, 7, true); } }
+        else if (q[0] === 'q') { ctx.arc(sx(q[1]), sy(q[2]), q[4] * L.sc, q[5], q[5] + q[6]); ctx.arc(sx(q[1]), sy(q[2]), q[3] * L.sc, q[5] + q[6], q[5], true); ctx.closePath(); }
+        else { const rings = q[0] === 'P' ? q.slice(1) : [q.slice(1)]; for (const rg of rings) { for (let i = 0; i < rg.length; i += 2) { if (i === 0) ctx.moveTo(sx(rg[i]), sy(rg[i + 1])); else ctx.lineTo(sx(rg[i]), sy(rg[i + 1])); } ctx.closePath(); } } };
+      for (const [k, q] of NW.A) if (COL[k]) { ctx.fillStyle = COL[k]; shp(q); ctx.fill('evenodd'); }
+      for (const [stl, col, lw] of [['i', '#ece4d0', 1.6], ['d', '#c9c2a0', 1.6], ['k', '#6b5236', 1.0]]) { ctx.strokeStyle = col; ctx.lineWidth = Math.max(stl === 'k' ? 1.5 : 2, lw * L.sc); ctx.setLineDash(stl === 'k' ? [3, 2] : []); ctx.beginPath(); for (const g of NW.segs) if ((g.st || 'i') === stl) { ctx.moveTo(sx(g.x1), sy(g.y1)); ctx.lineTo(sx(g.x2), sy(g.y2)); } ctx.stroke(); } ctx.setLineDash([]); // 1.6.25 塀（2.12.0 石垣・土塁・柵）
+      { const gt = bt.act && bt.act.gt; ctx.save(); for (const gp of SGK.SIM.gatePts(NW)) { const k = Math.cos(gp.a + Math.PI / 2), n = Math.sin(gp.a + Math.PI / 2), op = gt && !(gt[gp.id] > 0); ctx.strokeStyle = op ? 'rgba(90,60,40,.5)' : '#6b4a2e'; ctx.lineWidth = Math.max(3, 1.4 * L.sc); ctx.setLineDash(op ? [3, 3] : []); ctx.beginPath(); ctx.moveTo(sx(gp.x - k * gp.w / 2), sy(gp.y - n * gp.w / 2)); ctx.lineTo(sx(gp.x + k * gp.w / 2), sy(gp.y + n * gp.w / 2)); ctx.stroke(); } ctx.restore(); } /* 1.6.38 門（破られたら点線） */
+      for (const tw of NW.towers) if (tw[0] === 'T') { ctx.fillStyle = '#4a3a2a'; ctx.fillRect(sx(tw[1]) - 7 * L.sc, sy(tw[2]) - 7 * L.sc, 14 * L.sc, 14 * L.sc); } // 天守
     }
     for (const t of bt.ter || []) if (t.k === 'f') {
       ctx.fillStyle = 'rgba(40,70,35,.85)'; ctx.beginPath(); ctx.arc(sx(t.x), sy(t.y), t.r * L.sc, 0, 7); ctx.fill();

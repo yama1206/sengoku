@@ -19,7 +19,7 @@
   const PI = Math.PI, WT = 0.8, nrm = (a) => { a %= 2 * PI; return a > PI ? a - 2 * PI : a < -PI ? a + 2 * PI : a; };
   const CWC = new WeakMap();
   SIM.WALL_T = WT;
-  SIM.castleWalls = (ter) => {
+  SIM._ringWalls = (ter) => /* 2.12.0 今は丸い城をパーツに直す時だけ使う（nawa.js） */ {
     if (!ter || !ter.length) return null;
     let c = CWC.get(ter); if (c !== undefined) return c;
     const F = SIM.FIELD, out = [], hg = (w, r) => w / 2 / r;
@@ -42,99 +42,11 @@
     }
     c = out.length ? out : null; CWC.set(ter, c); return c;
   };
-  /* 1.6.38 門：G＝{ gs: 門の残りの強さ, side: 通る者の側, cs: 守り手の側 }。閉じた門はだれも通れない。G がなければ門も切れ目あつかい */
+  /* 1.6.38 門の強さと名前。当たり判定・道さがしは 2.12.0 から nawa.js（城をパーツで持つ） */
   SIM.GATE_HP = { o: 900, k: 750, h: 600, s: 600 };
   SIM.GATE_NAME = { o: '大手門', k: '搦手門', h: '本丸の門', s: '門' };
-  const gOpen = (id, G) => !id || !G || !G.gs || !(G.gs[id] > 0) || (G.side && G.side === G.cs && !/[ok]$/.test(id)); /* 守り手は内側の門（本丸の門など）は開けて通れる。外の門（大手・搦手）は破られるまで閉じたまま */
-  const inGap = (q, a, m, G) => q.gaps.some(([ga, gw, id]) => Math.abs(nrm(a - ga)) < gw - m / q.r && gOpen(id, G));
-  SIM.wallInGap = inGap;
-  SIM.gateInit = (cw, f) => { const gs = {}; f = f == null ? 1 : f; for (const c of cw || []) for (const q of c.rings) for (const g of q.gaps) if (g[2]) gs[g[2]] = Math.round((SIM.GATE_HP[g[2].slice(-1)] || 600) * f); return gs; };
   /* 1.6.39 城の門の傷み（s.gate：1＝無傷、0＝壊れている）。忍びの破壊工作で減り、普請の修理で戻る */
   SIM.gateF = (s) => (s && s.gate != null ? Math.max(0, Math.min(1, s.gate)) : 1);
-  SIM.gateLeft = (b) => { const A = b.act, cw = SIM.castleWalls(b.ter); if (!A || !A.gt || !cw) return null; let n = 0, m = 0; for (const id in A.gt) { n += A.gt[id]; m += SIM.GATE_HP[id.slice(-1)] || 600; } return m ? n / m : null; };
-  /* 門の真ん中の位置 */
-  SIM.gatePts = (cw) => { const o = []; for (const c of cw || []) for (const q of c.rings) for (const [ga, gw, id] of q.gaps) if (id) o.push({ id, x: c.x + Math.cos(ga) * q.r, y: c.y + Math.sin(ga) * q.r, a: ga, w: gw * q.r * 2 }); return o; };
-  /* 飛び道具が塀・閉じた門に当たるか（堀は関係なし） */
-  SIM.wallHit = (cw, x0, y0, x1, y1, G) => cw.some((c) => blocked(c, x0, y0, x1, y1, G, 1));
-  /* 塀のすぐ内側（狭間から撃てる場所）にいるか */
-  SIM.atLoophole = (cw, x, y) => { for (const c of cw) { const d = Math.hypot(x - c.x, y - c.y); for (const q of c.rings) if (!q.w && d < q.r && d > q.r - 3.2) return true; } return false; };
-  /* 1.6.37 土橋の上か（堀の幅の中で、切れ目の角度） */
-  SIM.onBridge = (ter, x, y) => {
-    const cw = SIM.castleWalls(ter); if (!cw) return false;
-    for (const c of cw) for (const q of c.rings) if (q.w) { const d = Math.hypot(x - c.x, y - c.y); if (Math.abs(d - q.r) <= q.w + 0.5 && inGap(q, Math.atan2(y - c.y, x - c.x), 0)) return true; }
-    return false;
-  };
-  // 塀にめり込んだら押し戻す（rad：体の半径）
-  SIM.wallPush = (cw, s, rad, G) => {
-    for (const c of cw) {
-      let dx = s.x - c.x, dy = s.y - c.y, d = Math.hypot(dx, dy) || 0.01;
-      if (d > (c.RO || c.R) + 3) continue;
-      const m = rad + WT;
-      for (const q of c.rings) {
-        const w = q.w || 0, a = Math.atan2(dy, dx); if (Math.abs(d - q.r) >= m + w || inGap(q, a, rad, G)) continue;
-        if (w && Math.abs(d - q.r) < w) { /* 堀の上：土橋のすぐ脇なら橋の上へ戻す */
-          let br = 0; for (const [ga, gw] of q.gaps) { const da = nrm(a - ga), lim = Math.max(0, gw - rad / q.r); if ((Math.abs(da) - lim) * d < 2.5) { const na = ga + Math.sign(da) * lim; s.x = c.x + Math.cos(na) * d; s.y = c.y + Math.sin(na) * d; br = 1; break; } }
-          if (br) { dx = s.x - c.x; dy = s.y - c.y; continue; }
-        }
-        const nr = d < q.r ? q.r - w - m : q.r + w + m; s.x = c.x + dx / d * nr; s.y = c.y + dy / d * nr; dx = s.x - c.x; dy = s.y - c.y; d = nr;
-      }
-      for (const w of c.rad) {
-        const ux = Math.cos(w.a), uy = Math.sin(w.a), along = dx * ux + dy * uy; if (along < w.r0 - m || along > w.r1 + m) continue;
-        const cl = Math.max(w.r0, Math.min(w.r1, along)), px = dx - ux * cl, py = dy - uy * cl, pd = Math.hypot(px, py);
-        if (pd < m) { const k = pd < 0.01 ? 1 : m / pd; s.x = c.x + ux * cl + (pd < 0.01 ? -uy * m : px * k); s.y = c.y + uy * cl + (pd < 0.01 ? ux * m : py * k); dx = s.x - c.x; dy = s.y - c.y; }
-      }
-    }
-  };
-  // まっすぐ行くと塀に当たるか
-  const blocked = (c, x0, y0, x1, y1, G, noMoat) => {
-    const ax = x0 - c.x, ay = y0 - c.y, vx = x1 - x0, vy = y1 - y0, A = vx * vx + vy * vy; if (A < 1e-6) return false;
-    for (const q of c.rings) if (!(noMoat && q.w)) for (const rq of q.w ? [q.r - q.w, q.r, q.r + q.w] : [q.r]) {
-      const B = 2 * (ax * vx + ay * vy), C = ax * ax + ay * ay - rq * rq, D = B * B - 4 * A * C; if (D < 0) continue;
-      for (const sg of [-1, 1]) { const t = (-B + sg * Math.sqrt(D)) / (2 * A); if (t > 0.02 && t < 0.98 && !inGap(q, Math.atan2(ay + vy * t, ax + vx * t), noMoat ? 0 : 0.6, G)) return true; }
-    }
-    for (const w of c.rad) {
-      const ux = Math.cos(w.a), uy = Math.sin(w.a), ex = ux * (w.r1 - w.r0), ey = uy * (w.r1 - w.r0), sx = ux * w.r0 - ax, sy = uy * w.r0 - ay, den = vx * ey - vy * ex;
-      if (Math.abs(den) < 1e-6) continue; const t = (sx * ey - sy * ex) / den, u = (sx * vy - sy * vx) / den;
-      if (t > 0 && t < 1 && u > -0.05 && u < 1.05) return true;
-    }
-    return false;
-  };
-  // 塀を回り込む行き先（門を通る）。変わらなければそのまま返す
-  SIM.wallWay = (cw, s, gx, gy, G) => {
-    for (const c of cw) {
-      const sx = s.x - c.x, sy = s.y - c.y, ds = Math.hypot(sx, sy), dg = Math.hypot(gx - c.x, gy - c.y);
-      if (ds > (c.RO || c.R) + 6 && dg > (c.RO || c.R) + 6 && !blocked(c, s.x, s.y, gx, gy)) continue;
-      const band = (r) => c.rings.filter((q) => q.r < r).length, bs = band(ds), bg = band(dg), as = Math.atan2(sy, sx);
-      const lo = bs ? c.rings[bs - 1].r + (c.rings[bs - 1].w || 0) + 2.2 : 0, hi = bs < c.rings.length ? c.rings[bs].r - (c.rings[bs].w || 0) - 2.2 : 1e9;
-      const radIn = c.rad.filter((w) => ds > w.r0 && ds < w.r1);
-      const pm = (x) => ((x % (2 * PI)) + 2 * PI) % (2 * PI), wallBetween = (a0, a1, dir) => radIn.some((w) => { const o = pm((w.a - a0) * dir); return o > 0.001 && o < pm((a1 - a0) * dir); });
-      const orbit = (ta) => {
-        let diff = nrm(ta - as), dir = diff >= 0 ? 1 : -1;
-        if (wallBetween(as, ta, dir)) { dir = -dir; diff = 9; }
-        const rr = Math.max(lo, Math.min(hi, Math.max(ds, bs === c.rings.length ? (c.RO || c.R) + 3 : 0))), st = Math.min(Math.abs(diff), 10 / Math.max(rr, 5)), a = as + dir * st;
-        return [c.x + Math.cos(a) * rr, c.y + Math.sin(a) * rr];
-      };
-      if (bs === bg) { if (!blocked(c, s.x, s.y, gx, gy)) continue; return orbit(Math.atan2(gy - c.y, gx - c.x)); }
-      const q = c.rings[bs < bg ? bs : bs - 1], out = bs < bg ? 1 : -1;
-      let best = null, bc = 1e9, bid = null;
-      for (const [ga, gw, id] of q.gaps) {
-        const m = Math.max(0, gw - 3.5 / q.r), pa = ga + Math.max(-m, Math.min(m, nrm(as - ga)));
-        let dd = Math.abs(nrm(pa - as)); if (wallBetween(as, pa, nrm(pa - as) >= 0 ? 1 : -1)) dd = 2 * PI - dd;
-        const px = c.x + Math.cos(pa) * q.r, py = c.y + Math.sin(pa) * q.r, cost = dd * Math.max(ds, 5) + Math.hypot(gx - px, gy - py) + (gOpen(id, G) ? 0 : 60); /* 1.6.38 破れた門を選びやすく */
-        if (cost < bc) { bc = cost; best = pa; bid = id; }
-      }
-      if (best == null) continue;
-      const px = c.x + Math.cos(best) * q.r, py = c.y + Math.sin(best) * q.r;
-      if (!gOpen(bid, G)) { const k = q.r - out * 2.2; return [c.x + Math.cos(best) * k, c.y + Math.sin(best) * k, bid, px, py]; } /* 1.6.38 閉じた門：門の前まで行って打ち破る */
-      if (Math.hypot(px - s.x, py - s.y) < 2.5) return [c.x + Math.cos(best) * (q.r + out * (4 + (q.w || 0))), c.y + Math.sin(best) * (q.r + out * (4 + (q.w || 0)))];
-      // 門の手前（同じ側に 3m）をめざす
-      const fx = c.x + Math.cos(best) * (q.r - out * (3 + (q.w || 0))), fy = c.y + Math.sin(best) * (q.r - out * (3 + (q.w || 0)));
-      if (Math.hypot(fx - s.x, fy - s.y) < 2 || (q.w && Math.abs(ds - q.r) < q.w + 1 && inGap(q, as, 0))) return [px, py]; /* 1.6.37 土橋の上はそのまま渡る */
-      if (!blocked(c, s.x, s.y, fx, fy)) return [fx, fy];
-      return orbit(best);
-    }
-    return null;
-  };
   SIM.castleLayout = (w, b, s, cside) => {
     const F = SIM.FIELD, ck = SIM.castleKind(s), cx = cside === 'B' ? F.bx + 40 : F.ax - 40, cy = F.h / 2;
     const far = ck === 'yama' ? 190 : 120;

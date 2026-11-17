@@ -883,6 +883,7 @@
         else html += '<div class="muted">主家の城ではないので普請に加われません</div>';
       } else if (C) {
         html += `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　毎月の年貢 約${SIM.money(C.tax)}（月の初めに届く）</div>`;
+        if (C.nawa) html += `<div class="card"><div><b>縄張り</b>　<span class="muted">${SIM.ckName(C.nawa.ck)}。曲輪・塀・門・堀を描き直して増築できる（増えた分のお金を払うとすぐ直る）</span></div><button id="nw-edit" data-act="openNawaEdit" data-id="${C.id}">縄張りを描き直す</button></div>`; // 2.12.0
         for (const [k, v, cost, gp] of C.dev) {
           const D = SIM.DEV[k], l = Math.floor(v), pct = v >= 10 ? 100 : Math.round((v - l) * 100);
           html += `<div class="card" style="display:block"><div class="row" style="align-items:center"><span><b>${D.name}</b> ${l}<span class="muted">/10　${D.desc}</span></span>`
@@ -951,6 +952,7 @@
     if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; openTown(false); SGK.NINJA.start(N.q.k, N.d, (ok) => { if (ok === null) toast('いったん退きました（工作はまだ請け負ったまま）', 1500); else command({ type: 'ninResult', ok: !!ok }); }); return; }
     const gs = e.target.closest('button[data-gbset]'); if (gs) { G.gbSel = +gs.dataset.gbset; townHtml = ''; renderTown(); return; } // 2.8.0 賭場の掛け金
     const b = e.target.closest('button[data-act]'); if (!b) return;
+    if (b.dataset.act === 'openNawaEdit') { const me2 = G.priv && G.priv.me, C2 = me2 && (me2.castles || []).find((x) => x.id === b.dataset.id); if (C2 && C2.nawa && SGK.NAWAEDIT) SGK.NAWAEDIT.open({ mode: 'edit', id: C2.id, plan: C2.nawa, ck: C2.nawa.ck, money: me2.money }); return; } // 2.12.0 縄張りを描き直す
     const c = { type: b.dataset.act };
     if (b.dataset.item) c.item = b.dataset.item;
     if (b.dataset.qty) c.qty = +b.dataset.qty;
@@ -1092,9 +1094,10 @@
         + (me.castles && me.castles.length ? `<div class="muted">治めている城：${me.castles.map((c) => `<b>${c.name}</b>（年貢 約${SIM.money(c.tax)}/月${c.lands ? '・領内の村 ' + c.lands.join('・') : ''}${c.mines ? '・' + c.mines.join('・') : ''}）`).join('・')}</div>` : '') + '</div>';
       const B = me.build;
       if (B) {
-        html += `<div class="card"><div><b>築城</b>　<span class="muted">いま立っている野外に新しく城を築く（${SIM.money(B.cost)}・ほかの拠点から${B.minKm}km以上・部将以上）<br>`
+        html += `<div class="card"><div><b>築城</b>　<span class="muted">いま立っている野外に新しく城を築く（ほかの拠点から${B.minKm}km以上・部将以上）。ここに築くと<b>${SIM.ckName(B.ck || 'hira')}</b>になる<br>`
+          + `曲輪・塀・門・堀・櫓を自分で置いて縄張りを描く。費用は城の種類と置いた数で決まる（描かずに築くと決まった形で${SIM.money(B.cost)}）<br>`
           + `${B.site ? `いま${B.site}を普請中です。その城に入って「城」の画面で普請を進めます` : '縄張りのあと、その城で普請を重ねると完成し、あなたが城主になります'}</span></div>`
-          + `<button id="rk-build" data-cact="buildCastle" ${B.canRank && !B.site ? '' : 'disabled'}>ここに城を築く</button></div>`;
+          + `<div class="row"><button id="rk-nawa" data-cact="openNawa" ${B.canRank && !B.site ? '' : 'disabled'}>縄張りを描いて築く</button><button id="rk-build" data-cact="buildCastle" ${B.canRank && !B.site ? '' : 'disabled'}>決まった形で築く</button></div></div>`;
       }
       if (!R.clan) {
         html += `<div class="muted" style="margin:6px 0">城主のいる城で仕官できます（名声${(R.serveNeed != null ? R.serveNeed : RK[1].fame)}以上）。仕えると俸禄がもらえ、主家の領地の依頼や戦で功績が積めます</div>`;
@@ -1162,6 +1165,7 @@
   });
   $('charBody').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-cact]'); if (!b) return;
+    if (b.dataset.cact === 'openNawa') { const me2 = G.priv && G.priv.me; if (me2 && me2.build && SGK.NAWAEDIT) SGK.NAWAEDIT.open({ mode: 'new', ck: me2.build.ck, money: me2.money }); return; } // 2.12.0 縄張りを描く
     if (b.dataset.cact === 'goPol') return setCTab('pol');
     if (b.dataset.cact === 'backChar') return setCTab('eq');
     const c = { type: b.dataset.cact };

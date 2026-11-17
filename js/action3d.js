@@ -15,7 +15,7 @@
   X.toggle = () => { X.on = !X.on; try { localStorage.setItem('sgk-act3d', X.on ? '1' : '0'); } catch (e) { /* 無視 */ } if (!X.on && cv) cv.style.display = 'none'; return X.on; };
 
   let T, rd, scene, cam3, cv, sun, hideT, W = 0, H = 0, clock = 0;
-  let built = null, groundG = null, groundM = null, gateM = [], trees = [], ter = [], hills = [], sky = null, hemi = null, tod = null, texMacro = null, texGN = null, envT = null, waterT = []; const gTime = { value: 0 }, wOff = { value: null };
+  let built = null, groundG = null, groundM = null, gateM = [], trees = [], ter = [], NW = null, hills = [], sky = null, hemi = null, tod = null, texMacro = null, texGN = null, envT = null, waterT = []; const gTime = { value: 0 }, wOff = { value: null };
   const L4 = { m: null }; // 足などの部分を動かすための行列
   const M = {}; // 兵の各部分（まとめて描く InstancedMesh）
   const CAP = { body: 700, dead: 520, arrow: 300, ring: 120 };
@@ -29,7 +29,7 @@
       const q = 1 - (d / t.r) * (d / t.r); h += t.hh * q * q;
     }
     h += 0.35 * Math.sin(x * 0.07 + 1.3) * Math.sin(y * 0.06 + 0.7) + 0.18 * Math.sin(x * 0.17 - y * 0.13); // 0.65.0 地面の小さな起伏
-    for (const t of ter) if (t.k === 'm') { const d = Math.hypot(x - t.x, y - t.y); if (d < t.r && d > (t.ri || 0) && !SGK.SIM.onBridge(ter, x, y)) h -= 1.4; }
+    if (NW) { if (NW.hg) h += SGK.SIM.nawaH(NW, x, y); if (SGK.SIM.nawaAreaExact(NW, x, y) === 2) { const L = SGK.SIM.nawaMoatL(NW, x, y); h = (L != null && NW.hg ? h - SGK.SIM.nawaH(NW, x, y) + L : h) - 1.4; } } /* 2.12.0 城の山の高さと水堀（堀の底は水の高さにそろえる） */
     let wd = 0; for (const t of ter) if (t.k === 'w') { const d = Math.hypot(x - t.x, y - t.y); if (d < t.r + 4) wd = Math.max(wd, 1 - Math.pow(d / (t.r + 4), 2)); } /* 1.6.64 川の底（岸はなだらか） */
     return h - 2.4 * wd; /* 1.6.70 川底を深く */
   }
@@ -490,7 +490,8 @@
     });
   }
 
-  const water = (t, x, y) => { const d = Math.hypot(x - t.x, y - t.y); return (t.k === 'm' && d < t.r && d > (t.ri || 0) && !SGK.SIM.onBridge(ter, x, y)) || (!['f', 'h', 'm', 'k', 's', 'e'].includes(t.k) && d < t.r); };
+  const nwCov = (x, y) => { const o = [0, 0, 0, 0, 0, 0, 0]; let any = 0; for (const [dx, dy] of [[0, 0], [1.6, 0], [-1.6, 0], [0, 1.6], [0, -1.6]]) { const v = SGK.SIM.nawaAreaExact(NW, x + dx, y + dy); if (v) { o[v] += 0.2; any = 1; } } return any ? o : null; }; // 2.12.0 城の地面の割合（縁をぼかす）
+  const water = (t, x, y) => { const d = Math.hypot(x - t.x, y - t.y); return !['f', 'h', 'e', 'c'].includes(t.k) && d < t.r; };
 
   // いくつかの形を1つにまとめる（部分ごとに色を付ける）
   function merge(list) {
@@ -523,7 +524,14 @@
   function backdrop(id, F) {
     const E = ter.find((t) => t.k === 'e') || {}, cx = F.w / 2, cy = F.h / 2, r = rng(String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0), 41));
     const add = (m) => { scene.add(m); trees.push(m); return m; };
-    if (ter.some((t) => t.k === 'w' || t.k === 'm')) { const wm = add(new T.Mesh(new T.PlaneGeometry(F.w + 80, F.h + 80).rotateX(-Math.PI / 2).translate(cx, -0.9, cy) /* 2.6.4 -0.45 だと地面の小さなくぼみに水が透けていた */, waterMat(0x1f5f86, (F.w + 80) / 10, 0.86))); wm.receiveShadow = true; }
+    if (NW) for (const m of NW.mw || []) if (m.L > 0.3) { /* 2.12.0 高い所の水堀には、その高さに水面を張る */
+      const sh = m.s; let g = null;
+      const toS = (pts) => { const S = new T.Shape(); for (let i = 0; i < pts.length; i += 2) (i ? S.lineTo(pts[i], -pts[i + 1]) : S.moveTo(pts[i], -pts[i + 1])); return S; };
+      if (sh[0] === 'o') g = new T.RingGeometry(sh[4] || 0, sh[3], 48); else if (sh[0] === 'p') g = new T.ShapeGeometry(toS(sh.slice(1))); else if (sh[0] === 'P') { const S = toS(sh[1]); for (const hl of sh.slice(2)) S.holes.push(toS(hl)); g = new T.ShapeGeometry(S); }
+      if (!g) continue; g.rotateX(-Math.PI / 2); if (sh[0] === 'o') g.translate(sh[1], 0, sh[2]);
+      const wm = add(new T.Mesh(g, waterMat(0x1f5f86, 0.12, 0.86))); wm.position.y = m.L - 0.9; wm.receiveShadow = true;
+    }
+    if (ter.some((t) => t.k === 'w') || (NW && NW.hasM)) { const wm = add(new T.Mesh(new T.PlaneGeometry(F.w + 80, F.h + 80).rotateX(-Math.PI / 2).translate(cx, -0.9, cy) /* 2.6.4 -0.45 だと地面の小さなくぼみに水が透けていた */, waterMat(0x1f5f86, (F.w + 80) / 10, 0.86))); wm.receiveShadow = true; }
     if (E.sea != null) { const sm = add(new T.Mesh(new T.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), waterMat(0x234f6a, 4000 / 18, 1))); sm.position.set(cx + Math.cos(E.sea) * 2400, -0.2, cy + Math.sin(E.sea) * 2400); }
     const mm = add(new T.Mesh(mtnGeo(F, E, r), mtnMat())); mtnM = mm; mm.frustumCulled = false; mm.renderOrder = 0;
   }
@@ -641,7 +649,7 @@
 
   // ---- 戦場ごとの地面と木 ----
   function build(id, list) {
-    built = id; ter = list || []; setTod(id); hills = ter.filter((t) => t.k === 'h').map((t) => ({ x: t.x, y: t.y, r: t.r * 1.15, hh: Math.min(14, t.r * 0.16) }));
+    built = id; ter = list || []; NW = SGK.SIM.nawa ? SGK.SIM.nawa(ter) : null; setTod(id); hills = ter.filter((t) => t.k === 'h').map((t) => ({ x: t.x, y: t.y, r: t.r * 1.15, hh: Math.min(14, t.r * 0.16) }));
     if (groundM) { scene.remove(groundM); groundG.dispose(); groundM.material.dispose(); }
     for (const t of trees) { scene.remove(t); t.geometry.dispose(); if (t.material) t.material.dispose(); if (t.dispose) t.dispose(); }
     trees = [];
@@ -657,14 +665,13 @@
       tc.setRGB(1, 1, 1); const a4 = i * 4, b2 = i * 2;
       for (const t of ter) {
         const d = Math.hypot(x - t.x, y - t.y);
-        if (t.k === 'f') up(spA, a4 + 1, 1 - sm(t.r * 0.8, t.r * 1.08, d));
+        if (t.k === 'f') { const dd = d * (0.6 + 0.8 * vn(x * 0.05, y * 0.05)); up(spA, a4 + 1, 0.75 * (1 - sm(t.r * 0.45, t.r * 1.05, dd))); } /* 2.12.0 落ち葉の縁はぼかしてぎざぎざに */
         else if (t.k === 'h') up(spA, a4, 0.7 * (1 - sm(t.r * 0.3, t.r * 1.2, d)));
-        else if (t.k === 'm' && d < t.r + 1.5 && d > (t.ri || 0) - 1.5) { if (SGK.SIM.onBridge(ter, x, y)) up(spA, a4 + 2, 1); else if (d < t.r && d > (t.ri || 0)) { up(spB, b2 + 1, 1); tc.setRGB(0.5, 0.72, 0.98); } else up(spB, b2, 0.9); }
-        else if (t.k === 'k') up(spA, a4 + 2, 1 - sm(t.r - 1, t.r + 2.5, d));
-        else if (t.k === 's' && d < t.r + 3 && d > (t.ri || 0) - 3) up(spA, a4 + 3, 0.75 * Math.min(1 - sm(t.r - 4, t.r + 3, d), sm((t.ri || 0) - 3, (t.ri || 0) + 4, d)));
         else if (t.k === 'w' && d < t.r + 6) { if (d < t.r - 1) { up(spB, b2 + 1, 1); tc.setRGB(0.5, 0.72, 0.98); } else up(spB, b2, 1 - sm(t.r + 2, t.r + 6, d)); }
-        else if (!['f', 'h', 'm', 'k', 's', 'e', 'w'].includes(t.k) && d < t.r + 3) { if (d < t.r) { up(spB, b2 + 1, 1); tc.setRGB(0.5, 0.72, 0.98); } else up(spB, b2, 0.9); }
+        else if (!['f', 'h', 'e', 'w', 'c'].includes(t.k) && d < t.r + 3) { if (d < t.r) { up(spB, b2 + 1, 1); tc.setRGB(0.5, 0.72, 0.98); } else up(spB, b2, 0.9); }
       }
+      const na = NW ? nwCov(x, y) : null; /* 2.12.0 城の地面（パーツから）：水堀・土橋・曲輪・空堀・斜面 */
+      if (na) { if (na[2] > 0.5) { up(spB, b2 + 1, 1); tc.setRGB(0.5, 0.72, 0.98); } else if (na[2] > 0) up(spB, b2, 0.9); if (na[5] || na[1] || na[6]) up(spA, a4 + 2, Math.max(na[5], na[1], na[6])); if (na[3]) up(spA, a4 + 3, 0.8 * na[3]); if (na[4]) { up(spA, a4 + 3, 0.4 * na[4]); up(spA, a4, 0.5 * na[4]); } }
       // 2.1.0 草地に色むら：枯れ草・土の出た所・濃い草
       c.copy(GC.g); const dr = fbm(x * 0.018, y * 0.018), dt2 = vn(x * 0.07 + 50, y * 0.07 + 9), lu = fbm(x * 0.05 + 30, y * 0.05 + 70);
       if (dr > 0.56) c.lerp(GC.dry, Math.min(0.8, (dr - 0.56) * 3));
@@ -672,14 +679,12 @@
       if (dt2 > 0.74) c.lerp(GC.dirt, Math.min(0.75, (dt2 - 0.74) * 4));
       for (const t of ter) {
         const d = Math.hypot(x - t.x, y - t.y);
-        if (t.k === 'f' && d < t.r) c.lerp(new T.Color(0x4f6c34), 0.75);
+        if (t.k === 'f' && d < t.r * 1.2) { const dd = d * (0.6 + 0.8 * vn(x * 0.05, y * 0.05)); if (dd < t.r) c.lerp(new T.Color(0x4f6c34), 0.45 * (1 - sm(t.r * 0.4, t.r, dd))); }
         else if (t.k === 'h' && d < t.r * 1.15) c.lerp(new T.Color(0xa49866), 0.55 * (1 - d / (t.r * 1.15)) + 0.2);
-        else if (t.k === 'm' && d < t.r && d > (t.ri || 0)) c.setHex(SGK.SIM.onBridge(ter, x, y) ? 0x9a8660 : 0x2f78bf);
-        else if (t.k === 'k' && d < t.r) c.setHex(0xb9a57c);
-        else if (t.k === 's' && d < t.r && d > (t.ri || 0)) c.lerp(new T.Color(0x8b7d55), 0.5);
         else if (t.k === 'w' && d < t.r + 3) c.lerp(new T.Color(d < t.r ? 0x2c5f8a : 0x8a7a52), 0.85); /* 1.6.64 川底と岸（1.6.70 川底を青に） */
-        else if (!['f', 'h', 'm', 'k', 's', 'e', 'w'].includes(t.k) && d < t.r) c.setHex(0x2f78bf);
+        else if (!['f', 'h', 'e', 'w', 'c'].includes(t.k) && d < t.r) c.setHex(0x2f78bf);
       }
+      if (na) { if (na[1]) c.lerp(new T.Color(0xb9a57c), na[1]); if (na[3]) c.lerp(new T.Color(0x8a7a52), 0.6 * na[3]); if (na[4]) c.lerp(new T.Color(0x7d8a4c), 0.35 * na[4]); if (na[5]) c.lerp(new T.Color(0x9a8660), na[5]); if (na[6]) c.lerp(new T.Color(0x9c8a64), 0.8 * na[6]); if (na[2]) c.lerp(new T.Color(0x2f78bf), na[2]); }
       if (x < 0 || y < 0 || x > F.w || y > F.h) c.multiplyScalar(0.85);
       const n = (0.96 + r() * 0.06) * (0.9 + 0.2 * fbm(x * 0.04 + 7, y * 0.04 + 3)); col[i * 3] = c.r * n; col[i * 3 + 1] = c.g * n; col[i * 3 + 2] = c.b * n; // 0.65.0 広いまだら模様（0.68.1 色を入れる文がコメントの中に入って地面が黒くなっていたのを直した）
       const o = x < 0 || y < 0 || x > F.w || y > F.h ? 0.9 : 1; tint[i * 3] = tc.r * o; tint[i * 3 + 1] = tc.g * o; tint[i * 3 + 2] = tc.b * o;
@@ -697,8 +702,7 @@
     for (const t of waterT.splice(0)) t.dispose(); mtnM = null;
     backdrop(id, F); makeEnv(F);
     // 森の木
-    const pts = [], rr = rng(String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0), 3));
-    for (const t of ter) if (t.k === 'f') { const n = Math.min(160, Math.round(t.r * t.r * 0.07)); for (let i = 0; i < n; i++) { const a = rr() * 7, d = Math.sqrt(rr()) * t.r; pts.push([t.x + Math.cos(a) * d, t.y + Math.sin(a) * d, 0.8 + rr() * 0.6]); } }
+    const pts = []; for (const F of SIM.treePts ? SIM.treePts(id, ter) : []) for (const p of F.p) pts.push(p); /* 2.12.0 木の生え方は action.js と同じ（幹の当たり判定と合う） */
     TT.objs = []; plantTrees(id, pts);
     // 0.65.0 草むらと石（戦場の中に散らす。水・曲輪の中には置かない）
     if (!texGrass) texGrass = grassTex();
@@ -709,7 +713,7 @@
     let gi = 0, ri = 0;
     for (let tries = 0; tries < NG * 2 && gi < NG; tries++) {
       const x = -30 + rg() * (F.w + 60), y = -30 + rg() * (F.h + 60);
-      if (ter.some((t) => water(t, x, y) || (t.k === 'k' && Math.hypot(x - t.x, y - t.y) < t.r))) continue;
+      if (ter.some((t) => water(t, x, y)) || (NW && (SGK.SIM.nawaArea(NW, x, y) || SGK.SIM.nawaWallCell(NW, x, y)))) continue; /* 2.12.0 城の中・堀・塀の下には草を生やさない */
       const inF = ter.some((t) => t.k === 'f' && Math.hypot(x - t.x, y - t.y) < t.r);
       const s = 0.7 + rg() * 0.9;
       o2.position.set(x, hgt(x, y) - 0.03, y); o2.rotation.set(0, rg() * 6.28, 0); o2.scale.set(s, s * (0.8 + rg() * 0.6), s); o2.updateMatrix();
@@ -718,48 +722,48 @@
     }
     grassM = grass; grass.userData.full = gi; X.applyVid(); rocks.count = ri; rocks.castShadow = true; rocks.receiveShadow = true; grass.receiveShadow = false;
     scene.add(grass, rocks); trees.push(grass, rocks);
-    // 1.6.25 攻城戦：塀（当たり判定と同じ形。門＝切れ目・枡形・仕切り）と、本丸の真ん中に天守
-    const CWs = SGK.SIM.castleWalls ? SGK.SIM.castleWalls(ter) || [] : [], segs = [];
-    for (const c of CWs) {
-      for (const q of c.rings) { if (q.moat) continue; const n = Math.max(8, Math.round(q.r * 2 * Math.PI / 4)), sl = q.r * 2 * Math.PI / n; for (let i = 0; i < n; i++) { const a = (i + 0.5) / n * Math.PI * 2; if (SGK.SIM.wallInGap(q, a, -sl / 2)) continue; segs.push([c.x + Math.cos(a) * q.r, c.y + Math.sin(a) * q.r, -a + Math.PI / 2, sl]); } }
-      for (const w of c.rad) { const n = Math.max(1, Math.round((w.r1 - w.r0) / 4)), sl = (w.r1 - w.r0) / n; for (let i = 0; i < n; i++) { const d = w.r0 + (i + 0.5) * sl; segs.push([c.x + Math.cos(w.a) * d, c.y + Math.sin(w.a) * d, -w.a, sl]); } }
-    }
-    if (segs.length) {
-      /* 1.6.38 石垣を高く（2m）＋土塀1.8m＋瓦。塀には狭間（四角い窓）を並べる */
-      const N = segs.length, stone = new T.InstancedMesh(new T.BoxGeometry(1, 2.0, 1.6), new T.MeshLambertMaterial({ color: 0x7d786c }), N);
-      const wallM = new T.InstancedMesh(new T.BoxGeometry(1, 1.8, 0.5), new T.MeshLambertMaterial({ color: 0xece6d6 }), N);
-      const roofM = new T.InstancedMesh(new T.BoxGeometry(1, 0.22, 1.0), new T.MeshLambertMaterial({ color: 0x3a3f46 }), N);
-      const winM = new T.InstancedMesh(new T.BoxGeometry(0.32, 0.32, 0.56), new T.MeshLambertMaterial({ color: 0x1c1712 }), N * 2);
-      const o3 = new T.Object3D();
-      segs.forEach(([x, y, r, l], k) => {
-        const g = hgt(x, y); o3.rotation.set(0, r, 0); o3.scale.set(l * 1.02, 1, 1);
-        o3.position.set(x, g + 0.9, y); o3.updateMatrix(); stone.setMatrixAt(k, o3.matrix);
-        o3.position.set(x, g + 2.8, y); o3.updateMatrix(); wallM.setMatrixAt(k, o3.matrix);
-        o3.position.set(x, g + 3.78, y); o3.updateMatrix(); roofM.setMatrixAt(k, o3.matrix);
-        o3.scale.set(1, 1, 1); for (const j of [-0.25, 0.25]) { o3.position.set(x + Math.cos(r) * l * j, g + 2.75 + (j > 0 ? 0 : 0.3), y - Math.sin(r) * l * j); o3.updateMatrix(); winM.setMatrixAt(k * 2 + (j > 0 ? 1 : 0), o3.matrix); }
-      });
-      for (const m of [stone, wallM, roofM, winM]) { m.castShadow = true; m.receiveShadow = true; scene.add(m); trees.push(m); }
+    // 1.6.25 攻城戦：塀・門・櫓・天守（2.12.0 城のパーツ（nawa.js）から作る。当たり判定と同じ形）
+    const segs = [];
+    if (NW) for (const sg of NW.segs) { const n = Math.max(1, Math.round(sg.len / 4)), sl = sg.len / n, ro = -Math.atan2(sg.uy, sg.ux); for (let i = 0; i < n; i++) { const t = (i + 0.5) * sl; segs.push([sg.x1 + sg.ux * t, sg.y1 + sg.uy * t, ro, sl, sg.st]); } }
+    { /* 1.6.38 塀（2.12.0 造りは3通り：i 石垣2m＋土塀1.8m＋瓦・d 土塁＋土塀・k 木の柵）。土塀には狭間（四角い窓）を並べる */
+      const KIND = { i: { bh: 2.0, bw: 1.6, bc: 0x7d786c, wall: 1 }, d: { bh: 1.5, bw: 3.4, bc: 0x5f6440, wall: 1 }, k: { bh: 0, bw: 0, bc: 0, wall: 0 } };
+      for (const kd of ['i', 'd', 'k']) {
+        const L = segs.filter((q) => (q[4] || 'i') === kd); if (!L.length) continue; const K = KIND[kd], N = L.length, ms = [], o3 = new T.Object3D();
+        const mk = (g, c, n) => { const m = new T.InstancedMesh(g, new T.MeshLambertMaterial({ color: c }), n); ms.push(m); return m; };
+        if (kd === 'k') { // 柵：板を立て並べ、上に横木
+          const pl = mk(new T.BoxGeometry(1, 2.3, 0.16), 0x5b4630, N), rl = mk(new T.BoxGeometry(1, 0.14, 0.24), 0x3e2f20, N * 2);
+          L.forEach(([x, y, r, l], k) => { const g = hgt(x, y); o3.rotation.set(0, r, 0); o3.scale.set(l * 1.01, 1, 1); o3.position.set(x, g + 1.05, y); o3.updateMatrix(); pl.setMatrixAt(k, o3.matrix); for (const [j, hh] of [[0, 1.9], [1, 0.8]]) { o3.position.set(x, g + hh, y); o3.updateMatrix(); rl.setMatrixAt(k * 2 + j, o3.matrix); } });
+        } else {
+          const stone = mk(new T.BoxGeometry(1, K.bh, K.bw), K.bc, N), wallM = mk(new T.BoxGeometry(1, 1.8, 0.5), 0xece6d6, N), roofM = mk(new T.BoxGeometry(1, 0.22, 1.0), 0x3a3f46, N), winM = mk(new T.BoxGeometry(0.32, 0.32, 0.56), 0x1c1712, N * 2);
+          L.forEach(([x, y, r, l], k) => {
+            const g = hgt(x, y); o3.rotation.set(0, r, 0); o3.scale.set(l * 1.02, 1, 1);
+            o3.position.set(x, g + K.bh / 2 - 0.1, y); o3.updateMatrix(); stone.setMatrixAt(k, o3.matrix);
+            o3.position.set(x, g + K.bh + 0.8, y); o3.updateMatrix(); wallM.setMatrixAt(k, o3.matrix);
+            o3.position.set(x, g + K.bh + 1.78, y); o3.updateMatrix(); roofM.setMatrixAt(k, o3.matrix);
+            o3.scale.set(1, 1, 1); for (const j of [-0.25, 0.25]) { o3.position.set(x + Math.cos(r) * l * j, g + K.bh + 0.75 + (j > 0 ? 0 : 0.3), y - Math.sin(r) * l * j); o3.updateMatrix(); winM.setMatrixAt(k * 2 + (j > 0 ? 1 : 0), o3.matrix); }
+          });
+        }
+        for (const m of ms) { m.castShadow = true; m.receiveShadow = true; scene.add(m); trees.push(m); }
+      }
     }
     /* 1.6.38 門：櫓門（門の上に櫓）と扉。扉は破られたら消える。外の塀の角には隅櫓 */
     gateM = [];
     const mat = (c) => new T.MeshLambertMaterial({ color: c }), addM = (m) => { m.castShadow = m.receiveShadow = true; scene.add(m); trees.push(m); return m; };
-    for (const gp of SGK.SIM.gatePts ? SGK.SIM.gatePts(CWs) : []) {
+    for (const gp of SGK.SIM.gatePts(NW)) {
       const g = hgt(gp.x, gp.y), ry = -gp.a, wd = gp.w + 1.2;
       const tw = addM(new T.Mesh(new T.BoxGeometry(2.2, 2.4, wd + 2.4), mat(0xece6d6))); tw.position.set(gp.x, g + 4.7, gp.y); tw.rotation.y = ry;
       const rf = addM(new T.Mesh(new T.BoxGeometry(3.2, 0.5, wd + 3.4), mat(0x3a3f46))); rf.position.set(gp.x, g + 6.1, gp.y); rf.rotation.y = ry;
       for (const sd of [-1, 1]) { const pl = addM(new T.Mesh(new T.BoxGeometry(1.4, 3.6, 1.0), mat(0x7d786c))); pl.position.set(gp.x - Math.sin(gp.a) * sd * (gp.w / 2 + 0.6), g + 1.8, gp.y + Math.cos(gp.a) * sd * (gp.w / 2 + 0.6)); pl.rotation.y = ry; }
       const dr = addM(new T.Mesh(new T.BoxGeometry(0.4, 3.5, gp.w), mat(0x4a3424))); dr.position.set(gp.x, g + 1.75, gp.y); dr.rotation.y = ry; dr.userData.gid = gp.id; gateM.push(dr);
     }
-    for (const c of CWs) if (c.main && c.aF != null) {
-      for (const da of [-0.75, 1.05, Math.PI - 0.6, Math.PI + 0.6]) {
-        const a = c.aF + da, x = c.x + Math.cos(a) * (c.R - 2.5), y = c.y + Math.sin(a) * (c.R - 2.5), g = hgt(x, y);
-        const bs = addM(new T.Mesh(new T.BoxGeometry(6, 2.2, 6), mat(0x7d786c))); bs.position.set(x, g + 1.1, y);
-        const bd = addM(new T.Mesh(new T.BoxGeometry(4.6, 3.4, 4.6), mat(0xece6d6))); bd.position.set(x, g + 3.9, y);
-        const rf = addM(new T.Mesh(new T.ConeGeometry(4.2, 1.6, 4).rotateY(Math.PI / 4), mat(0x3a3f46))); rf.position.set(x, g + 6.4, y);
-      }
+    for (const tw of NW ? NW.towers : []) if (tw[0] === 'y') { /* 隅櫓 */
+      const x = tw[1], y = tw[2], g = hgt(x, y);
+      const bs = addM(new T.Mesh(new T.BoxGeometry(6, 2.2, 6), mat(0x7d786c))); bs.position.set(x, g + 1.1, y);
+      const bd = addM(new T.Mesh(new T.BoxGeometry(4.6, 3.4, 4.6), mat(0xece6d6))); bd.position.set(x, g + 3.9, y);
+      const rf = addM(new T.Mesh(new T.ConeGeometry(4.2, 1.6, 4).rotateY(Math.PI / 4), mat(0x3a3f46))); rf.position.set(x, g + 6.4, y);
     }
-    for (const c of CWs) if (c.main) {
-      const tx = c.x, ty = c.y, g0 = hgt(tx, ty);
+    for (const tw of NW ? NW.towers : []) if (tw[0] === 'T') { /* 天守 */
+      const tx = tw[1], ty = tw[2], g0 = hgt(tx, ty);
       const lv = [[12, 4, 0xece6d6], [9.5, 3.5, 0xece6d6], [7, 3.2, 0xece6d6]]; let yy = g0;
       const base = new T.Mesh(new T.BoxGeometry(15, 3, 15), new T.MeshLambertMaterial({ color: 0x7d786c })); base.position.set(tx, yy + 1.5, ty); yy += 3;
       base.castShadow = base.receiveShadow = true; scene.add(base); trees.push(base);

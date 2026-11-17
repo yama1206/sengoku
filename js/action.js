@@ -117,12 +117,36 @@
   };
 
   // 0.75.0 森の木の位置（3D表示の木と同じ並び。action3d.js の build と同じ作り方）
+  /* 2.12.0 木の生え方（3Dの見た目と幹の当たり判定で同じものを使う）：林は丸くせず、縁はぎざぎざ、中は密な所とまばらな所。林の外にもぽつぽつ木がある */
   function treePts(id, ter) {
     let sd = String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0), 3), q = (sd * 9301 + 49297) % 233280 || 1; const r = () => { q = (q * 9301 + 49297) % 233280; return q / 233280; };
+    const hs = (i, j) => { const v = Math.sin(i * 127.1 + j * 311.7 + sd * 0.37) * 43758.5453; return v - Math.floor(v); };
+    const nz = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), u = x - xi, v = y - yi, uu = u * u * (3 - 2 * u), vv = v * v * (3 - 2 * v); return (hs(xi, yi) * (1 - uu) + hs(xi + 1, yi) * uu) * (1 - vv) + (hs(xi, yi + 1) * (1 - uu) + hs(xi + 1, yi + 1) * uu) * vv; };
+    const N = SIM.nawa && SIM.nawa(ter), F0 = SIM.FIELD;
+    const bad = (x, y) => ter.some((t) => !['f', 'h', 'e', 'c'].includes(t.k) && Math.hypot(x - t.x, y - t.y) < t.r + 2) || (N && ((SIM.nawaArea(N, x, y) && SIM.nawaArea(N, x, y) !== 4) || SIM.nawaWallCell(N, x, y))) /* 山の斜面には生える */;
     const out = [];
-    for (const t of ter) if (t.k === 'f') { const n = Math.min(160, Math.round(t.r * t.r * 0.07)), F = { x: t.x, y: t.y, r: t.r, p: [] }; for (let i = 0; i < n; i++) { const a = r() * 7, d = Math.sqrt(r()) * t.r; F.p.push([t.x + Math.cos(a) * d, t.y + Math.sin(a) * d]); r(); } out.push(F); }
+    for (const t of ter) if (t.k === 'f') {
+      const n = Math.min(160, Math.round(t.r * t.r * 0.07)), F = { x: t.x, y: t.y, r: t.r * 1.4, p: [] };
+      for (let i = 0, k = 0; i < n * 3 && k < n; i++) {
+        const a = r() * 6.2832, d = Math.sqrt(r()) * t.r * 1.35, x = t.x + Math.cos(a) * d, y = t.y + Math.sin(a) * d, s = 0.75 + r() * 0.65;
+        const edge = t.r * (0.7 + 0.55 * nz(x * 0.09, y * 0.09)), dens = nz(x * 0.05 + 40, y * 0.05 + 17);
+        if (d > edge && r() > 0.06) continue; // 縁はぎざぎざ（外にも少しはみ出す）
+        if (r() > 0.25 + 0.85 * dens) continue; // 密な所とまばらな所
+        if (bad(x, y)) continue;
+        F.p.push([x, y, s]); k++;
+      }
+      out.push(F);
+    }
+    // 林の外の一本木・小さな木立
+    const lone = { x: F0.w / 2, y: F0.h / 2, r: Math.hypot(F0.w, F0.h), p: [] };
+    for (let i = 0; i < 40; i++) {
+      const x = 15 + r() * (F0.w - 30), y = 10 + r() * (F0.h - 20), m = r() < 0.3 ? 2 + Math.floor(r() * 3) : 1;
+      for (let j = 0; j < m; j++) { const x2 = x + (r() - 0.5) * 9 * (m > 1), y2 = y + (r() - 0.5) * 9 * (m > 1), s = 0.7 + r() * 0.6; if (!bad(x2, y2) && !ter.some((t) => t.k === 'f' && Math.hypot(x2 - t.x, y2 - t.y) < t.r * 1.3)) lone.p.push([x2, y2, s]); }
+    }
+    if (lone.p.length) out.push(lone);
     return out;
   }
+  SIM.treePts = treePts;
   // 0.75.0 隊形：兵の持ち場（ox 前後・oy 左右）を並べ直す
   ACT.FORMS = { norm: '通常', line: '横隊', loose: '散開', square: '方陣', wedge: '鋒矢' };
   // 0.79.0 隊形の得手不得手：spd 移動・ma 近接の攻撃・ra 弓鉄砲の攻撃・md 近接で受ける被害・rd 矢弾で受ける被害（倍）
@@ -136,7 +160,8 @@
     if (!b.ter || !b.ter.length) return 1;
     const t = SIM.terAt(b, s); let m = t.f ? (cav ? SIM.CAV_FOREST : 0.8) : 1;
     if (t.m && !SIM.onBridge(b.ter, s.x, s.y)) m *= 0.4; if (t.w) m *= cav ? 0.4 : 0.45; /* 1.6.64 川（浅瀬はあいている） */ if (t.s) m *= cav ? 0.3 : 0.5;
-    if (t.h && (dx || dy)) { const l = Math.hypot(dx, dy) || 1, h0 = hgt(b, s.x, s.y), h1 = hgt(b, s.x + dx / l, s.y + dy / l); if (h1 > h0 + 0.002) m *= 0.85; else if (h1 < h0 - 0.002) m *= 1.05; }
+    const NW = SIM.nawa(b.ter), road = NW && SIM.nawaArea(NW, s.x, s.y) === 6; if (road) m = Math.max(m, 0.9); /* 2.12.0 道は斜面でも歩ける */
+    if ((t.h || (NW && NW.hg)) && (dx || dy)) { const l = Math.hypot(dx, dy) || 1, h0 = SIM.groundH(b, s.x, s.y), h1 = SIM.groundH(b, s.x + dx / l * 1.5, s.y + dy / l * 1.5), sl = (h1 - h0) / 1.5; if (sl > 0.02) m *= Math.max(0.3, 1 - sl * (road ? 0.3 : 0.7)); else if (sl < -0.02) m *= 1.05; } /* 2.12.0 登り坂は急なほど遅い */
     return m;
   }
   // 0.80.0 勢い：攻撃したときの走る速さで威力が変わる（本人+30%・騎馬+50%／止まった騎馬-20%・歩兵+15%、後ずさりは-10%）
@@ -192,7 +217,10 @@
       else if (u) u.mor -= (110 / (u.m0 || 1)) * 0.9;
     }
   }
+  let WB = null; // 2.12.0 いまの戦場の塀（塀ごしの近接攻撃を止める）：[城, 門の状態]
+  const walled = (s, o) => !!WB && SIM.wallBlock(WB[0], s.x, s.y, o.x, o.y, { gs: WB[1], side: s.side, cs: WB[2] });
   function melee(b, A, s, t, atk) {
+    if (walled(s, t)) return;
     const T2 = t.hero ? TR.hero : TR[t.type];
     const per = Math.max(0.6, atk * 2.2 - (T2.def || 0) * 0.8);
     damage(b, A, t, per * (0.7 + rr() * 0.6), s);
@@ -201,7 +229,7 @@
   const multK = (i) => ACT.MULTI[Math.min(i, ACT.MULTI.length - 1)];
   function swing(g, s, f, W, hit) {
     const hits = [];
-    near(g, s.x, s.y, W.reach + 1, (o) => { if (o.side !== s.side && live(o) && dist(s, o) < W.reach + (o.type && TR[o.type].cav ? 0.9 : 0.5) && angDiff(f, ang(s, o)) < W.arc) hits.push(o); });
+    near(g, s.x, s.y, W.reach + 1, (o) => { if (o.side !== s.side && live(o) && dist(s, o) < W.reach + (o.type && TR[o.type].cav ? 0.9 : 0.5) && angDiff(f, ang(s, o)) < W.arc && !walled(s, o)) hits.push(o); });
     hits.sort((a, c) => dist(s, a) - dist(s, c)).forEach((o, i) => { hit(o, multK(i)); const a = ang(s, o); o.x += Math.cos(a) * 0.6; o.y += Math.sin(a) * 0.6; });
     return hits.length;
   }
@@ -219,12 +247,13 @@
     u.kite = 0;
     if (!fo) { u.eo = 'hold'; return; }
     const toFoe = Math.atan2(fo.y - c.y, fo.x - c.x);
-    const mc = b.cside === u.side && (SIM.castleWalls(b.ter) || []).find((x) => x.main);
-    if (mc) { /* 1.6.38 守り手は城にこもる：弓・鉄砲は狭間、槍・刀は門の内側で待ち、塀の中に入られたら打ちかかる */
-      const ins = all.some((s) => s.side !== u.side && live(s) && Math.hypot(s.x - mc.x, s.y - mc.y) < mc.R - 1);
+    const NW = b.cside === u.side && SIM.nawa(b.ter), mc = NW && NW.M;
+    if (mc) { /* 1.6.38 守り手は城にこもる：弓・鉄砲は狭間、槍・刀は門の内側で待ち、塀の中に入られたら打ちかかる（2.12.0 城の形はパーツから） */
+      const q = Math.max(0, Math.min(u.home || 0, NW.encl.length - 1)), en = NW.encl[q]; /* 2.12.0 守り手はそれぞれの区画（本丸・二の丸…）を守る */
+      const ins = all.some((s) => s.side !== u.side && live(s) && SIM.nawaInMain(NW, s.x, s.y, q));
       if (ins && !T.ranged) { u.eo = u.pref; return; }
       u.eo = 'hold'; u.af = toFoe;
-      if (!T.ranged) { if (u.gk == null) u.gk = (A.gk = (A.gk || 0) + 1) % 3 ? 0 : 1; const ga = u.gk ? mc.aF - 0.35 * Math.PI : mc.gA, k = mc.R - 11; u.ax = mc.x + Math.cos(ga) * k; u.ay = mc.y + Math.sin(ga) * k; }
+      if (!T.ranged) { if (u.gk == null) u.gk = (A.gk = (A.gk || 0) + 1) % 3 ? 0 : 1; const ws = en && en.waits.length ? en.waits : null, wp = ws ? ws[u.gk ? ws.length - 1 : 0] : (u.gk && NW.waits.k) || NW.waits.o; if (wp) { u.ax = wp[0]; u.ay = wp[1]; } }
       return;
     }
     const go = (a, k) => { u.eo = 'move'; u.mx = Math.max(2, Math.min(F.w - 2, c.x + Math.cos(a) * k)); u.my = Math.max(2, Math.min(F.h - 2, c.y + Math.sin(a) * k)); };
@@ -257,17 +286,19 @@
     if (!A.gt || !(A.gt[id] > 0)) return;
     A.gt[id] -= d; if (A.gt[id] <= 0) { A.gt[id] = 0; sayAll(A, `${SIM.GATE_NAME[id.slice(-1)] || '門'}が破られました！`); }
   }
-  function setPosts(A, b, cw) {
-    A.posted = 1; const c = cw.find((x) => x.main) || cw[0]; if (!c) return;
-    const q = c.rings.find((x) => !x.w && Math.abs(x.r - c.R) < 0.5) || c.rings[c.rings.length - 1], rp = q.r - 1.6, st = 2.4 / rp, slots = [];
-    for (let i = 0; slots.length < 80 && i < 200; i++) { const a = c.aF + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * st; if (Math.abs(nrm2(a - c.aF)) > 2.2) break; if (q.gaps.some(([ga, gw]) => Math.abs(nrm2(a - ga)) < gw + 2 / rp)) continue; slots.push(a); }
-    let k = 0; for (const s of A.s) if (live(s) && !s.hero && s.side === b.cside && TR[s.type] && TR[s.type].ranged && k < slots.length) { const a = slots[k++]; s.post = { x: c.x + Math.cos(a) * rp, y: c.y + Math.sin(a) * rp }; }
+  function setPosts(A, b, N) { // 2.12.0 狭間の場所は城のパーツから（本丸の外まわりの塀のすぐ内側）
+    A.posted = 1; const used = {};
+    for (const s of A.s) if (live(s) && !s.hero && s.side === b.cside && TR[s.type] && TR[s.type].ranged) { /* 区画ごとの狭間 */
+      const u = A.byG[s.g], q = Math.max(0, Math.min((u && u.home) || 0, N.K.length - 1)), L = used[q] || (used[q] = { sl: SIM.nawaPosts(N, 80, q), k: 0 });
+      if (L.k < L.sl.length) { const p = L.sl[L.k++]; s.post = { x: p.x, y: p.y }; }
+    }
   }
-  const nrm2 = (a) => { a %= 2 * Math.PI; return a > Math.PI ? a - 2 * Math.PI : a < -Math.PI ? a + 2 * Math.PI : a; };
   SIM.actStep = (w, b, dt) => {
     const A = b.act; if (!A) return;
     const F = SIM.FIELD; b.t += dt;
-    const CW = SIM.castleWalls(b.ter); if (CW && !A.gt) A.gt = SIM.gateInit(CW, b.gf); if (CW && b.cside && !A.posted) setPosts(A, b, CW);
+    const HGT = (b.ter || []).some((t) => t.k === 'h') || !!(SIM.nawa(b.ter) && SIM.nawa(b.ter).hg); /* 2.12.0 高さのある戦場か */
+    const CW = SIM.nawa(b.ter); if (CW && !A.gt) { A.gt = SIM.gateInit(CW, b.gf); SIM.nawaWarm(CW); }
+    WB = CW ? [CW, A.gt, b.cside] : null; if (CW && b.cside && !A.posted) setPosts(A, b, CW);
     const all = A.s.filter(live), g = grid(all);
     const center = {};
     for (const s of all) if (!s.hero) { const c = center[s.g] || (center[s.g] = { x: 0, y: 0, n: 0 }); c.x += s.x; c.y += s.y; c.n++; }
@@ -375,7 +406,7 @@
       if (u.kite) look = T.ranged ? reach : 3;
       const aiHero = s.hero && !s.pc && (u.side === 'B' || u.order === 'ai'); // 0.64.0 敵の大将は後ろから兵を励まし、近づかれたら戦う
       if (aiHero) look = 7;
-      let e = nearestFoe(g, s, T.ranged ? Math.max(look, reach) : look);
+      let e = nearestFoe(g, s, T.ranged ? Math.max(look, reach + (HGT ? 14 : 0)) : look); /* 2.12.0 高い所からは遠くまで届く */
       if (T.ranged && u.nofire && e && dist(s, e) >= 5) e = null; // 0.75.0 射撃をやめよ（近づかれたら刀で戦う）
       const hunter = u.isAI && !T.ranged && !s.hero && !u.kite && (T.cav || s.id % 3 === 0); // 1.6.21 騎馬と3人に1人は弓・鉄砲を狙いに行く
       if (u.isAI && !T.ranged && !s.hero && !u.kite && !hunter) { // 0.64.0 近くの本人（武将）を何人かで囲んで狙う（1.6.21 14m・6人→9m・3人）
@@ -386,7 +417,8 @@
       if (hunter && (!e || dist(s, e) > reach)) { let r = null, rd = 35; for (const x of foeRanged) if (x.side !== s.side) { const dd = Math.abs(x.x - s.x) + Math.abs(x.y - s.y); if (dd < rd) { rd = dd; r = x; } } if (r) e = r; }
       if (u.kite && T.ranged && e && dist(s, e) < 8) e = null; // 下がっている間は撃たずに離れる
       if (!u.isAI && o === 'move') e = null; // 0.73.8 移動の指示は敵にかまわず最優先
-      const close = T.ranged && e && dist(s, e) < (s.kat ? 6 : 4), R = close ? ACT.WEP.waki.reach : reach; /* 1.6.37 近づかれたら脇差、離れたら弓・鉄砲に戻す */ s.kat = close ? 1 : 0; // 0.73.8 弓・鉄砲は近づかれたら刀に持ち替える
+      if (e && WB && (!T.ranged || dist(s, e) < 6) && walled(s, e)) e = null; /* 2.12.0 塀の向こうの敵には斬りかからない（門へ回る） */
+      const close = T.ranged && e && dist(s, e) < (s.kat ? 6 : 4), dh = HGT && T.ranged && e ? SIM.groundH(b, s.x, s.y) - SIM.groundH(b, e.x, e.y) : 0, R = close ? ACT.WEP.waki.reach : reach + Math.max(-6, Math.min(14, dh * 0.5)); /* 2.12.0 高さの差で届く距離が変わる */ /* 1.6.37 近づかれたら脇差、離れたら弓・鉄砲に戻す */ s.kat = close ? 1 : 0; // 0.73.8 弓・鉄砲は近づかれたら刀に持ち替える
       let gx, gy;
       const runCav = T.cav && !s.hero && o !== 'move'; // 0.80.0 騎馬は止まらず駆け抜けて、また突っ込む
       if (runCav && s.pt > 0) {
@@ -408,7 +440,7 @@
           if (s.cd <= 0) {
             if (T.ranged && !close) {
               const sp = s.type === 'teppo' || s.type === 'teppogashira' ? 140 : 45, tt = d / sp, ex = e.x + (rr() - 0.5) * d * 0.12, ey = e.y + (rr() - 0.5) * d * 0.12, a = Math.atan2(ey - s.y, ex - s.x);
-              A.pr.push({ L: d, x0: s.x, y0: s.y, x: s.x, y: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, side: s.side, dmg: T.atk * (u.am || 1) * fmod(u, 'ra') * (sp > 100 ? 2.6 : 2.2) * (0.55 + 0.45 * u.mor / 100), life: tt * 1.3, gun: sp > 100, src: s });
+              A.pr.push({ L: d, x0: s.x, y0: s.y, x: s.x, y: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, side: s.side, dmg: T.atk * (u.am || 1) * fmod(u, 'ra') * (sp > 100 ? 2.6 : 2.2) * (0.55 + 0.45 * u.mor / 100) * (1 + Math.max(-0.15, Math.min(0.3, dh * 0.015))), life: tt * 1.3, gun: sp > 100, src: s });
               s.cd = (sp > 100 ? 4 : 2.4) + rr(); s.at = performance.now() / 1000; // 0.66.0 3Dの射る・撃つ動き
             } else { const atk = T.atk * (u.am || 1) * fmod(u, 'ma') * (close ? 0.8 : 1) * (0.55 + 0.45 * u.mor / 100); const CW = cpuWep(s, close); if (!swing(g, s, s.f, CW, (o, k) => melee(b, A, s, o, atk * k))) melee(b, A, s, e, atk); s.cd = CW.cd * 2.2 + rr() * 0.6; s.at = performance.now() / 1000; } // 0.73.10 武器ごとの振りの速さ（刀1.1秒・槍1.76秒＋ゆらぎ） // 0.73.9 CPUも一振りで範囲の敵全員に
           }
@@ -453,13 +485,20 @@
       const r = (o) => (o.hero ? 0.7 : o.type && TR[o.type].cav ? 0.9 : ACT.SOLDIER_R);
       near(g, s.x, s.y, 2, (o) => {
         if (o === s || !live(o) || o.id < s.id) return;
-        const d = dist(s, o) || 0.01, m = r(s) + r(o); if (d >= m) return;
+        let ex = o.x - s.x, ey = o.y - s.y, d = Math.hypot(ex, ey); const m = r(s) + r(o); if (d >= m) return;
+        if (d < 0.01) { const a = rr() * 6.283; ex = Math.cos(a) * 0.01; ey = Math.sin(a) * 0.01; d = 0.01; } /* 2.12.0 ほぼ同じ場所に重なった2人が、遠くへはじき飛ばされていたのを直した（押す向きは動かす前の差で計る） */
         const k = (m - d) / d * 0.5, wa = s.pc ? 0.2 : 1, wb = o.pc ? 0.2 : 1;
-        s.x -= (o.x - s.x) * k * wa; s.y -= (o.y - s.y) * k * wa; o.x += (o.x - s.x) * k * wb; o.y += (o.y - s.y) * k * wb;
+        s.x -= ex * k * wa; s.y -= ey * k * wa; o.x += ex * k * wb; o.y += ey * k * wb;
       });
       s.y = Math.max(1, Math.min(F.h - 1, s.y)); if (!s.gone) s.x = Math.max(1, Math.min(F.w - 1, s.x));
       if (CW) SIM.wallPush(CW, s, r(s), gG(A, b, s)); /* 1.6.25 塀の当たり判定（1.6.38 閉じた門も） */
     }
+    if (A.trees && A.trees.length) for (const s of all) if (live(s)) for (const F of A.trees) { /* 2.12.0 木の幹にぶつかる（すり抜けない） */
+      if (Math.abs(s.x - F.x) > F.r + 2 || Math.abs(s.y - F.y) > F.r + 2) continue;
+      const m = (s.hero ? 0.7 : s.type && TR[s.type].cav ? 0.9 : ACT.SOLDIER_R) + 0.4;
+      for (const t of F.p) { const dx = s.x - t[0], dy = s.y - t[1]; /* 幹 */ if (Math.abs(dx) >= m || Math.abs(dy) >= m) continue; const d = Math.hypot(dx, dy); if (d < m && d > 1e-4) { s.x = t[0] + dx / d * m; s.y = t[1] + dy / d * m; } }
+    }
+    if (CW) for (const s of all) if (live(s)) SIM.wallPush(CW, s, s.hero ? 0.7 : s.type && TR[s.type].cav ? 0.9 : ACT.SOLDIER_R, gG(A, b, s)); /* 2.12.0 押し合いで塀の向こうへ押し出されないよう、もう一度 */
     // 潰走
     for (const u of b.units) {
       if (u.type === 'hero' || u.order === 'rout' || !center[u.id]) continue;
