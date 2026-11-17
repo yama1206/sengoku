@@ -86,7 +86,7 @@
     og.setAttribute('color', new T.BufferAttribute(new Float32Array(on * 3).fill(0.82), 3)); og.setAttribute('spA', new T.BufferAttribute(new Float32Array(on * 4), 4)); og.setAttribute('spB', new T.BufferAttribute(new Float32Array(on * 2), 2));
     outOld = new T.MeshLambertMaterial({ color: 0x6d7c44, depthWrite: false }); outM = new T.Mesh(og, outOld);
     outM.position.set(350, -0.3, 230); outM.receiveShadow = true; outM.renderOrder = -0.5; scene.add(outM); /* 先に描いて奥行きは書かない：戦場の地面のくぼみや川を上から覆わないように */
-    loadGroundTex();
+    loadGroundTex(); loadTreeTex();
 
     const lam = (o) => new T.MeshLambertMaterial(o);
     const mk = (name, geo, mat, cap, shadow = true) => { const im = new T.InstancedMesh(geo, mat, cap); im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.castShadow = shadow; im.receiveShadow = false; im.frustumCulled = false; im.setColorAt(0, new T.Color(0xffffff)); im.instanceColor.array.fill(1); im.count = 0; /* 0.65.0 色を付けない部分も素材の色で出す（以前は黒くなっていた） */ scene.add(im); M[name] = im; return im; };
@@ -240,7 +240,8 @@
     m.onBeforeCompile = (sh) => {
       sh.uniforms.gT = gTime;
       sh.vertexShader = 'uniform float gT;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\n vec4 gw = modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0); transformed *= 1.0 - smoothstep(150.0, 230.0, distance(cameraPosition.xz, gw.xz)); float gk = position.y / 0.55; transformed.x += sin(gT * 1.6 + gw.x * 0.35 + gw.z * 0.22) * 0.13 * gk; transformed.z += cos(gT * 1.3 + gw.x * 0.2 + gw.z * 0.31) * 0.08 * gk;\n#endif');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(0.55, 1.12, vUv.y);');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(0.55, 1.12, vUv.y);')
+        .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n normal = normalize(vNormal);'); /* 2.6.5 裏から見た草の束が黒くなっていた（両面の板は裏で向きが逆になる） */
     };
     return m;
   }
@@ -318,6 +319,177 @@
     groundG.setAttribute('color', groundG.userData.tint);
     if (outM && outM.material === outOld) { outM.material = groundMat(false); outM.material.depthWrite = false; }
   }
+  // 2.6.5 写真から作った木（assets/textures/tree_*）：杉・松・広葉樹2種（欅・楢）。枝葉の写真を貼った板を幹のまわりに何十枚も重ね、
+  // 樹皮の写真を貼った幹と枝に付ける。戦場ごとに形（各3通り）と混ざり方を変える。風で梢がゆれる。
+  // 読めない時・file:// で開いた時は、これまでの木（円すいと丸い葉）のまま
+  const TT = { leaf: ['sugi', 'pine', 'keyaki', 'oak'], bark: ['sugi', 'pine', 'oak'], tex: {}, ok: false, fail: false, pts: null, objs: [] };
+  function loadTreeTex() {
+    if (location.protocol === 'file:') { TT.fail = true; return; }
+    const ld = new T.TextureLoader(), an = rd.capabilities.getMaxAnisotropy ? Math.min(8, rd.capabilities.getMaxAnisotropy()) : 1, files = [];
+    for (const n of TT.leaf) files.push([`leaf_${n}_c`, 'jpg', true], [`leaf_${n}_a`, 'png', false]);
+    for (const n of TT.bark) files.push([`bark_${n}`, 'jpg', true]);
+    let left = files.length;
+    for (const [n, ext, srgb] of files) ld.load(`assets/textures/tree_${n}.${ext}`, (t) => {
+      if (srgb) t.encoding = T.sRGBEncoding; t.wrapS = t.wrapT = n.startsWith('bark') ? T.RepeatWrapping : T.ClampToEdgeWrapping; t.anisotropy = an; TT.tex[n] = t;
+      if (--left === 0 && !TT.fail) { TT.ok = true; if (TT.pts && built === TT.pts[0]) plantTrees(TT.pts[0], TT.pts[1]); }
+    }, undefined, () => { TT.fail = true; });
+  }
+  // 形を作る道具：p 位置・n 向き（光の当たり方）・uv・c 暗さ（幹のそばや下の方は暗い）
+  const TB = () => ({ p: [], n: [], uv: [], c: [], ix: [] });
+  function tbGeo(B) { const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(B.p, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(B.n, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(B.uv, 2)); g.setAttribute('color', new T.Float32BufferAttribute(B.c, 3)); g.setIndex(B.ix); return g; }
+  // 葉の板1枚：O＝絵の左下の角、ex＝絵の横、ey＝絵の下から上。cell＝2×2 に並べた絵のどれか。nf(点)→向き、af(点)→暗さ
+  function leafCard(B, cell, O, ex, ey, nf, af) {
+    const u0 = (cell % 2) * 0.5 + 0.004, u1 = u0 + 0.492, v1 = 1 - Math.floor(cell / 2) * 0.5 - 0.004, v0 = v1 - 0.492, b = B.p.length / 3;
+    const P = [O.clone(), O.clone().add(ex), O.clone().add(ex).add(ey), O.clone().add(ey)], UV = [[u0, v0], [u1, v0], [u1, v1], [u0, v1]];
+    P.forEach((q, k) => { const n = nf(q), a = af(q); B.p.push(q.x, q.y, q.z); B.n.push(n.x, n.y, n.z); B.uv.push(...UV[k]); B.c.push(a, a, a); });
+    B.ix.push(b, b + 1, b + 2, b, b + 2, b + 3);
+  }
+  // 幹・枝：点の列に沿った管（樹皮の絵を巻く）
+  function barkTube(B, pts, rad, seg, uRep, ao) {
+    const b = B.p.length / 3, up = new T.Vector3(0, 1, 0), t = new T.Vector3(), s1 = new T.Vector3(), s2 = new T.Vector3(); let L = 0;
+    for (let k = 0; k < pts.length; k++) {
+      t.copy(pts[Math.min(pts.length - 1, k + 1)]).sub(pts[Math.max(0, k - 1)]).normalize();
+      s1.crossVectors(t, Math.abs(t.y) > 0.9 ? new T.Vector3(1, 0, 0) : up).normalize(); s2.crossVectors(t, s1).normalize();
+      if (k) L += pts[k].distanceTo(pts[k - 1]);
+      for (let j = 0; j <= seg; j++) { const a = j / seg * Math.PI * 2, n = s1.clone().multiplyScalar(Math.cos(a)).addScaledVector(s2, Math.sin(a)), q = pts[k].clone().addScaledVector(n, rad[k]);
+        B.p.push(q.x, q.y, q.z); B.n.push(n.x, n.y, n.z); B.uv.push(j / seg * uRep, L / 0.9); const c = ao * (0.75 + 0.25 * Math.min(1, pts[k].y / 3)); B.c.push(c, c, c); }
+    }
+    for (let k = 0; k < pts.length - 1; k++) for (let j = 0; j < seg; j++) { const a = b + k * (seg + 1) + j, c = a + seg + 1; B.ix.push(a, c, a + 1, a + 1, c, c + 1); }
+  }
+  const V3 = (x, y, z) => new T.Vector3(x, y, z);
+  // 横にのびる向き d を軸に、板を roll だけ傾けた横の向き
+  const sideOf = (d, roll) => { const s = V3(-d.z, 0, d.x); if (s.lengthSq() < 1e-6) s.set(1, 0, 0); s.normalize(); const w = new T.Vector3().crossVectors(d, s).normalize(); return s.multiplyScalar(Math.cos(roll)).addScaledVector(w, Math.sin(roll)); };
+  // 杉：まっすぐな幹に、垂れた枝葉を輪のように重ねた細い円すい
+  function treeSugi(r) {
+    const Tr = TB(), Cr = TB(), Ht = 12 + r() * 4, y0 = 2 + r() * 1.5, R0 = 2.3 + r() * 0.9, ph = r() * 6, tp = [], tr = [];
+    for (let k = 0; k <= 8; k++) { const y = -0.4 + (Ht + 0.4) * k / 8; tp.push(V3(0.12 * Math.sin(y * 0.3 + ph), y, 0.1 * Math.cos(y * 0.23 + ph))); tr.push(0.05 + 0.34 * Math.pow(1 - k / 8, 0.9)); }
+    barkTube(Tr, tp, tr, 8, 2, 1);
+    const nf = (q) => V3(q.x, 0, q.z).normalize().multiplyScalar(0.85).add(V3(0, 0.6, 0)).normalize();
+    for (let y = y0; y < Ht - 0.4; y += 0.3 + r() * 0.12) {
+      const t = (y - y0) / (Ht - y0), Rc = R0 * Math.pow(1 - t, 0.9) * (0.8 + r() * 0.35) + 0.45, nb = 4 + Math.floor(r() * 3);
+      const af = (q) => (0.42 + 0.58 * Math.min(1, Math.hypot(q.x, q.z) / Rc)) * (0.68 + 0.32 * t);
+      for (let b = 0; b < nb; b++) {
+        const f = r() * Math.PI * 2, dr = 0.5 - 0.25 * t + r() * 0.25, d = V3(Math.cos(f), -dr, Math.sin(f)).normalize(), h = Rc * 1.2, w = h * (0.7 + r() * 0.3);
+        const A = V3(Math.cos(f) * 0.15, y, Math.sin(f) * 0.15), ex = sideOf(d, (r() - 0.5) * 1.2).multiplyScalar(w), ey = d.clone().multiplyScalar(-h);
+        leafCard(Cr, Math.floor(r() * 4), A.clone().addScaledVector(d, h).addScaledVector(ex, -0.5), ex, ey, (q) => (Math.hypot(q.x, q.z) < 0.3 ? V3(d.x, 0.6, d.z).normalize() : nf(q)), af);
+      }
+    }
+    for (let k = 0; k < 3; k++) { const f = k * 2.1 + r(), d = V3(Math.cos(f) * 0.3, -1, Math.sin(f) * 0.3).normalize(), ex = sideOf(V3(Math.cos(f), 0, Math.sin(f)), 0).multiplyScalar(0.9), A = V3(0, Ht + 0.7, 0);
+      leafCard(Cr, k, A.clone().addScaledVector(d, 1.9).addScaledVector(ex, -0.5), ex, d.clone().multiplyScalar(-1.9), () => V3(0, 1, 0), () => 0.95); }
+    return { trunk: tbGeo(Tr), crown: tbGeo(Cr) };
+  }
+  // 松：傾いて曲がった幹から枝を出し、その先に針葉の房を平たいかたまりにして付ける
+  function treePine(r) {
+    const Tr = TB(), Cr = TB(), Ht = 8 + r() * 3.5, ls = r() * Math.PI * 2, lean = 0.6 + r() * 1.3, tp = [], tr = [];
+    const at = (t) => V3(Math.cos(ls) * lean * t * t + 0.3 * Math.sin(t * 5 + ls), Ht * t - 0.4 * (1 - t), Math.sin(ls) * lean * t * t + 0.3 * Math.cos(t * 4 + ls) * t);
+    for (let k = 0; k <= 9; k++) { tp.push(at(k / 9)); tr.push(0.06 + 0.24 * Math.pow(1 - k / 9, 0.8)); }
+    barkTube(Tr, tp, tr, 8, 2, 1);
+    const pad = (C, pr) => {
+      const nf = (q) => q.clone().sub(C).add(V3(0, 0.55 * pr, 0)).normalize(), af = (q) => Math.min(1.05, 0.55 + 0.45 * Math.max(0, (q.y - C.y) / pr + 0.5) + 0.15 * Math.hypot(q.x - C.x, q.z - C.z) / pr);
+      for (let k = 0, n = 7 + Math.floor(r() * 4); k < n; k++) {
+        const f = r() * Math.PI * 2, o = r() * pr * 0.45, A = V3(C.x + Math.cos(f) * o, C.y - 0.2 * pr, C.z + Math.sin(f) * o);
+        const d = V3(Math.cos(f) * (0.6 + r() * 0.5), 0.55 + r() * 0.5, Math.sin(f) * (0.6 + r() * 0.5)).normalize(), h = pr * (0.95 + r() * 0.35), ex = sideOf(d, (r() - 0.5) * 0.9).multiplyScalar(h * 0.95);
+        leafCard(Cr, Math.floor(r() * 4), A.clone().addScaledVector(ex, -0.5), ex, d.clone().multiplyScalar(h), nf, af);
+      }
+    };
+    for (let b = 0, nb = 5 + Math.floor(r() * 4); b < nb; b++) {
+      const t = 0.42 + 0.5 * b / nb + r() * 0.05, B0 = at(t), f = r() * Math.PI * 2, L = (1.4 + r() * 1.8) * (1.15 - 0.55 * (t - 0.42) / 0.5), up = 0.15 + r() * 0.4;
+      const bp = [B0], br = [0.11 * (1.2 - t)]; for (let k = 1; k <= 3; k++) { const s = k / 3; bp.push(V3(B0.x + Math.cos(f) * L * s, B0.y + L * up * s + 0.25 * s * s, B0.z + Math.sin(f) * L * s)); br.push(Math.max(0.04, br[0] * (1 - s * 0.6))); }
+      barkTube(Tr, bp, br, 5, 1, 0.9);
+      pad(bp[3].clone().add(V3(0, 0.25, 0)), 1.1 + r() * 0.7); if (L > 1.8) pad(bp[2].clone().add(V3(0, 0.3, 0)), 0.85 + r() * 0.45);
+    }
+    pad(at(1).add(V3(0, 0.3, 0)), 1.1 + r() * 0.4);
+    return { trunk: tbGeo(Tr), crown: tbGeo(Cr) };
+  }
+  // 広葉樹（欅・楢）：低い所で幹が分かれ、丸いかたまりがいくつか集まった樹冠
+  function treeBroad(r) {
+    const Tr = TB(), Cr = TB(), hb = 2.4 + r() * 1.2, rx = 3.1 + r() * 0.9, ry = 2.5 + r() * 0.8, hc = hb + ry + 0.6, C = V3(0, hc, 0);
+    barkTube(Tr, [V3(0, -0.4, 0), V3(0.05, hb * 0.5, 0.03), V3(0, hb, 0)], [0.36, 0.3, 0.26], 8, 2, 1);
+    const blobs = [];
+    for (let k = 0, n = 6 + Math.floor(r() * 3); k < n; k++) {
+      const f = k / n * Math.PI * 2 + r() * 0.6, e = (r() - 0.25) * 0.9, S = V3(Math.cos(f) * Math.cos(e) * rx * 0.55, hc + Math.sin(e) * ry * 0.6, Math.sin(f) * Math.cos(e) * rx * 0.55);
+      blobs.push([S, 1.5 + r() * 0.7]);
+      const lp = [V3(0, hb - 0.2, 0), V3(S.x * 0.35, hb + (S.y - hb) * 0.45, S.z * 0.35), V3(S.x * 0.8, S.y - 0.3, S.z * 0.8)];
+      barkTube(Tr, lp, [0.17, 0.11, 0.05], 5, 1, 0.85);
+    }
+    blobs.push([V3(0, hc + ry * 0.5, 0), 1.7 + r() * 0.5]);
+    for (const [S, br] of blobs) for (let k = 0, n = 13 + Math.floor(r() * 4); k < n; k++) {
+      const dir = V3(r() - 0.5, r() - 0.4, r() - 0.5).normalize(), P = S.clone().addScaledVector(dir, br * (0.55 + 0.45 * r()));
+      const nn = P.clone().sub(S).normalize().addScaledVector(V3(r() - 0.5, r() - 0.5, r() - 0.5), 0.9).normalize(), u = new T.Vector3().crossVectors(nn, V3(r() - 0.5, r() - 0.5, r() - 0.5)).normalize(), d = new T.Vector3().crossVectors(u, nn);
+      const sz = 1.25 + r() * 0.65, ex = u.multiplyScalar(sz), ey = d.multiplyScalar(sz);
+      leafCard(Cr, Math.floor(r() * 4), P.clone().addScaledVector(ex, -0.5).addScaledVector(ey, -0.5), ex, ey,
+        (q) => q.clone().sub(C).multiply(V3(1 / rx, 1 / ry, 1 / rx)).normalize().multiplyScalar(0.7).add(q.clone().sub(S).normalize().multiplyScalar(0.3)).normalize(),
+        (q) => { const e = q.clone().sub(C).multiply(V3(1 / rx, 1 / ry, 1 / rx)), l = e.length(); return Math.min(1.05, (0.4 + 0.6 * Math.pow(Math.min(1, l), 1.6)) * (0.78 + 0.22 * Math.max(0, Math.min(1, e.y + 0.5)))); });
+    }
+    return { trunk: tbGeo(Tr), crown: tbGeo(Cr) };
+  }
+  // 風のゆれ（幹と葉で同じ動き。高い所ほど大きい）
+  const SWAY = '#ifdef USE_INSTANCING\n { vec4 tw = modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0); float k = position.y * position.y * 0.0011; transformed.x += sin(gT * 0.8 + tw.x * 0.07 + tw.z * 0.05) * k; transformed.z += cos(gT * 0.63 + tw.x * 0.04 + tw.z * 0.08) * k * 0.7; }\n#endif\n';
+  function treeMat(leaf, map, amap) {
+    const m = new T.MeshLambertMaterial(leaf ? { map, alphaMap: amap, alphaTest: 0.45, side: T.DoubleSide, vertexColors: true } : { map, vertexColors: true });
+    m.customProgramCacheKey = () => (leaf ? 'treeLeaf' : 'treeBark');
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.gT = gTime;
+      sh.vertexShader = 'uniform float gT;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + SWAY + (leaf ? 'transformed += vec3(sin(gT * 2.6 + position.x * 1.7 + position.y * 1.3), 0.0, cos(gT * 2.2 + position.z * 1.9 + position.y)) * 0.03;\n' : ''));
+      if (leaf) sh.fragmentShader = sh.fragmentShader
+        .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n normal = normalize(vNormal);') // 板の裏も表と同じ向きの光（裏だけ暗くならない）
+        .replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\n diffuseColor.rgb *= 0.5 + 0.5 * smoothstep(0.45, 0.95, diffuseColor.a);\n' /* 葉の縁（白い背景が少し混ざった所）を暗くして白く光らせない */ + (rd.capabilities.isWebGL2 ? ' { vec2 dd = max(abs(dFdx(vUv)), abs(dFdy(vUv))) * 512.0; diffuseColor.a *= 1.0 + max(0.0, log2(max(dd.x, dd.y))) * 0.35; }' : '')); // 遠くで葉がすけすけにならない
+    };
+    return m;
+  }
+  function plantTrees(id, pts) {
+    for (const m of TT.objs) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); m.dispose(); const k = trees.indexOf(m); if (k >= 0) trees.splice(k, 1); }
+    TT.objs = []; TT.pts = [id, pts];
+    if (!pts.length) return;
+    const add = (m) => { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; scene.add(m); trees.push(m); TT.objs.push(m); };
+    const o = new T.Object3D(), cc = new T.Color();
+    if (!TT.ok) { // 0.65.0 これまでの木：杉（三段の円すい）と広葉樹（丸い葉）
+      const pine = [], broad = [];
+      pts.forEach((p, i) => ((i * 7 + Math.floor(p[2] * 10)) % 5 < 3 ? pine : broad).push(p));
+      const trunk = new T.InstancedMesh(new T.CylinderGeometry(0.16, 0.26, 2.4, 6).translate(0, 1.2, 0), new T.MeshLambertMaterial({ color: 0x4a3420 }), pts.length);
+      const pin1 = new T.InstancedMesh(new T.ConeGeometry(1.8, 3.2, 8).translate(0, 3.2, 0), new T.MeshLambertMaterial({ color: 0xffffff }), Math.max(1, pine.length));
+      const pin2 = new T.InstancedMesh(new T.ConeGeometry(1.35, 2.8, 8).translate(0, 4.6, 0), new T.MeshLambertMaterial({ color: 0xffffff }), Math.max(1, pine.length));
+      const pin3 = new T.InstancedMesh(new T.ConeGeometry(0.85, 2.2, 8).translate(0, 5.9, 0), new T.MeshLambertMaterial({ color: 0xffffff }), Math.max(1, pine.length));
+      const blf = new T.InstancedMesh(new T.IcosahedronGeometry(1.9, 1).scale(1, 0.85, 1).translate(0, 3.6, 0), new T.MeshLambertMaterial({ color: 0xffffff, flatShading: true }), Math.max(1, broad.length));
+      const blf2 = new T.InstancedMesh(new T.IcosahedronGeometry(1.3, 1).translate(0.9, 4.4, 0.4), new T.MeshLambertMaterial({ color: 0xffffff, flatShading: true }), Math.max(1, broad.length));
+      let ti = 0;
+      const place = (x, y, s, rot) => { o.position.set(x, hgt(x, y) - 0.1, y); o.scale.set(s, s * (0.9 + (s * 13 % 0.3)), s); o.rotation.set(0, rot, 0); o.updateMatrix(); };
+      pine.forEach(([x, y, s], i) => { place(x, y, s, s * 9); trunk.setMatrixAt(ti++, o.matrix); for (const m of [pin1, pin2, pin3]) { m.setMatrixAt(i, o.matrix); m.setColorAt(i, cc.setHSL(0.3 + (s * 7 % 0.05), 0.42, 0.2 + (s * 11 % 0.06), T.SRGBColorSpace)); } });
+      broad.forEach(([x, y, s], i) => { place(x, y, s, s * 9); trunk.setMatrixAt(ti++, o.matrix); for (const m of [blf, blf2]) { m.setMatrixAt(i, o.matrix); m.setColorAt(i, cc.setHSL(0.24 + (s * 5 % 0.06), 0.45, 0.26 + (s * 13 % 0.07), T.SRGBColorSpace)); } });
+      pin1.count = pin2.count = pin3.count = pine.length; blf.count = blf2.count = broad.length;
+      for (const m of [trunk, pin1, pin2, pin3, blf, blf2]) add(m);
+      return;
+    }
+    // 戦場ごとに木の種類の割合と形を変える。種類は場所ごとにまとまる（杉の林・松の林…）
+    const hid = String(id).split('').reduce((a, ch) => a * 31 + ch.charCodeAt(0) & 0xffff, 7), r = rng(hid + 29), E = ter.find((t) => t.k === 'e') || {};
+    const KD = [ // 海の近くは松林、山地の近くは杉が多い
+      { mk: treeSugi, leaf: 'sugi', bark: 'sugi', w: 0.3 + r() * 0.45 + (E.mt || 0) * 0.5, tint: [0.42, 0.5, 0.4] }, // 写真の葉は明るいので、木の種類ごとに暗くする（杉はいちばん濃い）
+      { mk: treePine, leaf: 'pine', bark: 'pine', w: (r() < 0.25 ? 0.55 : 0.08) + r() * 0.3 + (E.sea != null ? 0.8 : 0), tint: [0.55, 0.62, 0.48] },
+      { mk: treeBroad, leaf: 'keyaki', bark: 'oak', w: 0.15 + r() * 0.35, tint: [0.48, 0.5, 0.4] },
+      { mk: treeBroad, leaf: 'oak', bark: 'oak', w: 0.08 + r() * 0.3, tint: [0.48, 0.53, 0.42] },
+    ];
+    const NV = 3, grp = KD.map(() => [[], [], []]);
+    pts.forEach(([x, y, s], i) => {
+      let best = -1, bk = 0;
+      KD.forEach((K, k) => { const v = K.w * (0.35 + 1.3 * vn(x * 0.03 + k * 37.1, y * 0.03 + k * 11.7)) * (0.8 + 0.4 * vh(i, k)); if (v > best) { best = v; bk = k; } });
+      grp[bk][Math.floor(vh(i * 3.1, 9) * NV)].push([x, y, s, i]);
+    });
+    KD.forEach((K, k) => {
+      const tm = treeMat(false, TT.tex[`bark_${K.bark}`]), lm = treeMat(true, TT.tex[`leaf_${K.leaf}_c`], TT.tex[`leaf_${K.leaf}_a`]);
+      for (let v = 0; v < NV; v++) {
+        const L = grp[k][v]; if (!L.length) continue;
+        const g = K.mk(rng(hid * 7 + k * 101 + v * 13 + 1)), tI = new T.InstancedMesh(g.trunk, tm, L.length), cI = new T.InstancedMesh(g.crown, lm, L.length);
+        L.forEach(([x, y, s, i], j) => {
+          const sc = 0.72 + (s - 0.8) * 0.8, q = vh(i, 5);
+          o.position.set(x, hgt(x, y) - 0.15, y); o.rotation.set(0, vh(i, 3) * 6.283, 0); o.scale.set(sc, sc * (0.9 + 0.2 * vh(i, 4)), sc); o.updateMatrix();
+          tI.setMatrixAt(j, o.matrix); cI.setMatrixAt(j, o.matrix);
+          const lv = 0.82 + 0.3 * q; cI.setColorAt(j, cc.setRGB(K.tint[0] * lv * (0.95 + 0.1 * vh(i, 6)), K.tint[1] * lv, K.tint[2] * lv * (0.92 + 0.12 * vh(i, 7))));
+        });
+        add(tI); add(cI);
+      }
+    });
+  }
+
   const water = (t, x, y) => { const d = Math.hypot(x - t.x, y - t.y); return (t.k === 'm' && d < t.r && d > (t.ri || 0) && !SGK.SIM.onBridge(ter, x, y)) || (!['f', 'h', 'm', 'k', 's', 'e'].includes(t.k) && d < t.r); };
 
   // いくつかの形を1つにまとめる（部分ごとに色を付ける）
@@ -353,28 +525,104 @@
     const add = (m) => { scene.add(m); trees.push(m); return m; };
     if (ter.some((t) => t.k === 'w' || t.k === 'm')) { const wm = add(new T.Mesh(new T.PlaneGeometry(F.w + 80, F.h + 80).rotateX(-Math.PI / 2).translate(cx, -0.9, cy) /* 2.6.4 -0.45 だと地面の小さなくぼみに水が透けていた */, waterMat(0x1f5f86, (F.w + 80) / 10, 0.86))); wm.receiveShadow = true; }
     if (E.sea != null) { const sm = add(new T.Mesh(new T.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), waterMat(0x234f6a, 4000 / 18, 1))); sm.position.set(cx + Math.cos(E.sea) * 2400, -0.2, cy + Math.sin(E.sea) * 2400); }
-    let list = (E.mtn || []).slice(); if (!list.length) for (let i = 0; i < 5; i++) list.push([r() * 6.28, 20, 1]); /* 山が近くにないときは遠くの低い丘並み */
-    const hz = new T.Color(tod ? tod.haze : 0xcfdde6), base = new T.Color(0x4c5e44), pos = [], col = [], c = new T.Color();
-    for (const [a, dk, low] of list) for (let k = 0; k < 3; k++) {
-      const aa = a + (r() - 0.5) * 0.45, D = 560 + dk * 32 + r() * 60, H = (low ? 35 + r() * 30 : 110 + r() * 150) * (1 - dk / 60), R = H * (1.6 + r() * 1.2);
-      const g = new T.ConeGeometry(R, H, 28, 6).toNonIndexed(), P = g.attributes.position, sd = r() * 100;
-      for (let i = 0; i < P.count; i++) { const vx = P.getX(i), vy = P.getY(i) + H / 2, vz = P.getZ(i), an = Math.atan2(vz, vx), f = 1 + 0.22 * Math.sin(an * 5 + sd) + 0.12 * Math.sin(an * 11 + sd * 2) + 0.1 * Math.sin(vy * 0.08 + an * 3);
-        const top = vy >= H - 0.01 ? 1 : f; P.setXYZ(i, vx * top, Math.max(0, vy * (0.85 + 0.15 * f)), vz * top); }
-      g.computeVertexNormals(); g.translate(cx + Math.cos(aa) * D, -2, cy + Math.sin(aa) * D);
-      pos.push(...P.array); const n = g.attributes.normal; c.copy(base).lerp(hz, Math.min(0.85, 0.35 + dk / 45));
-      for (let i = 0; i < P.count; i++) { const l = 0.7 + 0.45 * Math.max(0, n.getX(i) * -0.4 + n.getY(i) * 0.75 + n.getZ(i) * 0.25), sn = P.getY(i) > 190 ? 0.5 : 0; col.push(Math.min(1, c.r * l + sn), Math.min(1, c.g * l + sn), Math.min(1, c.b * l + sn)); }
+    const mm = add(new T.Mesh(mtnGeo(F, E, r), mtnMat())); mtnM = mm; mm.frustumCulled = false; mm.renderOrder = 0;
+  }
+
+  // 2.6.5 遠くの山：戦場をぐるりと囲む地形。円すいをやめ、尾根と谷のある山並みにした（地図で山地のある方角は高く・近く、
+  // ほかの方角は手前に木の茂った低い丘と、奥に低い山並み）。海の方角は開ける。
+  const PERM = new Uint8Array(512);
+  function permSeed(seed) { const r = rng(seed), a = []; for (let i = 0; i < 256; i++) a.push(i); for (let i = 255; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } for (let i = 0; i < 512; i++) PERM[i] = a[i & 255]; }
+  function pn(x, y) { // なめらかな乱数（-1〜1 くらい）
+    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, X0 = xi & 255, Y0 = yi & 255;
+    const g = (h, dx, dy) => { switch (h & 7) { case 0: return dx + dy; case 1: return -dx + dy; case 2: return dx - dy; case 3: return -dx - dy; case 4: return dx; case 5: return -dx; case 6: return dy; default: return -dy; } };
+    const u = xf * xf * xf * (xf * (xf * 6 - 15) + 10), v = yf * yf * yf * (yf * (yf * 6 - 15) + 10);
+    const a = g(PERM[PERM[X0] + Y0], xf, yf), b = g(PERM[PERM[X0 + 1] + Y0], xf - 1, yf), c = g(PERM[PERM[X0] + Y0 + 1], xf, yf - 1), d = g(PERM[PERM[X0 + 1] + Y0 + 1], xf - 1, yf - 1);
+    return (a + (b - a) * u) + ((c + (d - c) * u) - (a + (b - a) * u)) * v;
+  }
+  function ridged(x, y, oct) { let s = 0, a = 0.5, w = 1; for (let o = 0; o < oct; o++) { let n = 1 - Math.abs(pn(x, y)); n *= n * w; w = Math.min(1, n * 2); s += n * a; x = x * 2.03 + 17.1; y = y * 2.03 - 5.3; a *= 0.5; } return s; } // 尾根（とがった筋）
+  function pfbm(x, y, oct) { let s = 0, a = 0.5; for (let o = 0; o < oct; o++) { s += pn(x, y) * a; x = x * 2.1 + 3.7; y = y * 2.1 + 9.2; a *= 0.5; } return s; }
+  function mtnGeo(F, E, r) {
+    permSeed(Math.floor(r() * 60000) + 7); const ox = r() * 500, oz = r() * 500;
+    const cx = F.w / 2, cy = F.h / 2, NA = 720, NS = 72, RMAX = 1480, mt = E.mtn || [], sea = E.sea;
+    const ang = (d) => Math.atan2(Math.sin(d), Math.cos(d));
+    const pos = new Float32Array(NA * NS * 3), hs = new Float32Array(NA * NS), ao = new Float32Array(NA * NS);
+    for (let i = 0; i < NA; i++) {
+      const th = i / NA * Math.PI * 2, ca = Math.cos(th), sa = Math.sin(th);
+      const r0 = Math.min((F.w / 2 + 75) / Math.max(1e-3, Math.abs(ca)), (F.h / 2 + 75) / Math.max(1e-3, Math.abs(sa))); // 戦場の地面の外から始める
+      // この方角の山の高さと近さ（いちばん強い山地）
+      let am = 0, sp = 900;
+      for (const [a, d] of mt) { const da = ang(th - a), k = Math.exp(-da * da / (2 * 0.3 * 0.3)) * (1.1 - d / 34); if (k > am) { am = k; sp = 180 + d * 34; } }
+      am = Math.min(1, am) * (0.85 + 0.3 * (pfbm(th * 3 + ox, 1.3, 2) + 0.5));
+      const open = sea != null ? 1 - Math.min(1, Math.max(0, (Math.cos(th - sea) - 0.3) / 0.4)) : 1; // 海の方は開ける
+      const smax = RMAX - r0, fm = 0.25 + 0.95 * Math.min(1, Math.max(0, pfbm(th * 2.2 + oz, 4.1, 3) * 1.6 + 0.55)); // 手前の丘が途切れて奥まで見通せる方角も作る
+      for (let j = 0; j < NS; j++) {
+        const s = smax * Math.pow(j / (NS - 1), 1.55), R = r0 + s, x = cx + ca * R, z = cy + sa * R, X0 = (x + ox) / 1, Z0 = (z + oz) / 1;
+        const rise = Math.min(1, s / 110), rs = rise * rise * (3 - 2 * rise);
+        const foot = (10 + 30 * (pfbm(X0 / 140, Z0 / 140, 4) * 0.5 + 0.5) + 14 * ridged(X0 / 180, Z0 / 180, 4)) * rs * fm; // 手前の木の茂った丘
+        const main = am * (150 + 190 * ridged(X0 / 330, Z0 / 330, 6)) * Math.min(1, Math.max(0, (s - sp + 420) / 420)) ** 1.5; // 山地のある方の高い山
+        const back = (55 + 120 * ridged(X0 / 300 + 40, Z0 / 300, 5)) * Math.min(1, Math.max(0, (s - 640) / 330)); // 奥の山並み（どの方角にも）
+        const bump = 2.5 * pn(X0 / 9, Z0 / 9) * rs * (s < 600 ? 1 : 0.4); // 木々の梢のでこぼこ
+        let h = (foot + (Math.max(main, back * (0.55 + 0.45 * open)) + Math.min(main, back) * 0.25) * rs) * open + bump - 2.5 + 2.5 * rs; /* 手前の縁は必ず地面の高さから（浮くと下から空が見える） */
+        if (open < 1) h -= (1 - open) * 12;
+        const k = i * NS + j; hs[k] = h; pos[k * 3] = x; pos[k * 3 + 1] = h; pos[k * 3 + 2] = z;
+      }
     }
-    // 2.1.0 手前の低い丘並み（ぐるりと一回り。海の方角には置かない）。遠くほどかすむ
-    for (let k = 0; k < 22; k++) {
-      const aa = k / 22 * 6.283 + (r() - 0.5) * 0.25; if (E.sea != null && Math.cos(aa - E.sea) > 0.55) continue;
-      const D = 330 + r() * 120, H = 14 + r() * 26, R = H * (3 + r() * 2), g = new T.ConeGeometry(R, H, 20, 3).toNonIndexed(), P = g.attributes.position, sd = r() * 100;
-      for (let i = 0; i < P.count; i++) { const vx = P.getX(i), vy = P.getY(i) + H / 2, vz = P.getZ(i), an = Math.atan2(vz, vx), f = 1 + 0.25 * Math.sin(an * 4 + sd) + 0.1 * Math.sin(an * 9 + sd); P.setXYZ(i, vx * f, vy * (0.8 + 0.2 * f), vz * f); }
-      g.computeVertexNormals(); g.translate(cx + Math.cos(aa) * D, -1.5, cy + Math.sin(aa) * D); pos.push(...P.array);
-      const n = g.attributes.normal; c.set(0x46603a).lerp(hz, 0.25 + (D - 330) / 600);
-      for (let i = 0; i < P.count; i++) { const l = 0.65 + 0.5 * Math.max(0, n.getX(i) * -0.4 + n.getY(i) * 0.75 + n.getZ(i) * 0.25); col.push(c.r * l, c.g * l, c.b * l); }
+    // 谷は暗く・尾根は明るく（まわりより低い所ほど暗い）
+    for (let i = 0; i < NA; i++) for (let j = 0; j < NS; j++) {
+      const k = i * NS + j, a = hs[((i + 1) % NA) * NS + j] + hs[((i + NA - 1) % NA) * NS + j], b = hs[i * NS + Math.min(NS - 1, j + 1)] + hs[i * NS + Math.max(0, j - 1)];
+      ao[k] = Math.min(1.15, Math.max(0.55, 1 + (hs[k] - (a + b) / 4) * 0.035));
     }
-    const bg = new T.BufferGeometry(); bg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); bg.setAttribute('color', new T.Float32BufferAttribute(col, 3));
-    const mm = add(new T.Mesh(bg, new T.MeshBasicMaterial({ vertexColors: true, fog: false }))); mtnM = mm; mm.frustumCulled = false; mm.renderOrder = 0;
+    const idx = [];
+    for (let i = 0; i < NA; i++) for (let j = 0; j < NS - 1; j++) { const a = i * NS + j, b = ((i + 1) % NA) * NS + j; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3)); g.setAttribute('ao', new T.BufferAttribute(ao, 1)); g.setIndex(idx); g.computeVertexNormals();
+    return g;
+  }
+  function mtnMat() {
+    const t = tod || TODS.day, C = (h) => new T.Color(h);
+    return new T.ShaderMaterial({
+      fog: false,
+      uniforms: { sunD: { value: (t.v || new T.Vector3(...t.dir).normalize()).clone() }, sunC: { value: C(t.sun).multiplyScalar(t.si) }, skyC: { value: C(t.hs).multiplyScalar(t.hi) }, gndC: { value: C(t.hg).multiplyScalar(t.hi) },
+        hor: { value: C(t.hor) }, top: { value: C(t.top) }, haze: { value: C(t.haze) } },
+      vertexShader: 'attribute float ao; varying vec3 vW; varying vec3 vN; varying float vAo; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal); vAo = ao; gl_Position = projectionMatrix * viewMatrix * w; }',
+      fragmentShader: [
+        'uniform vec3 sunD, sunC, skyC, gndC, hor, top, haze; varying vec3 vW; varying vec3 vN; varying float vAo;',
+        'float hs(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
+        'float ns(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hs(i), hs(i + vec2(1.0, 0.0)), f.x), mix(hs(i + vec2(0.0, 1.0)), hs(i + vec2(1.0, 1.0)), f.x), f.y); }',
+        'void main(){',
+        ' if (vW.y < -0.25) discard;', // 地面より下は描かない（戦場の外の地面を上から塗らない）
+        ' vec3 N = normalize(vN); float d = distance(cameraPosition, vW), fd = 1.0 - smoothstep(350.0, 1300.0, d);',
+        ' float n1 = ns(vW.xz * 0.004), n2 = ns(vW.xz * 0.017 + 3.1), c1 = ns(vW.xz * 0.16), c2 = ns(vW.xz * 0.47 + 7.0);',
+        // 森の色：杉・檜の濃い緑と、広葉樹の明るい緑がまだらに。近い所は梢の粒が見える
+        ' float mixB = smoothstep(0.35, 0.7, n1 * 0.6 + n2 * 0.4);', // 0＝杉・檜の多い所、1＝広葉樹の多い所
+        ' vec3 cCon = vec3(0.022, 0.055, 0.016), cBro = vec3(0.05, 0.095, 0.02);',
+        ' vec3 col = mix(cCon, cBro, mixB * 0.8);',
+        ' col = mix(col, vec3(0.13, 0.11, 0.045), smoothstep(0.75, 0.92, n2) * 0.45);',
+        ' col *= 0.85 + ((c1 * 0.6 + c2 * 0.4) - 0.5) * 0.5 * fd;',
+        // 近い山は梢（木の丸い頭）を一つずつ：格子ごとにずらした点からの距離で丸を作り、日の当たる側を明るく、すき間を暗く。
+        // 木ごとに大きさと色（杉の濃い緑・広葉樹の明るい緑）を変える
+        ' { vec2 q = vW.xz / 2.8 + vec2(vW.y * 0.1, 0.0), qi = floor(q), qf = fract(q); float best = 9.0; vec2 bv = vec2(0.0), bc = vec2(0.0);',
+        '   for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 g = vec2(float(i), float(j)), o = vec2(hs(qi + g), hs(qi + g + 17.3)), v = g + o - qf; float dd = dot(v, v) / (0.55 + 0.9 * hs(qi + g + 5.1)); if (dd < best) { best = dd; bv = v; bc = qi + g; } }',
+        '   float crown = 1.0 - smoothstep(0.2, 0.75, best), lit = clamp(0.5 - dot(normalize(bv + 1e-4), normalize(sunD.xz + 1e-4)) * 0.5 * sqrt(clamp(best * 2.5, 0.0, 1.0)), 0.0, 1.0);',
+        '   float k = smoothstep(1500.0, 450.0, d) * smoothstep(-0.2, 0.3, N.y), sp = hs(bc + 9.7);',
+        '   vec3 tc = mix(cCon, cBro, step(1.0 - mixB * 0.85 - 0.1, sp) * 0.7) * (0.9 + 0.2 * hs(bc + 2.3));',
+        '   col = mix(col, tc, k * 0.6) * mix(1.0, (0.5 + 0.5 * crown) * (0.86 + 0.28 * lit), k); }',
+        // 高く急な所は岩肌、ふもとは草地
+        ' float sl = 1.0 - N.y; col = mix(col, vec3(0.2, 0.19, 0.17) * (0.8 + 0.4 * c1), smoothstep(0.45, 0.7, sl + (n2 - 0.5) * 0.3) * smoothstep(120.0, 260.0, vW.y));',
+        ' col = mix(col, vec3(0.11, 0.13, 0.05), (1.0 - smoothstep(0.5, 3.0, vW.y)) * 0.6);',
+        ' float df = max(dot(N, sunD), 0.0); vec3 amb = mix(gndC, skyC, N.y * 0.5 + 0.5);',
+        ' col *= (sunC * df * 1.25 + amb * 0.45) * vAo * vAo;',
+        // 遠いほど空の色にかすむ（遠い山は青く）。谷や低い所には霧
+        ' vec3 V = normalize(vW - cameraPosition); float sv = pow(max(dot(V, sunD), 0.0), 6.0);',
+        ' vec3 hz = mix(hor, mix(hor, top, 0.35), smoothstep(500.0, 1500.0, d)) + sunC * sv * 0.12;',
+        ' float f = 1.0 - exp(-d / 2300.0) + smoothstep(800.0, 1750.0, d) * 0.3;',
+        ' float mist = (1.0 - smoothstep(6.0, 60.0, vW.y)) * smoothstep(600.0, 1300.0, d) * 0.22;',
+        ' col = mix(col, hz, clamp(f + mist * (1.0 - f), 0.0, 0.82));',
+        ' gl_FragColor = vec4(col, 1.0);',
+        ' #include <tonemapping_fragment>',
+        ' #include <encodings_fragment>',
+        '}',
+      ].join('\n'),
+    });
   }
 
   // 2.1.0 時刻（戦場ごとに朝・昼・夕のどれか。昼が多い）で太陽・空・かすみの色を変える
@@ -451,23 +699,7 @@
     // 森の木
     const pts = [], rr = rng(String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0), 3));
     for (const t of ter) if (t.k === 'f') { const n = Math.min(160, Math.round(t.r * t.r * 0.07)); for (let i = 0; i < n; i++) { const a = rr() * 7, d = Math.sqrt(rr()) * t.r; pts.push([t.x + Math.cos(a) * d, t.y + Math.sin(a) * d, 0.8 + rr() * 0.6]); } }
-    if (pts.length) {
-      // 0.65.0 木：杉（三段の円すい）と広葉樹（丸い葉）を混ぜ、葉の色を少しずつ変える
-      const o = new T.Object3D(), cc = new T.Color(), pine = [], broad = [];
-      pts.forEach((p, i) => ((i * 7 + Math.floor(p[2] * 10)) % 5 < 3 ? pine : broad).push(p));
-      const trunk = new T.InstancedMesh(new T.CylinderGeometry(0.16, 0.26, 2.4, 6).translate(0, 1.2, 0), new T.MeshLambertMaterial({ color: 0x4a3420 }), pts.length);
-      const pin1 = new T.InstancedMesh(new T.ConeGeometry(1.8, 3.2, 8).translate(0, 3.2, 0), new T.MeshLambertMaterial({ color: 0xffffff }), Math.max(1, pine.length));
-      const pin2 = new T.InstancedMesh(new T.ConeGeometry(1.35, 2.8, 8).translate(0, 4.6, 0), new T.MeshLambertMaterial({ color: 0xffffff }), Math.max(1, pine.length));
-      const pin3 = new T.InstancedMesh(new T.ConeGeometry(0.85, 2.2, 8).translate(0, 5.9, 0), new T.MeshLambertMaterial({ color: 0xffffff }), Math.max(1, pine.length));
-      const blf = new T.InstancedMesh(new T.IcosahedronGeometry(1.9, 1).scale(1, 0.85, 1).translate(0, 3.6, 0), new T.MeshLambertMaterial({ color: 0xffffff, flatShading: true }), Math.max(1, broad.length));
-      const blf2 = new T.InstancedMesh(new T.IcosahedronGeometry(1.3, 1).translate(0.9, 4.4, 0.4), new T.MeshLambertMaterial({ color: 0xffffff, flatShading: true }), Math.max(1, broad.length));
-      let ti = 0;
-      const place = (x, y, s, rot) => { o.position.set(x, hgt(x, y) - 0.1, y); o.scale.set(s, s * (0.9 + (s * 13 % 0.3)), s); o.rotation.set(0, rot, 0); o.updateMatrix(); };
-      pine.forEach(([x, y, s], i) => { place(x, y, s, s * 9); trunk.setMatrixAt(ti++, o.matrix); for (const m of [pin1, pin2, pin3]) { m.setMatrixAt(i, o.matrix); m.setColorAt(i, cc.setHSL(0.3 + (s * 7 % 0.05), 0.42, 0.2 + (s * 11 % 0.06), T.SRGBColorSpace)); } });
-      broad.forEach(([x, y, s], i) => { place(x, y, s, s * 9); trunk.setMatrixAt(ti++, o.matrix); for (const m of [blf, blf2]) { m.setMatrixAt(i, o.matrix); m.setColorAt(i, cc.setHSL(0.24 + (s * 5 % 0.06), 0.45, 0.26 + (s * 13 % 0.07), T.SRGBColorSpace)); } });
-      pin1.count = pin2.count = pin3.count = pine.length; blf.count = blf2.count = broad.length;
-      for (const m of [trunk, pin1, pin2, pin3, blf, blf2]) { m.castShadow = true; m.receiveShadow = true; scene.add(m); trees.push(m); }
-    }
+    TT.objs = []; plantTrees(id, pts);
     // 0.65.0 草むらと石（戦場の中に散らす。水・曲輪の中には置かない）
     if (!texGrass) texGrass = grassTex();
     const NG = 150000, /* 2.2.0 草を増やした（27000→150000） */ grass = new T.InstancedMesh((() => { const g1 = new T.PlaneGeometry(0.9, 0.55).translate(0, 0.27, 0), g2 = g1.clone().rotateY(Math.PI / 3), g3 = g1.clone().rotateY(-Math.PI / 3); const pos = [], uv = [], nor = []; for (const g of [g1, g2, g3]) { const ng = g.toNonIndexed(); pos.push(...ng.attributes.position.array); uv.push(...ng.attributes.uv.array); for (let k = 0; k < ng.attributes.position.count; k++) nor.push(0, 1, 0); } const bg = new T.BufferGeometry(); bg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); bg.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); bg.setAttribute('normal', new T.Float32BufferAttribute(nor, 3)); return bg; })(),
