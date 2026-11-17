@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="2.7.1">
+<meta name="sgk-ver" content="2.7.2">
 <title>戦国出世</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -64,6 +64,10 @@
   .setPane h4 { margin:8px 0 2px; color:var(--gold); font-size:14px; }
   .setPane p { margin:0; }
   .pk { color:var(--gold); font-weight:bold; }
+  #mobBar { position:absolute; left:0; right:0; bottom:8px; display:flex; flex-direction:column; align-items:center; gap:6px; pointer-events:none; z-index:5; }
+  #mobBar button { pointer-events:auto; font-size:15px; padding:10px 14px; border-radius:10px; background:rgba(20,16,10,.72); color:#f4ead0; border:1px solid rgba(244,234,208,.35); }
+  #mobBar button.on { background:rgba(150,110,40,.85); }
+  #mobBar .mobMain, #mobSub { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:96vw; }
   #gameMenu { position:absolute; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap; overflow:auto; }
   #gameMenu .menu { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
   #warBoard { position:absolute; left:10px; bottom:10px; max-width:min(440px,60vw); font-size:13px; padding:6px 9px; pointer-events:none; }
@@ -259,6 +263,7 @@
     </div>
   </div>
   <div id="toasts"></div>
+  <div id="mobBar" class="hidden"><div id="mobSub"></div><div class="mobMain"><button data-mb="unit">部隊</button><button data-mb="ord">指示</button><button data-mb="form">陣形</button></div></div>
 </section>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>

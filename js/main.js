@@ -1382,6 +1382,28 @@
   $('mSubBack').onclick = () => menuBack();
   $('mFollow').onclick = () => { const m = me(), d = m && (G.disp[m.id] || m); if (d) { R.cam.x = d.x; R.cam.y = d.y; } R.cam.follow = true; if (G.pcurOn) G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; }; // 0.75.0 自分の所へ移って追いかける（カーソルや地図を動かすと解除）
   $('mTitle').onclick = () => backToTitle();
+  // 2.7.2 スマホの合戦：画面の下に「部隊・指示・陣形」。ふだんは味方がAIで戦い、押したときだけ指図する
+  G.mobTab = null;
+  function mobSub() {
+    const AB = actB(), el = $('mobSub'); document.querySelectorAll('#mobBar [data-mb]').forEach((b) => b.classList.toggle('on', b.dataset.mb === G.mobTab));
+    if (!AB || !G.mobTab) { el.innerHTML = ''; return; }
+    const TR = SIM.TROOPS, sel = G.selUnit == null ? 'all' : G.selUnit;
+    let L = [];
+    if (G.mobTab === 'unit') L = [['all', '全軍'], ...myUnits3(AB).filter((u) => u.type !== 'hero').map((u) => [u.id, `${u.gname ? u.gname + '隊' : TR[u.type].short || TR[u.type].name} ${u.n}`])].map(([k, t]) => [`u:${k}`, t, String(k) === String(sel)]);
+    else if (G.mobTab === 'ord') L = [['charge', '突撃'], ['guard', '防御'], ['hold', '待機'], ['follow', '追従'], ['ai', '自動']].map(([k, t]) => [`o:${k}`, t]);
+    else L = Object.entries(SIM.ACT.FORMS).map(([k, t]) => [`f:${k}`, t]);
+    el.innerHTML = L.map(([k, t, on]) => `<button data-ms="${k}"${on ? ' class="on"' : ''}>${t}</button>`).join('');
+  }
+  setInterval(() => { const mb = !!actB() && document.body.classList.contains('touch'); if (mb === $('mobBar').classList.contains('hidden')) { $('mobBar').classList.toggle('hidden', !mb); if (!mb) G.mobTab = null; mobSub(); } }, 300);
+  $('mobBar').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return; e.stopPropagation();
+    if (b.dataset.mb) { G.mobTab = G.mobTab === b.dataset.mb ? null : b.dataset.mb; mobSub(); return; }
+    const [k, v] = b.dataset.ms.split(':');
+    if (k === 'u') { G.selUnit = v === 'all' ? 'all' : +v; G.mobTab = 'ord'; mobSub(); return; }
+    if (k === 'o') { if (G.selUnit == null) G.selUnit = 'all'; ord3(v); }
+    if (k === 'f') { if (G.selUnit == null) G.selUnit = 'all'; ord3('form:' + v); }
+    G.mobTab = null; mobSub();
+  });
   $('mBAuto').onclick = () => { command({ type: 'battleAuto' }); toggleMenu(false); };
   $('mBFlee').onclick = () => { command({ type: 'battleFlee' }); toggleMenu(false); };
   // テスト用（ホストだけ）
