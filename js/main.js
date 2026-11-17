@@ -597,6 +597,7 @@
     if (G.mode === 'host') SIM.applyCommand(G.world, G.myPid, cmd);
     else if (G.mode === 'client' && G.net) G.net.send(cmd);
   }
+  SGK.cmd = command; // 2.11.0 釣り・虫取りの画面（gather.js）から使う
   function moveTo(x, y, dest) { command({ type: 'move', x, y, dest: dest || null }); if (!dest && SIM.isSea(x, y)) toast('海の上には移動できません', 1500); }
 
   // ---------- 拠点の情報 ----------
