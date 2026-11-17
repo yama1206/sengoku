@@ -71,8 +71,11 @@
     sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -70; sc.right = 70; sc.top = 70; sc.bottom = -70; sc.near = 1; sc.far = 300;
     sun.shadow.bias = -0.0008; X.applyVid(); scene.add(sun); scene.add(sun.target);
     // 戦場の外の広い地面
-    const out = new T.Mesh(new T.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), new T.MeshLambertMaterial({ color: 0x6d7c44 }));
-    out.position.set(350, -0.3, 230); out.receiveShadow = true; scene.add(out);
+    const og = new T.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), on = og.attributes.position.count; /* 1.6.74 写真の模様も貼れるように */
+    og.setAttribute('color', new T.BufferAttribute(new Float32Array(on * 3).fill(0.82), 3)); og.setAttribute('spA', new T.BufferAttribute(new Float32Array(on * 4), 4)); og.setAttribute('spB', new T.BufferAttribute(new Float32Array(on * 2), 2));
+    outOld = new T.MeshLambertMaterial({ color: 0x6d7c44, depthWrite: false }); outM = new T.Mesh(og, outOld);
+    outM.position.set(350, -0.3, 230); outM.receiveShadow = true; outM.renderOrder = -0.5; scene.add(outM); /* 先に描いて奥行きは書かない：戦場の地面のくぼみや川を上から覆わないように */
+    loadGroundTex();
 
     const lam = (o) => new T.MeshLambertMaterial(o);
     const mk = (name, geo, mat, cap, shadow = true) => { const im = new T.InstancedMesh(geo, mat, cap); im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.castShadow = shadow; im.receiveShadow = false; im.frustumCulled = false; im.setColorAt(0, new T.Color(0xffffff)); im.instanceColor.array.fill(1); im.count = 0; /* 0.65.0 色を付けない部分も素材の色で出す（以前は黒くなっていた） */ scene.add(im); M[name] = im; return im; };
@@ -174,6 +177,76 @@
     });
     t.wrapS = t.wrapT = T.ClampToEdgeWrapping; return t;
   }
+  // 1.6.74 写真から作った地面の模様（assets/textures/ground_*.jpg）。場所ごとの割合（頂点の spA・spB）で混ぜる。
+  // 読めない時・file:// で開いた時は、これまでの模様（groundTex と頂点色）のまま
+  const GT = { names: ['grass_lush', 'grass_dry', 'grass_weedy', 'forest_floor', 'dirt_packed', 'dirt_rocky', 'mud_bank', 'riverbed'], tex: {}, ok: false, fail: false, U: null };
+  function loadGroundTex() {
+    if (location.protocol === 'file:') { GT.fail = true; return; }
+    const ld = new T.TextureLoader(), an = rd.capabilities.getMaxAnisotropy ? Math.min(8, rd.capabilities.getMaxAnisotropy()) : 1;
+    let left = GT.names.length;
+    for (const n of GT.names) ld.load(`assets/textures/ground_${n}.jpg`, (t) => {
+      t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = an; GT.tex[n] = t;
+      if (--left === 0 && !GT.fail) { GT.ok = true; if (groundM) useGroundTex(); }
+    }, undefined, () => { GT.fail = true; });
+  }
+  function groundMat() {
+    const U = GT.U || (GT.U = {
+      tG1: { value: null }, tG2: { value: null }, tDy: { value: null }, tFo: { value: null }, tDp: { value: null }, tDr: { value: null }, tMu: { value: null }, tRb: { value: null },
+      uSc: { value: 1 / 3 }, uRot: { value: 0 }, uDry: { value: 0.5 }, uG2d: { value: 0 }, uTint: { value: new T.Color(1, 1, 1) },
+    });
+    const m = new T.MeshLambertMaterial({ vertexColors: true });
+    m.onBeforeCompile = (s) => {
+      Object.assign(s.uniforms, U);
+      s.vertexShader = s.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute vec4 spA; attribute vec2 spB; varying vec4 vSpA; varying vec2 vSpB; varying vec2 vGP;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGP = (modelMatrix * vec4(transformed, 1.0)).xz; vSpA = spA; vSpB = spB;');
+      s.fragmentShader = s.fragmentShader
+        .replace('#include <common>', ['#include <common>',
+          'uniform sampler2D tG1, tG2, tDy, tFo, tDp, tDr, tMu, tRb; uniform float uSc, uRot, uDry, uG2d; uniform vec3 uTint;',
+          'varying vec4 vSpA; varying vec2 vSpB; varying vec2 vGP;',
+          'float gh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
+          'float gn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(gh(i), gh(i + vec2(1.0, 0.0)), f.x), mix(gh(i + vec2(0.0, 1.0)), gh(i + vec2(1.0, 1.0)), f.x), f.y); }',
+          'float gf(vec2 p){ return gn(p) * 0.55 + gn(p * 2.13 + 7.1) * 0.3 + gn(p * 4.7 + 3.3) * 0.15; }',
+          'vec2 gUV1, gUV2; float gTB;',
+          'vec3 gD(vec3 c){ return mix(vec3(dot(c, vec3(0.3, 0.55, 0.15))), c, 0.6) * vec3(0.97, 0.98, 0.9); }', // 枯れ草は黄色を抑える
+          // 同じ模様の繰り返しを隠す：向き・大きさを変えたもう1枚と、まだらに混ぜる
+          'vec3 gS(sampler2D t){ return mix(texture2D(t, gUV1).rgb, texture2D(t, gUV2).rgb, gTB); }',
+          // 割合 w を模様の明るさで崩して混ぜる（境目が丸くならず、石や草の形に沿って変わる）
+          'vec3 gL(vec3 c, vec3 l, float w, float n){ float h = dot(l, vec3(0.3, 0.5, 0.2)); float k = clamp((w - 0.5) * 2.6 + 0.5 + (h - 0.4) * 1.1 + (n - 0.5) * 0.7, 0.0, 1.0); return mix(c, l, w <= 0.001 ? 0.0 : w >= 0.999 ? 1.0 : k); }',
+        ].join('\n'))
+        .replace('#include <map_fragment>', [
+          'float cr = cos(uRot), sr = sin(uRot); vec2 wp = mat2(cr, sr, -sr, cr) * vGP;',
+          'gUV1 = wp * uSc; gUV2 = mat2(0.80, -0.60, 0.60, 0.80) * wp * uSc * 0.77 + vec2(0.37, 0.11);',
+          'float n1 = gf(vGP * 0.021), n2 = gf(vGP * 0.07 + 13.0), n3 = gn(vGP * 0.9) * 0.55 + gn(vGP * 0.23 + 3.7) * 0.45;',
+          'gTB = smoothstep(0.3, 0.7, n2);',
+          'vec3 g2 = gS(tG2); vec3 gc = mix(gS(tG1), mix(g2, gD(g2), uG2d), smoothstep(0.42, 0.72, n1) * uDry);',
+          'gc = gL(gc, gD(gS(tDy)), vSpA.x, n3); gc = gL(gc, gS(tFo), vSpA.y, n3); gc = gL(gc, gS(tDp), vSpA.z, n3); gc = gL(gc, gS(tDr), vSpA.w, n3);',
+          'gc = gL(gc, gS(tMu), vSpB.x, n3); gc = gL(gc, gS(tRb), vSpB.y, n3);',
+          'gc = mix(vec3(dot(gc, vec3(0.3, 0.55, 0.15))), gc, 0.85) * (0.86 + 0.28 * gf(vGP * 0.012 + 5.0)) * uTint;', // 鮮やかすぎないように // 広い明るさのむら
+          'diffuseColor.rgb *= gc;',
+        ].join('\n'));
+    };
+    return m;
+  }
+  // 戦場ごとに草の組み合わせ・模様の向き・色合いを変える（同じ景色が続かないように）
+  function groundLook(id) {
+    const U = GT.U, E = ter.find((t) => t.k === 'e') || {}, r = rng(String(id).split('').reduce((a, ch) => a * 31 + ch.charCodeAt(0) & 0xffff, 97) + 5), tx = GT.tex;
+    const dryish = (E.mt || 0) > 0.3 || r() < 0.3, lush = r() < 0.5;
+    U.tG1.value = lush ? tx.grass_lush : tx.grass_weedy; // 地面の基本
+    U.tG2.value = dryish || r() < 0.45 ? tx.grass_dry : lush ? tx.grass_weedy : tx.grass_lush; // まだらに混ぜる草
+    U.uG2d.value = U.tG2.value === tx.grass_dry ? 1 : 0;
+    U.uDry.value = dryish ? 0.75 + r() * 0.25 : 0.3 + r() * 0.5;
+    U.tDy.value = tx.grass_dry; U.tFo.value = tx.forest_floor; U.tDp.value = tx.dirt_packed; U.tDr.value = tx.dirt_rocky; U.tMu.value = tx.mud_bank; U.tRb.value = tx.riverbed;
+    U.uRot.value = r() * 6.283;
+    U.uTint.value.setRGB(0.97 + r() * 0.08, 0.97 + r() * 0.06, 0.93 + r() * 0.07);
+  }
+  let outM = null, outOld = null;
+  function useGroundTex() {
+    if (!groundM.userData.tex) { groundM.material.dispose(); groundM.material = groundMat(); groundM.userData.tex = true; }
+    groundLook(built);
+    groundG.setAttribute('color', groundG.userData.tint);
+    if (outM && outM.material === outOld) { outM.material = groundMat(); outM.material.depthWrite = false; }
+  }
   const water = (t, x, y) => { const d = Math.hypot(x - t.x, y - t.y); return (t.k === 'm' && d < t.r && d > (t.ri || 0) && !SGK.SIM.onBridge(ter, x, y)) || (!['f', 'h', 'm', 'k', 's', 'e'].includes(t.k) && d < t.r); };
 
   // いくつかの形を1つにまとめる（部分ごとに色を付ける）
@@ -187,7 +260,7 @@
   function backdrop(id, F) {
     const E = ter.find((t) => t.k === 'e') || {}, cx = F.w / 2, cy = F.h / 2, r = rng(String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0), 41));
     const add = (m) => { scene.add(m); trees.push(m); return m; };
-    if (ter.some((t) => t.k === 'w' || t.k === 'm')) { const wm = add(new T.Mesh(new T.PlaneGeometry(F.w + 80, F.h + 80).rotateX(-Math.PI / 2).translate(cx, -0.45, cy), new T.MeshPhongMaterial({ color: 0x2f86d0, specular: 0xd0e8ff, shininess: 90, transparent: true, opacity: 0.72 }))); wm.receiveShadow = true; }
+    if (ter.some((t) => t.k === 'w' || t.k === 'm')) { const wm = add(new T.Mesh(new T.PlaneGeometry(F.w + 80, F.h + 80).rotateX(-Math.PI / 2).translate(cx, -0.9, cy) /* 1.6.74 -0.45 だと地面の小さなくぼみに水が透けて黒っぽいまだらになっていた */, new T.MeshPhongMaterial({ color: 0x2f86d0, specular: 0xd0e8ff, shininess: 90, transparent: true, opacity: 0.72 }))); wm.receiveShadow = true; }
     if (E.sea != null) { const sm = add(new T.Mesh(new T.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), new T.MeshPhongMaterial({ color: 0x35627e, specular: 0xa8c0d0, shininess: 60 }))); sm.position.set(cx + Math.cos(E.sea) * 2400, -0.2, cy + Math.sin(E.sea) * 2400); }
     let list = (E.mtn || []).slice(); if (!list.length) for (let i = 0; i < 5; i++) list.push([r() * 6.28, 20, 1]); /* 山が近くにないときは遠くの低い丘並み */
     const hz = new T.Color(0xcfdde6), base = new T.Color(0x4c5e44), pos = [], col = [], c = new T.Color();
@@ -207,15 +280,28 @@
   // ---- 戦場ごとの地面と木 ----
   function build(id, list) {
     built = id; ter = list || []; hills = ter.filter((t) => t.k === 'h').map((t) => ({ x: t.x, y: t.y, r: t.r * 1.15, hh: Math.min(14, t.r * 0.16) }));
-    if (groundM) { scene.remove(groundM); groundG.dispose(); }
+    if (groundM) { scene.remove(groundM); groundG.dispose(); groundM.material.dispose(); }
     for (const t of trees) { scene.remove(t); t.geometry.dispose(); if (t.material) t.material.dispose(); if (t.dispose) t.dispose(); }
     trees = [];
     const F = SIM.FIELD;
     groundG = new T.PlaneGeometry(F.w + 80, F.h + 80, 190, 130).rotateX(-Math.PI / 2).translate(F.w / 2, 0, F.h / 2);
     const P = groundG.attributes.position, col = new Float32Array(P.count * 3), c = new T.Color(), r = rng(7);
+    // 1.6.74 写真の模様の割合：spA＝枯れ草・落ち葉・踏み固めた土・岩まじりの土、spB＝ぬかるみ・川底。tint＝模様に掛ける色（ふつうは白）
+    const spA = new Float32Array(P.count * 4), spB = new Float32Array(P.count * 2), tint = new Float32Array(P.count * 3), tc = new T.Color();
+    const sm = (a, b, v) => { const q = Math.min(1, Math.max(0, (v - a) / (b - a))); return q * q * (3 - 2 * q); }, up = (a, k, v) => { a[k] = Math.max(a[k], v); };
     for (let i = 0; i < P.count; i++) {
       const x = P.getX(i), y = P.getZ(i); P.setY(i, hgt(x, y));
-      c.setHex(0x7e9450);
+      c.setHex(0x7e9450); tc.setRGB(1, 1, 1); const a4 = i * 4, b2 = i * 2;
+      for (const t of ter) {
+        const d = Math.hypot(x - t.x, y - t.y);
+        if (t.k === 'f') up(spA, a4 + 1, 1 - sm(t.r * 0.8, t.r * 1.08, d));
+        else if (t.k === 'h') up(spA, a4, 0.7 * (1 - sm(t.r * 0.3, t.r * 1.2, d)));
+        else if (t.k === 'm' && d < t.r + 1.5 && d > (t.ri || 0) - 1.5) { if (SGK.SIM.onBridge(ter, x, y)) up(spA, a4 + 2, 1); else if (d < t.r && d > (t.ri || 0)) { up(spB, b2 + 1, 1); tc.setRGB(0.5, 0.72, 0.98); } else up(spB, b2, 0.9); }
+        else if (t.k === 'k') up(spA, a4 + 2, 1 - sm(t.r - 1, t.r + 2.5, d));
+        else if (t.k === 's' && d < t.r + 3 && d > (t.ri || 0) - 3) up(spA, a4 + 3, 0.75 * Math.min(1 - sm(t.r - 4, t.r + 3, d), sm((t.ri || 0) - 3, (t.ri || 0) + 4, d)));
+        else if (t.k === 'w' && d < t.r + 6) { if (d < t.r - 1) { up(spB, b2 + 1, 1); tc.setRGB(0.5, 0.72, 0.98); } else up(spB, b2, 1 - sm(t.r + 2, t.r + 6, d)); }
+        else if (!['f', 'h', 'm', 'k', 's', 'e', 'w'].includes(t.k) && d < t.r + 3) { if (d < t.r) { up(spB, b2 + 1, 1); tc.setRGB(0.5, 0.72, 0.98); } else up(spB, b2, 0.9); }
+      }
       for (const t of ter) {
         const d = Math.hypot(x - t.x, y - t.y);
         if (t.k === 'f' && d < t.r) c.lerp(new T.Color(0x4f6c34), 0.75);
@@ -228,10 +314,14 @@
       }
       if (x < 0 || y < 0 || x > F.w || y > F.h) c.multiplyScalar(0.85);
       const n = (0.95 + r() * 0.08) * (0.94 + 0.08 * Math.sin(x * 0.045 + 2) * Math.sin(y * 0.05)); col[i * 3] = c.r * n; col[i * 3 + 1] = c.g * n; col[i * 3 + 2] = c.b * n; // 0.65.0 広いまだら模様（0.68.1 色を入れる文がコメントの中に入って地面が黒くなっていたのを直した）
+      const o = x < 0 || y < 0 || x > F.w || y > F.h ? 0.9 : 1; tint[i * 3] = tc.r * o; tint[i * 3 + 1] = tc.g * o; tint[i * 3 + 2] = tc.b * o;
     }
     groundG.setAttribute('color', new T.BufferAttribute(col, 3)); groundG.computeVertexNormals();
+    { const N = groundG.attributes.normal; for (let i = 0; i < P.count; i++) up(spA, i * 4 + 3, 0.8 * sm(0.9, 0.74, N.getY(i))); } /* 急な斜面は岩まじりの土 */
+    groundG.setAttribute('spA', new T.BufferAttribute(spA, 4)); groundG.setAttribute('spB', new T.BufferAttribute(spB, 2)); groundG.userData.tint = new T.BufferAttribute(tint, 3);
     if (!texG) { texG = groundTex(); texG.repeat.set((F.w + 80) / 7, (F.h + 80) / 7); }
     groundM = new T.Mesh(groundG, new T.MeshLambertMaterial({ vertexColors: true, map: texG })); groundM.receiveShadow = true; scene.add(groundM);
+    if (GT.ok) useGroundTex();
     backdrop(id, F);
     // 森の木
     const pts = [], rr = rng(String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0), 3));
@@ -266,7 +356,7 @@
       const inF = ter.some((t) => t.k === 'f' && Math.hypot(x - t.x, y - t.y) < t.r);
       const s = 0.7 + rg() * 0.9;
       o2.position.set(x, hgt(x, y) - 0.03, y); o2.rotation.set(0, rg() * 6.28, 0); o2.scale.set(s, s * (0.8 + rg() * 0.6), s); o2.updateMatrix();
-      grass.setMatrixAt(gi, o2.matrix); grass.setColorAt(gi, c2.setHSL(0.2 + rg() * 0.07, 0.45, (inF ? 0.22 : 0.3) + rg() * 0.1)); gi++;
+      grass.setMatrixAt(gi, o2.matrix); grass.setColorAt(gi, c2.setHSL(0.2 + rg() * 0.07, 0.4, (inF ? 0.26 : 0.36) + rg() * 0.1) /* 1.6.74 写真の地面に合わせて少し明るく */); gi++;
       if (ri < 260 && rg() < 0.018) { o2.scale.set(0.5 + rg() * 1.4, 0.5 + rg(), 0.5 + rg() * 1.2); o2.rotation.set(rg(), rg() * 6.28, 0); o2.position.y = hgt(x, y) + 0.05; o2.updateMatrix(); rocks.setMatrixAt(ri++, o2.matrix); }
     }
     grassM = grass; grass.userData.full = gi; X.applyVid(); rocks.count = ri; rocks.castShadow = true; rocks.receiveShadow = true; grass.receiveShadow = false;
