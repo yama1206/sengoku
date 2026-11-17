@@ -8,6 +8,8 @@
   const CELL = 2;          // 道筋探しのマス目の大きさ（km）。全国の地図なので2kmマス
   const ROAD_WIDTH = 1.42; // 街道とみなす幅（中心からkm）。道が通るマスはすべて道になるよう √2 より少し広め（1.1.0）
   SIM.ROUTE_SPEED = SPEED;
+  // 2.2.1 道の上とみなす幅（道の中心からkm）＝地図に描いた道の幅の半分＋少しのゆとり（大街道0.97・街道0.77・脇道0.6）
+  const RW = [0, 1.25, 0.85, 0.5], vis = (rk) => RW[rk] * 0.5 + 0.35;
 
   let grid = null, buf = null; // 値 = 地形(0=海 1=平地 2=山 3=森) + 4×道の格(0=なし 1=大街道 2=街道 3=脇道)（1.6.47 4進）
   function distSeg(px, py, ax, ay, bx, by) {
@@ -53,8 +55,11 @@
       }
     }
     // 街道（海の上の部分は渡し船扱いで通れるようにする）
+    const segs = new Map(); /* 2.2.1 マスごとに近くを通る道の区間を覚える（見た目どおりの幅で道かどうか決めるため） */
     (T.roads || []).forEach((r, ri) => { for (let k = 1; k < r.pts.length; k++) {
       const [ax, ay] = r.pts[k - 1], [bx, by] = r.pts[k];
+      { const tol = vis(r.rank || 2), a0 = Math.max(0, Math.floor((Math.min(ax, bx) - tol) / CELL)), a1 = Math.min(gw - 1, Math.floor((Math.max(ax, bx) + tol) / CELL)), b0 = Math.max(0, Math.floor((Math.min(ay, by) - tol) / CELL)), b1 = Math.min(gh - 1, Math.floor((Math.max(ay, by) + tol) / CELL));
+        for (let j = b0; j <= b1; j++) for (let i = a0; i <= a1; i++) { const q = j * gw + i; let L = segs.get(q); if (!L) segs.set(q, L = []); L.push(ri, k); } }
       const i0 = Math.max(0, Math.floor((Math.min(ax, bx) - ROAD_WIDTH) / CELL)), i1 = Math.min(gw - 1, Math.floor((Math.max(ax, bx) + ROAD_WIDTH) / CELL));
       const j0 = Math.max(0, Math.floor((Math.min(ay, by) - ROAD_WIDTH) / CELL)), j1 = Math.min(gh - 1, Math.floor((Math.max(ay, by) + ROAD_WIDTH) / CELL));
       for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++)
@@ -72,7 +77,7 @@
     /* 1.6.47 拠点のまわり（半径2マス）は山・森でも平地にする（山の中の村にも出入りできる） */
     for (const st of SGK.DATA.settlements || []) { const ci0 = Math.floor(st.x / CELL), cj0 = Math.floor(st.y / CELL);
       for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) { if (di * di + dj * dj > 5) continue; const a = ci0 + di, b = cj0 + dj; if (a < 0 || b < 0 || a >= gw || b >= gh) continue; const q = b * gw + a, t = g[q] % 4; if (t >= 2) g[q] += 1 - t; } }
-    grid = { g, gw, gh, rd, rpos };
+    grid = { g, gw, gh, rd, rpos, segs };
     return grid;
   }
   const G = () => grid || build();
@@ -88,10 +93,21 @@
     PASS.push(!(t === 0 && r === 0) && !(t === 2 && r === 0)); // 海と、道のない山は通れない
   }
   const TN = ['海', '平地', '山地', '森'];
+  // 2.2.1 見た目の道の上にいれば道の格（1〜3）、いなければ 0。2kmマスの判定ではなく、道の線からの近さで決める
+  const roadHere = (x, y) => {
+    const { gw, gh, segs } = G(), i = Math.max(0, Math.min(gw - 1, Math.floor(x / CELL))), j = Math.max(0, Math.min(gh - 1, Math.floor(y / CELL))), L = segs.get(j * gw + i);
+    if (!L) return 0; const RD2 = SGK.DATA.terrain.roads || []; let best = 0;
+    for (let a = 0; a < L.length; a += 2) { const r = RD2[L[a]]; if (!r) continue; const rk = r.rank || 2; if (best && rk >= best) continue; const P = r.pts, k = L[a + 1]; if (distSeg(x, y, P[k - 1][0], P[k - 1][1], P[k][0], P[k][1]) <= vis(rk)) best = rk; }
+    return best;
+  };
+  SIM.roadHere = roadHere;
+  // 足もとの本当の地形：道の上なら道（格・峠・渡し）、外れていれば下の地形（山の中の道から外れたら山の速さ）
+  const here = (x, y) => { const v = cellAt(x, y), t = v % 4, rk = v >= 4 ? roadHere(x, y) : 0; return t + 4 * rk; };
+  SIM.terrainHere = (x, y) => { const v = here(x, y); return v >= 4 ? '街道' : TN[v]; };
   SIM.terrainAt = (x, y) => { const v = cellAt(x, y); return v >= 4 ? '街道' : TN[v]; };
   SIM.roadAt = (x, y) => RANK_NAME[Math.floor(cellAt(x, y) / 4)] || null; // 道の格の名前（道でなければ null）
-  SIM.placeName = (x, y) => { const v = cellAt(x, y), t = v % 4, r = (v - t) / 4; return r ? RANK_NAME[r] + (t === 0 ? '・渡し' : t === 2 ? '・峠' : t === 3 ? '・森' : '') : TN[t]; };
-  SIM.speedAt = (x, y) => MULT[cellAt(x, y)];
+  SIM.placeName = (x, y) => { const v = here(x, y), t = v % 4, r = (v - t) / 4; return r ? RANK_NAME[r] + (t === 0 ? '・渡し' : t === 2 ? '・峠' : t === 3 ? '・森' : '') : TN[t]; };
+  SIM.speedAt = (x, y) => MULT[here(x, y)]; /* 2.2.1 見た目の道の上だけ速い */
   SIM.blockedAt = (x, y) => !PASS[cellAt(x, y)]; /* 1.6.47 */
   SIM.forestAt = (x, y) => cellAt(x, y) === 3; /* 1.6.47 道のない森 */
   SIM.terrainGrid = () => { const q = G(); return { g: q.g, gw: q.gw, gh: q.gh, CELL }; };
@@ -121,6 +137,9 @@
       for (let i = 0; i < out.length - 1 && len < LIM; i++) { const d = dd(out[i], x0, y0); if (d < best - 0.01) { best = d; k = i; } len += dd(out[i + 1], out[i][0], out[i][1]); }
       if (k > 0 && best < 3) out.splice(0, k);
     }
+    /* 2.2.2 はじめの点が後ろ（次の点と逆向き）で近いときは、まっすぐ次の点へ向かう（通れるときだけ） */
+    const passL = (ax, ay, bx, by) => { const n = Math.ceil(Math.hypot(bx - ax, by - ay) / 0.4); for (let s2 = 1; s2 < n; s2++) if (!PASS[cellAt(ax + (bx - ax) * s2 / n, ay + (by - ay) * s2 / n)]) return false; return true; };
+    while (out.length > 1) { const a = out[0], b = out[1]; if (dd(a, x0, y0) < 2.5 && (a[0] - x0) * (b[0] - a[0]) + (a[1] - y0) * (b[1] - a[1]) < 0 && passL(x0, y0, b[0], b[1])) out.shift(); else break; }
     /* 1.6.59 拠点の出入り：近く（6km以内）でぐるっと回るときは、見通せる所からまっすぐ入る（出る） */
     const clearL = (ax, ay, bx, by) => { const n = Math.ceil(Math.hypot(bx - ax, by - ay) / 0.4); for (let s2 = 1; s2 < n; s2++) { const x = ax + (bx - ax) * s2 / n, y = ay + (by - ay) * s2 / n; if (!PASS[cellAt(x, y)] || cellAt(x, y) % 4 === 0) return false; } return true; };
     const NEAR = 6;
@@ -180,6 +199,12 @@
     const isRoad = (k) => g[k] >= 3 && rd[k] >= 0;
     // 道 ri の位置 pos の座標
     const at = (ri, pos) => { const P = R[ri].pts, n = Math.min(P.length - 2, Math.max(0, Math.floor(pos))), f = pos - n; return [P[n][0] + (P[n + 1][0] - P[n][0]) * f, P[n][1] + (P[n + 1][1] - P[n][1]) * f]; };
+    // 2.2.2 (x,y) にいちばん近い道 ri の上の位置（near のあたりだけ見る）。3km以上離れていれば null
+    const proj = (ri, x, y, near) => {
+      const P = R[ri].pts, n0 = Math.max(0, Math.floor(near) - 3), n1 = Math.min(P.length - 2, Math.floor(near) + 3); let bd = 3, bp = null;
+      for (let n = n0; n <= n1; n++) { const [ax2, ay2] = P[n], [bx2, by2] = P[n + 1], dx = bx2 - ax2, dy = by2 - ay2, l = dx * dx + dy * dy, f = l ? Math.max(0, Math.min(1, ((x - ax2) * dx + (y - ay2) * dy) / l)) : 0, d = Math.hypot(x - ax2 - f * dx, y - ay2 - f * dy); if (d < bd) { bd = d; bp = n + f; } }
+      return bp;
+    };
     function clear(ax, ay, b, kind) {
       const bx = cx(b), by = cy(b), n = Math.ceil(Math.hypot(bx - ax, by - ay) / (CELL * 0.25));
       for (let s2 = 1; s2 <= n; s2++) {
@@ -193,11 +218,14 @@
     while (i < cells.length) {
       if (isRoad(cells[i])) {
         // 同じ道が続くあいだをひとまとめにし、その道の線（曲がり角の点も含む）をたどる
-        const ri = rd[cells[i]], p0 = rpos[cells[i]];
+        const ri = rd[cells[i]]; let p0 = rpos[cells[i]];
         let j = i; while (j + 1 < cells.length && isRoad(cells[j + 1]) && rd[cells[j + 1]] === ri) j++;
         // 交差点で別の道のマスを1つだけかすめた時は、その寄り道をしない
         if (i === j && i > 0 && j + 1 < cells.length && isRoad(cells[i - 1]) && isRoad(cells[j + 1]) && rd[cells[i - 1]] === rd[cells[j + 1]]) { i++; continue; }
-        const p1 = rpos[cells[j]];
+        let p1 = rpos[cells[j]];
+        /* 2.2.2 出発・到着のマスでは、マスの真ん中ではなく本人（目的地）の位置を道に当てる（追いかけるたびに道を戻る動きをなくす） */
+        if (i === 0) { const q = proj(ri, x0, y0, p0); if (q) p0 = q; }
+        if (j === cells.length - 1) { const q = proj(ri, x1, y1, p1); if (q) p1 = q; }
         pts.push(at(ri, p0));
         if (p1 > p0) for (let v = Math.floor(p0) + 1; v < p1; v++) pts.push(R[ri].pts[v].slice());
         else for (let v = Math.ceil(p0) - 1; v > p1; v--) pts.push(R[ri].pts[v].slice());

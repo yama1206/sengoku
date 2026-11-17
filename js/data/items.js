@@ -2,13 +2,13 @@
 (function () {
   SGK.DATA.items = {
     // 1.6.0 wt＝1つの重さ(kg)。1つの量を「持ち運びやすい小分け」にそろえ、中身の重さ（密度）で決める。鉄は重く、木綿・茶は軽い
-    rice: { name: '米', unit: '俵', base: 12, cons: 2, wt: 6 },       // 小俵（米 約4升）
-    salt: { name: '塩', unit: '袋', base: 400, cons: 1, wt: 2 },      // 小袋（塩 約1升）
-    cotton: { name: '木綿', unit: '反', base: 300, cons: 1, wt: 0.7 }, // 1反は本物も約0.7kg
-    sake: { name: '酒', unit: '樽', base: 500, cons: 1, wt: 4 },      // 小樽（酒 約2升）
-    firewood: { name: '薪', unit: '束', base: 40, cons: 3, wt: 3 },
-    iron: { name: '鉄', unit: '貫', base: 800, cons: 0.5, wt: 3.75 },  // 1貫は本物も3.75kg
-    tea: { name: '茶', unit: '斤', base: 350, cons: 0.5, wt: 0.6 },   // 1斤は本物も約0.6kg
+    rice: { name: '米', mk: '🌾', unit: '俵', base: 12, cons: 2, wt: 6 },       // 小俵（米 約4升）
+    salt: { name: '塩', mk: '🧂', unit: '袋', base: 400, cons: 1, wt: 2 },      // 小袋（塩 約1升）
+    cotton: { name: '木綿', mk: '🧶', unit: '反', base: 300, cons: 1, wt: 0.7 }, // 1反は本物も約0.7kg
+    sake: { name: '酒', mk: '🍶', unit: '樽', base: 500, cons: 1, wt: 4 },      // 小樽（酒 約2升）
+    firewood: { name: '薪', mk: '🪵', unit: '束', base: 40, cons: 3, wt: 3 },
+    iron: { name: '鉄', mk: '⛏️', unit: '貫', base: 800, cons: 0.5, wt: 3.75 },  // 1貫は本物も3.75kg
+    tea: { name: '茶', mk: '🍵', unit: '斤', base: 350, cons: 0.5, wt: 0.6 },   // 1斤は本物も約0.6kg
   };
   const prod = {
     inabayama: { rice: 3, iron: 1, tea: 1 }, ogaki: { rice: 4 }, inuyama: { firewood: 4, sake: 1 },
@@ -30,11 +30,36 @@
   const pickX = (id, n) => EXTRA[hash(id, n) % EXTRA.length];
   function defProd(s) {
     const o = {}, add = (k, v) => (o[k] = (o[k] || 0) + v);
-    if (s.type === 'village') { add('rice', 5); add('firewood', 6); add(pickX(s.id, 1), 4); add(pickX(s.id, 2), 3); }
+    if (s.type === 'village') { add('rice', 5); add('firewood', 6); add(pickX(s.id, 1), 3); add(pickX(s.id, 2), 2); } // 1.6.87 特産は toku で別に決める（economy.js で7にする）
     else if (s.type === 'town') { add('rice', 1); add('firewood', 2); add(pickX(s.id, 1), 6); add(pickX(s.id, 2), 5); add(pickX(s.id, 3), 4); }
     else { add('rice', 2); add('firewood', 4); add(pickX(s.id, 1), 2); add(pickX(s.id, 2), 1); }
     return o;
   }
   SGK.DATA.defProd = defProd;
+  // 1.6.78 大きな町（地方ごとに1つ以上）。武具はここでしか売り買いできない
+  const BIG = ['sakata', 'shinagawa', 'niigata', 'tsuruga', 'tsushima', 'kyo', 'sakai', 'yamaguchi', 'utazu', 'hakata'];
+  SGK.DATA.isBig = (s) => !!(s && BIG.includes(s.id));
+  // 1.6.87 村の特産：地形で決める（塩＝海・鉄＝山・酒＝川・木綿＝森・茶＝平地に近い）。1つの城の領内の村のうち1つだけ
+  let TOKU = null;
+  function buildToku() {
+    const SIM = SGK.SIM, T = SGK.DATA.terrain || {}, D = SGK.DATA.settlements, MAXD = 30;
+    const cs = D.filter((x) => x.type === 'castle'), dd = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    const near = (v, name) => { let best = MAXD; for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; for (let d = 1; d < best; d += 1) if (SIM.terrainAt(v.x + Math.cos(a) * d, v.y + Math.sin(a) * d) === name) { best = d; break; } } return best; };
+    const riv = (v) => { let best = MAXD; for (const rv of T.rivers || []) for (let k = 1; k < rv.pts.length; k++) {
+      const [ax, ay] = rv.pts[k - 1], [bx, by] = rv.pts[k], dx = bx - ax, dy = by - ay, l = dx * dx + dy * dy, q = l ? Math.max(0, Math.min(1, ((v.x - ax) * dx + (v.y - ay) * dy) / l)) : 0;
+      best = Math.min(best, Math.hypot(v.x - ax - q * dx, v.y - ay - q * dy)); } return best; };
+    const plain = (v) => { let n = 0, c = 0; for (const r of [3, 6, 9]) for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6, t = SIM.terrainAt(v.x + Math.cos(a) * r, v.y + Math.sin(a) * r); n++; if (t === '平地' || t === '街道') c++; } return c / n; };
+    const cl = (d) => Math.max(0, 1 - d / MAXD);
+    const best = {}; // 城ごとに一番ふさわしい村
+    for (const v of D) if (v.type === 'village') {
+      const sc = { salt: cl(near(v, '海')) * 1.05, iron: cl(near(v, '山地')) * 1.08, sake: cl(riv(v)) * 1.02, cotton: cl(near(v, '森')) * 0.98, tea: plain(v) * 0.78 };
+      let k = 'tea'; for (const x in sc) if (sc[x] > sc[k]) k = x;
+      const c = cs.slice().sort((a, b) => dd(a, v) - dd(b, v))[0], key = c ? c.id : v.id, h = (hash(v.id, 3) % 1000) / 1e6; // 同点は決まった順
+      if (!best[key] || sc[k] + h > best[key].s) best[key] = { id: v.id, k, s: sc[k] + h };
+    }
+    TOKU = {}; for (const c in best) TOKU[best[c].id] = best[c].k;
+  }
+  SGK.DATA.toku = (s) => { if (!s || s.type !== 'village') return null; if (!TOKU) { if (!(SGK.SIM && SGK.SIM.terrainAt)) return null; buildToku(); } return TOKU[s.id] || null; };
+  SGK.DATA.mk = (k) => (SGK.DATA.items[k] && SGK.DATA.items[k].mk) || '';
   SGK.DATA.settlements.forEach((s) => (s.prod = prod[s.id] || defProd(s)));
 })();

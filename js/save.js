@@ -26,9 +26,10 @@
   const metas = () => { try { return JSON.parse(localStorage.getItem(META)) || {}; } catch (e) { return {}; } };
   const setMeta = (n, w) => {
     const m = metas();
-    m[n] = { at: w.savedAt || Date.now(), min: w.time ? w.time.min : 0, ver: w.version, names: Object.values(w.players || {}).map((p) => p.name).slice(0, 4), start: w.scenario || null };
+    m[n] = { at: w.savedAt || Date.now(), min: w.time ? w.time.min : 0, ver: w.version, names: Object.values(w.players || {}).map((p) => p.name).slice(0, 4), start: w.scenario || null, code: w.code || null };
     localStorage.setItem(META, JSON.stringify(m));
   };
+  SAVE.slotOf = (code) => { const m = metas(); for (const k in m) if (m[k] && m[k].code === code) return +k; return 0; };
   SAVE.slots = () => { const m = metas(); return Array.from({ length: SAVE.SLOTS }, (_, i) => ({ n: i + 1, meta: m[i + 1] || null })); };
   SAVE.has = () => Object.keys(metas()).length > 0;
 
@@ -43,12 +44,13 @@
   SAVE.save = function (w) {
     w.version = SGK.VERSION; w.savedAt = Date.now();
     const json = JSON.stringify(w), n = SAVE.slot;
+    if (!n) return Promise.resolve(true); // 2.3.0 この端末に控えを持たない世界（クラウドだけ）
     try { localStorage.setItem(QUICK, json); localStorage.setItem(QUICK_SLOT, String(n)); } catch (e) { /* 容量不足でも本体は IndexedDB に残す */ }
     setMeta(n, w);
     return put('s' + n, json).then(() => true).catch((e) => { console.error(e); return false; });
   };
   SAVE.backup = function (w) {
-    const n = SAVE.slot, B = SGK.CFG.BACKUPS;
+    const n = SAVE.slot, B = SGK.CFG.BACKUPS; if (!n) return;
     (async () => {
       for (let i = B; i > 1; i--) { const prev = await get(`s${n}_bak${i - 1}`); if (prev) await put(`s${n}_bak${i}`, prev); }
       await put(`s${n}_bak1`, JSON.stringify(w));

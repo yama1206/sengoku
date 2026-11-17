@@ -8,7 +8,7 @@
   const HS = SIM.HOUSE = { recruitBase: 30, recruitFame: 0.5, infamyRecruit: 8, infamyPersuade: 0.06, armyRiceExtra: 10, starveLoss: 0.05, starveHome: 3, memoMax: 40 };
 
   // ---- 捕らえた武将を登用する（名声で成功率が上がり、悪名で下がる。断られたら登用はもうできない） ----
-  SIM.recruitChance = (p, pr) => Math.max(5, Math.min(90, HS.recruitBase + (p.fame || 0) * HS.recruitFame - (p.infamy || 0) * HS.infamyRecruit - ((pr.tou || 50) + (pr.bu || 50) - 100) / 4)) / 100;
+  SIM.recruitChance = (p, pr) => Math.max(5, Math.min(90, HS.recruitBase + (p.fame || 0) * HS.recruitFame - (p.infamy || 0) * HS.infamyRecruit - 2.5)) / 100;
   SIM.commands.recruitCaptive = (w, p, c) => {
     if (!(p.captives || []).includes(c.id)) return;
     const pr = w.people[c.id]; if (!pr || pr.dead || pr.refused) return;
@@ -19,12 +19,6 @@
     pr.captive = null; pr.refused = null; pr.retainerOf = p.id; pr.faction = p.clan || null; pr.castle = null;
     p.retainers.push(c.id);
     SIM.say(p.id, `${pr.name}が家臣になりました！`);
-  };
-  // ---- 斬ると悪名（登用・調略がしにくくなる） ----
-  const baseKill = SIM.commands.killCaptive;
-  SIM.commands.killCaptive = (w, p, c) => {
-    const had = (p.captives || []).includes(c.id); baseKill(w, p, c);
-    if (had && w.people[c.id] && w.people[c.id].dead) { p.infamy = (p.infamy || 0) + 1; SIM.say(p.id, `悪名が${p.infamy}になりました（登用や調略がしにくくなります）`); }
   };
   const basePC = SIM.persuadeChance;
   if (basePC) SIM.persuadeChance = (w, p, s) => basePC(w, p, s) * Math.max(0.3, 1 - (p.infamy || 0) * HS.infamyPersuade);

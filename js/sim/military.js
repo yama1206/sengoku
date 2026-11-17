@@ -123,6 +123,8 @@
       { // 1.6.67 追いかけてきたプレイヤーに追いつかれたら戦になる（野盗が落ち着いている・こちらが身を隠しているときも）
         const ch = Object.values(w.players).find((p) => p.follow === n.id && inField(p) && !p.battle && dist(n, p) < 0.35);
         if (ch) { startBattle(w, n, ch); continue; }
+        const cz = Object.values(w.players).find((p) => p.follow === n.id && inField(p) && !p.battle); /* 1.6.74 追いかけられている野盗は、追う側の7割の速さまでしか出ない（必ず追いつける） */
+        if (cz) n.speed = Math.min(n.speed, (cz.speed || 28) * 0.7 * SIM.moveMul(cz, cz.x, cz.y) / (SIM.moveMul(n, n.x, n.y) || 1));
       }
       if (n.tgt) { // 狙っていた相手が拠点に入ったらあきらめて根城へ帰る
         const tp = w.players[n.tgt];
@@ -326,7 +328,7 @@
     const goTo = (u, x, y, spd) => { const d = Math.hypot(x - u.x, y - u.y); if (d < 0.3) return true; const s = Math.min(spd * dt, d); u.x += ((x - u.x) / d) * s; u.y += ((y - u.y) / d) * s; u.f = Math.atan2(y - u.y, x - u.x); return false; };
     for (const u of us) {
       const t = TR[u.type], tu = terAt(b, u);
-      const gen = u.type === 'hero' && !u.owner && !u.cmd, spd = (gen ? TR.kiba.spd : t.spd) * ((t.cav || gen) && tu.f ? SIM.CAV_FOREST : 1) /* 0.73.8 CPUの武将は騎馬（1.6.64 行の途中の // で後ろが消えていたのを直した） */ * (tu.h ? 0.85 : 1) * (tu.m ? 0.4 : 1) * (tu.w ? 0.45 : 1) * (tu.s ? (t.cav ? 0.3 : 0.5) : 1);
+      const gen = u.type === 'hero' && !u.owner && !u.cmd, spd = (gen ? TR.kiba.spd : t.spd) * ((t.cav || gen) && tu.f ? SIM.CAV_FOREST : 1) * ((((u.owner || u.cmd) && SIM.ACT && SIM.ACT.OMOD[u.order]) || {}).spd || 1) /* 0.73.8 CPUの武将は騎馬（1.6.64 行の途中の // で後ろが消えていたのを直した） */ * (tu.h ? 0.85 : 1) * (tu.m ? 0.4 : 1) * (tu.w ? 0.45 : 1) * (tu.s ? (t.cav ? 0.3 : 0.5) : 1);
       if (u.order === 'retreat' || u.order === 'rout') {
         const ex = u.side === 'A' ? -4 : FIELD.w + 4; u.x += Math.sign(ex - u.x) * spd * (u.order === 'rout' ? 1.1 : 1) * dt; u.f = u.side === 'A' ? Math.PI : 0;
         if ((u.side === 'A' && u.x < FIELD.ax - 120) || (u.side === 'B' && u.x > FIELD.bx + 120) || u.x < 1 || u.x > FIELD.w - 1) u.gone = true; // 120m 退けば戦場を離れる
@@ -338,7 +340,7 @@
       if (!e || ed > reach) {
         if (u.order === 'move') { if (goTo(u, u.mx, u.my, spd)) u.order = 'hold'; }
         else if (u.order === 'hold' && u.mf != null) turnTo(u, u.mf, (TR[u.type].cav ? 1.6 : 0.9) * dt);
-        else if (u.order === 'charge' || u.order === 'flank') {
+        else if (u.order === 'charge' || u.order === 'flank' || u.order === 'guard') {
           if (e && u.order === 'flank' && angDiff(e.f, Math.atan2(u.y - e.y, u.x - e.x)) < 1.2) {
             // 回り込み：敵の向きに対して横～後ろの点を目指す
             const sgn = Math.sin(Math.atan2(u.y - e.y, u.x - e.x) - e.f) >= 0 ? 1 : -1, a = e.f + sgn * Math.PI * 0.6, R2 = rad(e) + 16;
@@ -376,6 +378,7 @@
       const unseen = !sees(b, e, u, terAt(b, u).f) && b.t - (u.shot || -99) >= VIS.reveal; // 狙われた側から見えていない
       if (unseen) mul *= VIS.ambush;
       mul *= 0.55 + (0.45 * u.mor) / 100; // 士気
+      { const OM = SIM.ACT && SIM.ACT.OMOD, a = OM && (u.owner || u.cmd) && OM[u.order], z = OM && (e.owner || e.cmd) && OM[e.order]; if (a && a.as) mul *= a.as; if (z && z.md) mul *= z.md; } // 2.6.0 突撃・防御の強さ
       const d = (t.ranged && !melee ? u.n * per * dt * 0.35 * (1 - ed / (reach * 1.6)) : Math.min(u.n, e.type === 'hero' ? 8 : e.n * 2 + 3) * per * dt * 0.5) * mul;
       dmg.set(e, (dmg.get(e) || 0) + d);
       if (dir !== 'front' || unseen) hit.set(e, Math.max(hit.get(e) || 0, dir === 'rear' || unseen ? 2 : 1));
@@ -419,6 +422,7 @@
     else if (b.t > 900) autoResolve(w, b); // 長引いたら自動で決着
   }
 
+  SIM.autoResolve = (w, b) => autoResolve(w, b); // 2.4.0 ホストの引き継ぎで、途中だった「自分で戦う」合戦を決着させる
   function autoResolve(w, b) {
     const pw = (side) => b.units.filter((u) => u.side === side && alive(u)).reduce((a, u) => a + u.hp * TR[u.type].atk, 0);
     const cm = b.cside ? 1 + ({ yama: 0.8, mizu: 0.6 }[b.ck] || 0.45) * (b.kf == null ? 1 : b.kf) * (0.5 + 0.5 * (b.gf == null ? 1 : b.gf)) : 1; /* 1.6.39 門が傷んでいると守りの効きが下がる */ // 0.37.0 城の守り手は自動決着でも有利
@@ -469,8 +473,11 @@
         const bonus = Math.floor(kills * SIM.KILL_PAY / b.pids.length), share = Math.floor(b.loot / b.pids.length), fame = 1 + Math.floor(b.foeN / 10);
         p.money += share + bonus; p.fame += fame;
         SIM.say(pid, `勝利！ ${SIM.money(share + bonus)}を手に入れました（戦利品${SIM.money(share)}＋討ち取り${kills}人分${SIM.money(bonus)}、名声+${fame}）。${lt}`);
+        { const room = Math.max(0, SIM.troopCount(after) - (p.pow || 0)), c = Math.min(room, Math.floor((kills * SIM.POW.rate) / b.pids.length)); /* 1.6.81 敵兵の一部を捕虜に（見張りの兵の数まで） */
+          if (c > 0) { const dd = b.units.filter((u) => u.side === 'B' && u.type !== 'hero').map((u) => [Math.max(0, (u.n0 || 0) - Math.max(0, u.n || 0)), (TR[u.type] && TR[u.type].cost) || TR.nohei.cost]), dn = dd.reduce((a, [d]) => a + d, 0), per = Math.round((dn ? dd.reduce((a, [d, k]) => a + d * k, 0) / dn : TR.nohei.cost) * SIM.POW.pay); /* 1.6.82 身代金は倒した兵を雇う値段の半分 */
+            p.powV = (p.powV || 0) + c * per; p.pow = (p.pow || 0) + c; SIM.say(pid, `敵兵${c}人を捕虜にしました（城へ連れて行くと身代金と交換できます）`); } else if (kills > 0 && !room) SIM.say(pid, '見張りの兵が足りず、捕虜は取れませんでした（捕虜は率いる兵の数まで）'); }
       } else if (res === 'lose') {
-        const lost = Math.floor(p.money * 0.3); p.money -= lost;
+        const lost = Math.floor(p.money * 0.3); p.money -= lost; if (p.pow) { SIM.say(pid, `捕虜${p.pow}人に逃げられました`); p.pow = 0; p.powV = 0; } /* 1.6.81 */
         const s = nearestSettlement(w, p); p.x = s.x; p.y = s.y; p.at = s.id; p.tx = p.ty = null;
         SIM.say(pid, `敗北…… ${SIM.money(lost)}を奪われ、気がつくと${s.name}で手当てを受けていました。${lt}`);
       } else SIM.say(pid, `戦場から退きました。${lt}`);
@@ -530,7 +537,7 @@
   SIM.sizeSpeed = (n) => (n ? 1 - Math.min(0.4, 0.04 + Math.sqrt(n) * 0.03) : 1);
   SIM.systems.push(
     function militaryDay(w) { const d = Math.floor(w.time.min / 1440); while (w.mday < d) { w.mday++; daily(w); } },
-    function partySpeed(w) { for (const p of Object.values(w.players)) p.speed = (CFG.WALK_KM_PER_DAY + SIM.speedBonus(p)) * SIM.sizeSpeed(SIM.troopCount(p.troops)) * SIM.mixSpeed(p.troops) * (SIM.loadSpeed ? SIM.loadSpeed(p) : 1); }, // 0.74.0 荷が重いと遅い
+    function partySpeed(w) { for (const p of Object.values(w.players)) p.speed = (CFG.WALK_KM_PER_DAY + SIM.speedBonus(p)) * SIM.sizeSpeed(SIM.troopCount(p.troops)) * SIM.mixSpeed(p.troops) * (SIM.loadSpeed ? SIM.loadSpeed(p) : 1) * SIM.powSpeed(p); }, // 0.74.0 荷が重いと遅い
     // 0.60.1 武将・巡回隊・浪人もプレイヤーと同じ式（人数と騎馬の割合）で速さを決める。以前は人数に関係なく35km/日だった
     function npcSpeed(w) {
       for (const n of Object.values(w.npcs)) {
@@ -571,7 +578,7 @@
       SIM.say(p.id, `${TR[c.kind].name}を${q}人解き放ちました`);
     },
     order(w, p, c) {
-      const b = w.battles[p.battle]; if (!b || !['charge', 'hold', 'retreat', 'flank', 'move', 'follow', 'face', 'ai', 'form', 'fire'].includes(c.order)) return;
+      const b = w.battles[p.battle]; if (!b || !['charge', 'guard', 'hold', 'retreat', 'flank', 'move', 'follow', 'face', 'ai', 'form', 'fire'].includes(c.order)) return;
       if (c.order === 'ai' && !b.act) c.order = 'charge'; // 0.64.0 AIに任せる（自分で戦うときだけ）
       for (const u of b.units) if ((u.owner === p.id || u.cmd === p.id) && u.order !== 'rout' && (c.unit === 'all' || u.id === +c.unit)) {
         if (c.order === 'form') { if (SIM.ACT && SIM.ACT.FORMS[c.fm]) { u.fm = c.fm; if (SIM.actForm) SIM.actForm(b, u); } continue; } // 0.75.0 隊形
@@ -617,6 +624,8 @@
     return r;
   };
   SIM.FIELD = FIELD;
+  SIM.powSpeed = (p) => { const n = (p.pow || 0) + ((p.captives && p.captives.length) || 0) * 5; if (!n) return 1; return 0.92 - 0.08 * Math.min(1, n / Math.max(1, SIM.troopCount(p.troops))); }; /* 1.6.85 捕虜を連れていると遅い（0.92倍、捕虜が兵と同じ数なら0.84倍。武将は5人分） */
+  SIM.POW = { rate: 0.3, pay: 0.5, gen: 3000 }; /* 1.6.81 捕虜：倒した敵の3割を捕らえる。1.6.82 兵の身代金は雇う値段の半分（野盗は農兵扱い）・武将3貫 */
   SIM.KILL_PAY = 60; /* 1.6.26 敵を1人倒すごとの褒美（文） */
   SIM._finishBattle = finish; // 0.56.0 アクション戦闘から使う
   SIM._mil = { addUnits, genTerrain, inField, power, surviving }; // 攻城戦（siege.js）から使う

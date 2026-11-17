@@ -115,7 +115,7 @@
       const fr = frameOf(s.owner), zk = Math.max(0.45, Math.min(1, cam.scale / 4)); // 引いたときは印を小さく
       if (cam.scale < 1.5 && s.type === 'village') continue;
       if (s.type === 'castle') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 18 * zk, 'shiro', fr[0], fr[1]); // 0.54.7 城は天守の形・町や村は四角（部隊は丸）
-      else if (s.type === 'town') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 15 * zk, 'sq', fr[0], fr[1]);
+      else if (s.type === 'town') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, (SGK.DATA.isBig(s) ? 20 : 15) * zk, 'sq', fr[0], fr[1]); // 1.6.78 大きな町は印を大きく
       else SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 10, 'sq', fr[0], Math.min(fr[1], 2));
       if (SGK.SIM.minato && SGK.SIM.minato(s) && cam.scale >= 1.5) { // 0.53.0 湊の錨
         const ax = x + 13 * zk, ay = y - 11 * zk, big = SGK.SIM.minato(s) === 2;
@@ -125,12 +125,13 @@
         ctx.moveTo(ax, ay - 4); ctx.lineTo(ax, ay + 4); ctx.moveTo(ax - 3, ay - 2); ctx.lineTo(ax + 3, ay - 2);
         ctx.moveTo(ax - 4, ay + 1); ctx.quadraticCurveTo(ax - 3, ay + 5, ax, ay + 4); ctx.quadraticCurveTo(ax + 3, ay + 5, ax + 4, ay + 1); ctx.stroke();
       }
+      { const tk = SGK.DATA.toku(s); if (tk) { const mx = x, my = y - 18; ctx.fillStyle = 'rgba(245,238,215,.92)'; ctx.strokeStyle = '#8a6a2a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(mx, my, 9, 0, 7); ctx.fill(); ctx.stroke(); ctx.font = '12px sans-serif'; ctx.textBaseline = 'middle'; ctx.fillText(SGK.DATA.mk(tk), mx, my + 0.5); ctx.textBaseline = 'top'; } } // 1.6.77 村の特産の印
       if (s.id === selectedId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 17, 0, 7); ctx.stroke(); }
       if (s.site) { ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 2; ctx.setLineDash([3, 3]); ctx.strokeRect(x - 13, y - 13, 26, 26); ctx.setLineDash([]); }
       if (cam.scale < 6 && !s.lord && !s.built && s.type !== 'town' && s.id !== selectedId) continue;
-      if (cam.scale < 1.5 && !(view.factions[s.owner] && view.factions[s.owner].leader === s.lord) && s.id !== selectedId) continue; // 全国を見るときは大名の本城だけ // 引いたときは主な拠点の名前だけ
+      if (cam.scale < 1.5 && !SGK.DATA.isBig(s) && !(view.factions[s.owner] && view.factions[s.owner].leader === s.lord) && s.id !== selectedId) continue; // 全国を見るときは大名の本城だけ // 引いたときは主な拠点の名前だけ
       const label = s.site ? s.name + '（普請中）' : s.name;
-      ctx.font = `${s.type === 'castle' ? 'bold 13px' : '12px'} "Hiragino Mincho ProN","Yu Mincho",serif`;
+      ctx.font = `${s.type === 'castle' || SGK.DATA.isBig(s) ? 'bold 13px' : '12px'} "Hiragino Mincho ProN","Yu Mincho",serif`;
       ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)'; ctx.strokeText(label, x, y + 12);
       ctx.fillStyle = '#2a2118'; ctx.fillText(label, x, y + 12);
     }
@@ -236,7 +237,7 @@
     c.y = F.h <= hh * 2 ? F.h / 2 : Math.max(hh - 20, Math.min(F.h - hh + 20, c.y));
     return { sc, ox: W / 2 - c.x * sc, oy: top + vh / 2 - c.y * sc };
   };
-  const ORD = { charge: '突', hold: '待', retreat: '退', flank: '回', move: '移', rout: '潰走' };
+  const ORD = { charge: '突', guard: '防', hold: '待', retreat: '退', flank: '回', move: '移', follow: '追', rout: '潰走' };
   let fogCv = null;
   R.drawBattle = function (ctx, bt, disp, myPid, selUnit) {
     const F = SGK.SIM.FIELD, TR = SGK.SIM.TROOPS, L = R.battleLayout(F);

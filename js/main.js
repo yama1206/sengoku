@@ -105,15 +105,16 @@
     if (slotMode === 'load') {
       try {
         const r = await SGK.SAVE.load(n); if (!r) return titleMsg('このスロットのセーブが読めませんでした');
-        titleBack(); startHost(r.world, r.from === 'main' ? `スロット${n}の続きから再開しました` : 'セーブが読めなかったので、バックアップから再開しました');
+        titleBack(); playWorld(r.world.code || null, r.world, r.from === 'main' ? `スロット${n}の続きから再開しました` : 'セーブが読めなかったので、バックアップから再開しました', n);
       } catch (err) { titleMsg(err.message); }
       return;
     }
     if (used) await SGK.SAVE.remove(n);
     SGK.SAVE.slot = n;
     const w = slotMode === 'import' ? importWorld : SIM.createWorld(Math.floor(Math.random() * 2 ** 31));
-    importWorld = null; titleBack();
-    startHost(w, slotMode === 'import' ? `セーブファイルをスロット${n}に読み込みました` : `スロット${n}に新しいワールドを作りました`);
+    const imp = slotMode === 'import'; importWorld = null; titleBack();
+    if (imp) delete w.code; // 読み込んだセーブは別の世界として新しいコードを付ける
+    playWorld(null, w, imp ? `セーブファイルをスロット${n}に読み込みました` : `スロット${n}に新しい世界を作りました`, n);
   });
   $('btnNew').onclick = () => openSlots('new');
   $('btnContinue').onclick = () => openSlots('load');
@@ -140,40 +141,34 @@
     ci.value = b.dataset.ck === 'del' ? ci.value.slice(0, -1) : (ci.value + b.dataset.ck).slice(0, CL);
     if (ci.value.length === CL && b.dataset.ck !== 'del') setFocus($('joinPanel'), $('btnJoinGo'));
   });
-  function titleBack() { if (probe) { probe.close(); probe = null; } if ($('mSet').parentNode === $('title')) { $('mSet').classList.add('hidden'); $('gameMenu').insertBefore($('mSet'), $('mMain')); } $('slotPanel').classList.add('hidden'); $('friendPanel').classList.add('hidden'); $('joinPanel').classList.add('hidden'); $('namePanel').classList.add('hidden'); $('createPanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); setFocus($('titleMenu'), currentFocus($('titleMenu'))); }
+  function titleBack() { probe = null; if ($('mSet').parentNode === $('title')) { $('mSet').classList.add('hidden'); $('gameMenu').insertBefore($('mSet'), $('mMain')); } $('slotPanel').classList.add('hidden'); $('friendPanel').classList.add('hidden'); $('joinPanel').classList.add('hidden'); $('namePanel').classList.add('hidden'); $('createPanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); setFocus($('titleMenu'), currentFocus($('titleMenu'))); }
   $('btnJoinBack').onclick = titleBack;
-  // ---------- フレンド ----------
+  // ---------- 2.3.0 世界の一覧（入ったことのある世界。ホストがいるか・いつまで進んだか） ----------
   let probe = null; const fstat = {};
   function renderFriends() {
-    const NET = SGK.NET, l = NET.friends();
-    $('myFcode').textContent = NET.myCode();
-    $('friendList').innerHTML = l.length ? l.map((f) => {
-      const st = fstat[f.code], on = st && st !== 'off' && st !== '…';
-      const txt = st === '…' || !st ? '確認中…' : st === 'off' ? '部屋は開いていません' : st.ver !== SGK.VERSION ? `部屋あり（バージョン違い ${st.ver}）` : `部屋あり ${st.n || 1}/${st.max || CFG.MAX_PLAYERS}人`;
-      return `<div class="card"><div><b>${(f.name || 'フレンド').replace(/[<&]/g, '')}</b>　<span class="muted">${f.code}</span><br><span class="${on ? '' : 'muted'}" style="${on ? 'color:#8fe08f' : ''}">${txt}</span></div>`
-        + `<div class="row"><button id="fj-${f.code}" data-fjoin="${f.code}" ${on && st.ver === SGK.VERSION ? '' : 'disabled'}>参加</button><button id="fd-${f.code}" data-fdel="${f.code}">削除</button></div></div>`;
-    }).join('') : '<div class="muted" style="text-align:center;margin:8px">まだフレンドがいません。部屋コードで一度参加するか、フレンドコードを追加してください</div>';
+    const l = SGK.CLOUD.worlds();
+    $('friendList').innerHTML = l.length ? l.map(({ code }) => {
+      const st = fstat[code] || {}, h = st.h, inf = st.i, live = SGK.CLOUD.fresh(h);
+      const txt = !st.done ? '確認中…' : !inf && !live ? 'この世界は見つかりません' : live ? (h.ver !== SGK.VERSION ? `${(h.name || '').replace(/[<&]/g, '')}がホスト（バージョン違い ${h.ver}）` : `${(h.name || '').replace(/[<&]/g, '')}がホスト　${h.cnt || 1}/${CFG.MAX_PLAYERS}人`) : '誰もいません（入るとあなたがホストになり、時間が進みます）';
+      const desc = inf ? `${SIM.formatDate(inf.min || 0)}　${(inf.names || []).join('・').replace(/[<&]/g, '')}` : '';
+      return `<div class="card"><div><b style="letter-spacing:.15em">${code}</b>　<span class="muted">${desc}</span><br><span class="${live ? '' : 'muted'}" style="${live ? 'color:#8fe08f' : ''}">${txt}</span></div>`
+        + `<div class="row"><button id="fj-${code}" data-fjoin="${code}" ${st.done && (inf || live) ? '' : 'disabled'}>入る</button><button id="fd-${code}" data-fdel="${code}">一覧から外す</button></div></div>`;
+    }).join('') : '<div class="muted" style="text-align:center;margin:8px">まだありません。新しい世界を作るか、世界コードで入ってください</div>';
   }
   function refreshFriends() {
-    const codes = SGK.NET.friends().map((f) => f.code);
-    if (probe) probe.close();
-    codes.forEach((c) => (fstat[c] = '…')); renderFriends();
-    probe = SGK.NET.probe(codes, (c, info) => { fstat[c] = info || 'off'; if (info && info.name) SGK.NET.addFriend(c, info.name); renderFriends(); });
+    const my = probe = {}; renderFriends();
+    for (const { code } of SGK.CLOUD.worlds()) {
+      fstat[code] = {};
+      Promise.all([SGK.CLOUD.clock(code).then(() => SGK.CLOUD.rest(code, 'host')).catch(() => null), SGK.CLOUD.info(code)]).then(([h, i]) => { if (probe !== my) return; fstat[code] = { h, i, done: true }; renderFriends(); });
+    }
   }
   $('btnFriend').onclick = () => { $('friendPanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); refreshFriends(); setFocus($('friendPanel'), $('btnFriendRefresh')); };
   $('btnFriendBack').onclick = titleBack;
   $('btnFriendRefresh').onclick = refreshFriends;
-  $('fcInput').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, CL); });
-  $('btnFcAdd').onclick = () => {
-    const c = $('fcInput').value;
-    if (c === SGK.NET.myCode()) return titleMsg('それは自分のフレンドコードです');
-    if (!SGK.NET.addFriend(c)) return titleMsg(`フレンドコード（数字${CL}けた）を入れてください`);
-    $('fcInput').value = ''; titleMsg('フレンドに追加しました'); refreshFriends();
-  };
   $('friendList').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.fjoin) { const c = b.dataset.fjoin; titleBack(); startClient(c); }
-    else if (b.dataset.fdel) { SGK.NET.removeFriend(b.dataset.fdel); renderFriends(); setFocus($('friendPanel'), $('btnFriendRefresh')); }
+    if (b.dataset.fjoin) { const c = b.dataset.fjoin; titleBack(); playWorld(c, null, ''); }
+    else if (b.dataset.fdel) { SGK.CLOUD.forget(b.dataset.fdel); renderFriends(); setFocus($('friendPanel'), $('btnFriendRefresh')); }
   });
   // ---------- 家紋の編集（人物画面とはじめの人物づくりで共用） ----------
   const MON_RANGE = { f: [0, 3], s: [0, 6], n: [1, 8], d: [0, 6], z: [1, 6], r: [0, 7], c: [-1, 6] };
@@ -346,35 +341,127 @@
   $('nkDel').onclick = nkDel;
   $('nkOk').onclick = () => closeNameKb(true);
   $('btnNameBack').onclick = () => closeNameKb(false);
-  $('btnJoinGo').onclick = () => { const c = $('codeInput').value.replace(/\D/g, ''); if (c.length < CL) return titleMsg(`部屋コード（数字${CL}けた）を入れてください`); startClient(c); };
+  $('btnJoinGo').onclick = () => { const c = $('codeInput').value.replace(/\D/g, ''); if (c.length < CL) return titleMsg(`世界コード（数字${CL}けた）を入れてください`); titleBack(); playWorld(c, null, ''); };
 
   // ---------- ホスト ----------
   const timerWorker = new Worker(URL.createObjectURL(new Blob(['let iv;onmessage=e=>{clearInterval(iv);if(e.data>0)iv=setInterval(()=>postMessage(0),e.data)}'], { type: 'text/javascript' })));
   let lastTick = 0, netAcc = 0, saveAcc = 0, saveCount = 0;
 
-  function startHost(world, msg) {
-    G.mode = 'host'; G.world = world; G.speed = 1; G.disp = {}; G.selected = null;
+  // ---------- 2.3.0 世界に入る（イセログ方式）：ホストがいれば参加、いなければ自分がホスト ----------
+  // code：世界コード（null なら新しく作る）／local：この端末の世界（新規・控え・読み込み）／slot：この端末の控えのスロット
+  let entering = false;
+  async function playWorld(code, local, msg, slot) {
+    if (entering) return; entering = true;
+    const CLD = SGK.CLOUD;
+    try {
+      if (!CLD.on()) { if (!local) throw new Error('クラウドが使えません'); SGK.SAVE.slot = slot || 0; startHost(local, msg, null); return; }
+      titleMsg('世界に入っています…');
+      if (!code) { code = await CLD.newCode(); local.code = code; }
+      myProf();
+      const ent = await SGK.NET.enter(code, () => ({ name: myName(), cnt: 1 }));
+      CLD.remember(code);
+      if (ent.role === 'guest') { titleMsg('ホストにつないでいます…'); startClient(ent, code); return; }
+      await hostFromCloud(code, ent, local, msg, slot, null);
+    } catch (e) { G.mode = 'title'; titleMsg(e.message); }
+    finally { entering = false; }
+  }
+  // ホストになる：クラウドの世界（手元の方が新しければ手元）を読んで始める。mine：引き継いだ人の「自分の分」
+  async function hostFromCloud(code, ent, local, msg, slot, mine) {
+    const CLD = SGK.CLOUD;
+    let w = local, cloud = null;
+    try { cloud = await CLD.load(code); } catch (e) { if (/新しいバージョン/.test(e.message)) { CLD.rest(code, 'host', 'DELETE').catch(() => {}); throw e; } console.warn(e); }
+    if (cloud && (!w || (cloud.savedAt || 0) > (w.savedAt || 0))) { w = cloud; if (local) msg = 'クラウドの方が新しかったので、そちらから再開しました'; }
+    if (!w) { CLD.rest(code, 'host', 'DELETE').catch(() => {}); try { ent.peer && ent.peer.destroy(); } catch (e) {} throw new Error('その世界は見つかりません（世界コードを確かめてください）'); }
+    w.code = code;
+    SGK.SAVE.slot = slot || SGK.SAVE.slotOf(code) || 0;
+    // 2.4.0 引き継ぎの準備：保存より後の「自分の分」を受け付ける／途中だった「自分で戦う」合戦は、その人が戻るか30秒たったら自動で決着
+    G.loadedAt = w.savedAt || 0; G.merged = {}; G.pendingMine = mine;
+    const ids = Object.keys(w.battles || {}).filter((id) => w.battles[id].act);
+    G.autoWait = ids.length ? { t: performance.now(), ids } : null;
+    startHost(w, msg || '👑 あなたがホストになりました（いまからこの世界の時間が進みます）', ent);
+  }
+  // 2.4.0 引き継ぎ：参加者が持っていた「自分の分」（クラウドの保存より新しいもの）で、その人の武将を置きかえる
+  function mergeMine(w, pid, mine) {
+    if (!mine || !mine.p || typeof mine.p !== 'object' || mine.p.id !== pid || !(mine.ma > G.loadedAt) || (G.merged || {})[pid] || !w.players[pid]) return false;
+    const old = w.players[pid], p = mine.p;
+    if (old.battle && w.battles[old.battle] && p.battle !== old.battle) { // 保存のあとに終わっていた合戦からは外す（古い結果で上書きしないように）
+      const b = w.battles[old.battle]; b.pids = b.pids.filter((x) => x !== pid); if (b.act && b.act.inp) delete b.act.inp[pid];
+      if (!b.pids.length) SIM.autoResolve(w, b);
+    }
+    if (p.battle && !w.battles[p.battle]) p.battle = null;
+    delete p.off; SIM.ensurePlayer(p);
+    w.players[pid] = p; G.merged[pid] = 1;
+    return true;
+  }
+  // 2.4.0 参加者：ホストが抜けたら、次のホストを探す。誰もいなければ自分が引き継ぐ
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  async function rejoin(why) {
+    if (G.rejoining || G.mode !== 'client') return; G.rejoining = true;
+    const code = G.roomCode, CLD = SGK.CLOUD, old = G.hostBoard || {}, my = G.myPid;
+    if (G.net) { G.net.close(); G.net = null; }
+    toast(`${why}。引き継ぎ先を探しています…`, 6000); $('roomInfo').innerHTML = `世界コード <b>${code}</b><br><span class="muted">ホストを探しています…</span>`;
+    let firstAt = null;
+    try {
+      for (let tr = 0; tr < 40; tr++) {
+        if (G.mode !== 'client' || G.myPid !== my) return; // タイトルへ戻った
+        const h = await CLD.rest(code, 'host').catch(() => null);
+        if (CLD.fresh(h) && h.id) {
+          if (firstAt == null) firstAt = h.at;
+          if (h.id !== old.id || h.at > firstAt + 1000) { // 新しいホスト（同じ人でも、掲示板がまだ更新されていれば生きている）
+            if (h.ver !== SGK.VERSION) throw new Error(`新しいホストのバージョンが違います（${h.ver}）。更新ボタンを押してください`);
+            const peer = await SGK.NET.openPeer(); startClient({ role: 'guest', peer, board: h }, code, true); return;
+          }
+        } else if (!CLD.fresh(h)) {
+          await sleep(Math.random() * 2000);
+          const h2 = await CLD.rest(code, 'host').catch(() => null);
+          if (!CLD.fresh(h2)) {
+            const peer = await SGK.NET.openPeer().catch(() => null);
+            const n = await SGK.NET.claim(code, peer, () => ({ name: myName(), cnt: 1 })).catch(() => null);
+            if (n) { const mine = G.mine; Object.assign(G, { dyn: null, priv: null, actView: null }); await hostFromCloud(code, { role: 'host', peer, nonce: n }, null, '👑 ホストを引き継ぎました（いまからこの世界の時間が進みます）', 0, mine); return; }
+            if (peer) try { peer.destroy(); } catch (e) {}
+          }
+        }
+        await sleep(3000);
+      }
+      throw new Error('引き継ぎ先が見つかりませんでした。少し待ってから、もう一度入ってください');
+    } catch (e) { G.mode = 'client'; backToTitle(); titleMsg(e.message); }
+    finally { G.rejoining = false; }
+  }
+  // クラウドへ保存（ホストだけ）
+  let cloudAt = 0;
+  function cloudSave(force) {
+    if (G.mode !== 'host' || !G.world || !G.world.code || G.noCloud) return Promise.resolve(false);
+    cloudAt = 0;
+    return SGK.CLOUD.save(G.world.code, G.world).then((ok) => { if (!ok && SGK.CLOUD.err && G.lastCloudErr !== SGK.CLOUD.err) { G.lastCloudErr = SGK.CLOUD.err; toast('☁️ クラウド保存に失敗：' + SGK.CLOUD.err, 5000); } return ok; });
+  }
+  const cloudSoon = () => { if (!cloudAt) cloudAt = performance.now() + CFG.CLOUD_SOON_MS; };
+
+  function startHost(world, msg, ent) {
+    G.mode = 'host'; G.world = world; G.noCloud = false; G.speed = 1; G.disp = {}; G.selected = null;
     G.myPid = SIM.addPlayer(world, token, myName(), myProf()); SIM.localPid = G.myPid;
+    if (G.pendingMine) { mergeMine(world, G.myPid, G.pendingMine); G.pendingMine = null; } G.sentMine = {}; G.mineAcc = 0;
     G.stat = SIM.staticState(world);
     show('game'); hostUI(true); toast(msg);
     centerOnMe();
     lastTick = performance.now(); netAcc = saveAcc = 0;
     timerWorker.onmessage = hostTick; timerWorker.postMessage(CFG.TICK_MS);
-    SGK.SAVE.save(world);
-    if (window.Peer) {
-      G.net = SGK.NET.host({
-        onReady: (code) => { G.roomCode = code; updateRoom(); },
-        onError: (t) => toast(t, 5000),
-        info: () => ({ name: myName(), n: (G.net ? G.net.count() : 0) + 1, max: CFG.MAX_PLAYERS }),
+    SGK.SAVE.save(world); cloudSave(); G.roomCode = world.code || null; G.evKey = null;
+    titleMsg('');
+    if (ent) {
+      G.net = SGK.NET.host(ent.peer, world.code, ent.nonce, {
+        onLost: (t) => { G.noCloud = true; G.net.close(t); G.net = null; backToTitle(); titleMsg(t); },
+        info: () => ({ name: myName(), cnt: (G.net ? G.net.pids().length : 0) + 1 }),
         onHello: (conn, m) => {
           const pid = SIM.addPlayer(G.world, String(m.token).slice(0, 40), String(m.name || '').slice(0, 12), m.prof);
-          if (pid) { if (m.fcode) SGK.NET.addFriend(m.fcode, m.name); conn.send({ t: 'welcome', pid, static: G.stat, ver: SGK.VERSION, hostCode: G.roomCode, hostName: myName() }); toast(`${G.world.players[pid].name} が参加しました`); updateRoom(); }
+          if (pid && m.mine && mergeMine(G.world, pid, m.mine)) cloudSoon(); // 2.4.0 引き継ぎで戻ってきた人
+          if (pid) { delete G.sentMine[pid]; conn.send({ t: 'welcome', pid, static: G.stat, ver: SGK.VERSION, hostCode: G.roomCode, hostName: myName() }); toast(`${G.world.players[pid].name} が参加しました`); updateRoom(); setTimeout(() => G.net && G.net.beat(), 500); }
           return pid;
         },
         onCmd: (pid, cmd) => SIM.applyCommand(G.world, pid, cmd),
-        onLeave: (pid) => { for (const b of Object.values(G.world.battles || {})) if (b.act) { delete b.act.inp[pid]; } const p = G.world.players[pid]; if (p) toast(`${p.name} が退出しました`); updateRoom(); },
+        onLeave: (pid) => { for (const b of Object.values(G.world.battles || {})) if (b.act) { delete b.act.inp[pid]; } const p = G.world.players[pid]; if (p) toast(`${p.name} が退出しました`); updateRoom(); cloudSoon(); },
       });
-    } else { toast('通信ライブラリを読み込めませんでした（一人で遊べます）', 5000); }
+      if (!ent.peer) toast('通信の準備ができなかったので、ほかの人は入れません（1人で遊べます）', 5000);
+    } else if (SGK.CLOUD.on()) toast('クラウドにつながらないので、この端末だけで遊びます', 5000);
     updateRoom();
   }
   function hostTick() { try { hostTick0(); } catch (e) { const t = 'エラー(ホストの進行): ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastHostErr !== t) { G.lastHostErr = t; errToast(t); } } }
@@ -400,6 +487,11 @@
       if (G.autoPause && m && (m.tx != null || m.follow)) { G.speed = G.autoPause; G.autoPause = 0; }
       G.lastAt = at;
     }
+    G.mineAcc = (G.mineAcc || 0) + dt * 1000;
+    if (G.net && G.mineAcc >= CFG.MINE_SEND_MS) { // 2.4.0 参加者へ「自分の分」を送る（ホストが抜けた時の引き継ぎ用。変わった時だけ）
+      G.mineAcc = 0;
+      for (const pid of G.net.pids()) { const p = G.world.players[pid]; if (!p) continue; const j = JSON.stringify(p); if (G.sentMine[pid] !== j) { G.sentMine[pid] = j; G.net.sendTo(pid, { t: 'mine', p }); } }
+    }
     netAcc += dt * 1000;
     if (netAcc >= CFG.NET_SEND_MS) {
       netAcc = 0;
@@ -408,45 +500,60 @@
       for (const pid in SIM.out) if (pid !== G.myPid) delete SIM.out[pid]; // 接続していない人宛ては捨てる
     }
     saveAcc += dt;
-    if (saveAcc >= CFG.AUTOSAVE_SEC) { saveAcc = 0; SGK.SAVE.save(G.world); if (++saveCount % CFG.BACKUP_EVERY === 0) SGK.SAVE.backup(G.world); }
+    if (saveAcc >= CFG.AUTOSAVE_SEC) { saveAcc = 0; SGK.SAVE.save(G.world); cloudSave(); if (++saveCount % CFG.BACKUP_EVERY === 0) SGK.SAVE.backup(G.world); }
+    { // 2.3.0 大事な出来事（合戦が終わった・城や村の持ち主が変わった・仕官や昇進）のあとはすぐクラウドへ
+      const w = G.world, k = Object.keys(w.battles || {}).length + '|' + w.settlements.map((x) => x.owner || '').join(',') + '|' + Object.values(w.players).map((p) => (p.clan || '') + (p.rank && p.rank.id || p.rank || '')).join(',');
+      if (G.evKey != null && k !== G.evKey) cloudSoon(); G.evKey = k;
+      if (cloudAt && now >= cloudAt) cloudSave();
+      if (G.autoWait) { // 2.4.0 引き継ぐ前に途中だった「自分で戦う」合戦：その人たちが戻るか、30秒たったら自動で決着
+        const AW = G.autoWait, late = now - AW.t > CFG.AUTO_WAIT_MS;
+        AW.ids = AW.ids.filter((id) => { const b = w.battles[id]; if (!b || !b.act) return false; if (late || b.pids.every((p) => p === G.myPid || G.merged[p])) { SIM.autoResolve(w, b); b.pids.forEach((p) => SIM.say(p, 'ホストが代わったため、途中だった合戦は自動で決着しました')); cloudSoon(); return false; } return true; });
+        if (!AW.ids.length) G.autoWait = null;
+      }
+      if (G.net) G.net.tick();
+    }
   }
   function updateRoom() {
     if (G.mode === 'host') {
       const online = G.net ? G.net.pids() : [];
       const names = [G.world.players[G.myPid].name, ...online.map((p) => (G.world.players[p] || {}).name)].join('・');
-      $('roomInfo').innerHTML = (G.roomCode ? `部屋コード <b>${G.roomCode}</b>` : '部屋を準備中…') + `<br><span class="muted">${online.length + 1}/${CFG.MAX_PLAYERS}人（${names}）</span>`;
-    } else if (G.mode === 'client') $('roomInfo').textContent = '参加中';
+      $('roomInfo').innerHTML = (G.roomCode ? `世界コード <b>${G.roomCode}</b>` : 'この端末だけの世界') + `<br><span class="muted">👑ホスト　${online.length + 1}/${CFG.MAX_PLAYERS}人（${names.replace(/[<&]/g, '')}）</span>`;
+    } else if (G.mode === 'client') $('roomInfo').innerHTML = `世界コード <b>${G.roomCode || ''}</b><br><span class="muted">${(G.hostName || '').replace(/[<&]/g, '')}がホスト</span>`;
   }
   function hostUI(on) { document.querySelectorAll('.hostOnly').forEach((e) => e.classList.toggle('hidden', !on)); }
   document.querySelectorAll('[data-speed]').forEach((b) => (b.onclick = () => { G.speed = +b.dataset.speed; G.autoPause = 0; }));
 
   // ---------- 参加者 ----------
-  function startClient(code) {
-    if (!window.Peer) return titleMsg('通信ライブラリを読み込めませんでした');
-    titleMsg('接続しています…');
-    G.mode = 'connecting';
-    myProf();
+  function startClient(ent, code, again) {
+    if (!again) { G.mode = 'connecting'; G.mine = null; } G.roomCode = code; G.hostBoard = ent.board;
+    SGK.NET.mine = () => (again && G.mine ? G.mine : null); // 2.4.0 引き継ぎで入り直す時だけ「自分の分」を渡す
     const onState0 = (m) => { G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; G.priv = m.priv; (m.msgs || []).forEach(toastMsg); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } };
-    G.net = SGK.NET.join(code, token, myName(), {
-      onWelcome: (m) => { SGK.NET.addFriend(m.hostCode || code, m.hostName); G.mode = 'client'; G.myPid = m.pid; SIM.localPid = m.pid; G.actView = null; G.dyn = null; G.stat = m.static; setTimeout(() => { if (G.mode === 'client' && !G.dyn) errToast('ホストから様子が届いていません（ホストの画面にエラーが出ていないか見てください）'); }, 6000); G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast('参加しました'); },
+    G.net = SGK.NET.join(ent.peer, ent.board, token, myName(), {
+      onWelcome: (m) => { G.hostName = m.hostName; G.mode = 'client'; G.myPid = m.pid; SIM.localPid = m.pid; G.actView = null; G.dyn = null; G.stat = m.static; setTimeout(() => { if (G.mode === 'client' && !G.dyn) errToast('ホストから様子が届いていません（ホストの画面にエラーが出ていないか見てください）'); }, 6000); G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast(again ? '新しいホストにつながりました' : '参加しました'); },
       onErr: (m) => { if (G.lastErr !== m.text) { G.lastErr = m.text; errToast(m.text); } },
       onAct: (m) => { const BT = G.priv && G.priv.battle; if (BT && BT.id === m.a.id) G.actView = SIM.actApply(G.actView, m.a); },
       onState: (m) => { try { onState0(m); } catch (e) { const t = 'エラー: ' + (e && e.message); if (G.lastErr !== t) { G.lastErr = t; errToast(t); } } },
-      onBye: (why) => { backToTitle(); titleMsg(why); },
-      onError: (t) => titleMsg(t),
+      onBye: (why) => { if (again && G.mode === 'client') { G.mode = 'client'; } backToTitle(); titleMsg(why); },
+      onLost: (why) => rejoin(why),
+      onMine: (m) => { if (m.p && m.p.id === G.myPid) G.mine = { p: m.p, ma: SGK.CLOUD.now() }; },
     });
   }
 
   function backToTitle() {
-    if (G.mode === 'host') { SGK.SAVE.save(G.world); timerWorker.postMessage(0); }
-    if (G.net) G.net.close();
-    Object.assign(G, { mode: 'title', world: null, net: null, dyn: null, view: null, centered: false, roomCode: null });
+    if (G.mode === 'host') {
+      SGK.SAVE.save(G.world); timerWorker.postMessage(0);
+      const net = G.net; if (net) net.close();
+      cloudSave().finally(() => { if (net) net.unboard(); }); // 保存が終わってから掲示板を消す（次の人が古い世界を読まないように）
+    } else if (G.net) G.net.close();
+    Object.assign(G, { mode: 'title', world: null, net: null, dyn: null, view: null, centered: false, roomCode: null, mine: null, autoWait: null, pendingMine: null });
     $('gameMenu').classList.add('hidden'); $('info').classList.add('hidden'); $('town').classList.add('hidden'); $('battle').classList.add('hidden'); $('char').classList.add('hidden'); G.priv = null;
     contBtn();
     show('title');
   }
   // タブを閉じるときもセーブ
-  window.addEventListener('pagehide', () => { if (G.mode === 'host') SGK.SAVE.save(G.world); });
+  window.addEventListener('pagehide', () => { if (G.mode === 'host') { SGK.SAVE.save(G.world); if (G.net) G.net.unboard(true); } });
+  // 2.3.0 画面を隠した時（タブの切り替え・閉じる前など）にクラウドへ保存。閉じる瞬間は大きなデータを送れないので、ここで先に送っておく
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && G.mode === 'host') cloudSave(); else if (document.visibilityState === 'visible' && G.mode === 'host' && G.net) G.net.beat(); });
 
   // ---------- 表示用データ ----------
   function buildView() {
@@ -500,7 +607,7 @@
       const cs = castleStat(s), m = G.priv && G.priv.me, W = m && m.war, R = m && m.rank, at = G.view.wars || [];
       const lordN = cs.lordName;
       $('infoBody').innerHTML += `<br>${{ yama: '山城（守りが堅い）', mizu: '水城（水堀が広い）' }[SIM.castleKind(s)] || '平城'}　守備兵 約${cs.gar}人${lordN && cs.loyal != null ? `　${lordN}の忠誠 ${cs.loyal}` : ''}`;
-      { const V = m && m.vass && m.vass[s.id], fmt = ([nm, t, b]) => `${nm}<span class="muted">（統${t}・武${b}）</span>`; // 0.34.0 城の武将
+      { const V = m && m.vass && m.vass[s.id], fmt = ([nm]) => nm; // 0.34.0 城の武将
         if (V) $('infoBody').innerHTML += `${V.lord ? `<br>城主：${fmt(V.lord)}` : ''}<br>家臣：${V.vass.length ? V.vass.map(fmt).join('・') : 'なし'}`;
         else $('infoBody').innerHTML += '<br><span class="muted">（40km以内に近づくと家臣の武将が分かります）</span>'; }
       if (cs.bs) $('infoBody').innerHTML += `<br><b style="color:#e06050">${cs.bs.by}が攻城戦の準備をしている（総攻めまであと${cs.bs.days}日）</b>`;
@@ -558,7 +665,7 @@
     // 0.60.0 移動の速さ（足もとの地形の倍率込み）と、自分との比べ
     const myS = G.priv && G.priv.me && G.priv.me.speed;
     const spdTxt = u.spd ? (() => {
-      const mul = SIM.speedAt ? SIM.speedAt(u.x, u.y) : 1, now = Math.round(u.spd * mul), tr = SIM.terrainAt ? SIM.terrainAt(u.x, u.y) : '';
+      const mul = SIM.speedAt ? SIM.speedAt(u.x, u.y) : 1, now = Math.round(u.spd * mul), tr = SIM.terrainHere ? SIM.terrainHere(u.x, u.y) : '';
       const cmp = myS ? (u.spd > myS * 1.05 ? '<b style="color:#e07a6a">こちらより速い</b>' : u.spd < myS * 0.95 ? '<b style="color:#6fbf73">こちらより遅い</b>' : 'こちらと同じくらい') : '';
       return `<br>移動の速さ：${u.spd}km/日<span class="muted">（いまの${tr || '地形'}では約${now}km/日）</span>${cmp ? '　' + cmp : ''}`;
     })() : '';
@@ -573,7 +680,7 @@
     const R0 = G.priv && G.priv.me && G.priv.me.rank, myC = R0 && R0.clan, wars0 = G.view.wars || [];
     const atWar = myC && u.faction && wars0.includes(myC < u.faction ? `${myC}|${u.faction}` : `${u.faction}|${myC}`);
     const atk = atWar && u.battle !== 1 && Number(km) <= 2 ? { label: u.battle === 2 ? '加勢して攻めかかる' : '攻めかかる', cmd: { type: 'attackArmy', id: u.id } } : null;
-    const leadTxt = u.lead && u.lead.length ? '<br>' + (u.kind === 'army' ? '武将' : '大将') + '：' + u.lead.map(([nm, t, b]) => `${nm}<span class="muted">（統率${t}・武勇${b}）</span>`).join('・') : '';
+    const leadTxt = u.lead && u.lead.length ? '<br>' + (u.kind === 'army' ? '武将' : '大将') + '：' + u.lead.map(([nm]) => nm).join('・') : '';
     const warNote = atWar ? '<br><b style="color:#ff6a4a">戦をしている家の武将です</b>（こちらと互角以上なら攻めかかってきます）' : '';
     // 0.54.0 取引（1.5km以内・戦をしていない家の、武将が率いる隊）
     const T0 = !atWar && !u.battle && Number(km) <= 1.5 && G.priv && G.priv.me && G.priv.me.tr && G.priv.me.tr[u.id];
@@ -583,7 +690,7 @@
       + `<button id="tr-gift" data-tr="gift" ${T0.gift && T0.fav < 5 ? '' : 'disabled'}>進物を贈る（1貫）</button></div>` : '';
     if (u.kind === 'bushou') return { name: `${u.pname || '武将'}（${f ? f.name : ''}）`, body: `勢力：${fn}<br>${u.extra || ''}　${where}${spdTxt}<br>供回り：${ar}${leadTxt}${warNote}<br><span class="muted">${talk ? '話しかけると顔をつなげる（その家に名声2で仕官できる）。うわさも聞ける' : '1.5km以内まで近づくと話しかけられる'}</span>${trade}`, go: '追いかける', act: atk || (atWar ? null : talk) };
     if (u.kind === 'ronin') { const [need, fee] = u.extra || [0, 0]; return { name: `浪人 ${u.pname || ''}`, body: `${where}${spdTxt}<br>手勢：${ar}<br>家臣になる条件：名声${need}・支度金${SIM.money(fee)}<br><span class="muted">主を持たない武将。家臣にすると手勢が加わり、率いる人数が増える（家臣は3人まで）${talk ? '' : '。1.5km以内まで近づくと話しかけられる'}</span>`, go: '追いかける', act: talk ? { label: '家臣に誘う', cmd: talk.cmd } : null }; }
-    if (u.kind === 'patrol') return { name: `${u.pname ? u.pname + '隊' : '武将の隊'} ${u.size || ''}人`, act: u.battle ? jf : atk || (atWar ? null : talk), body: `${u.battle === 2 ? '<b style="color:#ff6a4a">野盗と交戦中</b>（野盗に近づくと加勢できる）<br>' : u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}<br>${where}${spdTxt}${u.home ? `<br>本拠：${sName(u.home)}` : ''}<br>兵：${ar}${leadTxt}${warNote}<br><span class="muted">城の家臣の武将が交代で兵を率いて、自勢力の拠点のあいだを回り、近くの野盗を退治する。武勇が高いと兵の攻撃が、統率が高いと士気が上がる。話しかけると顔をつなげる。</span>${trade}`, go: '追いかける' };
+    if (u.kind === 'patrol') return { name: `${u.pname ? u.pname + '隊' : '武将の隊'} ${u.size || ''}人`, act: u.battle ? jf : atk || (atWar ? null : talk), body: `${u.battle === 2 ? '<b style="color:#ff6a4a">野盗と交戦中</b>（野盗に近づくと加勢できる）<br>' : u.battle ? '<b style="color:#ff6a4a">戦闘中</b><br>' : ''}勢力：${fn}<br>${where}${spdTxt}${u.home ? `<br>本拠：${sName(u.home)}` : ''}<br>兵：${ar}${leadTxt}${warNote}<br><span class="muted">城の家臣の武将が交代で兵を率いて、自勢力の拠点のあいだを回り、近くの野盗を退治する。話しかけると顔をつなげる。</span>${trade}`, go: '追いかける' };
     if (u.kind === 'army') {
       const t = G.mode === 'host' ? SIM.armyText(G.world, G.world.npcs[u.id]) : ((G.dyn && G.dyn.ar) || {})[u.id];
       const R = G.priv && G.priv.me && G.priv.me.rank, mine = R && R.clan, wars = G.view.wars || [];
@@ -660,7 +767,7 @@
     const me = P.me, h = P.here, hs = G.view.settlements.find((x) => x.id === h.id);
     $('tab-castle').classList.toggle('hidden', !hs || hs.type !== 'castle');
     if (townTab === 'castle' && (!hs || hs.type !== 'castle')) townTab = 'market';
-    $('townName').textContent = sName(h.id);
+    $('townName').textContent = sName(h.id) + (SGK.DATA.isBig(hs) ? '（大きな町）' : '');
     document.querySelectorAll('#town [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === townTab));
     let html = '';
     const NJ = me.nin; // 0.77.0 忍び：工作の城に入ったら「忍び込む」
@@ -668,10 +775,10 @@
     if (townTab === 'market') {
       html += `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　${loadTxt(me)}</div><div class="grid">`;
       html += '<span class="h">品</span><span class="h">買値</span><span class="h">売値</span><span class="h">在庫</span><span class="h">所持</span><span></span><span></span><span></span><span></span>';
-      for (const [k, buy, sell, stock] of h.market) {
+      for (const [k, buy, sell, stock] of h.market.slice().sort((a, b) => IT[a[0]].base - IT[b[0]].base)) { // 1.6.87 相場の安い順
         const it = IT[k], have = me.inv[k] || 0;
         const memo = ''; // 0.74.4 相場の記録（高く売れる・安く買える）は表示しない
-        html += `<span>${it.name}<span class="muted">/${it.unit}・${it.wt}kg<br>相場${it.base}文</span>${memo}</span><span style="color:${priceCol(buy / 1.1 / it.base)}">${buy}文</span><span style="color:${priceCol(sell / 0.9 / it.base)}">${sell}文</span><span>${stock}</span><span>${have}${have && me.cost && me.cost[k] != null ? `<br><span style="font-size:11px;color:${sell >= me.cost[k] ? '#6fbf73' : '#e07a6a'}">平均${Math.round(me.cost[k])}文</span>` : ''}</span>`
+        html += `<span>${it.mk || ''}${it.name}${SGK.DATA.toku(hs) === k ? '<b style="color:#e8b923">（特産）</b>' : ''}<span class="muted">/${it.unit}・${it.wt}kg<br>相場${it.base}文</span>${memo}</span><span style="color:${priceCol(buy / 1.1 / it.base)}">${buy}文</span><span style="color:${priceCol(sell / 0.9 / it.base)}">${sell}文</span><span>${stock}</span><span>${have}${have && me.cost && me.cost[k] != null ? `<br><span style="font-size:11px;color:${sell >= me.cost[k] ? '#6fbf73' : '#e07a6a'}">平均${Math.round(me.cost[k])}文</span>` : ''}</span>`
           + ((h.noBuy || []).includes(k) ? `<button id="b1-${k}" disabled title="調達の依頼が出ているので買えない">依頼品</button><button id="b10-${k}" disabled>－</button>` : `<button id="b1-${k}" data-act="buy" data-item="${k}" data-qty="1">買1</button><button id="b10-${k}" data-act="buy" data-item="${k}" data-qty="10">買10</button>`)
           + `<button id="s1-${k}" data-act="sell" data-item="${k}" data-qty="1" ${have ? '' : 'disabled'}>売1</button><button id="sa-${k}" data-act="sell" data-item="${k}" data-qty="999" ${have ? '' : 'disabled'}>全部</button>`;
       }
@@ -880,14 +987,14 @@
         html += `<div class="card"><div><b>${EQ.slotName[sl]}</b>　${e ? `${e.name}<br><span class="muted">${desc(sl === 'wep2' ? 'wep' : sl, e)}${sl === 'wep2' ? '（持ち替えると効く）' : ''}</span>` : '<span class="muted">なし</span>'}</div>${sl === 'wep2' && e ? '<button id="uq-swap" data-cact="swapWep">主と入れ替え</button>' : ''}${off}</div>`;
       }
       const ids = Object.keys(G2).filter((k) => G2[k] > 0);
-      html += `<div class="muted" style="margin-top:10px">荷の中の武具${me.canSell ? '（ここで半値で売れます）' : '（売るのは町・城で）'}</div>`;
+      html += `<div class="muted" style="margin-top:10px">荷の中の武具${me.canSell ? '（ここで半値で売れます）' : '（売るのは大きな町で）'}</div>`;
       if (!ids.length) html += '<div class="muted" style="margin:4px 0">なし</div>';
       for (const id of ids) {
         const sl = EQ.slotOf(id), e = EQ[sl][id];
         const bt = sl === 'wep' ? `<button id="gq-${id}" data-cact="equipGear" data-id="${id}" data-to="wep">主に</button><button id="gq2-${id}" data-cact="equipGear" data-id="${id}" data-to="wep2">副に</button>` : `<button id="gq-${id}" data-cact="equipGear" data-id="${id}" data-to="${sl}">付ける</button>`;
         html += `<div class="card"><div><b>${e.name}</b>${G2[id] > 1 ? ` ×${G2[id]}` : ''}　<span class="muted">${EQ.slotName[sl]}<br>${desc(sl, e)}</span></div><div class="row">${bt}${me.canSell ? `<button id="gs-${id}" data-cact="sellGear" data-id="${id}">売る ${SIM.money(Math.floor(e.cost * EQ.sell))}</button>` : ''}</div></div>`;
       }
-      if (C.off) html += '<div class="muted" style="margin-top:8px">いまは能力値・技能・特技はありません。本人の強さは装備で変わります（武具は町・城で買えます）</div>';
+      if (C.off) html += '<div class="muted" style="margin-top:8px">いまは能力値・技能・特技はありません。本人の強さは装備で変わります（武具は京・堺・博多などの大きな町で買えます）</div>';
     } else if (charTab === 'skill') { // 0.76.0 技能：使うと伸び、25・50・75・100で特技が自動で付く
       const WS = SIM.WSKILL, K = C.wsk || {};
       if (me.grow) html += `<div class="muted" style="margin-bottom:4px">成長の型：<b>${me.grow}</b></div>`;
@@ -1064,8 +1171,8 @@
     const b = G.mode === 'host' && G.world.battles[BT.id]; return b && b.act ? b : null; };
   // 0.63.0 3D表示の自分で戦う（マウント＆ブレイド2風の操作）
   const ML = () => !!(R.act3dOn && actB());
-  const ORDM = { root: [['F1', '移動'], ['F2', '向き'], ['F3', '隊形'], ['F4', '射撃']], form: [['F1', '通常'], ['F2', '横隊'], ['F3', '散開'], ['F4', '方陣'], ['F5', '鋒矢']], fire: [['F1', '自由に射て'], ['F2', '射撃をやめよ']], move: [['F1', 'ここへ移動'], ['F2', 'ついて来い'], ['F3', '突撃'], ['F4', '回り込み'], ['F5', '後退'], ['F6', '停止'], ['F7', '退却'], ['F8', 'AIに任せる']], face: [['F1', 'この方向を向け'], ['F2', '敵の方を向け']] };
-  const ORDK = { form: ['form:norm', 'form:line', 'form:loose', 'form:square', 'form:wedge'], fire: ['fire:1', 'fire:0'], move: ['move', 'follow', 'charge', 'flank', 'back', 'hold', 'retreat', 'ai'], face: ['faceHere', 'faceFoe'] };
+  const ORDM = { root: [['F1', '移動'], ['F2', '向き'], ['F3', '隊形'], ['F4', '射撃']], form: [['F1', '通常'], ['F2', '横隊'], ['F3', '散開'], ['F4', '方陣'], ['F5', '鋒矢']], fire: [['F1', '自由に射て'], ['F2', '射撃をやめよ']], move: [['F1', 'ここへ移動'], ['F2', '突撃'], ['F3', '防御'], ['F4', '待機'], ['F5', '追従']], face: [['F1', 'この方向を向け'], ['F2', '敵の方を向け']] };
+  const ORDK = { form: ['form:norm', 'form:line', 'form:loose', 'form:square', 'form:wedge'], fire: ['fire:1', 'fire:0'], move: ['move', 'charge', 'guard', 'hold', 'follow'], face: ['faceHere', 'faceFoe'] };
   function ordMenu(m) { R.ordMenu = m; R.ordItems = m ? ORDM[m] : null; }
   function myUnits3(AB) { return AB.units.filter((u) => u.idx && (u.owner === G.myPid || u.cmd === G.myPid) && u.hp > 0 && !u.gone && u.order !== 'rout'); }
   function cen3(AB, f) { let x = 0, y = 0, n = 0; for (const s of AB.act.s) if (s.hp > 0 && !s.gone && f(s)) { x += s.x; y += s.y; n++; } return n ? { x: x / n, y: y / n } : null; }
@@ -1076,6 +1183,14 @@
     const a = aimXY(), id = a && R.actFoeAt ? R.actFoeAt(a[0], a[1], AB.act, G.myPid) : null, u = id != null && AB.units.find((x) => x.id === id);
     if (!u) return ''; c.tg = id; return `${u.gname ? u.gname + '隊・' : ''}${SIM.TROOPS[u.type].short || SIM.TROOPS[u.type].name}へ`;
   }
+  // 2.5.0 号令の声（法螺貝・太鼓のあと「〇〇隊、突撃！」）
+  const SHOUT = { charge: '突撃！', flank: '回り込め！', hold: 'その場で待て！', guard: '守りを固めよ！', retreat: '退けい！', follow: 'ついて参れ！', ai: '存分に戦え！', move: '進め！', back: '下がれ！' };
+  function shout(AB, unit, kind) {
+    if (!SHOUT[kind] || !SGK.AUDIO || !SGK.AUDIO.call) return;
+    const u = unit != null && unit !== 'all' && AB && AB.units.find((x) => x.id === unit);
+    const who = unit == null || unit === 'all' ? '全軍' : !u ? '' : u.gname ? u.gname + '隊' : (SIM.TROOPS[u.type].short || SIM.TROOPS[u.type].name) + '隊';
+    SGK.AUDIO.call(kind, who ? `${who}、${SHOUT[kind]}` : SHOUT[kind]);
+  }
   function ord3(kind) {
     const AB = actB(); if (!AB) return; ordMenu(null);
     const all = G.selUnit == null || G.selUnit === 'all', L = myUnits3(AB).filter((u) => all || u.id === G.selUnit);
@@ -1085,7 +1200,8 @@
       if (fk[1] === 'form') { if (all) L.forEach((u) => command({ type: 'order', unit: u.id, order: 'form', fm: fk[2] })); else command({ type: 'order', unit: G.selUnit, order: 'form', fm: fk[2] }); toast(`${SIM.ACT.FORMS[fk[2]]}に組め！`, 900); }
       else { each((un) => command({ type: 'order', unit: un, order: 'fire', on: fk[2] === '1' })); toast(fk[2] === '1' ? '自由に射て！' : '射撃をやめよ！', 900); }
       return; }
-    if (!['move', 'back', 'faceHere', 'faceFoe'].includes(kind)) { const c = { type: 'order', unit: all ? 'all' : G.selUnit, order: kind }, to = chargeTo(AB, c); command(c); if (to) { toast(`${to}${kind === 'flank' ? '回り込め' : '突撃'}！`, 1100); return; } toast({ follow: 'ついて来い！', charge: '突撃！', flank: '回り込め！', hold: 'その場で止まれ！', retreat: '退却！', ai: '各自の判断で戦え！（AIに任せる）' }[kind] || '', 900); return; }
+    shout(AB, all ? 'all' : G.selUnit, kind);
+    if (!['move', 'back', 'faceHere', 'faceFoe'].includes(kind)) { const c = { type: 'order', unit: all ? 'all' : G.selUnit, order: kind }, to = chargeTo(AB, c); command(c); if (to) { toast(`${to}${kind === 'flank' ? '回り込め' : '突撃'}！`, 1100); return; } toast({ guard: '守りを固めよ！', follow: 'ついて参れ！', charge: '突撃！', flank: '回り込め！', hold: 'その場で止まれ！', retreat: '退却！', ai: '各自の判断で戦え！（AIに任せる）' }[kind] || '', 900); return; }
     const cs = L.map((u) => [u, cen3(AB, (s) => s.g === u.id)]).filter((a) => a[1]); if (!cs.length) return;
     const mx = cs.reduce((a, c) => a + c[1].x, 0) / cs.length, my = cs.reduce((a, c) => a + c[1].y, 0) / cs.length;
     const [px, py] = R.act3d.toWorld(cv.clientWidth / 2, cv.clientHeight / 2), foe = cen3(AB, (s) => s.side === 'B') || { x: mx + 100, y: my };
@@ -1099,7 +1215,7 @@
   // 0.59.0 移動先を決めたあと、向く方向を決める（G.fpick = 移動先。次に押した所の方を向く）
   function moveFace(unit, x, y, face) { command({ type: 'order', unit, order: 'move', x, y }); if (face != null) command({ type: 'order', unit, order: 'face', f: face }); }
   function pickFace(fx, fy) { const P = G.fpick; G.fpick = null; if (!P) return false; if (Math.hypot(fx - P.x, fy - P.y) < 2) { toast('向きはそのままにしました', 800); return true; } command({ type: 'order', unit: P.unit, order: 'face', f: Math.atan2(fy - P.y, fx - P.x) }); toast('その方向を向かせます', 800); return true; }
-  function actOrder(o, x, y) { if (G.selUnit == null) { toast('先に部隊を選んでください（右スティックのカーソルを隊に合わせてA・LB/RB・数字キー）', 1500); return; } const c = { type: 'order', unit: G.selUnit, order: o }; if (o === 'move') { c.x = x; c.y = y; } const to = actB() ? chargeTo(actB(), c) : ''; command(c); if (to) toast(`${to}${o === 'flank' ? '回り込め' : '突撃'}！`, 1100); }
+  function actOrder(o, x, y) { if (G.selUnit == null) { toast('先に部隊を選んでください（右スティックのカーソルを隊に合わせてA・LB/RB・数字キー）', 1500); return; } shout(actB(), G.selUnit, o); const c = { type: 'order', unit: G.selUnit, order: o }; if (o === 'move') { c.x = x; c.y = y; } const to = actB() ? chargeTo(actB(), c) : ''; command(c); if (to) toast(`${to}${o === 'flank' ? '回り込め' : '突撃'}！`, 1100); }
   function actSel(d) { const AB = actB(); if (!AB) return; const l = [null, 'all', ...AB.units.filter((u) => u.idx && (u.owner === G.myPid || u.cmd === G.myPid) && u.hp > 0 && !u.gone).sort((a, b) => a.idx - b.idx).map((u) => u.id)]; const i = Math.max(0, l.indexOf(G.selUnit)); G.selUnit = l[(i + d + l.length) % l.length]; battleHtml = ''; }
   // 0.61.0 カーソルの所の自分の隊を選ぶ（何もなければ選択をやめる）／選んだ隊をそこへ動かす
   function actPick(sx, sy) {
@@ -1114,7 +1230,7 @@
     const [x, y] = R.actToWorld(D[0], D[1]), [x2, y2] = R.actToWorld(E[0], E[1]), dr = Math.hypot(E[0] - D[0], E[1] - D[1]) > 14;
     moveFace(G.selUnit, x, y, dr ? Math.atan2(y2 - y, x2 - x) : null); toast(dr ? 'そこへ向かわせ、その方向を向かせます' : 'そこへ向かわせます', 800);
   }
-  const ORDN = { charge: '突撃', hold: '待機', retreat: '後退', flank: '回り込み', move: '移動中', rout: '潰走中', follow: '随行' };
+  const ORDN = { charge: '突撃', guard: '防御', hold: '待機', retreat: '後退', flank: '回り込み', move: '移動中', rout: '潰走中', follow: '追従' };
   function renderBattle(bt) {
     const TR = SIM.TROOPS;
     const sum = (side) => bt.units.filter((u) => u[1] === side).reduce((a, u) => a + (u[3] === 'hero' ? 1 : u[4]), 0);
@@ -1123,7 +1239,7 @@
     let html = ''; // 部隊の一覧は出さない（地図の上でクリックして選ぶ）
     // 0.46.0 タップでも指図できるように：選んだ隊と全軍への指図ボタン
     const su = bt.units.find((u) => u[0] === G.selUnit && u[2] === G.myPid);
-    const AB = actB(), ob = (unit) => ['charge', 'hold', 'retreat', 'flank', ...(AB ? ['follow'] : [])].map((o) => `<button id="bo-${unit}-${o}" data-unit="${unit}" data-order="${o}">${ORDN[o]}</button>`).join('');
+    const AB = actB(), ob = (unit) => ['charge', 'guard', 'hold', ...(AB ? ['follow'] : [])].map((o) => `<button id="bo-${unit}-${o}" data-unit="${unit}" data-order="${o}">${ORDN[o]}</button>`).join('');
     if (su && su[3] !== 'hero') html += `<div class="bu"><span class="nm">${su[15] ? '本人＋' : ''}${TR[su[3]].short || TR[su[3]].name} ${su[4]}人<span class="muted">［${ORDN[su[7]] || ''}］</span></span>${ob(su[0])}</div>`;
     else if (!AB) html += `<div class="bu"><span class="nm muted">隊をタップして選び、地面をタップで移動</span></div>`;
     if (!AB || G.selUnit === 'all') html += `<div class="bu"><span class="nm">全軍</span>${ob('all')}</div>`; // 0.61.0 自分で戦うときは、隊を選んだときだけ指図が出る
@@ -1138,17 +1254,19 @@
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.act) { command({ type: 'actStart' }); G.selUnit = null; battleHtml = ''; b.blur(); }
     else if (b.dataset.sel) { G.selUnit = +b.dataset.sel; battleHtml = ''; }
-    else if (b.dataset.order) command({ type: 'order', unit: b.dataset.unit, order: b.dataset.order });
+    else if (b.dataset.order) shout(actB(), b.dataset.unit === 'all' ? 'all' : +b.dataset.unit, b.dataset.order), command({ type: 'order', unit: b.dataset.unit, order: b.dataset.order });
     else if (b.dataset.bact) command({ type: b.dataset.bact });
     else if (b.dataset.lead) command({ type: 'leadAll', on: b.dataset.lead === '1' });
   });
 
-  // ---------- 捕らえた武将（0.35.0：逃がすか斬るかを選ぶ） ----------
+  // ---------- 捕らえた武将（1.6.82：登用か身代金、逃がすこともできる） ----------
   let captiveHtml = '';
-  function renderCaptive(list) {
-    const el = $('captive'), on = list && list.length && !(G.priv && G.priv.battle);
+  function renderCaptive(me) {
+    const list = me.captives || [], el = $('captive'), on = (list.length || me.pow) && !(G.priv && G.priv.battle);
     el.classList.toggle('hidden', !on); if (!on) { captiveHtml = ''; return; }
-    const html = list.map(([id, nm, fn, t, b, rm, rc]) => `<div class="cp"><span>${fn}の${nm}<span class="muted">（統${t}・武${b}）</span></span><button id="cr_${id}" data-cap="releaseCaptive" data-id="${id}">逃がす（身代金${SIM.money(rm || 0)}）</button><button id="cg_${id}" data-cap="recruitCaptive" data-id="${id}" ${rc == null ? 'disabled' : ''}>${rc == null ? '登用（断られた）' : `登用する（${rc}%）`}</button><button id="ck_${id}" data-cap="killCaptive" data-id="${id}">斬る</button></div>`).join('');
+    const AC = me.atCastle; /* 1.6.81 身代金と交換できるのは城だけ */
+    const html = (me.pow ? `<div class="cp"><span>捕虜の兵 ${me.pow}人</span>${AC ? `<button id="cp_ransom" data-cap="ransomPow">身代金と交換（${SIM.money(me.powV || 0)}）</button>` : '<span class="muted">城で身代金と交換できる</span>'}<button id="cp_rel" data-cap="releasePow">逃がす（名声+${Math.max(1, Math.floor(me.pow / 10))}）</button></div>` : '')
+      + list.map(([id, nm, fn, t, b, rm, rc]) => `<div class="cp"><span>${fn}の${nm}</span>${AC ? `<button id="cx_${id}" data-cap="ransomCaptive" data-id="${id}">身代金と交換（${SIM.money(rm || 0)}）</button>` : `<span class="muted">城で身代金${SIM.money(rm || 0)}</span>`}<button id="cr_${id}" data-cap="releaseCaptive" data-id="${id}">逃がす（名声+1）</button><button id="cg_${id}" data-cap="recruitCaptive" data-id="${id}" ${rc == null ? 'disabled' : ''}>${rc == null ? '登用（断られた）' : `登用する（${rc}%）`}</button></div>`).join('');
     if (html !== captiveHtml) { captiveHtml = html; $('captiveBody').innerHTML = html; }
   }
   $('captiveBody').addEventListener('click', (e) => {
@@ -1177,7 +1295,7 @@
     const IT = SGK.DATA.items, inv = Object.entries(me.inv || {}).filter(([, n]) => n > 0);
     let html = `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　${loadTxt(me)}</div>`;
     if (!inv.length) html += '<div class="card">何も持っていません</div>';
-    for (const [k, n] of inv) { const it = IT[k]; if (!it) continue; html += `<div class="card"><div><b>${it.name}</b>　${n}${it.unit}</div><span class="muted">相場 約${SIM.money(it.base * n)}</span></div>`; }
+    for (const [k, n] of inv) { const it = IT[k]; if (!it) continue; html += `<div class="card"><div><b>${it.mk || ''}${it.name}</b>　${n}${it.unit}</div><span class="muted">相場 約${SIM.money(it.base * n)}</span></div>`; }
     return html;
   }
   function toggleMenu(open) {
@@ -1227,9 +1345,10 @@
   actDefLbl();
   act3dLbl();
   // 0.75.0 ビデオ設定（影・草の量）
-  const vidLbl = () => { const V = R.act3d && R.act3d.vid; if (!V) return; $('mShadow').textContent = `影：${['切', '低', '高'][V.sh]}`; $('mGrass').textContent = `草の量：${['なし', '少なめ', '普通', '多め'][V.gr]}`; };
+  const vidLbl = () => { const V = R.act3d && R.act3d.vid; if (!V) return; $('mShadow').textContent = `影：${['切', '低', '高'][V.sh]}`; $('mGrass').textContent = `草の量：${['なし', '少なめ', '普通', '多め'][V.gr]}`; $('mPost').textContent = `画面の仕上げ：${V.pp === 0 ? '切' : '入'}`; };
   $('mShadow').onclick = () => { if (R.act3d) R.act3d.setVid('sh', (R.act3d.vid.sh + 1) % 3); vidLbl(); };
   $('mGrass').onclick = () => { if (R.act3d) R.act3d.setVid('gr', (R.act3d.vid.gr + 1) % 4); vidLbl(); };
+  $('mPost').onclick = () => { if (R.act3d) R.act3d.setVid('pp', R.act3d.vid.pp === 0 ? 1 : 0); vidLbl(); };
   vidLbl();
   const VOL = { all: 'vAll', bgm: 'vBgm', sfx: 'vSfx' };
   for (const k in VOL) $(VOL[k]).textContent = SGK.AUDIO.label(k);
@@ -1239,7 +1358,7 @@
   document.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b || (b.dataset.vol && b.dataset.vol !== 'bgm')) return; SGK.AUDIO.sfx(b.dataset.act === 'buy' || b.dataset.act === 'sell' ? 'coin' : 'click'); }, true);
   $('menuBtn').onclick = () => toggleMenu(true);
   $('mClose').onclick = () => toggleMenu(false);
-  $('mSave').onclick = () => { SGK.SAVE.save(G.world).then((ok) => toast(ok ? `スロット${SGK.SAVE.slot}にセーブしました` : 'セーブに失敗しました')); };
+  $('mSave').onclick = () => { Promise.all([SGK.SAVE.save(G.world), cloudSave()]).then(([ok, c]) => toast((SGK.SAVE.slot ? (ok ? `スロット${SGK.SAVE.slot}にセーブしました` : 'セーブに失敗しました') : 'この世界の控えはこの端末にありません') + (G.world.code ? (c ? '・クラウドに保存しました' : '・クラウド保存は後で行います') : ''))); };
   $('mExport').onclick = () => { SGK.SAVE.save(G.world); SGK.SAVE.exportFile(G.world); };
   // 0.46.0 スマホ向け：タッチ端末なら body に touch を付け、地図のボタンを出す
   if (matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window) document.body.classList.add('touch');
@@ -1336,7 +1455,7 @@
   // ---------- キーボード ----------
   const keys = new Set();
   window.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT') { if (e.key === 'Enter' && G.mode === 'title' && e.target.id === 'codeInput') $('btnJoinGo').click(); if (e.key === 'Enter' && e.target.id === 'fcInput') $('btnFcAdd').click(); return; }
+    if (e.target.tagName === 'INPUT') { if (e.key === 'Enter' && G.mode === 'title' && e.target.id === 'codeInput') $('btnJoinGo').click(); return; }
     const k = e.key;
     if (actB() && !activeMenuNotBattle() && k.toLowerCase() === 't') { const on = R.act3d && R.act3d.toggle(); if (!on && document.pointerLockElement) document.exitPointerLock(); toast(on ? '3D表示にしました' : '2D表示にしました', 1000); return; }
     if (ML() && !activeMenuNotBattle()) { // 0.63.0 マウント＆ブレイド2風：0〜9で隊を選び、F1・F2…で指図
@@ -1353,7 +1472,7 @@
       return;
     }
     if (actB() && !activeMenuNotBattle()) {
-      const kl = k.toLowerCase(), o = { z: 'charge', x: 'hold', c: 'retreat', v: 'flank', f: 'follow' }[kl];
+      const kl = k.toLowerCase(), o = { z: 'charge', x: 'guard', c: 'hold', f: 'follow' }[kl];
       if ('wasd'.includes(kl) && kl.length === 1) { keys.add(kl); G.padUsed = false; return; }
       if (k === ' ') { e.preventDefault(); G.actDash = true; return; }
       if (o) { actOrder(o); return; }
@@ -1367,7 +1486,7 @@
       if (k === 'Enter' || k === ' ') { e.preventDefault(); pressMenu(); return; }
       if (activeMenu() === $('battle')) {
         if (k === 'Escape') { toggleMenu(true); return; }
-        const o = { z: 'charge', x: 'hold', c: 'retreat', v: 'flank' }[k.toLowerCase()]; if (o) { command({ type: 'order', unit: 'all', order: o }); return; }
+        const o = { z: 'charge', x: 'guard', c: 'hold' }[k.toLowerCase()]; if (o) { shout(null, 'all', o); command({ type: 'order', unit: 'all', order: o }); return; }
       }
       if (k === 'Escape') { if (activeMenu() === $('mapPanel')) smClose(); else if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else menuBack(); return; }
       if (activeMenu() === $('mapPanel') && (k === '+' || k === '=' || k === '-')) { smZoom(k === '-' ? 1 / 1.5 : 1.5); return; }
@@ -1518,7 +1637,7 @@
           }
           G.padAtk = btn(5); G.padBlk = btn(4);
           if (down(0)) G.actJmp = true; if (down(1)) G.actDash = true; if (btn(3)) { G.ytT = (G.ytT || 0) + dt; if (G.ytT >= 0.6 && !G.ytDone) { G.ytDone = true; G.actRide = true; } } else { if (G.ytT > 0 && !G.ytDone) G.actSw = true; G.ytT = 0; G.ytDone = false; } /* 1.6.17 △短押し＝持ち替え、長押し＝馬の乗り降り */ if (down(2)) ord3('follow');
-          if (!r2 && G.r2t) { if (G.r2t <= 0.35) ord3('move'); G.r2t = 0; } if (down(12)) ord3('charge'); if (down(13)) ord3('hold'); if (down(15)) ord3('faceHere'); if (down(14)) ord3('ai');
+          if (!r2 && G.r2t) { if (G.r2t <= 0.35) ord3('move'); G.r2t = 0; } if (down(12)) ord3('charge'); if (down(15)) ord3('guard'); if (down(13)) ord3('follow'); if (down(14)) ord3('hold'); // 2.6.1 ↑突撃 →防御 ↓追従 ←待機
           if (btn(10)) bZoom(1 - dt * 1.5); if (btn(11)) bZoom(1 + dt * 1.5);
         } else if (actB()) { // 0.56.0 アクション戦闘：左スティック移動・右スティック狙い・RT/A攻撃・Bかわす・LB/RB隊を選ぶ・X突撃・Y随行・十字↑待機↓後退
           // 0.61.0 右スティックはマウスのようにカーソルを動かす（狙いもカーソルの方）。Aでカーソルの隊を選ぶ、LTでそこへ動かす（押したまま動かすと向き）
@@ -1532,7 +1651,7 @@
           if (down(6)) { G.vcurOn = true; G.padRD = G.vcur.slice(); }
           if (G.padRD && !btn(6)) { const D = G.padRD; G.padRD = null; actMoveTo(D, G.vcur); }
           if (down(4)) actSel(-1); if (down(5)) actSel(1);
-          if (down(2)) actOrder('charge'); if (down(3)) actOrder('follow'); if (down(12)) actOrder('hold'); if (down(13)) actOrder('retreat');
+          if (down(2)) actOrder('charge'); if (down(3)) actOrder('follow'); if (down(12)) actOrder('charge'); if (down(15)) actOrder('guard'); if (down(13)) actOrder('follow'); if (down(14)) actOrder('hold');
           if (btn(10)) bZoom(1 - dt * 1.5); if (btn(11)) bZoom(1 + dt * 1.5); // スティック押し込み：L3縮小・R3拡大
         } else { padBattle(down, lx + rx, ly + ry, dt); if (btn(6)) bZoom(1 - dt * 1.5); if (btn(7)) bZoom(1 + dt * 1.5); } // LT縮小・RT拡大
       } else {
@@ -1717,7 +1836,7 @@
         }
         { const wb = P.me.warBoard || [], el = $('warBoard'), h = wb.length ? '<b>戦況</b>' + wb.map((x) => `<div style="color:${x.atk ? '#e0c060' : '#ff6a4a'}">${x.atk ? '⚔' : '⚠'} ${x.text}</div>`).join('') : '';
           el.classList.toggle('hidden', !h || !!(G.priv && G.priv.battle)); if (el.dataset.h !== h) { el.innerHTML = h; el.dataset.h = h; } }
-        renderCaptive(P.me.captives);
+        renderCaptive(P.me);
         $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　${loadTxt(P.me)}　名声 ${P.me.fame}${P.me.infamy ? `　<span style="color:#e07a6a">悪名 ${P.me.infamy}</span>` : ''}${P.me.rank && P.me.rank.clan ? `　功績 ${P.me.rank.merit}${(() => { const n = SIM.RANKS[P.me.rank.rank + 1]; return n && !n.indep ? '/' + n.merit : ''; })()}` : ''}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.wage ? `<br>兵の給金 ${SIM.money(P.me.wage)}/日${P.me.money < P.me.wage ? '　<b style="color:#e07a6a">払えません</b>' : '（約' + Math.floor(P.me.money / P.me.wage) + '日分）'}` : '') + (P.me.riceNeed ? `<br>士気 <b style="color:${P.me.morale < 35 ? '#e07a6a' : P.me.morale < 60 ? '#e0c060' : '#6fbf73'}">${P.me.morale}</b>　兵糧 米${(P.me.inv && P.me.inv.rice) || 0}俵（1日${P.me.riceNeed}俵・${P.me.hungry ? '<b style="color:#e07a6a">米が足りません</b>' : '約' + P.me.riceDays + '日分'}）` : '') + (P.me.follow ? `<br>追跡中：${P.me.follow}` : '') + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
           + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.where || (q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品')}・${dayLeft(q.deadline)}）</div>`).join('') + (P.me.nin && P.me.nin.q ? `<div class="q">◆ ${SIM.NIN.jobs[P.me.nin.q.k].name}（${sName(P.me.nin.q.to)}・${dayLeft(P.me.nin.q.deadline)}）</div>` : '');
       }
