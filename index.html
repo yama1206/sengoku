@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="2.7.4">
+<meta name="sgk-ver" content="2.7.5">
 <title>戦国出世</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -239,10 +239,14 @@
         <p>左スティック：カーソル<br><span class="pk" data-k="A">A</span>：クリック（地面→移動／拠点→選ぶ・もう一度で向かう）<br><span class="pk" data-k="B">B</span>：取消・カーソルを消す<br><span class="pk" data-k="L3">L3</span>：カーソルを自分の場所へ（自分を追いかける。スティックを動かすと解除）<br>右スティック：視点　<span class="pk" data-k="LB">LB</span>/<span class="pk" data-k="RB">RB</span>：拡大<br><span class="pk" data-k="X">X</span>：近くの拠点　<span class="pk" data-k="Y">Y</span>：持っている物資<br>十字←→：時間の速さ<br>情報ウインドウ表示中：十字キーでボタンを選ぶ→<span class="pk" data-k="A">A</span><br><span class="pk" data-k="BACK">BACK</span>：人物　<span class="pk" data-k="START">START</span>：メニュー<br>拠点内 <span class="pk" data-k="LB">LB</span>/<span class="pk" data-k="RB">RB</span>：タブ切替</p>
       </div>
       <div class="hidden" id="spBattle">
+        <h4>スマホ（合戦は3Dで、全軍はAI任せ）</h4>
+        <p>画面の左半分：スワイプで移動／2本指でピンチ＝カメラの距離（広げると寄る）<br>画面の右半分：スワイプで視点／離すと攻撃<br>画面の下：<b>部隊</b>（隊を選ぶ）・<b>指示</b>（突撃・防御・待機・追従・自動）・<b>陣形</b>（5種）<br>メニュー：スキップ・退却は合戦中だけ表示</p>
         <h4>キーボード・マウス（3D：画面をクリックしてマウスで視点）</h4>
-        <p>WASD：移動　マウス：視点<br>左クリック：攻撃　右クリック：防御<br>Space：回避　E：ジャンプ　Q：武器の持ち替え<br>0〜9：隊を選ぶ　F1：移動　F2：向き　F3：隊形　F4：射撃<br>Z：全軍突撃　V：全軍回り込み　X：全軍待機　C：全軍後退<br>ホイール：寄る・引く　Esc：マウスを離す　T：2D／3D切替</p>
-        <h4>コントローラー</h4>
-        <p>R1：攻撃　L1：防御<br>L2：隊を選ぶ　R2：選んだ隊をそこへ移動（長押し：隊形・射撃のホイール、右スティックで選んで離す）<br>十字↑：突撃　↓：停止　→：照準の方を向く　←：AIに任せる<br>✕：ジャンプ　○：回避　△：武器の持ち替え　□：随行<br><span class="pk" data-k="START">START</span>：メニュー</p>
+        <p>WASD：移動　マウス：視点　ホイール：寄る・引く<br>左クリック：攻撃　右クリック：防御<br>Space：回避　E：ジャンプ　Q：武器の持ち替え　R：馬に乗る・降りる<br>0〜9：隊を選ぶ（Tab：次の隊）<br>指図：F1＝移動（ここへ移動・突撃・防御・待機・追従）　F2＝向き　F3＝隊形　F4＝射撃 → 続けて F1〜F5 で決定<br>Esc：指図を閉じる／マウスを離す・メニュー　T：2D／3D切替</p>
+        <h4>コントローラー（3D）</h4>
+        <p>R1：攻撃　L1：防御　左スティック：移動　右スティック：視点<br>L2（押している間）＋右スティック：隊を選ぶ（離して決定）<br>R2：選んだ隊をそこへ移動（長押し：隊形・射撃のホイール、右スティックで選んで離す）<br>十字 ↑：突撃　→：防御　↓：追従　←：待機<br>L3/R3：ズーム　×：ジャンプ　○：回避　△：武器の持ち替え（長押し：馬）<br><span class="pk" data-k="START">START</span>：メニュー</p>
+        <h4>2D表示のとき</h4>
+        <p>1：全軍／2〜9：隊を選ぶ　Z：突撃　X：防御　C：待機　F：追従　T：3Dへ</p>
       </div>
       </div>
       <button id="stBack">戻る</button>
