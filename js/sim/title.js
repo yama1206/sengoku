@@ -2,7 +2,7 @@
 // 【あとから称号を足すには】 SIM.defTitle({ id, name, desc, cond, check(w, p) }) を1つ呼ぶだけ（下の「称号の一覧」にならべて書けばよい）。
 //   id：重複しない英数字　name：名前の前につく言葉　desc：説明　cond：もらえる条件の説明
 //   check(w, p)：true になると自動でもらえる（毎ゲーム内1時間ごとに確認）。check を書かず、ほかの機能から SIM.grantTitle(w, p, id) で渡してもよい
-//   secret:true なら、もらうまで名前と条件を「？？？」で隠す　order：並び順（小さいほど上）
+//   持っていない称号は、名前も条件も「？？？」で隠れる　order：並び順（小さいほど上）
 (function () {
   const SIM = SGK.SIM, DEFS = (SIM.TITLES = []);
   SIM.defTitle = (d) => { const i = DEFS.findIndex((x) => x.id === d.id); if (i >= 0) DEFS[i] = d; else DEFS.push(d); DEFS.sort((a, b) => (a.order || 0) - (b.order || 0)); return d; };
@@ -45,7 +45,7 @@
   SIM.privateState = (w, pid) => {
     const r = basePriv(w, pid), p = w.players[pid]; if (!r || !p) return r;
     const o = own(p);
-    r.me.titles = { cur: p.title || null, list: DEFS.map((d) => { const has = o.includes(d.id); return [d.id, has || !d.secret ? d.name : '？？？', has || !d.secret ? d.desc : '', has || !d.secret ? d.cond || '' : '？？？', has ? 1 : 0]; }) };
+    r.me.titles = { cur: p.title || null, list: DEFS.map((d) => { const has = o.includes(d.id); return has ? [d.id, d.name, d.desc, d.cond || '', 1] : [d.id, '？？？', '', '', 0]; /* 2.9.1 持っていない称号は名前も条件も送らない */ }) };
     return r;
   };
 
@@ -56,7 +56,7 @@
     let h = `<div class="muted" style="margin-bottom:6px">称号を選ぶと、名前の前につきます（持っている ${got}/${T.list.length}）</div>`;
     h += `<div class="card" style="display:block"><b>表示しない</b>　<button id="ti-none" data-cact="setTitle" data-id="none" ${T.cur ? '' : 'disabled'}>${T.cur ? 'これにする' : '選択中'}</button></div>`;
     for (const [id, name, desc, cond, has] of T.list) {
-      h += `<div class="card" style="display:block;${has ? '' : 'opacity:.55'}"><b>${name}</b>　${has ? `<button id="ti-${id}" data-cact="setTitle" data-id="${id}" ${T.cur === id ? 'disabled' : ''}>${T.cur === id ? '表示中' : '表示する'}</button>` : '<span class="muted">未取得</span>'}<br><span class="muted">${has ? desc : `条件：${cond}`}</span></div>`;
+      h += `<div class="card" style="display:block;${has ? '' : 'opacity:.55'}"><b>${name}</b>　${has ? `<button id="ti-${id}" data-cact="setTitle" data-id="${id}" ${T.cur === id ? 'disabled' : ''}>${T.cur === id ? '表示中' : '表示する'}</button>` : '<span class="muted">未取得</span>'}<br><span class="muted">${has ? desc + (cond ? `<br>入手：${cond}` : '') : 'まだ手に入れていません'}</span></div>`;
     }
     return h;
   };
