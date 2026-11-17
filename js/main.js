@@ -35,7 +35,7 @@
   let resultSfxT = 0;
   function msgSfx(text) { if (/^【/.test(text)) return; for (const [re, k] of MSG_SFX) if (re.test(text)) { if (k === 'victory' || k === 'defeat') resultSfxT = performance.now(); SGK.AUDIO.sfx(k); return; } }
   function toastMsg(text) { msgSfx(text); toast(text, 4000); }
-  function toast(text, ms = 3000) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = text; $('toasts').appendChild(t); setTimeout(() => t.remove(), ms); }
+  function toast(text, ms = 3000) { const t = document.createElement('div'); t.className = 'toast'; t.innerHTML = SGK.ICON ? SGK.ICON.tok(text) : text; /* 2.12.4 {i:名前} は絵 */ $('toasts').appendChild(t); setTimeout(() => t.remove(), ms); }
   function titleMsg(text) { $('titleMsg').textContent = text || ''; }
   function show(id) { ['title', 'game'].forEach((s) => $(s).classList.toggle('hidden', s !== id)); if (id === 'game') requestAnimationFrame(() => R.resize($('map'))); }
 
@@ -121,11 +121,16 @@
     if (used) await SGK.SAVE.remove(n);
     SGK.SAVE.slot = n;
     const w = slotMode === 'import' ? importWorld : SIM.createWorld(Math.floor(Math.random() * 2 ** 31));
+    if (slotMode !== 'import' && G.testArm) { w.test = 1; G.testArm = false; } // 2.12.1 テストモードの世界
     const imp = slotMode === 'import'; importWorld = null; titleBack();
     if (imp) delete w.code; // 読み込んだセーブは別の世界として新しいコードを付ける
     playWorld(null, w, imp ? `セーブファイルをスロット${n}に読み込みました` : `スロット${n}に新しい世界を作りました`, n);
   });
   $('btnNew').onclick = () => openSlots('new');
+  { // 2.12.1 タイトルを5回タップするとテストモード（このあと新しく作る世界が、1000貫を持った部将から始まる）
+    let n = 0, t0 = 0;
+    document.querySelector('#title h1').addEventListener('click', () => { const now = Date.now(); if (now - t0 > 2500) n = 0; t0 = now; if (++n < 5) return; n = 0; G.testArm = !G.testArm; titleMsg(G.testArm ? 'テストモード：このあと「新しい世界を作る」と、1000貫を持った部将から始まります（右上の「戦闘」で野戦・攻城戦を試せます）' : 'テストモードをやめました'); });
+  }
   $('btnContinue').onclick = () => openSlots('load');
   // 年の表示（和暦／西暦／両方）を切り替える。押すたびに次の形式へ（カーソルはその場に残る）
   const YEAR_FMTS = [['era', '和暦'], ['ad', '西暦'], ['both', '和暦＋西暦']];
@@ -388,7 +393,7 @@
     G.loadedAt = w.savedAt || 0; G.merged = {}; G.pendingMine = mine;
     const ids = Object.keys(w.battles || {}).filter((id) => w.battles[id].act);
     G.autoWait = ids.length ? { t: performance.now(), ids } : null;
-    startHost(w, msg || '👑 あなたがホストになりました（いまからこの世界の時間が進みます）', ent);
+    startHost(w, msg || '{i:crown} あなたがホストになりました（いまからこの世界の時間が進みます）', ent);
   }
   // 2.4.0 引き継ぎ：参加者が持っていた「自分の分」（クラウドの保存より新しいもの）で、その人の武将を置きかえる
   function mergeMine(w, pid, mine) {
@@ -427,7 +432,7 @@
           if (!CLD.fresh(h2)) {
             const peer = await SGK.NET.openPeer().catch(() => null);
             const n = await SGK.NET.claim(code, peer, () => ({ name: myName(), cnt: 1 })).catch(() => null);
-            if (n) { const mine = G.mine; Object.assign(G, { dyn: null, priv: null, actView: null }); await hostFromCloud(code, { role: 'host', peer, nonce: n }, null, '👑 ホストを引き継ぎました（いまからこの世界の時間が進みます）', 0, mine); return; }
+            if (n) { const mine = G.mine; Object.assign(G, { dyn: null, priv: null, actView: null }); await hostFromCloud(code, { role: 'host', peer, nonce: n }, null, '{i:crown} ホストを引き継ぎました（いまからこの世界の時間が進みます）', 0, mine); return; }
             if (peer) try { peer.destroy(); } catch (e) {}
           }
         }
@@ -442,7 +447,7 @@
   function cloudSave(force) {
     if (G.mode !== 'host' || !G.world || !G.world.code || G.noCloud) return Promise.resolve(false);
     cloudAt = 0;
-    return SGK.CLOUD.save(G.world.code, G.world).then((ok) => { if (!ok && SGK.CLOUD.err && G.lastCloudErr !== SGK.CLOUD.err) { G.lastCloudErr = SGK.CLOUD.err; toast('☁️ クラウド保存に失敗：' + SGK.CLOUD.err, 5000); } return ok; });
+    return SGK.CLOUD.save(G.world.code, G.world).then((ok) => { if (!ok && SGK.CLOUD.err && G.lastCloudErr !== SGK.CLOUD.err) { G.lastCloudErr = SGK.CLOUD.err; toast('{i:cloud} クラウド保存に失敗：' + SGK.CLOUD.err, 5000); } return ok; });
   }
   const cloudSoon = () => { if (!cloudAt) cloudAt = performance.now() + CFG.CLOUD_SOON_MS; };
 
@@ -527,7 +532,7 @@
     if (G.mode === 'host') {
       const online = G.net ? G.net.pids() : [];
       const names = [G.world.players[G.myPid].name, ...online.map((p) => (G.world.players[p] || {}).name)].join('・');
-      $('roomInfo').innerHTML = (G.roomCode ? `世界コード <b>${G.roomCode}</b>` : 'この端末だけの世界') + `<br><span class="muted">👑ホスト　${online.length + 1}/${CFG.MAX_PLAYERS}人（${names.replace(/[<&]/g, '')}）</span>`;
+      $('roomInfo').innerHTML = (G.roomCode ? `世界コード <b>${G.roomCode}</b>` : 'この端末だけの世界') + `<br><span class="muted">${SGK.ICON.html('crown', 16)}ホスト　${online.length + 1}/${CFG.MAX_PLAYERS}人（${names.replace(/[<&]/g, '')}）</span>`;
     } else if (G.mode === 'client') $('roomInfo').innerHTML = `世界コード <b>${G.roomCode || ''}</b><br><span class="muted">${(G.hostName || '').replace(/[<&]/g, '')}がホスト</span>`;
   }
   function hostUI(on) { document.querySelectorAll('.hostOnly').forEach((e) => e.classList.toggle('hidden', !on)); }
@@ -611,9 +616,9 @@
     $('infoBody').innerHTML = `${kind}${s.site ? `（普請中 ${Math.floor(s.site.prog * 100)}%）` : ''}　勢力：<b style="color:${f ? f.color : '#ccc'}">${f ? f.name : 'なし'}</b>${(() => { const fb = SIM.factionBuff(G.view.factions, s.owner); return fb ? `<span class="muted">（得意：${fb.name}・${fb.text}）</span>` : ''; })()}<br>城主・代官：${ho ? `<b>${ho}</b>（プレイヤー）` : lord || '（不明）'}`;
     { const ry = SIM.ryoOf && SIM.ryoOf(s.id), rc = ry && G.view.settlements.find((x) => x.id === ry); // 0.52.0 城と村・町のつながり
       { const pop = (G.mode === 'client' ? G.pp && G.pp[s.id] : ((G.world && G.world.settlements.find((x) => x.id === s.id)) || {}).pop); if (pop) { const ws = G.world && G.world.settlements.find((x) => x.id === s.id), sf = G.mode === 'client' ? (G.ps && G.ps[s.id]) / 100 : ws && SIM.supplyF ? SIM.supplyF(ws) : null; const sl = sf == null || isNaN(sf) ? '' : sf >= 1.05 ? '　物資：豊富（人が増えやすい）' : sf >= 0.75 ? '　物資：ふつう' : sf >= 0.45 ? '　物資：不足（人が増えにくい）' : '　物資：困窮（人が減る）'; $('infoBody').innerHTML += `<br>人口 約${(Math.round(pop / 10) * 10).toLocaleString()}人${sl}`; } }
-      if (SIM.minato && SIM.minato(s)) $('infoBody').innerHTML += `<br>⚓ ${SIM.minatoName(s)}（年貢×${SIM.minatoMul(s)}）`;
+      if (SIM.minato && SIM.minato(s)) $('infoBody').innerHTML += `<br>${SGK.ICON.html('anchor', 16)} ${SIM.minatoName(s)}（年貢×${SIM.minatoMul(s)}）`;
       if (rc) $('infoBody').innerHTML += `<br>${rc.name}の領内`;
-      if (s.type === 'castle') { const ls = G.view.settlements.filter((v) => SIM.ryoOf(v.id) === s.id); if (ls.length) $('infoBody').innerHTML += `<br>領内：${ls.map((v) => v.name + (SIM.minato(v) ? '⚓' : '') + (v.owner !== s.owner ? '（他家）' : '')).join('・')}`; const ms = SIM.minesOf(s); if (ms.length) $('infoBody').innerHTML += `<br>鉱山：${ms.map((m) => m.name + `（月+${SIM.money(SIM.KUNI.mineInc[m.k])}）`).join('・')}`; } }
+      if (s.type === 'castle') { const ls = G.view.settlements.filter((v) => SIM.ryoOf(v.id) === s.id); if (ls.length) $('infoBody').innerHTML += `<br>領内：${ls.map((v) => v.name + (SIM.minato(v) ? SGK.ICON.html('anchor', 14) : '') + (v.owner !== s.owner ? '（他家）' : '')).join('・')}`; const ms = SIM.minesOf(s); if (ms.length) $('infoBody').innerHTML += `<br>鉱山：${ms.map((m) => m.name + `（月+${SIM.money(SIM.KUNI.mineInc[m.k])}）`).join('・')}`; } }
     if (s.type === 'castle') {
       const cs = castleStat(s), m = G.priv && G.priv.me, W = m && m.war, R = m && m.rank, at = G.view.wars || [];
       const lordN = cs.lordName;
@@ -784,14 +789,14 @@
     document.querySelectorAll('#town [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === townTab));
     let html = '';
     const NJ = me.nin; // 0.77.0 忍び：工作の城に入ったら「忍び込む」
-    if (NJ && NJ.atTgt && NJ.q) html += `<div class="card" style="display:block;border-color:#c33"><b>${SIM.NIN.jobs[NJ.q.k].name}</b>（${NJ.q.foe}・${NJ.q.toName}）<br><span class="muted">${SIM.NIN.jobs[NJ.q.k].desc}。見張り${NJ.d.guards}人・${NJ.d.ck === 'yama' ? '山城' : NJ.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.d.night ? '夜（見張りの目が届きにくい）' : '昼'}・難しさ${'★'.repeat(NJ.d.lv)}</span><div class="row" style="margin-top:4px"><button id="nj-go" data-nj="go">忍び込む</button></div></div>`;
+    if (NJ && NJ.atTgt && NJ.q) html += `<div class="card" style="display:block;border-color:#c33"><b>${SIM.NIN.jobs[NJ.q.k].name}</b>（${NJ.q.foe}・${NJ.q.toName}）<br><span class="muted">${SIM.NIN.jobs[NJ.q.k].desc}。見張り${NJ.d.guards}人・${NJ.d.ck === 'yama' ? '山城' : NJ.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.d.night ? '夜（見張りの目が届きにくい）' : '昼'}・難しさ${SGK.ICON.html('star', 14).repeat(NJ.d.lv)}</span><div class="row" style="margin-top:4px"><button id="nj-go" data-nj="go">忍び込む</button></div></div>`;
     if (townTab === 'market') {
       html += `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　${loadTxt(me)}</div><div class="grid">`;
       html += '<span class="h">品</span><span class="h">買値</span><span class="h">売値</span><span class="h">在庫</span><span class="h">所持</span><span></span><span></span><span></span><span></span>';
       for (const [k, buy, sell, stock] of h.market.slice().sort((a, b) => IT[a[0]].base - IT[b[0]].base)) { // 1.6.87 相場の安い順
         const it = IT[k], have = me.inv[k] || 0;
         const memo = ''; // 0.74.4 相場の記録（高く売れる・安く買える）は表示しない
-        html += `<span>${it.mk || ''}${it.name}${SGK.DATA.toku(hs) === k ? '<b style="color:#e8b923">（特産）</b>' : ''}<span class="muted">/${it.unit}・${it.wt}kg<br>相場${it.base}文</span>${memo}</span><span style="color:${priceCol(buy / 1.1 / it.base)}">${buy}文</span><span style="color:${priceCol(sell / 0.9 / it.base)}">${sell}文</span><span>${stock}</span><span>${have}${have && me.cost && me.cost[k] != null ? `<br><span style="font-size:11px;color:${sell >= me.cost[k] ? '#6fbf73' : '#e07a6a'}">平均${Math.round(me.cost[k])}文</span>` : ''}</span>`
+        html += `<span>${it.ic ? SGK.ICON.html(it.ic, 18) : ''}${it.name}${SGK.DATA.toku(hs) === k ? '<b style="color:#e8b923">（特産）</b>' : ''}<span class="muted">/${it.unit}・${it.wt}kg<br>相場${it.base}文</span>${memo}</span><span style="color:${priceCol(buy / 1.1 / it.base)}">${buy}文</span><span style="color:${priceCol(sell / 0.9 / it.base)}">${sell}文</span><span>${stock}</span><span>${have}${have && me.cost && me.cost[k] != null ? `<br><span style="font-size:11px;color:${sell >= me.cost[k] ? '#6fbf73' : '#e07a6a'}">平均${Math.round(me.cost[k])}文</span>` : ''}</span>`
           + ((h.noBuy || []).includes(k) ? `<button id="b1-${k}" disabled title="調達の依頼が出ているので買えない">依頼品</button><button id="b10-${k}" disabled>－</button>` : `<button id="b1-${k}" data-act="buy" data-item="${k}" data-qty="1">買1</button><button id="b10-${k}" data-act="buy" data-item="${k}" data-qty="10">買10</button>`)
           + `<button id="s1-${k}" data-act="sell" data-item="${k}" data-qty="1" ${have ? '' : 'disabled'}>売1</button><button id="sa-${k}" data-act="sell" data-item="${k}" data-qty="999" ${have ? '' : 'disabled'}>全部</button>`;
       }
@@ -911,7 +916,8 @@
         } else if (R && !R.clan) html += `<div class="muted">この城では仕官できません（城主のいる城で仕官できます）</div>`;
       }
     } else if (townTab === 'gamble') {
-      html += SGK.GAMBLE.html(P, G.gbSel, G.myPid);
+      if (P.here && P.here.gamble && SGK.GAMBLEUI) html += `<div class="card"><div><b>賭場に入る</b><br><span class="muted">行灯の灯る部屋で、壺振りの丁半・賽の目増と四五六・馬くらべ・天正かるた</span></div><button id="gb-open" data-act="gbOpen">入る</button></div><details style="margin-top:6px"><summary class="muted">文字だけで遊ぶ</summary>${SGK.GAMBLE.html(P, G.gbSel, G.myPid)}</details>`; // 2.12.4
+      else html += SGK.GAMBLE.html(P, G.gbSel, G.myPid);
     } else {
       html += `<div class="card"><div>ここの人に話を聞く<br><span class="muted">相場の噂などが聞けます</span></div><button id="tk" data-act="talk">話しかける</button></div>`;
     }
@@ -952,6 +958,7 @@
     if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; openTown(false); SGK.NINJA.start(N.q.k, N.d, (ok) => { if (ok === null) toast('いったん退きました（工作はまだ請け負ったまま）', 1500); else command({ type: 'ninResult', ok: !!ok }); }); return; }
     const gs = e.target.closest('button[data-gbset]'); if (gs) { G.gbSel = +gs.dataset.gbset; townHtml = ''; renderTown(); return; } // 2.8.0 賭場の掛け金
     const b = e.target.closest('button[data-act]'); if (!b) return;
+    if (b.dataset.act === 'gbOpen') { if (SGK.GAMBLEUI) SGK.GAMBLEUI.open(G.priv, G.myPid); return; } // 2.12.4 賭場の画面
     if (b.dataset.act === 'openNawaEdit') { const me2 = G.priv && G.priv.me, C2 = me2 && (me2.castles || []).find((x) => x.id === b.dataset.id); if (C2 && C2.nawa && SGK.NAWAEDIT) SGK.NAWAEDIT.open({ mode: 'edit', id: C2.id, plan: C2.nawa, ck: C2.nawa.ck, money: me2.money }); return; } // 2.12.0 縄張りを描き直す
     const c = { type: b.dataset.act };
     if (b.dataset.item) c.item = b.dataset.item;
@@ -970,6 +977,7 @@
   $('townClose').onclick = () => openTown(false);
   $('townBtn').onclick = () => openTown(true);
   $('joinBtn').onclick = () => command({ type: 'joinBattle' }); // 1.6.12 合戦の途中参加
+  $('testBtn').onclick = () => SGK.TESTUI && SGK.TESTUI.open(G.priv && G.priv.me); // 2.12.1 テストモードの戦闘
   function cycleTab(d) { const tabs = ['market', 'jobs', 'work', 'army', 'talk', 'gamble', 'castle'].filter((t) => !$('tab-' + t).classList.contains('hidden')); setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
 
   // ---------- 人物（能力・技能・特技・部隊の昇格） ----------
@@ -1320,7 +1328,7 @@
     const IT = SGK.DATA.items, inv = Object.entries(me.inv || {}).filter(([, n]) => n > 0);
     let html = `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　${loadTxt(me)}</div>`;
     if (!inv.length) html += '<div class="card">何も持っていません</div>';
-    for (const [k, n] of inv) { const it = IT[k]; if (!it) continue; html += `<div class="card"><div><b>${it.mk || ''}${it.name}</b>　${n}${it.unit}</div><span class="muted">相場 約${SIM.money(it.base * n)}</span></div>`; }
+    for (const [k, n] of inv) { const it = IT[k]; if (!it) continue; html += `<div class="card"><div><b>${it.ic ? SGK.ICON.html(it.ic, 18) : ''}${it.name}</b>　${n}${it.unit}</div><span class="muted">相場 約${SIM.money(it.base * n)}</span></div>`; }
     return html;
   }
   function toggleMenu(open) {
@@ -1883,6 +1891,8 @@
       { const mt = P && P.me && P.me.meet; if (mt && mt !== G.lastMeet && !BT) { const u = findUnit(mt); if (u) { selectUnit(u); toast('追いつきました。話しかけるか、攻めかかるかを選んでください（閉じると相手は動き出します）', 3500); } } G.lastMeet = mt || null; } // 0.73.4
       if (G.selKind === 'u' && !BT) refreshUnitInfo();
       $('townBtn').classList.toggle('hidden', !(P && P.here) || !!BT);
+      $('testBtn').classList.toggle('hidden', !(P && P.me && P.me.test) || !!BT); // 2.12.1
+      if (SGK.GAMBLEUI && SGK.GAMBLEUI.isOpen()) { const nw = performance.now(); if (!G.gbUiT || nw - G.gbUiT > 250) { G.gbUiT = nw; SGK.GAMBLEUI.update(P); } } // 2.12.4 賭場の画面
       $('joinBtn').classList.toggle('hidden', !(P && P.nearBattle) || !!BT); if (P && P.nearBattle) $('joinBtn').textContent = `合戦に加わる（${P.nearBattle.foe}）${G.padUsed ? ' Ⓐ' : ' [E]'}`;
       // 拠点に着いたら自動で拠点画面を開く
       const hereId = P && P.here && !BT ? P.here.id : null;
@@ -1904,7 +1914,7 @@
           const html = `体力 <span style="display:inline-block;width:110px;height:9px;background:rgba(0,0,0,.55);border:1px solid #0008;vertical-align:middle"><span style="display:block;height:100%;width:${(r * 100).toFixed(0)}%;background:${r > 0.5 ? '#6fbf73' : r > 0.25 ? '#e0c060' : '#e07a6a'}"></span></span> ${hp}/${max}${!BT2 && r < 1 ? `<span class="muted">（${P.here ? '休んで回復中' : '拠点で休むと治る'}）</span>` : ''}`;
           if ($('hpBar').innerHTML !== html) $('hpBar').innerHTML = html;
         }
-        { const wb = P.me.warBoard || [], el = $('warBoard'), h = wb.length ? '<b>戦況</b>' + wb.map((x) => `<div style="color:${x.atk ? '#e0c060' : '#ff6a4a'}">${x.atk ? '⚔' : '⚠'} ${x.text}</div>`).join('') : '';
+        { const wb = P.me.warBoard || [], el = $('warBoard'), h = wb.length ? '<b>戦況</b>' + wb.map((x) => `<div style="color:${x.atk ? '#e0c060' : '#ff6a4a'}">${SGK.ICON.html(x.atk ? 'swords' : 'warn', 16)} ${x.text}</div>`).join('') : '';
           el.classList.toggle('hidden', !h || !!(G.priv && G.priv.battle)); if (el.dataset.h !== h) { el.innerHTML = h; el.dataset.h = h; } }
         renderCaptive(P.me);
         $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　${loadTxt(P.me)}　名声 ${P.me.fame}${P.me.infamy ? `　<span style="color:#e07a6a">悪名 ${P.me.infamy}</span>` : ''}${P.me.rank && P.me.rank.clan ? `　功績 ${P.me.rank.merit}${(() => { const n = SIM.RANKS[P.me.rank.rank + 1]; return n && !n.indep ? '/' + n.merit : ''; })()}` : ''}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.wage ? `<br>兵の給金 ${SIM.money(P.me.wage)}/日${P.me.money < P.me.wage ? '　<b style="color:#e07a6a">払えません</b>' : '（約' + Math.floor(P.me.money / P.me.wage) + '日分）'}` : '') + (P.me.riceNeed ? `<br>士気 <b style="color:${P.me.morale < 35 ? '#e07a6a' : P.me.morale < 60 ? '#e0c060' : '#6fbf73'}">${P.me.morale}</b>　兵糧 米${(P.me.inv && P.me.inv.rice) || 0}俵（1日${P.me.riceNeed}俵・${P.me.hungry ? '<b style="color:#e07a6a">米が足りません</b>' : '約' + P.me.riceDays + '日分'}）` : '') + (P.me.follow ? `<br>追跡中：${P.me.follow}` : '') + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')

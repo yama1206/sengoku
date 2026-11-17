@@ -89,6 +89,21 @@
     const o = osc('sine', 1750, t, 0.08), og = env(t, 0.001, vol * 0.5, 0.05); o.connect(og); og.connect(g);
     out(g, bus, 0.25);
   }
+  // 2.12.4 賭場の音：木の賽が当たる音（高さを変えて）・ずしんと伏せる音・紙の札のこすれ
+  function woodTap(t, vol, f, bus = sfxBus) {
+    const n = noise(t, 0.05), bp = ctx.createBiquadFilter(), g = env(t, 0.001, vol, 0.035);
+    bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = 6; n.connect(bp); bp.connect(g);
+    const o = osc('triangle', f * 0.62, t, 0.05), og = env(t, 0.001, vol * 0.35, 0.03); o.connect(og); og.connect(g);
+    out(g, bus, 0.15);
+  }
+  function thud(t, vol, f, bus = sfxBus) {
+    const o = osc('sine', f, t, 0.3), g = env(t, 0.002, vol, 0.18); o.frequency.exponentialRampToValueAtTime(f * 0.5, t + 0.12); o.connect(g); out(g, bus, 0.2);
+    const n = noise(t, 0.12), lp = ctx.createBiquadFilter(), ng = env(t, 0.001, vol * 0.5, 0.08); lp.type = 'lowpass'; lp.frequency.value = 900; n.connect(lp); lp.connect(ng); out(ng, bus, 0.1);
+  }
+  function rustle(t, vol, dur, f, bus = sfxBus) {
+    const n = noise(t, dur), hp = ctx.createBiquadFilter(), g = ctx.createGain(); hp.type = 'bandpass'; hp.frequency.value = f; hp.Q.value = 0.8;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + dur * 0.3); g.gain.linearRampToValueAtTime(0, t + dur); n.connect(hp); hp.connect(g); out(g, bus, 0.1);
+  }
   // 鈴・りん：澄んだ金属の余韻
   function bell(t, f, vol, dec, bus = sfxBus) {
     [[1, 1], [2.76, 0.4], [5.4, 0.2], [8.9, 0.08]].forEach(([r, a]) => {
@@ -224,6 +239,16 @@
     quest: (t) => { bell(t, 2093, 0.16, 0.4); bell(t + 0.08, 2637, 0.15, 0.5); koto(t + 0.15, 74, 0.22, sfxBus); koto(t + 0.27, 79, 0.24, sfxBus); koto(t + 0.27, 86, 0.14, sfxBus); },
     lost: (t) => { [2637, 2349, 2093, 1760].forEach((f, i) => bell(t + i * 0.07, f, 0.12, 0.3)); koto(t + 0.35, 57, 0.2, sfxBus); },
     join: (t) => { horagai(t, 0.25); taiko(t + 0.2, 0.8, true, sfxBus); taiko(t + 0.45, 0.6, false, sfxBus); },
+    /* 2.12.4 賭場 */
+    diceShake: (t) => { for (let i = 0; i < 9; i++) woodTap(t + i * 0.055 + Math.random() * 0.02, 0.22, 1800 + Math.random() * 1600); },
+    diceRoll: (t) => { let tt = t; for (let i = 0; i < 11; i++) { tt += 0.05 + i * i * 0.004; woodTap(tt, 0.4 * (1 - i / 13), 1500 + Math.random() * 2000); } },
+    tsuboDown: (t) => { thud(t, 0.75, 140); woodTap(t + 0.01, 0.2, 900); },
+    tsuboOpen: (t) => { rustle(t, 0.25, 0.25, 1800); hyoshigi(t + 0.22, 0.5, sfxBus); },
+    card: (t) => rustle(t, 0.3, 0.12, 3500),
+    gallop: (t) => { for (let i = 0; i < 16; i++) { const b = t + Math.floor(i / 4) * 0.42 + (i % 4) * 0.075; thud(b, 0.18 + Math.random() * 0.08, 90 + Math.random() * 40); } },
+    zawa: (t) => { for (let i = 0; i < 3; i++) rustle(t + i * 0.25, 0.08, 0.9, 350 + Math.random() * 250); },
+    gbWin: (t) => { [1568, 2093, 2637].forEach((f, i) => bell(t + i * 0.09, f, 0.16, 0.8)); taiko(t + 0.3, 0.4, true, sfxBus); },
+    gbLose: (t) => { koto(t, 50, 0.25, sfxBus); koto(t + 0.18, 45, 0.22, sfxBus); },
   };
   let lastSfx = {};
   A.sfx = (name) => {

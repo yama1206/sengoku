@@ -54,13 +54,13 @@
   function startPlay(g) {
     const fish = g.k === 'f', df = DF()[g.d] || DF().普通;
     run = { g, phase: 'wait', tap: null }; shownN = g.n - 1; window.addEventListener('keydown', onKey, true);
-    open(`<div class="big">${fish ? '🎣' : '🦋'}</div><div id="gmsg">${fish ? 'ウキを見つめている…' : 'そっと近づく…'}</div><div style="margin-top:10px"><button id="gcancel">やめる</button></div>`);
+    open(`<div class="big">${SGK.ICON.html(fish ? 'rod' : 'net', 72)}</div><div id="gmsg">${fish ? 'ウキを見つめている…' : 'そっと近づく…'}</div><div style="margin-top:10px"><button id="gcancel">やめる</button></div>`);
     $('gcancel').onclick = cancel;
     const wait = (fish ? 1800 : 1000) + Math.random() * 2600;
     setTimeout(() => { if (!run || run.g !== g) return; fish ? hit() : bar(); }, wait);
     function hit() { // 釣り：アタリ！ 早めに押す
       run.phase = 'hit'; let t0 = performance.now();
-      open('<div class="big">❗</div><div style="font-size:22px">アタリ！</div><button class="main" id="gpull">引け！</button>');
+      open('<div class="big">' + SGK.ICON.html('bite', 72) + '</div><div style="font-size:22px">アタリ！</div><button class="main" id="gpull">引け！</button>');
       const go = () => { if (run.phase !== 'hit') return; run.phase = 'bar'; bar(); }; run.tap = go; $('gpull').onclick = go;
       run.to = setTimeout(() => { if (run && run.phase === 'hit') { run.phase = 'done'; finish(0); } }, df.react);
     }
@@ -79,7 +79,7 @@
   function showResult(L) {
     shownN = L.n; const ok = L.ok, c = L.id && D.creatures.find((x) => x.id === L.id);
     window.removeEventListener('keydown', onKey, true); cancelAnimationFrame(raf); run = null;
-    open(`<div class="big">${ok ? (L.k === 'f' ? '🐟' : '🐞') : '💨'}</div><div style="font-size:20px">${L.txt}</div>`
+    open(`<div class="big">${SGK.ICON.html(ok ? (L.k === 'f' ? 'fish' : 'bug') : 'miss', 72)}</div><div style="font-size:20px">${L.txt}</div>`
       + (ok ? `<div style="margin:8px 0">${L.isNew ? '<b style="color:#e8c46a">図鑑に新しく載りました！</b><br>' : ''}${L.rec ? '<b style="color:#6fbf73">自己ベスト更新！</b><br>' : ''}<span class="muted">${L.r}</span>　<b>+${L.gain}文</b></div>` : (L.hint ? `<div class="muted">${L.hint}</div>` : ''))
       + '<div class="row" style="gap:8px;margin-top:10px"><button class="main" id="gagain" style="flex:1">もう一度</button><button id="gend" style="flex:1">やめる</button></div>');
     $('gagain').onclick = () => { close(); SGK.cmd({ type: 'gatherStart', kind: L.k === 'f' ? 'fish' : 'bug' }); };

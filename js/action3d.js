@@ -34,6 +34,7 @@
     return h - 2.4 * wd; /* 1.6.70 川底を深く */
   }
   X.hgt = hgt;
+  X.FLAGS = false; // 2.12.4 戦闘の旗（指物）を出すか。いまはプレイヤー・兵・武将の全部で出さない
 
   function rng(seed) { let s = (seed * 9301 + 49297) % 233280 || 1; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
 
@@ -943,7 +944,7 @@
     const flagC = s.pc ? col : s.side === 'B' ? 0xc8402f : own ? 0xf2f2f2 : 0x6fa7d8;
     if (u && u.order === 'rout') C.setHex(flagC).lerp(C2.setHex(0xffffff), 0.5); else C.setHex(flagC);
     Mu.multiply(Ms.makeScale(sc, sc, sc)).multiply(Ms.makeTranslation(-0.05, 0.12, 0));
-    put('flag', Mu, C); put('pole', Mu);
+    if (X.FLAGS) { put('flag', Mu, C); put('pole', Mu); } // 2.12.4 旗はいったん全部消す（X.FLAGS = true で戻る）
     if (s.type === 'take' || s.type === 'shiyori' || s.type === 'takegashira' || s.tate) put('take', Mu);
     if (s.type === 'horo') put('horoB', Mu, C);
   }
@@ -1021,7 +1022,7 @@
       if (tr === 1) put('hachi', Mu, C.setHex(0xe8e0cc)); // 農兵：鉢巻だけ
       else if (tr <= 3) put('hat', Mu, C.setHex(hatC)); // 足軽：陣笠
       else { put('kabutoS', Mu, C.setHex(s.hero ? 0x1a1a1a : 0x2a2622)); put('fuki', Mu, C.setHex(bc).multiplyScalar(0.5)); if (!s.hero) put('mae', Mu); } // 兜と吹返し
-      if (tr >= 2) { put('flag', Mu, C.setHex(flagC)); put('pole', Mu); }
+      if (tr >= 2 && X.FLAGS) { put('flag', Mu, C.setHex(flagC)); put('pole', Mu); } // 2.12.4 旗はいったん消す
       if (s.type === 'take' || s.type === 'shiyori' || s.type === 'takegashira') put('take', Mu); /* 1.6.40 */
       if (s.type === 'horo') put('horoB', Mu, C.setHex(flagC)); // 母衣衆：背中の母衣
       if (s.hero) put('crest', Mu);

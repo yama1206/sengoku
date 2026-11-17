@@ -130,7 +130,7 @@
         ctx.moveTo(ax, ay - 4); ctx.lineTo(ax, ay + 4); ctx.moveTo(ax - 3, ay - 2); ctx.lineTo(ax + 3, ay - 2);
         ctx.moveTo(ax - 4, ay + 1); ctx.quadraticCurveTo(ax - 3, ay + 5, ax, ay + 4); ctx.quadraticCurveTo(ax + 3, ay + 5, ax + 4, ay + 1); ctx.stroke();
       }
-      { const tk = SGK.DATA.toku(s); if (tk) { const mx = x, my = y - 18; ctx.fillStyle = 'rgba(245,238,215,.92)'; ctx.strokeStyle = '#8a6a2a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(mx, my, 9, 0, 7); ctx.fill(); ctx.stroke(); ctx.font = '12px sans-serif'; ctx.textBaseline = 'middle'; ctx.fillText(SGK.DATA.mk(tk), mx, my + 0.5); ctx.textBaseline = 'top'; } } // 1.6.77 村の特産の印
+      { const tk = SGK.DATA.toku(s); if (tk) { const mx = x, my = y - 18; ctx.fillStyle = 'rgba(245,238,215,.92)'; ctx.strokeStyle = '#8a6a2a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(mx, my, 9, 0, 7); ctx.fill(); ctx.stroke(); { const im = SGK.ICON && SGK.ICON.img(SGK.DATA.mk(tk)); if (im) ctx.drawImage(im, mx - 8, my - 8, 16, 16); } ctx.textBaseline = 'top'; /* 2.12.4 特産の印は絵 */ } } // 1.6.77 村の特産の印
       if (s.id === selectedId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 17, 0, 7); ctx.stroke(); }
       if (s.site) { ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 2; ctx.setLineDash([3, 3]); ctx.strokeRect(x - 13, y - 13, 26, 26); ctx.setLineDash([]); }
       if (cam.scale < 6 && !s.lord && !s.built && s.type !== 'town' && s.id !== selectedId) continue;

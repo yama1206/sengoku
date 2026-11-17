@@ -5,6 +5,17 @@
   const SIM = SGK.SIM, D = SGK.DATA, C = SIM.commands;
   const DIFF = (D.gatherDiff = { 簡単: { thr: 0.4, spd: 0.9, react: 1200 }, 普通: { thr: 0.6, spd: 1.3, react: 900 }, 難しい: { thr: 0.8, spd: 1.9, react: 650 } });
   const RARE = (D.rarityW = { ありふれた: 50, 見かける: 25, 珍しい: 12, 稀少: 4, '幻のような': 1 });
+  /* 2.12.2 珍しさの段ごとの出やすさ（その場所にいる種類の数によらない）。先に段を決め、その段の中から1種類を選ぶ。
+     その段の生き物がいない時は、よりありふれた段に下げる。珍しいものしかいない所では、たいてい何も掛からない */
+  const TIERS = ['ありふれた', '見かける', '珍しい', '稀少', '幻のような'];
+  const TIER_P = (D.rarityP = { ありふれた: 0.6, 見かける: 0.25, 珍しい: 0.1, 稀少: 0.04, '幻のような': 0.01 });
+  SIM.gatherRoll = (w, list) => {
+    let r = SIM.rand(w), t = 0; for (; t < TIERS.length - 1; t++) { r -= TIER_P[TIERS[t]]; if (r < 0) break; }
+    const has = (i) => list.filter((x) => x.r === TIERS[i]);
+    let i = t; while (i >= 0 && !has(i).length) i--;
+    if (i < 0) { i = TIERS.findIndex((_, k) => has(k).length); if (i >= 2) return null; } // 珍しいものしかいない所は、その段が出た時だけ掛かる
+    const L = has(i); return L[Math.floor(SIM.rand(w) * L.length)] || null;
+  };
   const byId = (id) => (D.creatures || []).find((c) => c.id === id);
   SIM.creature = byId;
   const say = (pid, t) => SIM.say(pid, t);
@@ -75,8 +86,8 @@
     const list = SIM.spotCreatures(w, p.x, p.y, kind), n = (p.gatN = (p.gatN || 0) + 1);
     p.gatLast = null;
     if (!list.length) { p.gat = null; p.gatLast = { n, ok: false, k: kind, txt: kind === 'f' ? 'ここでは、いまの時間に釣れる魚がいないようです' : 'ここでは、いまの時間に捕れる虫がいないようです' }; return; }
-    let tot = list.reduce((s, x) => s + RARE[x.r], 0), r = SIM.rand(w) * tot, sp = list[list.length - 1];
-    for (const x of list) { r -= RARE[x.r]; if (r <= 0) { sp = x; break; } }
+    const sp = SIM.gatherRoll(w, list);
+    if (!sp) { p.gat = null; p.gatLast = { n, ok: false, k: kind, txt: kind === 'f' ? '何も掛からなかった…（ここには珍しい魚しかいないようです）' : '何も見つからなかった…（ここには珍しい虫しかいないようです）' }; return; }
     const u = (SIM.rand(w) + SIM.rand(w)) / 2, frac = u, size = kind === 'f' ? Math.round((sp.sz[0] + (sp.sz[1] - sp.sz[0]) * frac) * 10) / 10 : Math.round(sp.sz[0] + (sp.sz[1] - sp.sz[0]) * frac);
     p.gat = { n, k: kind, id: sp.id, size, frac, at: Date.now() };
   };

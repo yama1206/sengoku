@@ -117,7 +117,7 @@
     if (st.tool === 'moat') h += `<div class="h">堀の種類</div>${btn('mt', 'd', '空堀', st.mt === 'd')}${st.plan.ck !== 'yama' ? btn('mt', 'm', '水堀', st.mt === 'm') : ''}<div class="m">水堀は通れない。空堀は通れるが遅く、狙われやすい</div>`;
     h += `<div class="h">費用</div><div>${SIM.money(pay)}${st.o.mode === 'edit' ? '（増えた分）' : ''}${money != null ? `　<span class="m">所持金 ${SIM.money(money)}</span>` : ''}</div>`
       + `<div class="m">普請の手間：約${Math.max(0.5, Math.round((st.cost / st.P.unit) * 10) / 10)}倍　守りの段階：${(SIM.FUSHIN ? SIM.FUSHIN.kai[SIM.nawaPlanKai(st.plan)].name : '')}</div>`
-      + `<div class="${c.ok ? 'ok' : 'ng'}" style="margin-top:4px">${c.ok ? '✓ 築けます' : '✗ ' + c.msg}</div>${st.msg ? `<div class="ng">${st.msg}</div>` : ''}`
+      + `<div class="${c.ok ? 'ok' : 'ng'}" style="margin-top:4px">${c.ok ? SGK.ICON.html('check', 16) + ' 築けます' : SGK.ICON.html('cross', 16) + ' ' + c.msg}</div>${st.msg ? `<div class="ng">${st.msg}</div>` : ''}`
       + `<div class="h">　</div>${btn('do', 'undo', '元に戻す')}${btn('do', 'sample', '見本を置く')}${btn('do', 'clear', '全部消す')}`
       + `<div style="margin-top:8px">${btn('do', 'cancel', 'やめる')}<button data-do="ok" ${c.ok && (money == null || money >= pay) ? '' : 'disabled'}>${st.o.mode === 'edit' ? 'この縄張りにする' : 'この縄張りで築城を始める'}</button></div>`
       + `<div class="m" style="margin-top:8px">左から攻め手が来ます。どの曲輪にも、外から門を通って入れるようにしてください（閉じた城は築けません）</div>`;

@@ -14,7 +14,6 @@
   // 札の絵：img/karuta/<札の種類0〜3>-<数字1〜12>.png を置くと自動で絵に差し替わる（無ければ文字の札）
   G.CARD_IMG = (c) => `img/karuta/${c.s}-${c.n}.png`;
   G.SUITS = [['剣', '#4a7bd0'], ['杯', '#d04a4a'], ['棍', '#3f9a55'], ['金', '#c9a227']];
-  const D6 = '⚀⚁⚂⚃⚄⚅';
   const SAY = (pid, t) => SIM.say(pid, t);
   const d6 = (w) => 1 + Math.floor(SIM.rand(w) * 6);
   const here = (w, p) => (p.at && p.tx == null ? SIM.settlement(w, p.at) : null);
@@ -33,9 +32,9 @@
   function umaRace(w, p, T) {
     const hs = T.horses, pos = hs.map(() => 0), frames = [pos.slice()];
     for (let k = 0; k < 30 && Math.max(...pos) < 100; k++) { for (let i = 0; i < hs.length; i++) pos[i] += 5 + hs[i].st * 5 + SIM.rand(w) * 5; frames.push(pos.map((x) => Math.min(100, Math.round(x * 10) / 10))); }
-    const fin = pos.slice(), order = fin.map((x, i) => i).sort((a, b) => fin[b] - fin[a]), win = order[0], lines = [];
-    for (const pid in T.bets) { const x = T.bets[pid], q = w.players[pid], hit = x.pick === win, ret = hit ? Math.floor(x.bet * hs[win].odds) : 0; if (q) pay(q, ret); lines.push(`${nameOf(w, pid)}（${hs[x.pick].name}・${money(x.bet)}）→ ${hit ? '的中 ' + sign(ret - x.bet) : 'はずれ ' + sign(-x.bet)}`); }
-    T.n++; T.last = { id: T.n, t: Date.now(), frames, fin: frames[frames.length - 1], names: hs.map((h) => h.name), head: `一着：${hs[win].name}　二着：${hs[order[1]].name}　三着：${hs[order[2]].name}`, lines, by: nameOf(w, p.id) };
+    const fin = pos.slice(), order = fin.map((x, i) => i).sort((a, b) => fin[b] - fin[a]), win = order[0], lines = [], rows = [];
+    for (const pid in T.bets) { const x = T.bets[pid], q = w.players[pid], hit = x.pick === win, ret = hit ? Math.floor(x.bet * hs[win].odds) : 0; if (q) pay(q, ret); rows.push({ id: pid, name: nameOf(w, pid), bet: x.bet, pick: x.pick, r: hit ? 1 : -1, gain: ret - x.bet }); lines.push(`${nameOf(w, pid)}（${hs[x.pick].name}・${money(x.bet)}）→ ${hit ? '的中 ' + sign(ret - x.bet) : 'はずれ ' + sign(-x.bet)}`); }
+    T.n++; T.last = { id: T.n, t: Date.now(), rows, win, order: order.slice(0, 3), frames, fin: frames[frames.length - 1], names: hs.map((h) => h.name), head: `一着：${hs[win].name}　二着：${hs[order[1]].name}　三着：${hs[order[2]].name}`, lines, by: nameOf(w, p.id) };
     for (const pid in T.bets) SAY(pid, `馬くらべ：一着は${hs[win].name}`);
     T.bets = {}; newRace(w, T);
   }
@@ -73,7 +72,7 @@
     do { d = [d6(w), d6(w), d6(w)]; e = shigoroEval(d); n++; } while (e.rank === 0 && n < 3);
     return { d, e, n };
   }
-  const diceTxt = (d) => d.map((x) => D6[x - 1]).join('');
+  const diceTxt = (d) => `［${d.join('・')}］`; // 2.12.4 絵文字の賽はやめて数字（賭場の画面では賽の絵で見せる）
 
   // ---- 丁半・目増・四五六：賭けて、誰かが開ける ----
   SIM.commands.gbBet = (w, p, c) => {
@@ -97,26 +96,29 @@
     const T = ok(w, p, c); if (!T || c.id === 'karuta') return;
     if (!T.bets[p.id]) return SAY(p.id, 'まず賭けてください');
     if (c.id === 'uma') return umaRace(w, p, T);
-    const lines = []; let head = '';
+    const lines = [], rows = []; let head = '', ex = {}; // 2.12.4 rows・ex：賭場の画面で賽の動きを見せるための目と勝ち負け
     if (c.id === 'chouhan') {
-      const a = d6(w), b = d6(w), even = (a + b) % 2 === 0; head = `${diceTxt([a, b])} ${a}・${b}＝${a + b}　${even ? '丁' : '半'}`;
-      for (const pid in T.bets) { const x = T.bets[pid], q = w.players[pid]; const win = (x.pick === 'even') === even; if (q) pay(q, win ? x.bet * 2 : 0); lines.push(`${nameOf(w, pid)}（${x.pick === 'even' ? '丁' : '半'}・${money(x.bet)}）→ ${win ? '当たり ' + sign(x.bet) : 'はずれ ' + sign(-x.bet)}`); }
+      const a = d6(w), b = d6(w), even = (a + b) % 2 === 0; head = `${diceTxt([a, b])}＝${a + b}　${even ? '丁' : '半'}`; ex = { d: [a, b], even };
+      for (const pid in T.bets) { const x = T.bets[pid], q = w.players[pid]; const win = (x.pick === 'even') === even; if (q) pay(q, win ? x.bet * 2 : 0); lines.push(`${nameOf(w, pid)}（${x.pick === 'even' ? '丁' : '半'}・${money(x.bet)}）→ ${win ? '当たり ' + sign(x.bet) : 'はずれ ' + sign(-x.bet)}`); rows.push({ id: pid, name: nameOf(w, pid), pick: x.pick, bet: x.bet, r: win ? 1 : -1, gain: win ? x.bet : -x.bet }); }
     } else if (c.id === 'memashi') {
-      const pa = [d6(w), d6(w)], ps = pa[0] + pa[1]; head = `親 ${diceTxt(pa)}＝${ps}`;
+      const pa = [d6(w), d6(w)], ps = pa[0] + pa[1]; head = `親 ${diceTxt(pa)}＝${ps}`; ex = { pd: pa };
       for (const pid in T.bets) {
         const x = T.bets[pid], q = w.players[pid], ma = [d6(w), d6(w)], ms = ma[0] + ma[1];
         const r = ms > ps ? 1 : ms < ps ? -1 : 0; if (q) pay(q, r > 0 ? x.bet * 2 : r === 0 ? x.bet : 0);
         lines.push(`${nameOf(w, pid)}（${money(x.bet)}）${diceTxt(ma)}＝${ms} → ${r > 0 ? '勝ち ' + sign(x.bet) : r === 0 ? '引き分け（返却）' : '負け ' + sign(-x.bet)}`);
+        rows.push({ id: pid, name: nameOf(w, pid), bet: x.bet, d: ma, r, gain: r > 0 ? x.bet : r === 0 ? 0 : -x.bet });
       }
     } else {
-      const pr = shigoroRoll(w); head = `親 ${diceTxt(pr.d)} ${pr.e.label}${pr.n > 1 ? `（${pr.n}回目）` : ''}`;
+      const pr = shigoroRoll(w); head = `親 ${diceTxt(pr.d)} ${pr.e.label}${pr.n > 1 ? `（${pr.n}回目）` : ''}`; ex = { pd: pr.d, pl: pr.e.label, pn: pr.n };
       for (const pid in T.bets) {
         const x = T.bets[pid], q = w.players[pid], m = shigoroRoll(w);
         const r = m.e.rank > pr.e.rank ? 1 : m.e.rank < pr.e.rank ? -1 : 0; const ret = r > 0 ? x.bet * m.e.mult : r === 0 ? x.bet : 0; if (q) pay(q, ret);
         lines.push(`${nameOf(w, pid)}（${money(x.bet)}）${diceTxt(m.d)} ${m.e.label} → ${r > 0 ? '勝ち ' + sign(ret - x.bet) : r === 0 ? '引き分け（返却）' : '負け ' + sign(-x.bet)}`);
+        rows.push({ id: pid, name: nameOf(w, pid), bet: x.bet, d: m.d, label: m.e.label, n: m.n, r, gain: ret - x.bet });
       }
     }
-    T.last = { head, lines, by: nameOf(w, p.id) };
+    T.n = (T.n || 0) + 1;
+    T.last = Object.assign({ head, lines, by: nameOf(w, p.id), id: T.n, t: Date.now(), rows }, ex);
     for (const pid in T.bets) SAY(pid, `${G.GAMES[c.id].name}：${head}`);
     T.bets = {};
   };
@@ -150,15 +152,16 @@
   function settleIfDone(w, T) {
     if (Object.values(T.hands).some((h) => !h.done)) return;
     while (T.parent.length < 3 && val(T.parent) <= 4) T.parent.push(T.deck.pop());
-    const ps = val(T.parent), pz = zoro({ cards: T.parent }), lines = [], head = `親 ${cardTxt(T.parent)} → ${ps}${pz ? '（ゾロ目）' : ''}`;
+    const ps = val(T.parent), pz = zoro({ cards: T.parent }), lines = [], rows = [], head = `親 ${cardTxt(T.parent)} → ${ps}${pz ? '（ゾロ目）' : ''}`;
     for (const pid in T.hands) {
       const h = T.hands[pid], q = w.players[pid], ms = val(h.cards), mz = zoro(h); let win;
       if (mz && !pz) win = 3; else if (pz && !mz) win = 0; else win = ms > ps ? 2 : 0;
       if (q) pay(q, win * h.bet);
       lines.push(`${nameOf(w, pid)}（${money(h.bet)}）${cardTxt(h.cards)} → ${ms}${mz ? '（ゾロ目）' : ''} → ${win ? '勝ち ' + sign(win * h.bet - h.bet) : '負け ' + sign(-h.bet)}`);
+      rows.push({ id: pid, name: nameOf(w, pid), bet: h.bet, cards: h.cards, v: ms, z: mz, r: win ? 1 : -1, gain: win * h.bet - h.bet });
       SAY(pid, `天正かるた：親${ps} 自分${ms} ${win ? '勝ち' : '負け'}`);
     }
-    T.last = { head, lines }; T.phase = 'bet'; T.bets = {}; T.hands = {}; T.parent = []; T.deck = [];
+    T.n = (T.n || 0) + 1; T.last = { head, lines, id: T.n, t: Date.now(), parent: T.parent.slice(), pv: ps, pz, rows }; T.phase = 'bet'; T.bets = {}; T.hands = {}; T.parent = []; T.deck = [];
   }
 
   // ---- 見せる情報（その町にいる人へ） ----
@@ -204,8 +207,8 @@
       h += `<div class="card" style="display:block"><b>${G.GAMES.uma.name}</b><br><span class="muted">${G.GAMES.uma.rule}</span>`;
       if (L) { // 走る様子（走りだして十数秒はアニメ、あとは着順の位置）
         const n = L.frames ? L.frames.length : 0;
-        if (n) h += '<style>' + L.fin.map((_, i) => `@keyframes um${L.id}_${i}{${L.frames.map((f, k) => `${(k / (n - 1) * 100).toFixed(1)}%{left:${(f[i] * 0.88).toFixed(1)}%}`).join('')}}`).join('') + '</style>';
-        h += '<div style="margin-top:6px;background:#3d5a2a;border-radius:4px;padding:2px 0">' + L.fin.map((x, i) => `<div style="position:relative;height:22px;border-bottom:1px dashed rgba(255,255,255,.25)"><span style="position:absolute;left:${n ? 0 : (x * 0.88).toFixed(1)}%;${n ? `animation:um${L.id}_${i} ${Math.max(3, n * 0.45).toFixed(1)}s linear forwards;` : ''}font-size:18px;white-space:nowrap">🐎<small style="font-size:10px;color:#fff">${i + 1}</small></span></div>`).join('') + '<div class="muted" style="text-align:right;font-size:10px">ゴール →</div></div>';
+        if (n) h += '<style>' + L.fin.map((_, i) => `@keyframes um${L.id}_${i}{${L.frames.map((f, k) => `${(k / (n - 1) * 100).toFixed(1)}%{right:${(f[i] * 0.88).toFixed(1)}%}`).join('')}}`).join('') + '</style>';
+        h += '<div style="margin-top:6px;background:#3d5a2a;border-radius:4px;padding:2px 0">' + L.fin.map((x, i) => `<div style="position:relative;height:22px;border-bottom:1px dashed rgba(255,255,255,.25)"><span style="position:absolute;right:${n ? 0 : (x * 0.88).toFixed(1)}%;${n ? `animation:um${L.id}_${i} ${Math.max(3, n * 0.45).toFixed(1)}s linear forwards;` : ''}font-size:18px;white-space:nowrap">${SGK.ICON ? SGK.ICON.html('horse', 22) : ''}<small style="font-size:10px;color:#fff">${i + 1}</small></span></div>`).join('') + '<div class="muted" style="text-align:left;font-size:10px">← ゴール</div></div>';
         h += `<div class="muted" style="margin-top:4px">前のレース：${L.head}${L.by ? `（${L.by}が走らせた）` : ''}<br>${L.lines.join('<br>') || '賭けた人はいませんでした'}</div>`;
       }
       h += '<div style="margin-top:6px">' + U.horses.map((x, i) => `<div class="row" style="align-items:center;gap:6px;margin:2px 0"><span style="min-width:120px">${i + 1} ${x.name}<span class="muted">（${x.form}）</span></span><span>${x.odds}倍</span>` + (mine ? (mine.pick === i ? '<b>←賭け済み</b>' : '') : `<button id="gb-uma-${i}" data-act="gbBet" data-id="uma" data-qty="${sel}" data-kind="${i}" ${me.money < sel ? 'disabled' : ''}>${sel}文</button>`) + '</div>').join('') + '</div>';
