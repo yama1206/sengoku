@@ -339,8 +339,8 @@
       const reach = e ? rad(u) + rad(e) + t.range + (u.ra || 0) + (t.ranged && tu.h ? 5 : 0) : 0;
       if (!e || ed > reach) {
         if (u.order === 'move') { if (goTo(u, u.mx, u.my, spd)) u.order = 'hold'; }
-        else if ((u.order === 'hold' || u.order === 'guard') && u.mf != null) turnTo(u, u.mf, (TR[u.type].cav ? 1.6 : 0.9) * dt);
-        else if (u.order === 'charge' || u.order === 'flank') {
+        else if (u.order === 'hold' && u.mf != null) turnTo(u, u.mf, (TR[u.type].cav ? 1.6 : 0.9) * dt);
+        else if (u.order === 'charge' || u.order === 'flank' || u.order === 'guard') {
           if (e && u.order === 'flank' && angDiff(e.f, Math.atan2(u.y - e.y, u.x - e.x)) < 1.2) {
             // 回り込み：敵の向きに対して横～後ろの点を目指す
             const sgn = Math.sin(Math.atan2(u.y - e.y, u.x - e.x) - e.f) >= 0 ? 1 : -1, a = e.f + sgn * Math.PI * 0.6, R2 = rad(e) + 16;

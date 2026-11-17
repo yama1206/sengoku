@@ -279,7 +279,7 @@
       u.isAI = u.order === 'ai' || (u.side === 'B' && u.order !== 'rout' && u.order !== 'retreat');
       if (u.isAI && u.order !== 'rout' && u.order !== 'retreat') aiThink(A, b, u, c, center, all, dt); else { u.eo = null; u.kite = 0; }
       let o = u.eo || u.order;
-      if (o === 'charge' || o === 'flank') { // 近い敵の隊へ（1.6.66 突撃先を指したときはその隊へ）
+      if (o === 'charge' || o === 'flank' || o === 'guard') { // 2.6.2 防御も構えたまま前へ進む // 近い敵の隊へ（1.6.66 突撃先を指したときはその隊へ）
         let best = null, bd = 1e9;
         if (u.ct != null) { const v = A.byG[u.ct]; if (center[u.ct] && v && v.side !== u.side) best = center[u.ct]; else u.ct = null; }
         if (!best) for (const id in center) { const v = A.byG[id]; if (v.side === u.side) continue; const d = Math.hypot(center[id].x - c.x, center[id].y - c.y); if (d < bd) { bd = d; best = center[id]; } }
@@ -289,7 +289,6 @@
       const hero = heroOf(u.owner || u.cmd);
       if (o === 'follow' && hero && live(hero)) { const hf = hero.f || 0; u.ax += (hero.x - Math.cos(hf) * 6 - u.ax) * Math.min(1, dt * 2); u.ay += (hero.y - Math.sin(hf) * 6 - u.ay) * Math.min(1, dt * 2); u.af = hf; }
       if (o === 'move') { const d = Math.hypot(u.mx - u.ax, u.my - u.ay), sp = TR[u.type].spd * ACT.SPD * fmod(u, 'spd') * dt; if (d > 0.5) { u.af = Math.atan2(u.my - u.ay, u.mx - u.ax); u.ax += ((u.mx - u.ax) / d) * Math.min(d, sp); u.ay += ((u.my - u.ay) / d) * Math.min(d, sp); } else if (u.eo) u.eo = 'hold'; else u.order = 'hold'; }
-      if (o === 'guard') o = 'hold'; // 2.6.0 防御：その場で構えて、近づいた敵と戦う
       if (o === 'hold' && u.ho !== 'hold') { u.ax = c.x; u.ay = c.y; }
       if (o === 'hold' && u.mf != null && !u.isAI) u.af = u.mf; // 0.59.0 決めた向き // 待機を命じた所にとどまる
       u.ho = o;
@@ -372,7 +371,7 @@
         continue;
       }
       const o = u.eo || u.order, reach = T.ranged ? T.range + (u.ra || 0) : cpuWep(s).reach; // 0.73.9 近接の間合いは本人の刀・槍と同じ（以前は range×0.4+0.4、騎馬+0.4）
-      let look = o === 'charge' || o === 'flank' ? 22 : o === 'follow' ? 8 : Math.max(ACT.ENGAGE, T.ranged ? reach : 0);
+      let look = o === 'charge' || o === 'flank' || o === 'guard' ? 22 : o === 'follow' ? 8 : Math.max(ACT.ENGAGE, T.ranged ? reach : 0);
       if (u.kite) look = T.ranged ? reach : 3;
       const aiHero = s.hero && !s.pc && (u.side === 'B' || u.order === 'ai'); // 0.64.0 敵の大将は後ろから兵を励まし、近づかれたら戦う
       if (aiHero) look = 7;
@@ -421,7 +420,7 @@
       } else if (gx != null) { /* 0.80.0 駆け抜け中 */ } else if (aiHero) { // 自軍の後ろ
         const sc = sideC[s.side], fc = sideC[s.side === 'A' ? 'B' : 'A'];
         if (sc && fc) { const a = Math.atan2(sc.y - fc.y, sc.x - fc.x); gx = sc.x + Math.cos(a) * 8; gy = sc.y + Math.sin(a) * 8; } else { gx = s.x; gy = s.y; }
-      } else if (u.tgt && (o === 'charge' || o === 'flank')) {
+      } else if (u.tgt && (o === 'charge' || o === 'flank' || o === 'guard')) {
         gx = u.tgt.x + s.oy * 0.6 * (o === 'flank' ? 3 : 1); gy = u.tgt.y + s.oy * (o === 'flank' ? 2.5 : 1);
       } else { const c = Math.cos(u.af), n = Math.sin(u.af); gx = u.ax + s.ox * c - s.oy * n; gy = u.ay + s.ox * n + s.oy * c; }
       if (s.post && T.ranged && s.side === b.cside && o === 'hold' && !s.kat) { gx = s.post.x; gy = s.post.y; } /* 1.6.38 弓・鉄砲の守り手は狭間（塀のすぐ内側）につく */
