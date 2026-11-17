@@ -127,7 +127,9 @@
   ACT.FORMS = { norm: '通常', line: '横隊', loose: '散開', square: '方陣', wedge: '鋒矢' };
   // 0.79.0 隊形の得手不得手：spd 移動・ma 近接の攻撃・ra 弓鉄砲の攻撃・md 近接で受ける被害・rd 矢弾で受ける被害（倍）
   ACT.FMOD = {}; /* 1.6.37 隊形による強さの違いはなくした（並び方だけ変わる） */
-  const fmod = (u, k) => { const m = u && ACT.FMOD[u.fm]; return (m && m[k]) || 1; };
+  // 2.6.0 指図による強さ：spd 移動・as 攻撃の速さ・md/rd 受ける被害（突撃は攻めに強く守りに弱い、防御はその逆、追従は少し速い）
+  ACT.OMOD = { charge: { spd: 1.25, as: 1.3, md: 1.25, rd: 1.25 }, guard: { spd: 0.7, as: 0.75, md: 0.65, rd: 0.65 }, follow: { spd: 1.1 } };
+  const fmod = (u, k) => { const m = u && ACT.FMOD[u.fm], o = u && !u.isAI && ACT.OMOD[u.order]; return ((m && m[k]) || 1) * ((o && o[k]) || 1); };
   // 0.80.0 地形：丘の高さ（中心1・ふち0）、移動の速さ（林・登り下り・堀・急な斜面）
   const hgt = (b, x, y) => { let h = 0; for (const t of b.ter || []) if (t.k === 'h') { const d = Math.hypot(x - t.x, y - t.y); if (d < t.r) h = Math.max(h, 1 - d / t.r); } return h; };
   function terMul(b, s, dx, dy, cav) {
@@ -276,7 +278,7 @@
       const c = center[u.id]; if (!c || u.type === 'hero') continue;
       u.isAI = u.order === 'ai' || (u.side === 'B' && u.order !== 'rout' && u.order !== 'retreat');
       if (u.isAI && u.order !== 'rout' && u.order !== 'retreat') aiThink(A, b, u, c, center, all, dt); else { u.eo = null; u.kite = 0; }
-      const o = u.eo || u.order;
+      let o = u.eo || u.order;
       if (o === 'charge' || o === 'flank') { // 近い敵の隊へ（1.6.66 突撃先を指したときはその隊へ）
         let best = null, bd = 1e9;
         if (u.ct != null) { const v = A.byG[u.ct]; if (center[u.ct] && v && v.side !== u.side) best = center[u.ct]; else u.ct = null; }
@@ -287,6 +289,7 @@
       const hero = heroOf(u.owner || u.cmd);
       if (o === 'follow' && hero && live(hero)) { const hf = hero.f || 0; u.ax += (hero.x - Math.cos(hf) * 6 - u.ax) * Math.min(1, dt * 2); u.ay += (hero.y - Math.sin(hf) * 6 - u.ay) * Math.min(1, dt * 2); u.af = hf; }
       if (o === 'move') { const d = Math.hypot(u.mx - u.ax, u.my - u.ay), sp = TR[u.type].spd * ACT.SPD * fmod(u, 'spd') * dt; if (d > 0.5) { u.af = Math.atan2(u.my - u.ay, u.mx - u.ax); u.ax += ((u.mx - u.ax) / d) * Math.min(d, sp); u.ay += ((u.my - u.ay) / d) * Math.min(d, sp); } else if (u.eo) u.eo = 'hold'; else u.order = 'hold'; }
+      if (o === 'guard') o = 'hold'; // 2.6.0 防御：その場で構えて、近づいた敵と戦う
       if (o === 'hold' && u.ho !== 'hold') { u.ax = c.x; u.ay = c.y; }
       if (o === 'hold' && u.mf != null && !u.isAI) u.af = u.mf; // 0.59.0 決めた向き // 待機を命じた所にとどまる
       u.ho = o;
@@ -360,7 +363,7 @@
       if (s.pc) continue;
       const u = A.byG[s.g], T = s.hero ? TR.hero : TR[s.type], gen = s.hero && u && !u.owner && !u.cmd, cav = T.cav || gen; // 0.73.8 CPUの武将は騎馬
       const spd = (gen ? TR.kiba.spd : T.spd) * ACT.SPD * (s.hero ? 1 : fmod(u, 'spd')); s.genCav = gen; // 0.80.0 地形の遅さは動くときに terMul で
-      s.cd -= dt;
+      s.cd -= dt * (s.hero ? 1 : fmod(u, 'as'));
       if (!u) continue;
       if (u.order === 'rout' || u.order === 'retreat') {
         const ex = s.side === 'A' ? -6 : F.w + 6, wy = CW && SIM.wallWay(CW, s, ex, s.y, gG(A, b, s)); s.f = s.side === 'A' ? Math.PI : 0; /* 1.6.25 城の中からは門を通って逃げる */
@@ -649,7 +652,7 @@
     // 隊の旗（名前と人数・指図）
     const cen = {};
     for (const s of A.s) if (live(s) && !s.hero) { const q = cen[s.g] || (cen[s.g] = { x: 0, y: 0, n: 0 }); q.x += s.x; q.y += s.y; q.n++; }
-    const ON = { charge: '突撃', hold: '待機', retreat: '後退', flank: '回り込み', move: '移動', rout: '潰走', follow: '随行' };
+    const ON = { charge: '突撃', guard: '防御', hold: '待機', retreat: '後退', flank: '回り込み', move: '移動', rout: '潰走', follow: '追従' };
     const lbl = [], aimG = R.aimXY ? R.actFoeAt(R.aimXY[0], R.aimXY[1], A, myPid) : null; R._lbl = lbl; // 1.6.66 カーソルの指す敵の隊（枠で囲む）
     ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
     for (const id in cen) {
@@ -676,12 +679,12 @@
     ctx.fillText('かわす Space・B　隊を選ぶ：カーソルを合わせてA・LB/RB・1〜9（1=全軍）', hx + 6, hy + 32);
     if (sel0) {
       ctx.fillText('選んだ隊をそこへ：右クリック・LT（押したまま動かすと向き）　Aで何もない所：選択をやめる', hx + 6, hy + 48);
-      ctx.fillText('指図：Z突撃 X待機 C後退 V回り込み F随行（X突撃 Y随行 十字↑待機 ↓後退）', hx + 6, hy + 64);
+      ctx.fillText('指図：Z突撃 X防御 C待機 F追従（X突撃 Y追従 十字↑待機 ↓防御）', hx + 6, hy + 64);
     } else ctx.fillText('隊を選ぶと、移動や指図ができます', hx + 6, hy + 48);
   };
 
   // ---- 0.63.0 3D表示のときに画面へ重ねるもの（マウント＆ブレイド2風） ----
-  const ON3 = { charge: '突撃', hold: '停止', retreat: '退却', flank: '回り込み', move: '移動', rout: '潰走', follow: '随行', ai: 'AI任せ' };
+  const ON3 = { charge: '突撃', guard: '防御', hold: '待機', retreat: '退却', flank: '回り込み', move: '移動', rout: '潰走', follow: '追従', ai: 'AI任せ' };
   function draw3dOverlay(ctx, A, b, hero, myPid, sel) {
     const X = R.act3d, S = X.S;
     ctx.clearRect(0, 0, W, H);
@@ -740,7 +743,7 @@
     // 操作の案内
     ctx.textAlign = 'left'; ctx.font = '12px sans-serif'; const lk = document.pointerLockElement;
     const lines = lk ? ['WASD 移動　マウス 視点　左クリック 攻撃　右クリック 防御　Space 回避　E ジャンプ　Q 武器持ち替え', '0〜9 隊を選ぶ　F1 移動　F2 向き　F3 隊形　F4 射撃　ホイール 寄る・引く　Esc マウスを離す　T 2D表示']
-      : ['画面をクリックするとマウスで視点を動かせます（Esc で離す）', 'コントローラー：R1攻撃 L1防御 L2隊選び R2そこへ移動（長押し 隊形） 十字↑突撃↓停止→向き←AI任せ ✕ジャンプ ○回避 △持ち替え □随行'];
+      : ['画面をクリックするとマウスで視点を動かせます（Esc で離す）', 'コントローラー：R1攻撃 L1防御 L2隊選び R2そこへ移動（長押し 隊形） 十字↑突撃↓防御←待機→向き ✕ジャンプ ○回避 △持ち替え □追従'];
     const tw2 = Math.max(...lines.map((t) => ctx.measureText(t).width)) + 12; ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(W - tw2 - 8, 8, tw2, 40); ctx.fillStyle = '#f4ead0';
     lines.forEach((t, i) => ctx.fillText(t, W - tw2 - 2, 24 + i * 16));
   }

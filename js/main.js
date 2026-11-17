@@ -1171,8 +1171,8 @@
     const b = G.mode === 'host' && G.world.battles[BT.id]; return b && b.act ? b : null; };
   // 0.63.0 3D表示の自分で戦う（マウント＆ブレイド2風の操作）
   const ML = () => !!(R.act3dOn && actB());
-  const ORDM = { root: [['F1', '移動'], ['F2', '向き'], ['F3', '隊形'], ['F4', '射撃']], form: [['F1', '通常'], ['F2', '横隊'], ['F3', '散開'], ['F4', '方陣'], ['F5', '鋒矢']], fire: [['F1', '自由に射て'], ['F2', '射撃をやめよ']], move: [['F1', 'ここへ移動'], ['F2', 'ついて来い'], ['F3', '突撃'], ['F4', '回り込み'], ['F5', '後退'], ['F6', '停止'], ['F7', '退却'], ['F8', 'AIに任せる']], face: [['F1', 'この方向を向け'], ['F2', '敵の方を向け']] };
-  const ORDK = { form: ['form:norm', 'form:line', 'form:loose', 'form:square', 'form:wedge'], fire: ['fire:1', 'fire:0'], move: ['move', 'follow', 'charge', 'flank', 'back', 'hold', 'retreat', 'ai'], face: ['faceHere', 'faceFoe'] };
+  const ORDM = { root: [['F1', '移動'], ['F2', '向き'], ['F3', '隊形'], ['F4', '射撃']], form: [['F1', '通常'], ['F2', '横隊'], ['F3', '散開'], ['F4', '方陣'], ['F5', '鋒矢']], fire: [['F1', '自由に射て'], ['F2', '射撃をやめよ']], move: [['F1', 'ここへ移動'], ['F2', '突撃'], ['F3', '防御'], ['F4', '待機'], ['F5', '追従']], face: [['F1', 'この方向を向け'], ['F2', '敵の方を向け']] };
+  const ORDK = { form: ['form:norm', 'form:line', 'form:loose', 'form:square', 'form:wedge'], fire: ['fire:1', 'fire:0'], move: ['move', 'charge', 'guard', 'hold', 'follow'], face: ['faceHere', 'faceFoe'] };
   function ordMenu(m) { R.ordMenu = m; R.ordItems = m ? ORDM[m] : null; }
   function myUnits3(AB) { return AB.units.filter((u) => u.idx && (u.owner === G.myPid || u.cmd === G.myPid) && u.hp > 0 && !u.gone && u.order !== 'rout'); }
   function cen3(AB, f) { let x = 0, y = 0, n = 0; for (const s of AB.act.s) if (s.hp > 0 && !s.gone && f(s)) { x += s.x; y += s.y; n++; } return n ? { x: x / n, y: y / n } : null; }
@@ -1184,7 +1184,7 @@
     if (!u) return ''; c.tg = id; return `${u.gname ? u.gname + '隊・' : ''}${SIM.TROOPS[u.type].short || SIM.TROOPS[u.type].name}へ`;
   }
   // 2.5.0 号令の声（法螺貝・太鼓のあと「〇〇隊、突撃！」）
-  const SHOUT = { charge: '突撃！', flank: '回り込め！', hold: '止まれ！', retreat: '退けい！', follow: 'ついて参れ！', ai: '存分に戦え！', move: '進め！', back: '下がれ！' };
+  const SHOUT = { charge: '突撃！', flank: '回り込め！', hold: 'その場で待て！', guard: '守りを固めよ！', retreat: '退けい！', follow: 'ついて参れ！', ai: '存分に戦え！', move: '進め！', back: '下がれ！' };
   function shout(AB, unit, kind) {
     if (!SHOUT[kind] || !SGK.AUDIO || !SGK.AUDIO.call) return;
     const u = unit != null && unit !== 'all' && AB && AB.units.find((x) => x.id === unit);
@@ -1201,7 +1201,7 @@
       else { each((un) => command({ type: 'order', unit: un, order: 'fire', on: fk[2] === '1' })); toast(fk[2] === '1' ? '自由に射て！' : '射撃をやめよ！', 900); }
       return; }
     shout(AB, all ? 'all' : G.selUnit, kind);
-    if (!['move', 'back', 'faceHere', 'faceFoe'].includes(kind)) { const c = { type: 'order', unit: all ? 'all' : G.selUnit, order: kind }, to = chargeTo(AB, c); command(c); if (to) { toast(`${to}${kind === 'flank' ? '回り込め' : '突撃'}！`, 1100); return; } toast({ follow: 'ついて来い！', charge: '突撃！', flank: '回り込め！', hold: 'その場で止まれ！', retreat: '退却！', ai: '各自の判断で戦え！（AIに任せる）' }[kind] || '', 900); return; }
+    if (!['move', 'back', 'faceHere', 'faceFoe'].includes(kind)) { const c = { type: 'order', unit: all ? 'all' : G.selUnit, order: kind }, to = chargeTo(AB, c); command(c); if (to) { toast(`${to}${kind === 'flank' ? '回り込め' : '突撃'}！`, 1100); return; } toast({ guard: '守りを固めよ！', follow: 'ついて参れ！', charge: '突撃！', flank: '回り込め！', hold: 'その場で止まれ！', retreat: '退却！', ai: '各自の判断で戦え！（AIに任せる）' }[kind] || '', 900); return; }
     const cs = L.map((u) => [u, cen3(AB, (s) => s.g === u.id)]).filter((a) => a[1]); if (!cs.length) return;
     const mx = cs.reduce((a, c) => a + c[1].x, 0) / cs.length, my = cs.reduce((a, c) => a + c[1].y, 0) / cs.length;
     const [px, py] = R.act3d.toWorld(cv.clientWidth / 2, cv.clientHeight / 2), foe = cen3(AB, (s) => s.side === 'B') || { x: mx + 100, y: my };
@@ -1230,7 +1230,7 @@
     const [x, y] = R.actToWorld(D[0], D[1]), [x2, y2] = R.actToWorld(E[0], E[1]), dr = Math.hypot(E[0] - D[0], E[1] - D[1]) > 14;
     moveFace(G.selUnit, x, y, dr ? Math.atan2(y2 - y, x2 - x) : null); toast(dr ? 'そこへ向かわせ、その方向を向かせます' : 'そこへ向かわせます', 800);
   }
-  const ORDN = { charge: '突撃', hold: '待機', retreat: '後退', flank: '回り込み', move: '移動中', rout: '潰走中', follow: '随行' };
+  const ORDN = { charge: '突撃', guard: '防御', hold: '待機', retreat: '後退', flank: '回り込み', move: '移動中', rout: '潰走中', follow: '追従' };
   function renderBattle(bt) {
     const TR = SIM.TROOPS;
     const sum = (side) => bt.units.filter((u) => u[1] === side).reduce((a, u) => a + (u[3] === 'hero' ? 1 : u[4]), 0);
@@ -1239,7 +1239,7 @@
     let html = ''; // 部隊の一覧は出さない（地図の上でクリックして選ぶ）
     // 0.46.0 タップでも指図できるように：選んだ隊と全軍への指図ボタン
     const su = bt.units.find((u) => u[0] === G.selUnit && u[2] === G.myPid);
-    const AB = actB(), ob = (unit) => ['charge', 'hold', 'retreat', 'flank', ...(AB ? ['follow'] : [])].map((o) => `<button id="bo-${unit}-${o}" data-unit="${unit}" data-order="${o}">${ORDN[o]}</button>`).join('');
+    const AB = actB(), ob = (unit) => ['charge', 'guard', 'hold', ...(AB ? ['follow'] : [])].map((o) => `<button id="bo-${unit}-${o}" data-unit="${unit}" data-order="${o}">${ORDN[o]}</button>`).join('');
     if (su && su[3] !== 'hero') html += `<div class="bu"><span class="nm">${su[15] ? '本人＋' : ''}${TR[su[3]].short || TR[su[3]].name} ${su[4]}人<span class="muted">［${ORDN[su[7]] || ''}］</span></span>${ob(su[0])}</div>`;
     else if (!AB) html += `<div class="bu"><span class="nm muted">隊をタップして選び、地面をタップで移動</span></div>`;
     if (!AB || G.selUnit === 'all') html += `<div class="bu"><span class="nm">全軍</span>${ob('all')}</div>`; // 0.61.0 自分で戦うときは、隊を選んだときだけ指図が出る
@@ -1472,7 +1472,7 @@
       return;
     }
     if (actB() && !activeMenuNotBattle()) {
-      const kl = k.toLowerCase(), o = { z: 'charge', x: 'hold', c: 'retreat', v: 'flank', f: 'follow' }[kl];
+      const kl = k.toLowerCase(), o = { z: 'charge', x: 'guard', c: 'hold', f: 'follow' }[kl];
       if ('wasd'.includes(kl) && kl.length === 1) { keys.add(kl); G.padUsed = false; return; }
       if (k === ' ') { e.preventDefault(); G.actDash = true; return; }
       if (o) { actOrder(o); return; }
@@ -1486,7 +1486,7 @@
       if (k === 'Enter' || k === ' ') { e.preventDefault(); pressMenu(); return; }
       if (activeMenu() === $('battle')) {
         if (k === 'Escape') { toggleMenu(true); return; }
-        const o = { z: 'charge', x: 'hold', c: 'retreat', v: 'flank' }[k.toLowerCase()]; if (o) { shout(null, 'all', o); command({ type: 'order', unit: 'all', order: o }); return; }
+        const o = { z: 'charge', x: 'guard', c: 'hold' }[k.toLowerCase()]; if (o) { shout(null, 'all', o); command({ type: 'order', unit: 'all', order: o }); return; }
       }
       if (k === 'Escape') { if (activeMenu() === $('mapPanel')) smClose(); else if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else menuBack(); return; }
       if (activeMenu() === $('mapPanel') && (k === '+' || k === '=' || k === '-')) { smZoom(k === '-' ? 1 / 1.5 : 1.5); return; }
@@ -1637,7 +1637,7 @@
           }
           G.padAtk = btn(5); G.padBlk = btn(4);
           if (down(0)) G.actJmp = true; if (down(1)) G.actDash = true; if (btn(3)) { G.ytT = (G.ytT || 0) + dt; if (G.ytT >= 0.6 && !G.ytDone) { G.ytDone = true; G.actRide = true; } } else { if (G.ytT > 0 && !G.ytDone) G.actSw = true; G.ytT = 0; G.ytDone = false; } /* 1.6.17 △短押し＝持ち替え、長押し＝馬の乗り降り */ if (down(2)) ord3('follow');
-          if (!r2 && G.r2t) { if (G.r2t <= 0.35) ord3('move'); G.r2t = 0; } if (down(12)) ord3('charge'); if (down(13)) ord3('hold'); if (down(15)) ord3('faceHere'); if (down(14)) ord3('ai');
+          if (!r2 && G.r2t) { if (G.r2t <= 0.35) ord3('move'); G.r2t = 0; } if (down(12)) ord3('charge'); if (down(13)) ord3('guard'); if (down(15)) ord3('faceHere'); if (down(14)) ord3('hold'); // 2.6.0 ↑突撃 ↓防御 ←待機 →向き
           if (btn(10)) bZoom(1 - dt * 1.5); if (btn(11)) bZoom(1 + dt * 1.5);
         } else if (actB()) { // 0.56.0 アクション戦闘：左スティック移動・右スティック狙い・RT/A攻撃・Bかわす・LB/RB隊を選ぶ・X突撃・Y随行・十字↑待機↓後退
           // 0.61.0 右スティックはマウスのようにカーソルを動かす（狙いもカーソルの方）。Aでカーソルの隊を選ぶ、LTでそこへ動かす（押したまま動かすと向き）
@@ -1651,7 +1651,7 @@
           if (down(6)) { G.vcurOn = true; G.padRD = G.vcur.slice(); }
           if (G.padRD && !btn(6)) { const D = G.padRD; G.padRD = null; actMoveTo(D, G.vcur); }
           if (down(4)) actSel(-1); if (down(5)) actSel(1);
-          if (down(2)) actOrder('charge'); if (down(3)) actOrder('follow'); if (down(12)) actOrder('hold'); if (down(13)) actOrder('retreat');
+          if (down(2)) actOrder('charge'); if (down(3)) actOrder('follow'); if (down(12)) actOrder('hold'); if (down(13)) actOrder('guard');
           if (btn(10)) bZoom(1 - dt * 1.5); if (btn(11)) bZoom(1 + dt * 1.5); // スティック押し込み：L3縮小・R3拡大
         } else { padBattle(down, lx + rx, ly + ry, dt); if (btn(6)) bZoom(1 - dt * 1.5); if (btn(7)) bZoom(1 + dt * 1.5); } // LT縮小・RT拡大
       } else {

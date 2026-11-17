@@ -328,7 +328,7 @@
     const goTo = (u, x, y, spd) => { const d = Math.hypot(x - u.x, y - u.y); if (d < 0.3) return true; const s = Math.min(spd * dt, d); u.x += ((x - u.x) / d) * s; u.y += ((y - u.y) / d) * s; u.f = Math.atan2(y - u.y, x - u.x); return false; };
     for (const u of us) {
       const t = TR[u.type], tu = terAt(b, u);
-      const gen = u.type === 'hero' && !u.owner && !u.cmd, spd = (gen ? TR.kiba.spd : t.spd) * ((t.cav || gen) && tu.f ? SIM.CAV_FOREST : 1) /* 0.73.8 CPUの武将は騎馬（1.6.64 行の途中の // で後ろが消えていたのを直した） */ * (tu.h ? 0.85 : 1) * (tu.m ? 0.4 : 1) * (tu.w ? 0.45 : 1) * (tu.s ? (t.cav ? 0.3 : 0.5) : 1);
+      const gen = u.type === 'hero' && !u.owner && !u.cmd, spd = (gen ? TR.kiba.spd : t.spd) * ((t.cav || gen) && tu.f ? SIM.CAV_FOREST : 1) * ((((u.owner || u.cmd) && SIM.ACT && SIM.ACT.OMOD[u.order]) || {}).spd || 1) /* 0.73.8 CPUの武将は騎馬（1.6.64 行の途中の // で後ろが消えていたのを直した） */ * (tu.h ? 0.85 : 1) * (tu.m ? 0.4 : 1) * (tu.w ? 0.45 : 1) * (tu.s ? (t.cav ? 0.3 : 0.5) : 1);
       if (u.order === 'retreat' || u.order === 'rout') {
         const ex = u.side === 'A' ? -4 : FIELD.w + 4; u.x += Math.sign(ex - u.x) * spd * (u.order === 'rout' ? 1.1 : 1) * dt; u.f = u.side === 'A' ? Math.PI : 0;
         if ((u.side === 'A' && u.x < FIELD.ax - 120) || (u.side === 'B' && u.x > FIELD.bx + 120) || u.x < 1 || u.x > FIELD.w - 1) u.gone = true; // 120m 退けば戦場を離れる
@@ -339,7 +339,7 @@
       const reach = e ? rad(u) + rad(e) + t.range + (u.ra || 0) + (t.ranged && tu.h ? 5 : 0) : 0;
       if (!e || ed > reach) {
         if (u.order === 'move') { if (goTo(u, u.mx, u.my, spd)) u.order = 'hold'; }
-        else if (u.order === 'hold' && u.mf != null) turnTo(u, u.mf, (TR[u.type].cav ? 1.6 : 0.9) * dt);
+        else if ((u.order === 'hold' || u.order === 'guard') && u.mf != null) turnTo(u, u.mf, (TR[u.type].cav ? 1.6 : 0.9) * dt);
         else if (u.order === 'charge' || u.order === 'flank') {
           if (e && u.order === 'flank' && angDiff(e.f, Math.atan2(u.y - e.y, u.x - e.x)) < 1.2) {
             // 回り込み：敵の向きに対して横～後ろの点を目指す
@@ -378,6 +378,7 @@
       const unseen = !sees(b, e, u, terAt(b, u).f) && b.t - (u.shot || -99) >= VIS.reveal; // 狙われた側から見えていない
       if (unseen) mul *= VIS.ambush;
       mul *= 0.55 + (0.45 * u.mor) / 100; // 士気
+      { const OM = SIM.ACT && SIM.ACT.OMOD, a = OM && (u.owner || u.cmd) && OM[u.order], z = OM && (e.owner || e.cmd) && OM[e.order]; if (a && a.as) mul *= a.as; if (z && z.md) mul *= z.md; } // 2.6.0 突撃・防御の強さ
       const d = (t.ranged && !melee ? u.n * per * dt * 0.35 * (1 - ed / (reach * 1.6)) : Math.min(u.n, e.type === 'hero' ? 8 : e.n * 2 + 3) * per * dt * 0.5) * mul;
       dmg.set(e, (dmg.get(e) || 0) + d);
       if (dir !== 'front' || unseen) hit.set(e, Math.max(hit.get(e) || 0, dir === 'rear' || unseen ? 2 : 1));
@@ -577,7 +578,7 @@
       SIM.say(p.id, `${TR[c.kind].name}を${q}人解き放ちました`);
     },
     order(w, p, c) {
-      const b = w.battles[p.battle]; if (!b || !['charge', 'hold', 'retreat', 'flank', 'move', 'follow', 'face', 'ai', 'form', 'fire'].includes(c.order)) return;
+      const b = w.battles[p.battle]; if (!b || !['charge', 'guard', 'hold', 'retreat', 'flank', 'move', 'follow', 'face', 'ai', 'form', 'fire'].includes(c.order)) return;
       if (c.order === 'ai' && !b.act) c.order = 'charge'; // 0.64.0 AIに任せる（自分で戦うときだけ）
       for (const u of b.units) if ((u.owner === p.id || u.cmd === p.id) && u.order !== 'rout' && (c.unit === 'all' || u.id === +c.unit)) {
         if (c.order === 'form') { if (SIM.ACT && SIM.ACT.FORMS[c.fm]) { u.fm = c.fm; if (SIM.actForm) SIM.actForm(b, u); } continue; } // 0.75.0 隊形

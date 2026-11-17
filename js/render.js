@@ -237,7 +237,7 @@
     c.y = F.h <= hh * 2 ? F.h / 2 : Math.max(hh - 20, Math.min(F.h - hh + 20, c.y));
     return { sc, ox: W / 2 - c.x * sc, oy: top + vh / 2 - c.y * sc };
   };
-  const ORD = { charge: '突', hold: '待', retreat: '退', flank: '回', move: '移', rout: '潰走' };
+  const ORD = { charge: '突', guard: '防', hold: '待', retreat: '退', flank: '回', move: '移', follow: '追', rout: '潰走' };
   let fogCv = null;
   R.drawBattle = function (ctx, bt, disp, myPid, selUnit) {
     const F = SGK.SIM.FIELD, TR = SGK.SIM.TROOPS, L = R.battleLayout(F);
