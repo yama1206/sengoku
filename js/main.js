@@ -1421,7 +1421,10 @@
     }
     if (e.pointerType === 'touch') { // 2.7.1 スマホ：左半分＝移動のスティック、右半分＝視点（離すと攻撃）
       const T0 = { id: e.pointerId, sx: e.offsetX, sy: e.offsetY, x: e.offsetX, y: e.offsetY, lx: e.offsetX, ly: e.offsetY, t: performance.now() };
-      if (e.offsetX < cv.clientWidth / 2) G.tL = T0; else G.tR = T0; return; }
+      if (e.offsetX < cv.clientWidth / 2) { /* 2.7.3 左半分に2本目の指＝ピンチでカメラの距離 */
+        if (G.tL && G.tL.id !== e.pointerId) { G.tL2 = T0; G.pinchD = Math.hypot(G.tL.x - T0.x, G.tL.y - T0.y); G.tL.sx = G.tL.x; G.tL.sy = G.tL.y; }
+        else G.tL = T0;
+      } else G.tR = T0; return; }
     G.mouseXY = [e.offsetX, e.offsetY]; G.padUsed = false;
     if (e.button === 0) G.actAtk = true;
     else if (e.button === 2) G.actRD = [e.offsetX, e.offsetY]; // 右ボタン：押した所へ移動。押したまま引っぱると、離した方向を向く
@@ -1431,7 +1434,9 @@
     if (ML() && document.pointerLockElement === cv) { const c = R.acam; c.yaw = (c.yaw || 0) + e.movementX * 0.0025; c.pitch = Math.max(-0.5, Math.min(1.2, (c.pitch || 0) + e.movementY * 0.0022)); e.stopPropagation(); return; }
     if (e.pointerType === 'touch') {
       const L = G.tL && G.tL.id === e.pointerId ? G.tL : null, Rt = G.tR && G.tR.id === e.pointerId ? G.tR : null;
+      if (G.tL2 && G.tL2.id === e.pointerId) { G.tL2.x = e.offsetX; G.tL2.y = e.offsetY; }
       if (L) { L.x = e.offsetX; L.y = e.offsetY; }
+      if ((L || (G.tL2 && G.tL2.id === e.pointerId)) && G.tL && G.tL2) { const d = Math.hypot(G.tL.x - G.tL2.x, G.tL.y - G.tL2.y); if (G.pinchD > 8 && d > 8) R.acam.z = Math.max(4, Math.min(22, R.acam.z * (d / G.pinchD))); G.pinchD = d; e.stopPropagation(); return; }
       if (Rt) { const dx = e.offsetX - Rt.lx, dy = e.offsetY - Rt.ly; Rt.lx = e.offsetX; Rt.ly = e.offsetY;
         if (ML()) { const c = R.acam; c.yaw = (c.yaw || 0) + dx * 0.006; c.pitch = Math.max(-0.5, Math.min(1.2, (c.pitch || 0) + dy * 0.005)); }
         else if (Math.hypot(e.offsetX - Rt.sx, e.offsetY - Rt.sy) > 12) G.tAim = Math.atan2(e.offsetY - Rt.sy, e.offsetX - Rt.sx); }
@@ -1440,7 +1445,7 @@
   }, true);
   const actUp = (e) => {
     if (!actB()) return;
-    if (e.pointerType === 'touch') { if (G.tL && G.tL.id === e.pointerId) G.tL = null; if (G.tR && G.tR.id === e.pointerId) { G.tR = null; G.tAtk = true; } e.stopPropagation(); return; }
+    if (e.pointerType === 'touch') { if (G.tL2 && G.tL2.id === e.pointerId) { G.tL2 = null; if (G.tL) { G.tL.sx = G.tL.x; G.tL.sy = G.tL.y; } } else if (G.tL && G.tL.id === e.pointerId) { G.tL = G.tL2; G.tL2 = null; if (G.tL) { G.tL.sx = G.tL.x; G.tL.sy = G.tL.y; } } if (G.tR && G.tR.id === e.pointerId) { G.tR = null; G.tAtk = true; } e.stopPropagation(); return; }
     G.actAtk = false; G.actTouch = null; if (e.target === cv) e.stopPropagation();
     if (ML() && e.pointerType !== 'touch') { if (e.button === 2) G.actBlk = false; G.actRD = null; return; }
     const D = G.actRD; G.actRD = null;
