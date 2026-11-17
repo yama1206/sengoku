@@ -56,6 +56,8 @@
     if (c === '森') tg.add('森'); if (c === '森' || c === '山地' || mount) tg.add('山林');
     if (c === '街道') { tg.add('平地'); if (mount) tg.add('山道'); } else if (c === '平地') tg.add('平地');
     if (c !== '海' && !sea && !lake) tg.delete('海岸');
+    if (plain && c !== '森' && c !== '山地') tg.add('草地'); // 2.11.2 草の野原
+    if (river || lake || sea) tg.add('水辺'); // 川・湖・池・海のほとり
     return tg;
   };
   // いま、ここでいる生き物（kind: 'f'魚 / 'b'虫）
