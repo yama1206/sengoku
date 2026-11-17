@@ -100,10 +100,21 @@
     C.needsUpdate = true;
   }
 
+  // 2.7.0 質感：色の暗い所（黒漆の具足・陣笠）はつやを出し、明るい灰色（刃・金具）は金属に。ふちを少し明るくして形を見やすく
+  S.mats = [];
+  S.setEnv = (env) => { for (const m of S.mats) { m.envMap = env; m.envMapIntensity = 0.55; m.needsUpdate = true; } };
+  function look(sh, metal) {
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n#ifdef USE_COLOR\n  float lum_ = dot(vColor.rgb, vec3(0.299, 0.587, 0.114)), sat_ = max(vColor.r, max(vColor.g, vColor.b)) - min(vColor.r, min(vColor.g, vColor.b));\n  roughnessFactor = mix(0.42, 0.88, smoothstep(0.04, 0.22, lum_));\n#endif')
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n#ifdef USE_COLOR\n' + (metal ? '  if (lum_ > 0.45 && sat_ < 0.12) { metalnessFactor = 0.9; roughnessFactor = 0.3; }\n' : '  if (lum_ > 0.6 && sat_ < 0.08 && lum_ < 0.85) { metalnessFactor = 0.5; roughnessFactor = 0.45; }\n') + '#endif')
+      .replace('#include <dithering_fragment>', '  { float rim_ = 1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0); gl_FragColor.rgb += vec3(1.0, 0.93, 0.8) * pow(rim_, 3.0) * 0.22; }\n#include <dithering_fragment>');
+  }
+  const stdMat = (metal) => { const m = new T.MeshStandardMaterial({ vertexColors: true, side: T.DoubleSide, roughness: 0.85, metalness: 0 }); S.mats.push(m); return m; };
   // 焼き込んだ骨の行列で体を動かす素材（影用も）
   function skinMat(b, depth) {
-    const m = depth ? new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking }) : new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide });
+    const m = depth ? new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking }) : stdMat(false);
     m.onBeforeCompile = (sh) => {
+      if (!depth) look(sh, false);
       sh.uniforms.bT = { value: b.tex }; sh.uniforms.bS = { value: new T.Vector2(b.nb * 4, b.H) }; sh.uniforms.bU = { value: b.upper };
       // aR＝(下半身の行, 上半身の行, 白く光る量)。aC＝上半身を下半身の腰につなぐ行列
       sh.vertexShader = [
@@ -118,7 +129,7 @@
           .replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\n  vColor.rgb = mix(vColor.rgb, vec3(1.0), aR.z);\n#endif'),
       ].join('\n');
     };
-    m.customProgramCacheKey = () => 'sold3d' + (depth ? 'd' : 'c');
+    m.customProgramCacheKey = () => 'sold3d2' + (depth ? 'd' : 'c');
     return m;
   }
 
@@ -135,7 +146,8 @@
   function mkStatic(gl, cap, scene) {
     gl.scene.updateMatrixWorld(true);
     const parts = []; gl.scene.traverse((o) => { if (o.isMesh) parts.push({ geo: o.geometry, mat: o.matrixWorld, color: o.material.color }); });
-    const im = new T.InstancedMesh(mergeParts(parts, false), new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide }), cap);
+    const sm = stdMat(true); sm.onBeforeCompile = (sh) => look(sh, true); sm.customProgramCacheKey = () => 'sold3dw';
+    const im = new T.InstancedMesh(mergeParts(parts, false), sm, cap);
     im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.frustumCulled = false; im.castShadow = true; im.count = 0;
     scene.add(im);
     return { im, n: 0, cap };
@@ -174,7 +186,7 @@
       const hb = S.horses.brown, by = hb.att.Back ? hb.att.Back[hb.rows.idle.r0 * 16 + 13] : 0;
       S.hk = by > 0.1 ? 1.45 / by : 0.5; S.seat = 1.45 + 0.1;
       WEPS.forEach((n, i) => { S.wep[n] = mkStatic(g[7 + i], cap, scene); });
-      S.ready = true; if (done) done();
+      if (S.env) S.setEnv(S.env); S.ready = true; if (done) done();
     }).catch((e) => { S.failed = true; console.warn('兵のモデルを読めませんでした（これまでの形で描きます）', e); });
   };
 

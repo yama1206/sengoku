@@ -344,6 +344,7 @@
     const pm = new T.PMREMGenerator(rd); if (envT) envT.dispose(); envT = pm.fromScene(es, 0, 1, 3200).texture; pm.dispose();
     es.remove(sky); scene.add(sky);
     for (const t of trees) if (t.material && t.material.normalMap && waterT.includes(t.material.normalMap)) { t.material.envMap = envT; t.material.needsUpdate = true; }
+    if (SGK.SOLD3D) { SGK.SOLD3D.env = envT; if (SGK.SOLD3D.ready) SGK.SOLD3D.setEnv(envT); } // 2.7.0 兵の具足に空を映す
   }
 
   // 1.6.64 地図に合わせた景色：遠くの山（その方角に山地があるとき）・海・川や堀の水面。見た目だけ
