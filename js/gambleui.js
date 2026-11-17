@@ -77,7 +77,7 @@
 #gbHall .goal{position:absolute;left:5%;top:0;bottom:0;width:6px;background:repeating-linear-gradient(#fff 0 10px,#c81e1e 10px 20px)}
 #gbHall .call{position:absolute;left:50%;top:2%;transform:translateX(-50%);background:rgba(0,0,0,.65);padding:3px 14px;border-radius:14px;font-size:17px;white-space:nowrap;z-index:5}
 #gbHall .kc{display:inline-block;width:58px;height:84px;margin:3px;border-radius:6px;perspective:500px;vertical-align:middle}
-#gbHall .kc .in{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
+#gbHall .kc .in{display:block;position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
 #gbHall .kc.back .in{transform:rotateY(180deg)}
 #gbHall .kc .fc,#gbHall .kc .bk{position:absolute;inset:0;border-radius:6px;backface-visibility:hidden;box-shadow:0 3px 6px rgba(0,0,0,.5)}
 #gbHall .kc .fc{background:#f6efdc;border:2px solid;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:3px 0;box-sizing:border-box}
@@ -146,9 +146,9 @@
     memashi: () => diceScene(2),
     shigoro: () => diceScene(3),
     uma: () => `<div class="track" id="gbTrack"><div class="goal"></div>${[0, 1, 2, 3, 4, 5].map((i) => `<div class="lane" style="top:${-4 + i * 12.6}%;z-index:${i + 1}"><div class="horse" id="gbH${i}" style="right:4%"><img src="${ART}horse.png" style="filter:hue-rotate(${i * 55}deg) saturate(${0.8 + (i % 3) * 0.25}) brightness(${1.1 - (i % 2) * 0.15}) drop-shadow(0 3px 3px rgba(0,0,0,.5))"><b>${i + 1}</b></div></div>`).join('')}<div class="call" id="gbCall">さあ、どの馬に賭ける</div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`,
-    karuta: () => `<img class="who" src="${ART}boss.png" style="left:6%;height:40%"><div class="kar"><div class="lbl">親</div><div class="hand" id="gbPar"></div><div class="lbl" style="margin-top:10px">あなた</div><div class="hand" id="gbMine"></div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`,
+    karuta: () => `<img class="who" src="${ART}boss.png" style="right:6%;height:40%"><div class="kar"><div class="lbl">親</div><div class="hand" id="gbPar"></div><div class="lbl" style="margin-top:10px">あなた</div><div class="hand" id="gbMine"></div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`,
   };
-  const diceScene = (n) => `<img class="who" src="${ART}boss.png" style="left:4%;height:42%"><div class="lbl" style="position:absolute;left:50%;top:6%;transform:translateX(-50%);font-size:16px" id="gbPL">親の賽</div><div class="tray"><div class="dice" id="gbPD">${Array.from({ length: n }, (_, i) => die(1, 'gp' + i)).join('')}</div></div><div class="lbl" style="position:absolute;left:50%;top:70%;transform:translateX(-50%);font-size:16px" id="gbML">あなたの賽</div><div class="dice" id="gbMD" style="top:78%">${Array.from({ length: n }, (_, i) => die(1, 'gm' + i)).join('')}</div><div class="big"></div><div class="res"></div><div class="panel"></div>`;
+  const diceScene = (n) => `<img class="who" src="${ART}boss.png" style="right:4%;height:42%"><div class="lbl" style="position:absolute;left:50%;top:6%;transform:translateX(-50%);font-size:16px" id="gbPL">親の賽</div><div class="tray"><div class="dice" id="gbPD">${Array.from({ length: n }, (_, i) => die(1, 'gp' + i)).join('')}</div></div><div class="lbl" style="position:absolute;left:50%;top:70%;transform:translateX(-50%);font-size:16px" id="gbML">あなたの賽</div><div class="dice" id="gbMD" style="top:78%">${Array.from({ length: n }, (_, i) => die(1, 'gm' + i)).join('')}</div><div class="big"></div><div class="res"></div><div class="panel"></div>`;
 
   // ---- 下の操作の欄 ----
   const PANEL = {
