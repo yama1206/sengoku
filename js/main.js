@@ -1637,7 +1637,7 @@
           }
           G.padAtk = btn(5); G.padBlk = btn(4);
           if (down(0)) G.actJmp = true; if (down(1)) G.actDash = true; if (btn(3)) { G.ytT = (G.ytT || 0) + dt; if (G.ytT >= 0.6 && !G.ytDone) { G.ytDone = true; G.actRide = true; } } else { if (G.ytT > 0 && !G.ytDone) G.actSw = true; G.ytT = 0; G.ytDone = false; } /* 1.6.17 △短押し＝持ち替え、長押し＝馬の乗り降り */ if (down(2)) ord3('follow');
-          if (!r2 && G.r2t) { if (G.r2t <= 0.35) ord3('move'); G.r2t = 0; } if (down(12)) ord3('charge'); if (down(13)) ord3('guard'); if (down(15)) ord3('faceHere'); if (down(14)) ord3('hold'); // 2.6.0 ↑突撃 ↓防御 ←待機 →向き
+          if (!r2 && G.r2t) { if (G.r2t <= 0.35) ord3('move'); G.r2t = 0; } if (down(12)) ord3('charge'); if (down(15)) ord3('guard'); if (down(13)) ord3('follow'); if (down(14)) ord3('hold'); // 2.6.1 ↑突撃 →防御 ↓追従 ←待機
           if (btn(10)) bZoom(1 - dt * 1.5); if (btn(11)) bZoom(1 + dt * 1.5);
         } else if (actB()) { // 0.56.0 アクション戦闘：左スティック移動・右スティック狙い・RT/A攻撃・Bかわす・LB/RB隊を選ぶ・X突撃・Y随行・十字↑待機↓後退
           // 0.61.0 右スティックはマウスのようにカーソルを動かす（狙いもカーソルの方）。Aでカーソルの隊を選ぶ、LTでそこへ動かす（押したまま動かすと向き）
@@ -1651,7 +1651,7 @@
           if (down(6)) { G.vcurOn = true; G.padRD = G.vcur.slice(); }
           if (G.padRD && !btn(6)) { const D = G.padRD; G.padRD = null; actMoveTo(D, G.vcur); }
           if (down(4)) actSel(-1); if (down(5)) actSel(1);
-          if (down(2)) actOrder('charge'); if (down(3)) actOrder('follow'); if (down(12)) actOrder('hold'); if (down(13)) actOrder('guard');
+          if (down(2)) actOrder('charge'); if (down(3)) actOrder('follow'); if (down(12)) actOrder('charge'); if (down(15)) actOrder('guard'); if (down(13)) actOrder('follow'); if (down(14)) actOrder('hold');
           if (btn(10)) bZoom(1 - dt * 1.5); if (btn(11)) bZoom(1 + dt * 1.5); // スティック押し込み：L3縮小・R3拡大
         } else { padBattle(down, lx + rx, ly + ry, dt); if (btn(6)) bZoom(1 - dt * 1.5); if (btn(7)) bZoom(1 + dt * 1.5); } // LT縮小・RT拡大
       } else {

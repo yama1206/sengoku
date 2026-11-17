@@ -679,7 +679,7 @@
     ctx.fillText('かわす Space・B　隊を選ぶ：カーソルを合わせてA・LB/RB・1〜9（1=全軍）', hx + 6, hy + 32);
     if (sel0) {
       ctx.fillText('選んだ隊をそこへ：右クリック・LT（押したまま動かすと向き）　Aで何もない所：選択をやめる', hx + 6, hy + 48);
-      ctx.fillText('指図：Z突撃 X防御 C待機 F追従（X突撃 Y追従 十字↑待機 ↓防御）', hx + 6, hy + 64);
+      ctx.fillText('指図：Z突撃 X防御 C待機 F追従（十字↑突撃 →防御 ↓追従 ←待機）', hx + 6, hy + 64);
     } else ctx.fillText('隊を選ぶと、移動や指図ができます', hx + 6, hy + 48);
   };
 
@@ -743,7 +743,7 @@
     // 操作の案内
     ctx.textAlign = 'left'; ctx.font = '12px sans-serif'; const lk = document.pointerLockElement;
     const lines = lk ? ['WASD 移動　マウス 視点　左クリック 攻撃　右クリック 防御　Space 回避　E ジャンプ　Q 武器持ち替え', '0〜9 隊を選ぶ　F1 移動　F2 向き　F3 隊形　F4 射撃　ホイール 寄る・引く　Esc マウスを離す　T 2D表示']
-      : ['画面をクリックするとマウスで視点を動かせます（Esc で離す）', 'コントローラー：R1攻撃 L1防御 L2隊選び R2そこへ移動（長押し 隊形） 十字↑突撃↓防御←待機→向き ✕ジャンプ ○回避 △持ち替え □追従'];
+      : ['画面をクリックするとマウスで視点を動かせます（Esc で離す）', 'コントローラー：R1攻撃 L1防御 L2隊選び R2そこへ移動（長押し 隊形） 十字↑突撃→防御↓追従←待機 ✕ジャンプ ○回避 △持ち替え □追従'];
     const tw2 = Math.max(...lines.map((t) => ctx.measureText(t).width)) + 12; ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(W - tw2 - 8, 8, tw2, 40); ctx.fillStyle = '#f4ead0';
     lines.forEach((t, i) => ctx.fillText(t, W - tw2 - 2, 24 + i * 16));
   }
