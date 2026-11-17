@@ -66,6 +66,8 @@
         }
       }
     }
+    // 2.10.0 湖（街道や町をまたぐ湖は絵だけ。ほかは海と同じに塗られている）
+    ctx.fillStyle = SEA; for (const k of T.lakes || []) if (!k.block) { path(ctx, k.pts, true); ctx.fill(); }
     // 街道
     ctx.lineCap = ctx.lineJoin = 'round';
     // 0.40.0 道の格で太さを変える（脇道→街道→大街道の順に重ねる）
@@ -77,6 +79,9 @@
     ctx.strokeStyle = '#3d8fd6'; ctx.lineCap = ctx.lineJoin = 'round'; /* 1.6.70 川を青くはっきり */
     ctx.lineWidth = Math.max(3, cam.scale * 0.45);
     for (const r of T.rivers) { path(ctx, r.pts); ctx.stroke(); }
+    // 2.10.0 湖の名前（大きな湖は引いた地図でも、小さな湖は寄ったときに）
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'italic bold 12px "Hiragino Mincho ProN","Yu Mincho",serif'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+    for (const k of [...(T.lakes || []), ...(T.lakeLabels || [])]) { if (cam.scale < (k.big ? 0.9 : 3)) continue; const [lx, ly] = R.toScreen(k.c[0], k.c[1]); if (lx < -60 || ly < -20 || lx > W + 60 || ly > H + 20) continue; ctx.strokeStyle = 'rgba(235,245,250,.85)'; ctx.strokeText(k.name, lx, ly); ctx.fillStyle = '#1f4d73'; ctx.fillText(k.name, lx, ly); }
     // 昼夜：夕方・明け方は橙、夜は藍色に沈める
     const day = SGK.SIM.daylight ? SGK.SIM.daylight(view.t || 0) : 1, night = 1 - day;
     if (night > 0) {

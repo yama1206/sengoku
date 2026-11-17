@@ -262,6 +262,7 @@
     ctx.fillStyle = '#7d9fae'; ctx.fillRect(0, 0, SM.W, SM.H);
     ctx.fillStyle = '#d8cda6'; for (const l of T.lands || []) { poly(l.pts); ctx.closePath(); ctx.fill(); }
     ctx.fillStyle = '#7d9fae'; for (const q of T.seas) { poly(q); ctx.closePath(); ctx.fill(); }
+    for (const k of T.lakes || []) if (!k.block) { poly(k.pts); ctx.closePath(); ctx.fill(); } // 2.10.0 湖
     ctx.fillStyle = 'rgba(120,128,82,.4)'; for (const m of T.mountains || []) { poly(m.pts); ctx.closePath(); ctx.fill(); }
     ctx.strokeStyle = 'rgba(122,84,38,.7)'; ctx.lineWidth = 1; for (const r of T.roads || []) if ((r.rank || 2) < 3) { poly(r.pts); ctx.stroke(); }
     // 城：大名の色（大名のいない城は灰色）
