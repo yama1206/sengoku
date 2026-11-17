@@ -1247,7 +1247,8 @@
     if (bt.lead) html += `<div class="bu"><span class="nm">大将：${bt.lead === 2 ? '武将の隊も指図している' : '自分の隊だけ指図している'}</span><button id="bLead" data-lead="${bt.lead === 2 ? 0 : 1}">${bt.lead === 2 ? '自分の隊だけにする' : '武将の隊も指図する'}</button></div>`; // 0.50.0
     if (!AB && bt.canAct) html += `<div class="row" style="margin-top:4px"><button id="bAct" data-act="1">自分で戦う</button></div>`;
     else if (!AB && bt.act) html += `<div class="bu"><span class="nm muted">戦場の様子を受け取っています…</span></div>`;
-    html += `<div class="row" style="margin-top:4px"><button id="bAuto" data-bact="battleAuto">自動で決着（スキップ）</button><button id="bFlee" data-bact="battleFlee">退却する（兵の3割を失う${bt.foe === '野盗' ? '・所持金の15%を奪われる' : ''}）</button></div>`;
+    G.btFoe = bt.foe; G.btT = performance.now(); // 2.7.1 スキップ・退却はメニューに移した
+    if (false) html += `<div class="row" style="margin-top:4px"><button id="bAuto" data-bact="battleAuto">自動で決着（スキップ）</button><button id="bFlee" data-bact="battleFlee">退却する（兵の3割を失う${bt.foe === '野盗' ? '・所持金の15%を奪われる' : ''}）</button></div>`;
     if (html !== battleHtml) { battleHtml = html; $('battleBody').innerHTML = html; G.bpick = null; setFocus($('battle'), null); }
   }
   $('battleBody').addEventListener('click', (e) => {
@@ -1300,6 +1301,8 @@
   }
   function toggleMenu(open) {
     const m = $('gameMenu'); const o = open ?? m.classList.contains('hidden');
+    { const inB = performance.now() - (G.btT || 0) < 1500; $('mBAuto').classList.toggle('hidden', !inB); $('mBFlee').classList.toggle('hidden', !inB);
+      $('mBFlee').textContent = `合戦：退却する（兵の3割を失う${G.btFoe === '野盗' ? '・所持金の15%を奪われる' : ''}）`; }
     if (o !== !m.classList.contains('hidden')) SGK.AUDIO.sfx(o ? 'open' : 'close');
     m.classList.toggle('hidden', !o); $('mMain').classList.remove('hidden'); $('mSet').classList.add('hidden'); $('mSub').classList.add('hidden');
     if (o) setFocus(m, currentFocus(m));
@@ -1379,6 +1382,8 @@
   $('mSubBack').onclick = () => menuBack();
   $('mFollow').onclick = () => { const m = me(), d = m && (G.disp[m.id] || m); if (d) { R.cam.x = d.x; R.cam.y = d.y; } R.cam.follow = true; if (G.pcurOn) G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; }; // 0.75.0 自分の所へ移って追いかける（カーソルや地図を動かすと解除）
   $('mTitle').onclick = () => backToTitle();
+  $('mBAuto').onclick = () => { command({ type: 'battleAuto' }); toggleMenu(false); };
+  $('mBFlee').onclick = () => { command({ type: 'battleFlee' }); toggleMenu(false); };
   // テスト用（ホストだけ）
 
   // ---------- マウス・タッチ ----------
@@ -1392,7 +1397,9 @@
       if (document.pointerLockElement !== cv) { try { cv.requestPointerLock(); } catch (er) { /* 使えない環境 */ } return; }
       G.padUsed = false; if (e.button === 0) G.actAtk = true; else if (e.button === 2) G.actBlk = true; return;
     }
-    if (e.pointerType === 'touch') { G.actTouch = [e.offsetX, e.offsetY]; return; }
+    if (e.pointerType === 'touch') { // 2.7.1 スマホ：左半分＝移動のスティック、右半分＝視点（離すと攻撃）
+      const T0 = { id: e.pointerId, sx: e.offsetX, sy: e.offsetY, x: e.offsetX, y: e.offsetY, lx: e.offsetX, ly: e.offsetY, t: performance.now() };
+      if (e.offsetX < cv.clientWidth / 2) G.tL = T0; else G.tR = T0; return; }
     G.mouseXY = [e.offsetX, e.offsetY]; G.padUsed = false;
     if (e.button === 0) G.actAtk = true;
     else if (e.button === 2) G.actRD = [e.offsetX, e.offsetY]; // 右ボタン：押した所へ移動。押したまま引っぱると、離した方向を向く
@@ -1400,10 +1407,19 @@
   window.addEventListener('pointermove', (e) => {
     if (!actB()) return;
     if (ML() && document.pointerLockElement === cv) { const c = R.acam; c.yaw = (c.yaw || 0) + e.movementX * 0.0025; c.pitch = Math.max(-0.5, Math.min(1.2, (c.pitch || 0) + e.movementY * 0.0022)); e.stopPropagation(); return; }
-    if (e.target === cv) { if (e.pointerType === 'touch') { if (G.actTouch) G.actTouch = [e.offsetX, e.offsetY]; } else { G.mouseXY = [e.offsetX, e.offsetY]; G.vcur = G.mouseXY; G.vcurOn = false; G.padUsed = false; } e.stopPropagation(); }
+    if (e.pointerType === 'touch') {
+      const L = G.tL && G.tL.id === e.pointerId ? G.tL : null, Rt = G.tR && G.tR.id === e.pointerId ? G.tR : null;
+      if (L) { L.x = e.offsetX; L.y = e.offsetY; }
+      if (Rt) { const dx = e.offsetX - Rt.lx, dy = e.offsetY - Rt.ly; Rt.lx = e.offsetX; Rt.ly = e.offsetY;
+        if (ML()) { const c = R.acam; c.yaw = (c.yaw || 0) + dx * 0.006; c.pitch = Math.max(-0.5, Math.min(1.2, (c.pitch || 0) + dy * 0.005)); }
+        else if (Math.hypot(e.offsetX - Rt.sx, e.offsetY - Rt.sy) > 12) G.tAim = Math.atan2(e.offsetY - Rt.sy, e.offsetX - Rt.sx); }
+      e.stopPropagation(); return; }
+    if (e.target === cv) { G.mouseXY = [e.offsetX, e.offsetY]; G.vcur = G.mouseXY; G.vcurOn = false; G.padUsed = false; e.stopPropagation(); }
   }, true);
   const actUp = (e) => {
-    if (!actB()) return; G.actAtk = false; G.actTouch = null; if (e.target === cv) e.stopPropagation();
+    if (!actB()) return;
+    if (e.pointerType === 'touch') { if (G.tL && G.tL.id === e.pointerId) G.tL = null; if (G.tR && G.tR.id === e.pointerId) { G.tR = null; G.tAtk = true; } e.stopPropagation(); return; }
+    G.actAtk = false; G.actTouch = null; if (e.target === cv) e.stopPropagation();
     if (ML() && e.pointerType !== 'touch') { if (e.button === 2) G.actBlk = false; G.actRD = null; return; }
     const D = G.actRD; G.actRD = null;
     if (D && e.button === 2) { const [x, y] = R.actToWorld(D[0], D[1]), [x2, y2] = R.actToWorld(e.offsetX, e.offsetY), dr = Math.hypot(e.offsetX - D[0], e.offsetY - D[1]) > 14;
@@ -1731,6 +1747,9 @@
     if (h && h.hn !== G.lastHn) { if (G.lastHn != null && h.hn) hitShow(h.hw, h.hd); G.lastHn = h.hn; } /* 1.6.18 */
     const inp = { mx: pm[0] + (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0), my: pm[1] + (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0), atk: !!(G.actAtk || G.padAtk), dash: !!G.actDash, aim: null };
     G.actDash = false;
+    if (G.tL) { const k = 55, dx = Math.max(-1, Math.min(1, (G.tL.x - G.tL.sx) / k)), dy = Math.max(-1, Math.min(1, (G.tL.y - G.tL.sy) / k)); inp.mx += dx; inp.my += dy; }
+    if (G.tAtk) { inp.atk = true; G.tAtk = false; }
+    if (!ML() && G.tAim != null && (G.tR || inp.atk)) inp.aim = G.tAim;
     if (ML()) { const y = R.acam.yaw || 0, f = -inp.my, r = inp.mx; inp.mx = Math.cos(y) * f - Math.sin(y) * r; inp.my = Math.sin(y) * f + Math.cos(y) * r; inp.aim = y; inp.blk = !!(G.actBlk || G.padBlk); inp.sw = !!G.actSw; inp.jmp = !!G.actJmp; inp.ride = !!G.actRide; G.actSw = G.actJmp = G.actRide = false; return inp; }
     if (h && G.actTouch) { const [x, y] = R.actToWorld(G.actTouch[0], G.actTouch[1]), d = Math.hypot(x - h.x, y - h.y); inp.aim = Math.atan2(y - h.y, x - h.x); if (d > 3.5) { inp.mx = (x - h.x) / d; inp.my = (y - h.y) / d; } inp.atk = d < 6; }
     else if (G.padAim != null) inp.aim = G.padAim;
@@ -1781,7 +1800,7 @@
         if (G.actDef && BT.canAct && !BT.act && G.autoActFor !== BT.id) { G.autoActFor = BT.id; command({ type: 'actStart' }); } // 1.6.13 戦が始まったら自分で戦う
         const AB = actB();
         if (!AB) { R.act3dOn = false; if (R.ordMenu) ordMenu(null); }
-        if (AB && G.yawFor !== AB.id) { G.yawFor = AB.id; const h0 = AB.act.s.find((s) => s.pc === G.myPid); R.acam.yaw = h0 && h0.side === 'B' ? Math.PI : 0; R.acam.pitch = 0.28; R.acam.z = 9; G.actBlk = false; }
+        if (AB && G.yawFor !== AB.id) { G.yawFor = AB.id; const h0 = AB.act.s.find((s) => s.pc === G.myPid); R.acam.yaw = h0 && h0.side === 'B' ? Math.PI : 0; R.acam.pitch = 0.28; R.acam.z = 9; G.actBlk = false; if (document.body.classList.contains('touch')) { R.act3dOn = true; command({ type: 'order', unit: 'all', order: 'ai' }); } } // 2.7.1 スマホは3Dで、味方はAIに任せる
         if (document.pointerLockElement === cv && (!ML() || !$('gameMenu').classList.contains('hidden'))) document.exitPointerLock();
         if (AB) {
           const menuOpen = !$('gameMenu').classList.contains('hidden'), inp = menuOpen ? { mx: 0, my: 0, atk: false, dash: false, aim: null } : actInput(AB);
