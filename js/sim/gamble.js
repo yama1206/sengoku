@@ -8,6 +8,7 @@
     chouhan: { name: '丁半', rule: 'サイコロ2つの合計が偶数なら「丁」、奇数なら「半」。当たれば2倍。誰かが壺を開けると全員の勝負が決まります。' },
     memashi: { name: '目増', rule: '親と自分がサイコロを2つずつ振り、合計が大きい方の勝ち（勝てば2倍・同じなら賭け金が戻る）。' },
     shigoro: { name: '四五六', rule: 'サイコロ3つの役の強さを親と比べます。ピンゾロ5倍・アラシ(ゾロ目)3倍・シゴロ(四五六)2倍・目の勝ちは2倍。目なしは3回まで振り直し、ヒフミ(一二三)は即負け。' },
+    uma: { name: '馬くらべ', rule: '6頭の馬から1頭を選んで賭けます。一着の馬に賭けていれば、その馬の倍率で払い戻し。誰かが「走らせる」を押すとレースが始まります。' },
     karuta: { name: '天正かるた', rule: '札(1〜12)を2枚配り、合計の一の位が9に近い方の勝ち。もう1枚引くか(最大3枚)勝負するかを選びます。同点は親の勝ち。最初の2枚が同じ数字(ゾロ目)なら3倍。親は一の位が4以下なら3枚目を引きます。' },
   };
   // 札の絵：img/karuta/<札の種類0〜3>-<数字1〜12>.png を置くと自動で絵に差し替わる（無ければ文字の札）
@@ -20,9 +21,28 @@
   const money = (m) => SIM.money(m);
   const nameOf = (w, pid) => (w.players[pid] ? w.players[pid].name : '？');
 
+  // ---- 馬くらべ ----
+  const HORSES = ['黒鹿毛の疾風', '白雲', '月毛の朧', '栗毛の稲妻', '青毛の夜叉', '葦毛の霞', '鹿毛の朱雀', '河原毛の陽炎', '連銭葦毛の雷', '佐目毛の春駒', '駁の鬼丸', '尾花栗毛の風花'];
+  function newRace(w, U) {
+    const pool = HORSES.slice(), hs = [];
+    while (hs.length < 6) { const i = Math.floor(SIM.rand(w) * pool.length); const st = 0.75 + SIM.rand(w) * 0.5; hs.push({ name: pool.splice(i, 1)[0], st }); }
+    const sum = hs.reduce((a, h) => a + h.st * h.st, 0);
+    for (const h of hs) { const pr = (h.st * h.st) / sum; h.odds = Math.max(1.5, Math.min(20, Math.round(0.85 / pr * 10) / 10)); h.form = h.st > 1.07 ? '好調' : h.st < 0.93 ? '不調' : '普通'; }
+    U.horses = hs;
+  }
+  function umaRace(w, p, T) {
+    const hs = T.horses, pos = hs.map(() => 0), frames = [pos.slice()];
+    for (let k = 0; k < 30 && Math.max(...pos) < 100; k++) { for (let i = 0; i < hs.length; i++) pos[i] += 5 + hs[i].st * 5 + SIM.rand(w) * 5; frames.push(pos.map((x) => Math.min(100, Math.round(x * 10) / 10))); }
+    const fin = pos.slice(), order = fin.map((x, i) => i).sort((a, b) => fin[b] - fin[a]), win = order[0], lines = [];
+    for (const pid in T.bets) { const x = T.bets[pid], q = w.players[pid], hit = x.pick === win, ret = hit ? Math.floor(x.bet * hs[win].odds) : 0; if (q) pay(q, ret); lines.push(`${nameOf(w, pid)}（${hs[x.pick].name}・${money(x.bet)}）→ ${hit ? '的中 ' + sign(ret - x.bet) : 'はずれ ' + sign(-x.bet)}`); }
+    T.n++; T.last = { id: T.n, t: Date.now(), frames, fin: frames[frames.length - 1], names: hs.map((h) => h.name), head: `一着：${hs[win].name}　二着：${hs[order[1]].name}　三着：${hs[order[2]].name}`, lines, by: nameOf(w, p.id) };
+    for (const pid in T.bets) SAY(pid, `馬くらべ：一着は${hs[win].name}`);
+    T.bets = {}; newRace(w, T);
+  }
   function tableOf(w, id) {
     w.gamble = w.gamble || {}; const t = (w.gamble[id] = w.gamble[id] || {});
     for (const g of ['chouhan', 'memashi', 'shigoro']) t[g] = t[g] || { bets: {}, last: null };
+    t.uma = t.uma || { bets: {}, last: null, horses: null, n: 0 }; if (!t.uma.horses) newRace(w, t.uma);
     t.karuta = t.karuta || { phase: 'bet', bets: {}, hands: {}, parent: [], deck: [], last: null };
     return t;
   }
@@ -63,8 +83,9 @@
     if (c.id === 'karuta' && T.phase !== 'bet') return SAY(p.id, 'いまは勝負の最中です。終わるまでお待ちを');
     if (T.bets[p.id]) return SAY(p.id, 'もう賭けています');
     if (c.id === 'chouhan' && c.kind !== 'even' && c.kind !== 'odd') return;
+    if (c.id === 'uma') { const hi = +c.kind; if (!(hi >= 0 && hi < 6)) return; c.kind = hi; }
     if (p.money < bet) return SAY(p.id, '持ち金が足りません');
-    p.money -= bet; T.bets[p.id] = { bet, pick: c.kind || null };
+    p.money -= bet; T.bets[p.id] = { bet, pick: c.kind != null ? c.kind : null };
   };
   SIM.commands.gbCancel = (w, p, c) => {
     const T = ok(w, p, c); if (!T) return;
@@ -75,6 +96,7 @@
   SIM.commands.gbRoll = (w, p, c) => {
     const T = ok(w, p, c); if (!T || c.id === 'karuta') return;
     if (!T.bets[p.id]) return SAY(p.id, 'まず賭けてください');
+    if (c.id === 'uma') return umaRace(w, p, T);
     const lines = []; let head = '';
     if (c.id === 'chouhan') {
       const a = d6(w), b = d6(w), even = (a + b) % 2 === 0; head = `${diceTxt([a, b])} ${a}・${b}＝${a + b}　${even ? '丁' : '半'}`;
@@ -146,6 +168,7 @@
     const s = SIM.settlement(w, r.here.id); if (!s || !DATA.isBig(s)) return r;
     const t = tableOf(w, s.id), out = {};
     for (const g of ['chouhan', 'memashi', 'shigoro']) out[g] = { bets: Object.entries(t[g].bets).map(([id, x]) => ({ id, name: nameOf(w, id), bet: x.bet, pick: x.pick })), last: t[g].last };
+    out.uma = { horses: t.uma.horses.map((h) => ({ name: h.name, odds: h.odds, form: h.form })), bets: Object.entries(t.uma.bets).map(([id, x]) => ({ id, name: nameOf(w, id), bet: x.bet, pick: x.pick })), last: t.uma.last ? Object.assign({}, t.uma.last, { frames: Date.now() - t.uma.last.t < 12000 ? t.uma.last.frames : null }) : null };
     const k = t.karuta, play = k.phase === 'play';
     out.karuta = {
       phase: k.phase, last: k.last,
@@ -177,6 +200,18 @@
       else h += `<span>賭け済み ${mine.bet}文${mine.pick ? (mine.pick === 'even' ? '（丁）' : '（半）') : ''}</span><button id="gb-${g}-r" data-act="gbRoll" data-id="${g}">${g === 'chouhan' ? '壺を開ける' : '振る'}</button><button id="gb-${g}-c" data-act="gbCancel" data-id="${g}">取り消す</button>`;
       h += `</div>${last(T.last)}</div>`;
     }
+    { const U = gb.uma, mine = U.bets.find((x) => x.id === myId), L = U.last;
+      h += `<div class="card" style="display:block"><b>${G.GAMES.uma.name}</b><br><span class="muted">${G.GAMES.uma.rule}</span>`;
+      if (L) { // 走る様子（走りだして十数秒はアニメ、あとは着順の位置）
+        const n = L.frames ? L.frames.length : 0;
+        if (n) h += '<style>' + L.fin.map((_, i) => `@keyframes um${L.id}_${i}{${L.frames.map((f, k) => `${(k / (n - 1) * 100).toFixed(1)}%{left:${(f[i] * 0.88).toFixed(1)}%}`).join('')}}`).join('') + '</style>';
+        h += '<div style="margin-top:6px;background:#3d5a2a;border-radius:4px;padding:2px 0">' + L.fin.map((x, i) => `<div style="position:relative;height:22px;border-bottom:1px dashed rgba(255,255,255,.25)"><span style="position:absolute;left:${n ? 0 : (x * 0.88).toFixed(1)}%;${n ? `animation:um${L.id}_${i} ${Math.max(3, n * 0.45).toFixed(1)}s linear forwards;` : ''}font-size:18px;white-space:nowrap">🐎<small style="font-size:10px;color:#fff">${i + 1}</small></span></div>`).join('') + '<div class="muted" style="text-align:right;font-size:10px">ゴール →</div></div>';
+        h += `<div class="muted" style="margin-top:4px">前のレース：${L.head}${L.by ? `（${L.by}が走らせた）` : ''}<br>${L.lines.join('<br>') || '賭けた人はいませんでした'}</div>`;
+      }
+      h += '<div style="margin-top:6px">' + U.horses.map((x, i) => `<div class="row" style="align-items:center;gap:6px;margin:2px 0"><span style="min-width:120px">${i + 1} ${x.name}<span class="muted">（${x.form}）</span></span><span>${x.odds}倍</span>` + (mine ? (mine.pick === i ? '<b>←賭け済み</b>' : '') : `<button id="gb-uma-${i}" data-act="gbBet" data-id="uma" data-qty="${sel}" data-kind="${i}" ${me.money < sel ? 'disabled' : ''}>${sel}文</button>`) + '</div>').join('') + '</div>';
+      h += `<div class="muted" style="margin-top:4px">${U.bets.length ? '卓：' + U.bets.map((x) => `${x.name}[${U.horses[x.pick].name}]${x.bet}文`).join('、') : '卓：まだ誰も賭けていません'}</div>`;
+      if (mine) h += `<div class="row" style="margin-top:6px"><button id="gb-uma-r" data-act="gbRoll" data-id="uma">走らせる</button><button id="gb-uma-c" data-act="gbCancel" data-id="uma">取り消す</button></div>`;
+      h += '</div>'; }
     const K = gb.karuta, mineB = K.bets.find((x) => x.id === myId), myH = K.hands.find((x) => x.id === myId);
     h += `<div class="card" style="display:block"><b>${G.GAMES.karuta.name}</b><br><span class="muted">${G.GAMES.karuta.rule}</span>`;
     if (K.phase === 'bet') {
