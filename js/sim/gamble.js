@@ -85,7 +85,7 @@
     if (c.id === 'chouhan' && c.kind !== 'even' && c.kind !== 'odd') return;
     if (c.id === 'uma') { const hi = +c.kind; if (!(hi >= 0 && hi < 6)) return; c.kind = hi; }
     if (p.money < bet) return SAY(p.id, '持ち金が足りません');
-    p.money -= bet; T.bets[p.id] = { bet, pick: c.kind != null ? c.kind : null };
+    p.gbPlay = (p.gbPlay || 0) + 1; p.money -= bet; T.bets[p.id] = { bet, pick: c.kind != null ? c.kind : null };
   };
   SIM.commands.gbCancel = (w, p, c) => {
     const T = ok(w, p, c); if (!T) return;

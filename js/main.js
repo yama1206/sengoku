@@ -983,11 +983,13 @@
   function renderChar() {
     const P = G.priv; if (!P || !P.me.char || P.battle) return openChar(false);
     const me = P.me, C = me.char, TR = SIM.TROOPS, m = G.view && G.view.players.find((x) => x.id === G.myPid);
+    { const tt = me.titles && me.titles.cur && me.titles.list.find((x) => x[0] === me.titles.cur); $('charTitle').textContent = tt ? `称号：${tt[1]}` : '称号'; $('charTitle').classList.toggle('on', charTab === 'title'); } /* 2.9.0 */
     $('charName').textContent = C.off ? `${m ? m.name : ''}　名声${C.fame}` : `${m ? m.name : ''}　格${C.level}　名声${C.fame}`;
     $('ctab-stat').classList.toggle('hidden', !!C.off); $('ctab-perk').classList.toggle('hidden', !!C.off); if (C.off && (charTab === 'perk' || charTab === 'stat')) charTab = 'eq'; // 0.74.0 装備は専用タブ
     document.querySelectorAll('#char [data-ctab]').forEach((b) => b.classList.toggle('on', b.dataset.ctab === charTab));
     let html = '';
-    if (charTab === 'inv') html += invHtml(me); /* 1.6.31 持っている物資 */
+    if (charTab === 'title') html += SGK.TITLE_HTML(me) + '<div class="row" style="margin-top:8px"><button id="ti-back" data-cact="backChar">戻る</button></div>';
+    else if (charTab === 'inv') html += invHtml(me); /* 1.6.31 持っている物資 */
     else if (charTab === 'eq') { // 0.74.0 装備タブ：付ける・外す・売る、荷の重さ
       const EQ = SIM.EQUIP, E = me.equip || {}, G2 = me.gear || {};
       const desc = (sl, e) => [sl === 'wep' ? `${EQ.kindName[e.kind]}${e.atk ? `・攻撃+${e.atk}` : ''}` : sl === 'arm' ? `守り+${e.da}` : `1日の移動+${e.km}km・荷+${e.cw}kg`, e.wt ? `${e.wt}kg` : ''].filter(Boolean).join('・');
@@ -1159,6 +1161,7 @@
   $('charBody').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-cact]'); if (!b) return;
     if (b.dataset.cact === 'goPol') return setCTab('pol');
+    if (b.dataset.cact === 'backChar') return setCTab('eq');
     const c = { type: b.dataset.cact };
     for (const k of ['attr', 'id', 'from', 'to', 'who', 'nin']) if (b.dataset[k]) c[k] = b.dataset[k];
     if (b.dataset.qty) c.qty = +b.dataset.qty;
@@ -1166,6 +1169,7 @@
   });
   document.querySelectorAll('#char [data-ctab]').forEach((b) => (b.onclick = () => setCTab(b.dataset.ctab)));
   $('charClose').onclick = () => openChar(false);
+  $('charTitle').onclick = () => { charTab = 'title'; charHtml = ''; renderChar(); setFocus($('char'), $('charTitle')); }; // 2.9.0 称号の一覧
   $('hudL').onclick = () => { if ($('char').classList.contains('hidden')) openChar(true); else openChar(false); }; /* 1.6.31 左上の窓をタップで人物 */
   // 0.54.10 ウインドウの上で右クリック：そのウインドウを閉じる（マウスだけで操作できるように）
   $('char').addEventListener('contextmenu', (e) => { e.preventDefault(); openChar(false); });
