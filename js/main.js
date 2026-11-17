@@ -775,6 +775,8 @@
     const P = G.priv; if (!P || !P.here) return openTown(false);
     const me = P.me, h = P.here, hs = G.view.settlements.find((x) => x.id === h.id);
     $('tab-castle').classList.toggle('hidden', !hs || hs.type !== 'castle');
+    $('tab-gamble').classList.toggle('hidden', !SGK.DATA.isBig(hs)); /* 2.8.0 賭場は大きな町だけ */
+    if (townTab === 'gamble' && !SGK.DATA.isBig(hs)) townTab = 'market';
     if (townTab === 'castle' && (!hs || hs.type !== 'castle')) townTab = 'market';
     $('townName').textContent = sName(h.id) + (SGK.DATA.isBig(hs) ? '（大きな町）' : '');
     document.querySelectorAll('#town [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === townTab));
@@ -905,6 +907,8 @@
           html += `<div class="card"><div><b>仕官</b>　${R.factionHere}の${R.lordHere}様に仕える<br><span class="muted">名声${need}以上（いま${me.fame}）。仕えると俸禄がもらえ、主家の依頼や戦で功績が積めます${ok ? '' : '。この家の武将や隊長に話しかけて顔をつなぐと名声2で仕官できます'}</span></div><button id="tw-serve" data-act="serve" ${ok ? '' : 'disabled'}>武士として仕官</button><button id="tw-serve-n" data-act="serve" data-nin="1" ${ok ? '' : 'disabled'}>忍びとして仕官</button></div>`;
         } else if (R && !R.clan) html += `<div class="muted">この城では仕官できません（城主のいる城で仕官できます）</div>`;
       }
+    } else if (townTab === 'gamble') {
+      html += SGK.GAMBLE.html(P, G.gbSel, G.myPid);
     } else {
       html += `<div class="card"><div>ここの人に話を聞く<br><span class="muted">相場の噂などが聞けます</span></div><button id="tk" data-act="talk">話しかける</button></div>`;
     }
@@ -943,6 +947,7 @@
     const lx = e.target.closest('button[data-lookxy]'); if (lx) { const [x, y] = lx.dataset.lookxy.split(',').map(Number); openTown(false); R.cam.follow = false; R.cam.x = x; R.cam.y = y; G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; return; }
     const nj = e.target.closest('button[data-nj]'); // 0.77.0 忍び込む
     if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; openTown(false); SGK.NINJA.start(N.q.k, N.d, (ok) => { if (ok === null) toast('いったん退きました（工作はまだ請け負ったまま）', 1500); else command({ type: 'ninResult', ok: !!ok }); }); return; }
+    const gs = e.target.closest('button[data-gbset]'); if (gs) { G.gbSel = +gs.dataset.gbset; townHtml = ''; renderTown(); return; } // 2.8.0 賭場の掛け金
     const b = e.target.closest('button[data-act]'); if (!b) return;
     const c = { type: b.dataset.act };
     if (b.dataset.item) c.item = b.dataset.item;
@@ -961,7 +966,7 @@
   $('townClose').onclick = () => openTown(false);
   $('townBtn').onclick = () => openTown(true);
   $('joinBtn').onclick = () => command({ type: 'joinBattle' }); // 1.6.12 合戦の途中参加
-  function cycleTab(d) { const tabs = ['market', 'jobs', 'work', 'army', 'talk', 'castle'].filter((t) => !$('tab-' + t).classList.contains('hidden')); setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
+  function cycleTab(d) { const tabs = ['market', 'jobs', 'work', 'army', 'talk', 'gamble', 'castle'].filter((t) => !$('tab-' + t).classList.contains('hidden')); setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
 
   // ---------- 人物（能力・技能・特技・部隊の昇格） ----------
   let charTab = 'eq', charHtml = '';
