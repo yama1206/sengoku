@@ -1422,7 +1422,7 @@
       const WN = { yari: '槍', nagayari: '槍', yarigashira: '槍', kiba: '槍', horo: '槍', yumi: '弓（近いと刀）', teppo: '鉄砲（近いと刀）', teppogashira: '鉄砲（近いと刀）', banditBow: '弓（近いと刀）', tsuyoyumi: '弓（近いと刀）', yumigashira: '弓（近いと刀）', take: '脇差＋竹束', shiyori: '脇差＋竹束', takegashira: '脇差＋竹束' };
       html += '<div class="muted" style="margin-bottom:6px">数値は兵1人あたり。費用は1人を雇う値段、日当は1人1日の給金。速さは戦場での速さ</div>';
       html += `<div class="card" style="display:block"><b>本人</b>　<span class="muted">いまの装備込み</span><br>体力 ${H.hp}　攻撃 ${Math.round((H.atk + ((wp && wp.atk) || 0)) * 10) / 10}　守り ${H.def + ((ar && ar.da) || 0)}　速さ ${H.spd}${E.horse ? '（馬）' : ''}　武器 ${wp ? wp.name : 'なし'}</div>`;
-      const WK = { spearS: '槍', spearL: t => t.short === '僧兵' ? '薙刀' : '長槍', bow: '弓（近いと刀）', gun: '鉄砲（近いと刀）', sword: '刀' }; // 2.17.0 名物兵
+      const WK = { spearS: '槍', spearL: t => t.home === 'kinai' ? '薙刀' : '長槍', bow: '弓（近いと刀）', gun: '鉄砲（近いと刀）', sword: '刀' }; // 2.17.0 名物兵
       const wkName = (k, t) => { const v = t.wk && WK[t.wk]; return typeof v === 'function' ? v(t) : v || WN[k] || '刀'; };
       const row = (k) => { const t = TRS[k], up = (t.up || []).map((u) => TRS[u] && TRS[u].name).filter(Boolean);
         return `<div class="card" style="display:block"><b>${t.name}</b>${t.tier ? `　<span class="muted">${t.tier}段</span>` : ''}${t.cav ? `　<span class="muted">騎馬${t.noForest ? '' : '（林で遅い）'}</span>` : ''}${t.mo ? `　<span class="muted">士気+${t.mo}</span>` : ''}<br>体力 ${t.hp}　攻撃 ${t.atk}　守り ${t.def}　速さ ${t.spd}　${t.ranged ? `射程 ${t.range}m` : '近接'}　武器 ${wkName(k, t)}`
@@ -1431,9 +1431,9 @@
       html += '<div class="muted" style="margin-top:8px">味方の兵</div>';
       for (const k in TRS) if (TRS[k].cost && !TRS[k].home) html += row(k);
       if (SIM.CHIHO) { // 2.17.0 地方ごとの兵
-        html += '<div class="muted" style="margin-top:8px">地方ごとの兵（名物兵はその地方の城と大きな町で雇えます。拠点を選ぶと地方が分かります）</div>';
+        html += '<div class="muted" style="margin-top:8px">地方ごとの兵（名物兵は3段階に育ちます。1段目をその地方の城と大きな町で雇い、経験を積ませて昇格させます。拠点を選ぶと地方が分かります）</div>';
         for (const id of SIM.CHIHO_ORDER) { const r = SIM.CHIHO[id];
-          html += `<div class="secH">${r.name}<span class="muted">（${r.kuni}）</span></div><div class="muted" style="margin:2px 0 4px">強み：${r.good}<br>弱み：${r.bad}</div>` + row(r.sp); }
+          html += `<div class="secH">${r.name}<span class="muted">（${r.kuni}）</span></div><div class="muted" style="margin:2px 0 4px">強み：${r.good}<br>弱み：${r.bad}<br>育ち方：${r.line.map((k) => TRS[k].name).join(' → ')}</div>` + r.line.map(row).join(''); }
       }
       html += '<div class="muted" style="margin-top:8px">敵だけの兵</div>';
       for (const k in TRS) if (k !== 'hero' && !TRS[k].cost) html += row(k);

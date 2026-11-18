@@ -196,6 +196,7 @@
     const q = GQ[st] || GQ.vassal, a = Object.assign({}, army);
     for (const k of ['yari', 'yumi', 'nohei', 'take']) { const m = Math.round((a[k] || 0) * q.up); if (!m) continue; a[k] -= m; const u = k === 'yumi' && Math.random() < 0.5 ? 'tsuyoyumi' : UPG[k]; a[u] = (a[u] || 0) + m; }
     for (const k of ['nagayari', 'teppo', 'tsuyoyumi', 'shiyori']) { const m = Math.round((a[k] || 0) * q.top); if (!m) continue; a[k] -= m; const u = UPG[k]; a[u] = (a[u] || 0) + m; }
+    { const a0 = Object.assign({}, a); for (const k of Object.keys(a0)) { const t = SIM.TROOPS[k]; if (!t || !t.home || !t.up) continue; const m = Math.round(a0[k] * (t.tier >= 3 ? q.top : q.up)); if (m > 0) { a[k] -= m; a[t.up[0]] = (a[t.up[0]] || 0) + m; } } } // 2.18.0 地方の名物兵も段が上がる
     if (q.kiba) a.kiba = (a.kiba || 0) + q.kiba; if (q.horo) a.horo = (a.horo || 0) + q.horo;
     for (const k in a) if (!a[k]) delete a[k];
     return a;
