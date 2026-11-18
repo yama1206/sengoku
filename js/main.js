@@ -779,10 +779,10 @@
       return ['street', 'street2.jpg', '']; // 2.13.1 行き先は上のボタン（ほかの所と同じ並び）
     }
     if (townTab === 'market') {
-      return ['', 'shop.jpg', `<img class="who" src="${TA}merchant.png" style="transform:scaleX(-1)">` + say('商人', 'いらっしゃい。よい品が入っていますよ')];
+      return ['', 'shop.jpg', `<img class="who" src="${TA}merchant_p.png" style="transform:scaleX(-1)">` + say('商人', 'いらっしゃい。よい品が入っていますよ')];
     }
-    if (townTab === 'renpei') return ['', 'renpei.jpg', `<img class="who" src="${TA}drill.png">` + say('練兵所の師範', '腕を上げたければ、ここで鍛えていけ。兵も雇えるし、仕事の口も回してやるぞ')];
-    if (townTab === 'gamble') return ['', '../gamble/den.jpg', `<img class="who" src="${TA}boss.png">` + say('賭場の胴元', 'おう、遊んでいくかい。運も腕のうちだぜ')];
+    if (townTab === 'renpei') return ['', 'renpei.jpg', `<img class="who" src="${TA}drill_p.png">` + say('練兵所の師範', '腕を上げたければ、ここで鍛えていけ。兵も雇えるし、仕事の口も回してやるぞ')];
+    if (townTab === 'gamble') return ['', '../gamble/den.jpg', `<img class="who" src="${TA}boss4.png">` + say('賭場の胴元', 'おう、遊んでいくかい。運も腕のうちだぜ')];
     if (townTab === 'talk') { // 2.13.1 茶屋：大きな町には娘がいる
       if (mu) return ['', 'chaya.jpg', `<img class="who" src="${TA}${mu.img}.png">` + say(`${mu.name}　<span class="heart">${'♥'.repeat(mu.wife ? 5 : mu.st)}${'♡'.repeat(mu.wife ? 0 : 4 - mu.st)}</span>`, (G.muSay && G.muSay[0] === mu.id && performance.now() - G.muSay[2] < 6000) ? G.muSay[1] : mu.line)];
       return ['', 'chaya.jpg', say('茶屋', '旅の人や町の人が、相場や戦の噂をしている')];

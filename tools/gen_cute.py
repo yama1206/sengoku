@@ -46,6 +46,9 @@ KINDS = {
     # 賭場（作り直し）
     "c_boss": ("a sly charming old yakuza gambling boss oyabun with white hair and a small beard, half-closed eyes, smirking, dark kimono with haori, holding a closed folding fan in one hand and resting the other hand on his knee, a few gold coins beside him" + CHAR, 832, 1216),
     "c_dealer": ("a handsome cool young tsubofuri dice dealer man with spiky black hair tied back, serious face, one shoulder bare kimono and white sarashi around his belly, a tattoo on his arm, holding up an upside-down woven rattan bowl-shaped dice cup with two white dice" + CHAR, 832, 1216),
+    # 2.13.3 描き直し：胴元は見るからに年配の親分に、津島の娘はもっと大人びた顔に
+    "c_boss3": ("a stout sixty year old japanese gambling boss oyabun with a weathered wrinkled face, deep smile lines and crow's feet, receding grey hair tied in a small topknot, thick grey eyebrows, a short grey beard, a shrewd knowing grin, kneeling seated seiza, dark brown kimono with a black haori, one hand on his knee and the other resting on his thigh" + CHAR, 832, 1216),
+    "w_tsushima2": (KIMONO + EMPTY + CUTE + "a woman of about thirty with a mature face, gentle warm smile with closed lips, calm adult eyes, black hair in a neat high ponytail tied with a red cord, orange and cream striped kimono with a tasuki sleeve cord" + CHAR, 832, 1216),
     # 練兵所
     "c_drill": ("a handsome stern but kind samurai drill instructor in his thirties with a short topknot and a scar on his cheek, light armor do over a dark kimono, holding a wooden practice spear" + CHAR, 832, 1216),
     "bg_renpei": ("a sengoku period japanese army training ground renpeisho, packed dirt yard surrounded by a wooden fence, racks of yari spears and bows, straw archery targets, a wooden barracks building with a recruitment notice board, banners on poles, distant ashigaru practicing in the background, daytime" + BG.replace(", no people in the foreground", ", no people in the foreground, no letters on the banners"), 1344, 768),
