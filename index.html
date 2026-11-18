@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="2.13.3">
+<meta name="sgk-ver" content="2.14.0">
 <title>天下往来</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -95,6 +95,18 @@
   #townStage .who { position:absolute; right:4%; top:7%; height:125%; /* 2.13.1 頭が切れないよう下げる（足は切れてよい） */ pointer-events:none; filter:drop-shadow(0 4px 10px rgba(0,0,0,.5)); }
   #townStage .say { position:absolute; left:4%; bottom:12px; max-width:52%; background:rgba(250,244,228,.94); color:#2b2117; border-radius:10px; padding:8px 12px; font-size:13px; line-height:1.5; box-shadow:0 2px 8px rgba(0,0,0,.4); }
   #townStage .say b { color:#8a3b1c; display:block; font-size:12px; }
+  /* 2.14.0 武将に話しかけた時の立ち絵・武将一覧 */
+  #bushoTalk { position:fixed; left:50%; bottom:0; transform:translateX(-50%); width:min(560px,100vw); height:min(62vh,520px); z-index:60; cursor:pointer; pointer-events:auto; }
+  #bushoTalk img { position:absolute; right:2%; bottom:0; height:100%; max-width:70%; object-fit:contain; object-position:bottom; filter:drop-shadow(0 4px 10px rgba(0,0,0,.5)); }
+  #bushoTalk .say { position:absolute; left:3%; bottom:16px; max-width:58%; background:rgba(250,244,228,.96); color:#2b2117; border-radius:10px; padding:10px 14px; font-size:14px; line-height:1.6; box-shadow:0 2px 10px rgba(0,0,0,.5); }
+  #bushoTalk .say b { color:#8a3b1c; display:block; font-size:12px; }
+  #bushoTalk .say span:empty::after { content:'……'; }
+  #infoBody .uPic { float:right; height:96px; margin:0 0 4px 8px; cursor:pointer; filter:drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+  .bsRow { width:100%; text-align:left; background:none; border-radius:0; display:flex; align-items:center; gap:8px; padding:4px 6px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .bsRow:hover, .bsRow:focus { background:rgba(255,255,255,.06); }
+  .bsRow .th { width:36px; height:48px; flex:none; background:rgba(0,0,0,.25) top/cover no-repeat; border-radius:4px; }
+  .bsRow .nm { flex:1; } .bsRow .fm { width:7em; font-size:12px; } .bsRow .rl { width:9em; font-size:12px; color:var(--mut, #aaa); }
+  .bsSort { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px; } .bsSort button.on { border-color:#e0b050; color:#ffd77a; }
   #townStage .heart { color:#e0607e; font-size:12px; }
   #townStage .gates { position:absolute; left:0; right:0; bottom:10px; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; padding:0 8px; }
   #townStage .gates button { padding:10px 16px; font-size:15px; font-weight:bold; background:rgba(40,28,16,.88); border:2px solid #c9a35a; border-radius:6px; color:#f6e7c4; box-shadow:0 2px 8px rgba(0,0,0,.5); }
@@ -277,6 +289,7 @@
       <button id="mSettings">設定（音・操作説明）</button>
       <button id="mChar">人物・部隊</button>
       <button id="mZukan">兵士図鑑</button>
+      <button id="mBusho">武将一覧</button>
       <button id="mFollow" class="hidden">自分へ</button>
       <button id="mSave" class="hostOnly">セーブ</button>
       <button id="mExport" class="hostOnly">セーブをファイルに書き出す</button>
@@ -284,6 +297,7 @@
     </div>
   </div>
   <div id="toasts"></div>
+  <div id="bushoTalk" class="hidden"><img alt=""><div class="say"><b></b><span></span></div></div>
   <div id="mobBar" class="hidden"><div id="mobSub"></div><div class="mobMain"><button data-mb="unit">部隊</button><button data-mb="ord">指示</button><button data-mb="form">陣形</button></div></div>
 </section>
 
@@ -292,7 +306,7 @@
 <script>
   // 更新が確実に反映されるよう、毎回最新のファイルを読み込む
   (function () {
-    const files = ['js/config.js', 'js/icons.js', 'js/data/world1560.js', 'js/data/villages.js', 'js/data/geo.js', 'js/data/lakes.js', 'js/data/rivers.js', 'js/data/creatures.js', 'js/data/items.js', 'js/sim/world.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/sim/castle.js', 'js/sim/daimyo.js', 'js/sim/siege.js', 'js/sim/army.js', 'js/sim/bushou.js', 'js/sim/supply.js', 'js/sim/house.js', 'js/sim/quest.js', 'js/sim/fushin.js', 'js/sim/invest.js', 'js/sim/equip.js', 'js/sim/castlemap.js', 'js/sim/kuni.js', 'js/sim/nawa.js', 'js/sim/nawagen.js', 'js/sim/torihiki.js', 'js/sim/gamble.js', 'js/sim/title.js', 'js/sim/creatures.js', 'js/sim/seisaku.js', 'js/sim/skill.js', 'js/sim/shinobi.js', 'js/sim/testmode.js', 'js/sim/cloth.js', 'js/sim/home.js', 'js/sim/musume.js', 'js/save.js', 'js/net/cloud.js', 'js/net/net.js', 'js/kamon.js', 'js/render.js', 'js/audio.js', 'js/action.js', 'js/lib/BufferGeometryUtils.js', 'js/lib/GLTFLoader.js', 'js/soldier3d.js', 'js/action3d.js', 'js/ninja.js', 'js/main.js', 'js/gather.js', 'js/nawaedit.js', 'js/testui.js', 'js/gambleui.js', 'js/clothui.js'];
+    const files = ['js/config.js', 'js/icons.js', 'js/data/world1560.js', 'js/data/villages.js', 'js/data/geo.js', 'js/data/lakes.js', 'js/data/rivers.js', 'js/data/creatures.js', 'js/data/items.js', 'js/data/bushoart.js', 'js/sim/world.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/sim/castle.js', 'js/sim/daimyo.js', 'js/sim/siege.js', 'js/sim/army.js', 'js/sim/bushou.js', 'js/sim/supply.js', 'js/sim/house.js', 'js/sim/quest.js', 'js/sim/fushin.js', 'js/sim/invest.js', 'js/sim/equip.js', 'js/sim/castlemap.js', 'js/sim/kuni.js', 'js/sim/nawa.js', 'js/sim/nawagen.js', 'js/sim/torihiki.js', 'js/sim/gamble.js', 'js/sim/title.js', 'js/sim/creatures.js', 'js/sim/seisaku.js', 'js/sim/skill.js', 'js/sim/shinobi.js', 'js/sim/testmode.js', 'js/sim/cloth.js', 'js/sim/home.js', 'js/sim/musume.js', 'js/save.js', 'js/net/cloud.js', 'js/net/net.js', 'js/kamon.js', 'js/render.js', 'js/audio.js', 'js/action.js', 'js/lib/BufferGeometryUtils.js', 'js/lib/GLTFLoader.js', 'js/soldier3d.js', 'js/action3d.js', 'js/ninja.js', 'js/main.js', 'js/gather.js', 'js/nawaedit.js', 'js/testui.js', 'js/gambleui.js', 'js/clothui.js'];
     /* 1.6.54 一度に並べて読み込む（順番は async=false で守る）。版が同じ間はブラウザに残したものを使う（版が上がると新しく読む） */
     const mv = document.querySelector('meta[name="sgk-ver"]'), v = (mv && mv.content) || Date.now();
     for (const f of files) { const s = document.createElement('script'); s.src = f + '?v=' + v; s.async = false; document.body.appendChild(s); }

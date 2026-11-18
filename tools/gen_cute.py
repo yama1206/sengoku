@@ -59,6 +59,31 @@ KINDS = {
     "bg_teahouse": ("a cozy sengoku period japanese teahouse chaya at the roadside, red felt covered bench, red parasol umbrella, tea and dango on a tray, cherry trees, warm afternoon light" + BG, 1344, 768),
 }
 
+# 2.14.0 厚塗り（武将と同じ絵柄）。a_〇〇 は w_〇〇 の絵柄だけを替えたもの
+ATSU = ", semi-realistic painterly digital painting, thick brush strokes, detailed beautiful realistic adult face with natural skin, soft warm lighting, like a japanese historical strategy game character portrait illustration"
+CHAR_ATSU = CHAR.replace(ANIME, ATSU)
+for _k in [k for k in KINDS if k.startswith("w_")]:
+    _p, _w, _h = KINDS[_k]
+    KINDS["a_" + _k[2:]] = (_p.replace(CHAR, CHAR_ATSU), _w, _h)
+# 2.14.0 写真っぽすぎたので絵らしく。ポーズも一人ずつ変える（p_〇〇）
+PAINT = ", painterly illustration like a japanese historical strategy game character portrait, semi-realistic but clearly a hand painted illustration and not a photo, visible thick brush strokes, slightly stylized beautiful features, rich warm colors"
+CHAR_PAINT = CHAR.replace(ANIME, PAINT)
+POSE = {
+    "tsushima2": "one hand lightly touching her ponytail, the other hand at her side, body slightly turned, ",
+    "kyo": "standing gracefully in a three-quarter view, one hand gently holding the sleeve of the other arm, ",
+    "sakai": "arms loosely crossed, weight on one leg, head slightly tilted, ",
+    "hakata": "both hands on her hips, leaning forward a little with energy, ",
+    "shinagawa": "both hands held shyly at her chest, glancing sideways, ",
+    "sakata": "hands resting together on her obi, a slight bow of the head, ",
+    "niigata": "one hand raised in a small friendly wave, ",
+    "tsuruga": "looking back over her shoulder at the viewer, body turned to the side, ",
+    "yamaguchi": "one hand lightly touching her hair ornament, elegant posture, ",
+    "utazu": "hands clasped behind her back, leaning slightly to one side, ",
+}
+for _id, _pose in POSE.items():
+    _p, _w, _h = KINDS["w_" + _id]
+    KINDS["p_" + _id] = (_p.replace(EMPTY, "empty hands holding nothing, no props, " + _pose).replace(CHAR, CHAR_PAINT), _w, _h)
+
 
 def main():
     a = sys.argv[1:]

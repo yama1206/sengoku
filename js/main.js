@@ -34,7 +34,20 @@
   const MSG_SFX = [[/^勝利|を退けました|守り抜|攻め落と|城を落とし/, 'victory'], [/^敗北|落城しました|援軍に敗れ/, 'defeat'], [/取り立てられました|に昇進/, 'promote'], [/」達成|を終えました/, 'quest'], [/を落としました|を奪われ/, 'lost'], [/合戦に加わりました|駆けつけました/, 'join']];
   let resultSfxT = 0;
   function msgSfx(text) { if (/^【/.test(text)) return; for (const [re, k] of MSG_SFX) if (re.test(text)) { if (k === 'victory' || k === 'defeat') resultSfxT = performance.now(); SGK.AUDIO.sfx(k); return; } }
-  function toastMsg(text) { msgSfx(text); toast(text, 4000); }
+  function toastMsg(text) { msgSfx(text); toast(text, 4000); bushoReply(text); }
+  // 2.14.0 武将に話しかけた時の立ち絵。返事（名前で始まる知らせ）を吹き出しに出す
+  function bushoTalk(name, line, wait) {
+    const img = SGK.bushoImg && SGK.bushoImg(name), el = $('bushoTalk'); if (!el) return;
+    if (!img) { el.classList.add('hidden'); G.bTalk = null; return; }
+    el.querySelector('img').src = img; el.querySelector('b').textContent = name; el.querySelector('span').textContent = line || '';
+    el.classList.remove('hidden'); G.bTalk = wait ? { name, t: performance.now() } : null;
+  }
+  function bushoReply(text) {
+    const b = G.bTalk; if (!b || performance.now() - b.t > 6000 || !String(text).startsWith(b.name)) return;
+    const r = String(text).slice(b.name.length), q = r.match(/^「([^」]*)」/);
+    $('bushoTalk').querySelector('span').textContent = q ? q[1] : text; G.bTalk = null;
+  }
+  function bushoClose() { const el = $('bushoTalk'); if (el) el.classList.add('hidden'); G.bTalk = null; }
   function toast(text, ms = 3000) { const t = document.createElement('div'); t.className = 'toast'; t.innerHTML = SGK.ICON ? SGK.ICON.tok(text) : text; /* 2.12.4 {i:名前} は絵 */ $('toasts').appendChild(t); setTimeout(() => t.remove(), ms); }
   function titleMsg(text) { $('titleMsg').textContent = text || ''; }
   function show(id) { ['title', 'game'].forEach((s) => $(s).classList.toggle('hidden', s !== id)); if (id === 'game') requestAnimationFrame(() => R.resize($('map'))); }
@@ -655,7 +668,9 @@
   // 持ち主が変わった城（独立など）を地図に反映する
   const withOwners = (list, ow) => (ow && Object.keys(ow).length ? list.map((x) => (ow[x.id] && ow[x.id] !== x.owner ? Object.assign({}, x, { owner: ow[x.id] }) : x)) : list);
   const holders = () => (G.mode === 'host' ? SIM.holders(G.world) : (G.dyn && G.dyn.h) || {});
-  $('infoAct').onclick = () => { if (typeof G.infoCmd === 'function') G.infoCmd(); else if (G.infoCmd) command(G.infoCmd); };
+  $('infoAct').onclick = () => { const c = G.infoCmd; if (c && c.type === 'talkNpc') { const u = findUnit(c.id); if (u && u.pname) bushoTalk(u.pname, '', true); } if (typeof c === 'function') c(); else if (c) command(c); };
+  $('bushoTalk').onclick = bushoClose;
+  $('infoBody').addEventListener('click', (e) => { const im = e.target.closest('img[data-bt]'); if (im) bushoTalk(im.dataset.bt, ''); }); // 小さな絵を押すと大きく
   $('infoGo').onclick = () => {
     if (G.selKind === 'u') { const u = findUnit(G.selected); if (u) command({ type: 'follow', id: u.id }); selectSettlement(null); return; } // 0.60.0 追いかけると閉じる
     const s = G.view.settlements.find((x) => x.id === G.selected);
@@ -745,10 +760,11 @@
     if (!u) { selectSettlement(null); toast('見失いました', 1200); return; }
     const i = unitInfo(u), html = `${i.name}|${i.body}|${i.go}|${i.act ? i.act.label : ''}`;
     if (html === G.infoHtml) return; G.infoHtml = html;
-    $('infoName').textContent = i.name; $('infoBody').innerHTML = i.body; $('infoGo').textContent = i.go;
+    const pic = u.pname && SGK.bushoImg && SGK.bushoImg(u.pname); // 2.14.0 武将の絵
+    $('infoName').textContent = i.name; $('infoBody').innerHTML = (pic ? `<img class="uPic" src="${pic}" data-bt="${u.pname}" alt="">` : '') + i.body; $('infoGo').textContent = i.go;
     G.infoCmd = i.act ? i.act.cmd : null; $('infoAct').classList.toggle('hidden', !i.act); if (i.act) $('infoAct').textContent = i.act.label;
   }
-  $('infoClose').onclick = () => { if (G.priv && G.priv.me && G.priv.me.meet) command({ type: 'meetEnd' }); selectSettlement(null); };
+  $('infoClose').onclick = () => { bushoClose(); if (G.priv && G.priv.me && G.priv.me.meet) command({ type: 'meetEnd' }); selectSettlement(null); };
   // 0.54.0 取引のボタン（武将・プレイヤー）
   $('infoBody').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-tr]'); if (!b || !G.selected) return; const d = b.dataset, id = G.selected;
@@ -1371,6 +1387,33 @@
 
   // ---------- ゲーム内メニュー ----------
   // 1.3.0 兵士図鑑（メニューから開く）
+  // 2.14.0 武将一覧：家・名前・絵のある順で並べ替え。押すと立ち絵を出す
+  function bushoHtml() {
+    const host = G.mode === 'host', PE = (host ? G.world.people : G.view.people) || {}, FA = (host ? G.world.factions : G.view.factions) || {}, ST = (host ? G.world.settlements : G.view.settlements) || [];
+    const lordOf = {}; for (const s of ST) { const l = s.type === 'castle' ? castleStat(s).lord : s.lord; if (l && !lordOf[l]) lordOf[l] = s.name; }
+    const rows = [];
+    for (const id in PE) {
+      const p = PE[id]; if (!p || !p.name || p.dead || p.player || p.pid) continue;
+      const f = p.faction && FA[p.faction], lead = !!(f && f.leader === id);
+      rows.push({ name: p.name, fam: f ? f.name : '浪人', lead, lord: !!lordOf[id], role: lead ? '当主' + (lordOf[id] ? `（${lordOf[id]}）` : '') : lordOf[id] ? lordOf[id] + 'の城主' : p.captive ? '捕らわれの身' : f ? '家臣' : '主なし', img: SGK.bushoImg(p.name) });
+    }
+    const so = G.bSort || 'fam', byN = (a, b) => a.name.localeCompare(b.name, 'ja'), byF = (a, b) => a.fam.localeCompare(b.fam, 'ja') || (b.lead - a.lead) || (b.lord - a.lord) || byN(a, b);
+    rows.sort(so === 'name' ? byN : so === 'pic' ? (a, b) => (!!b.img - !!a.img) || byF(a, b) : byF);
+    const nPic = rows.filter((r) => r.img).length;
+    let html = `<div class="bsSort">${[['fam', '家の順'], ['name', '名前の順'], ['pic', '絵のある順']].map(([k, t]) => `<button id="bs-${k}" data-bsort="${k}" class="${so === k ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+    html += `<div class="muted" style="margin-bottom:4px">${rows.length}人（絵のある武将 ${nPic}人）。押すと立ち絵が見られます</div>`;
+    let last = '';
+    for (const r of rows) {
+      if (so === 'fam' && r.fam !== last) { last = r.fam; html += `<div class="secH">${r.fam}</div>`; }
+      html += `<button class="bsRow" data-bn="${r.name}" data-br="${r.fam}・${r.role}"><span class="th" style="${r.img ? `background-image:url(${r.img})` : ''}"></span><span class="nm">${r.name}</span><span class="fm">${r.fam}</span><span class="rl">${r.role}</span></button>`;
+    }
+    return html;
+  }
+  $('mSubB').addEventListener('click', (e) => {
+    if (G.sub !== 'busho') return;
+    const so = e.target.closest('button[data-bsort]'); if (so) { G.bSort = so.dataset.bsort; $('mSubB').innerHTML = bushoHtml(); setFocus($('gameMenu'), $('bs-' + G.bSort)); return; }
+    const r = e.target.closest('.bsRow'); if (r) { if (SGK.bushoImg(r.dataset.bn)) bushoTalk(r.dataset.bn, r.dataset.br); else toast(`${r.dataset.bn}の絵はまだありません`, 1500); }
+  });
   function zukanHtml(me) {
     let html = '';
       const TRS = SIM.TROOPS, EQ = SIM.EQUIP, E = me.equip || {}, wp = E.wep && EQ.wep[E.wep], ar = E.arm && EQ.arm[E.arm], H = TRS.hero;
@@ -1405,9 +1448,9 @@
   // B・Esc：設定を開いていればメニューへ戻る、そうでなければ閉じる
   // 1.3.0 メニューの中の小さな画面（兵士図鑑・物資）
   function openSub(kind) {
-    const m = G.priv && G.priv.me; if (!m) return;
+    const m = G.priv && G.priv.me; if (!m && kind !== 'busho') return;
     $('gameMenu').classList.remove('hidden'); $('mMain').classList.add('hidden'); $('mSet').classList.add('hidden'); $('mSub').classList.remove('hidden');
-    G.sub = kind; $('mSubT').textContent = kind === 'inv' ? '持っている物資' : '兵士図鑑'; $('mSubB').innerHTML = kind === 'inv' ? invHtml(m) : zukanHtml(m); $('mSubB').scrollTop = 0;
+    G.sub = kind; $('mSubT').textContent = kind === 'inv' ? '持っている物資' : kind === 'busho' ? '武将一覧' : '兵士図鑑'; $('mSubB').innerHTML = kind === 'inv' ? invHtml(m) : kind === 'busho' ? bushoHtml() : zukanHtml(m); $('mSubB').scrollTop = 0;
     SGK.AUDIO.sfx('open'); setFocus($('gameMenu'), $('mSubBack'));
   }
   function menuBack() { if (!$('mSub').classList.contains('hidden')) { if (G.sub === 'inv') toggleMenu(false); else { $('mSub').classList.add('hidden'); $('mMain').classList.remove('hidden'); setFocus($('gameMenu'), $('mZukan')); } return; } if (!$('mSet').classList.contains('hidden')) { $('mSet').classList.add('hidden'); $('mMain').classList.remove('hidden'); setFocus($('gameMenu'), $('mSettings')); } else toggleMenu(false); }
@@ -1474,6 +1517,7 @@
   $('zoomIn').onclick = () => anyZoom(1.2);
   $('zoomOut').onclick = () => anyZoom(1 / 1.2);
   $('mZukan').onclick = () => openSub('zukan');
+  $('mBusho').onclick = () => openSub('busho');
   $('mSubBack').onclick = () => menuBack();
   $('mFollow').onclick = () => { const m = me(), d = m && (G.disp[m.id] || m); if (d) { R.cam.x = d.x; R.cam.y = d.y; } R.cam.follow = true; if (G.pcurOn) G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; }; // 0.75.0 自分の所へ移って追いかける（カーソルや地図を動かすと解除）
   $('mTitle').onclick = () => backToTitle();
