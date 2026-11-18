@@ -101,6 +101,24 @@ for _id, _pose in POSE2.items():
     _p, _w, _h = KINDS["w_" + _id]
     _p = _p.replace(EMPTY, "").replace(CHAR, CHAR_POSE)
     KINDS["q_" + _id] = (_pose + ". " + _p + ". " + _pose, _w, _h)
+# 2.14.2 背景がアニメ調なので娘もアニメ調に。採用した絵と同じシードで、絵柄だけアニメに戻す（ポーズを保つため）
+#   a_〇〇 の絵 → w_〇〇（もともとアニメ調）、p_〇〇 の絵 → n_〇〇（p_ のポーズのままアニメ調）
+for _id in POSE:
+    _p, _w, _h = KINDS["p_" + _id]
+    KINDS["n_" + _id] = (_p.replace(CHAR_PAINT, CHAR), _w, _h)
+# 2.14.2 アニメ調でも手を前で組む子が多かった。ポーズを文の先頭と末尾に置き、構図（頭から膝まで）も全員そろえる（r_〇〇）
+FRAME_KNEE = "framed from the top of her head down to just below her knees, the same distance and size for every character, natural pose"
+CHAR_R = CHAR.replace("upper body from the knees up, facing the viewer", FRAME_KNEE)
+POSE3 = dict(POSE2, sakata="POSE: she rests one hand against her cheek with her head tilted, the other hand hanging relaxed at her side")
+for _id, _pose in POSE3.items():
+    _p, _w, _h = KINDS["w_" + _id]
+    _p = _p.replace(EMPTY, "").replace(CHAR, CHAR_R)
+    KINDS["r_" + _id] = (_pose + ". " + _p + ". " + _pose, _w, _h)
+# 2.14.2 宇多津はもう少し若く、ポーズも別に（ru1・ru2 の2案）
+_p = KINDS["r_utazu"][0].split(". ", 1)[1].rsplit(". ", 1)[0].replace("a mature japanese woman around 28 years old", "a young japanese woman around 21 years old, youthful fresh face,").replace("grown-up face with defined cheekbones and a slender chin, tall adult figure", "young adult face, slender figure")
+for _k, _pose in {"ru1_utazu": "POSE: she points one finger playfully at the viewer, the other hand on her hip, leaning slightly forward",
+                  "ru2_utazu": "POSE: she leans forward with both hands resting on her knees, smiling up at the viewer"}.items():
+    KINDS[_k] = (_pose + ". " + _p + ". " + _pose, 832, 1216)
 
 
 def main():
@@ -114,10 +132,16 @@ def main():
     os.makedirs(out, exist_ok=True)
     key = open(KEY_FILE, encoding="utf-8").read().strip()
     rnd = random.Random(base)
+    # 種類:シード と書くと、そのシードで1枚だけ作る（2.14.2 絵柄だけ替えて描き直す用）
+    jobs = []
     for k in kinds:
+        if ":" in k:
+            k, s = k.split(":"); jobs.append((k, int(s)))
+        else:
+            jobs += [(k, rnd.randrange(1, 2**31 - 1)) for _ in range(seeds)]
+    for k, seed in jobs:
         prompt, wd, ht = KINDS[k]
-        for j in range(seeds):
-            seed = rnd.randrange(1, 2**31 - 1)
+        if True:
             dst = os.path.join(out, f"{k}_{seed}.png")
             if os.path.exists(dst):
                 print("exists:", dst); continue

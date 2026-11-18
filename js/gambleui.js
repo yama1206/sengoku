@@ -32,9 +32,9 @@
 #gbHall button.on{background:linear-gradient(#a0702e,#5a3e18);border-color:#f2c14e}
 #gbHall .tabs{display:flex;gap:4px;flex-wrap:wrap;padding:4px 10px}
 #gbHall .stage{flex:1;position:relative;min-height:0}
-#gbHall .panel{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);width:min(760px,calc(100% - 16px));background:rgba(18,12,7,.82);border:1px solid #7a5a2e;border-radius:8px;padding:8px 10px;box-sizing:border-box}
-#gbHall .rule{font-size:12px;color:#cdbf9c}
-#gbHall .log{font-size:12px;color:#d8cba8;max-height:68px;overflow:auto;margin-top:4px}
+#gbHall .panel{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);width:min(760px,calc(100% - 16px));background:rgba(18,12,7,.9);border:1px solid #7a5a2e;border-radius:8px;padding:8px 10px;box-sizing:border-box}
+#gbHall .rule{font-size:13px;color:#f0e6cc;line-height:1.5}
+#gbHall .log{font-size:13px;color:#e8dcbc;max-height:68px;overflow:auto;margin-top:4px}
 #gbHall .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
 #gbHall .mat{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);width:min(620px,92%);height:min(240px,40%);background:linear-gradient(#f3efe3,#dcd6c4);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.6),inset 0 0 30px rgba(120,100,60,.25)}
 #gbHall .mat .half{position:absolute;top:0;bottom:0;width:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:rgba(60,30,20,.35);font-size:64px;font-weight:bold}
@@ -69,7 +69,7 @@
 #gbHall .track.run:after{animation:gbScroll .5s linear infinite}
 @keyframes gbScroll{from{background-position-x:0,0}to{background-position-x:-150px,0}}
 #gbHall .lane{position:absolute;left:0;right:0;height:27%;}
-#gbHall .horse{position:absolute;right:2%;bottom:0;height:100%;aspect-ratio:1;transform:translateX(50%)}
+#gbHall .horse{position:absolute;right:2%;bottom:0;height:100%;aspect-ratio:1} /* 2.14.2 右に半分はみ出していたのをやめる */
 #gbHall .horse img{height:100%;width:100%;object-fit:contain;filter:drop-shadow(0 3px 3px rgba(0,0,0,.5))}
 #gbHall .horse.gal img{animation:gbGal .32s ease-in-out infinite alternate}
 @keyframes gbGal{from{transform:translateY(0) rotate(-2deg)}to{transform:translateY(-12%) rotate(3deg)}}
@@ -88,7 +88,14 @@
 #gbHall .hand{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center}
 #gbHall .kar{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);width:min(680px,94%);text-align:center}
 #gbHall .lbl{font-size:13px;color:#e8d8b0;min-width:70px}
-@media (max-width:600px){#gbHall .mat .half{font-size:44px}#gbHall .big{font-size:60px}#gbHall .who{height:34%}}
+/* 2.14.2 サイコロの場：親の賽・盆・あなたの賽を縦に並べ、下の操作の欄（--pb＝欄の高さ）より上に収める。札の名前は暗い帯の上に */
+#gbHall .dcol{position:absolute;left:50%;transform:translateX(-50%);top:1%;bottom:var(--pb,190px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:min(420px,70%)}
+#gbHall .dcol .lbl,#gbHall .kar .lbl{display:inline-block;background:rgba(10,6,3,.75);color:#fff2cc;font-weight:bold;font-size:16px;padding:2px 14px;border-radius:12px;text-shadow:0 1px 2px #000;min-width:0;white-space:nowrap}
+#gbHall .dcol .tray{position:relative;left:auto;top:auto;transform:none;width:auto;flex:0 1 300px;min-height:100px;aspect-ratio:1}
+#gbHall .dcol>.dice{position:static;transform:none}
+/* 胴元：盆の右に床に座らせ、盆の方を向かせる（絵は右を向いているので左右反転） */
+#gbHall .who.oya{right:max(2%,calc(50% - 560px));bottom:calc(var(--pb,190px) - 10px);height:min(62%,520px);max-height:none;transform:scaleX(-1)}
+@media (max-width:600px){#gbHall .mat .half{font-size:44px}#gbHall .big{font-size:60px}#gbHall .who{height:34%}#gbHall .who.oya{right:0;height:30%;bottom:calc(var(--pb,190px) + 4px);opacity:.9}}
 </style>`;
 
   UI.open = (priv, id) => {
@@ -126,7 +133,7 @@
     if (L && L.id != null && L.id !== seen[tab] && !busy[tab]) { seen[tab] = L.id; busy[tab] = 1; PLAY[tab](st, L, gb[tab]).catch(() => {}).then(() => { busy[tab] = 0; if (el) render(false); }); }
     for (const g of Object.keys(NAMES)) if (g !== tab && gb[g].last && gb[g].last.id !== seen[g]) seen[g] = gb[g].last.id; // 見ていない卓の結果は流さない
   }
-  const setPanel = (pn, key, html) => { if (lastHtml[key] !== html) { lastHtml[key] = html; pn.innerHTML = html; } };
+  const setPanel = (pn, key, html) => { if (lastHtml[key] !== html) { lastHtml[key] = html; pn.innerHTML = html; } if (pn.parentElement) pn.parentElement.style.setProperty('--pb', pn.offsetHeight + 18 + 'px'); }; // --pb：上の絵や賽を欄に重ねないため
   const logHtml = (L) => (L ? `<div class="log">前の勝負：${esc(L.head)}${L.by ? `（${esc(L.by)}）` : ''}<br>${(L.lines || []).map(esc).join('<br>')}</div>` : '');
   const coin = () => (SGK.ICON ? SGK.ICON.html('coins', 18) : '');
   const chip = (x, t) => `<span class="chip">${coin()}${esc(x.name)}${t ? ' ' + t : ''} ${x.bet}文</span>`;
@@ -145,10 +152,10 @@
     chouhan: () => `<img class="who" src="${ART}dealer2_p.png" style="left:1%;bottom:14%;height:58%;max-height:none"><div class="mat"><div class="half" style="left:0">丁<div class="chips" id="gbE"></div></div><div class="half" style="right:0">半<div class="chips" id="gbO"></div></div><div class="dice">${die(1, 'gd0')}${die(1, 'gd1')}</div><div class="tsubo" id="gbTsubo"><img src="${ART}tsubo.png"></div></div><div class="say"></div><div class="big"></div><div class="res"></div><div class="panel"></div>`,
     memashi: () => diceScene(2),
     shigoro: () => diceScene(3),
-    uma: () => `<div class="track" id="gbTrack"><div class="goal"></div>${[0, 1, 2, 3, 4, 5].map((i) => `<div class="lane" style="top:${-4 + i * 12.6}%;z-index:${i + 1}"><div class="horse" id="gbH${i}" style="right:4%"><img src="${ART}horse.png" style="filter:hue-rotate(${i * 55}deg) saturate(${0.8 + (i % 3) * 0.25}) brightness(${1.1 - (i % 2) * 0.15}) drop-shadow(0 3px 3px rgba(0,0,0,.5))"><b>${i + 1}</b></div></div>`).join('')}<div class="call" id="gbCall">さあ、どの馬に賭ける</div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`,
-    karuta: () => `<img class="who" src="${ART}boss4.png" style="right:6%;height:40%"><div class="kar"><div class="lbl">親</div><div class="hand" id="gbPar"></div><div class="lbl" style="margin-top:10px">あなた</div><div class="hand" id="gbMine"></div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`,
+    uma: () => `<div class="track" id="gbTrack"><div class="goal"></div>${[0, 1, 2, 3, 4, 5].map((i) => `<div class="lane" style="top:${1 + i * 12.4}%;z-index:${i + 1}"><div class="horse" id="gbH${i}" style="right:4%"><img src="${ART}horse.png" style="filter:hue-rotate(${i * 55}deg) saturate(${0.8 + (i % 3) * 0.25}) brightness(${1.1 - (i % 2) * 0.15}) drop-shadow(0 3px 3px rgba(0,0,0,.5))"><b>${i + 1}</b></div></div>`).join('')}<div class="call" id="gbCall">さあ、どの馬に賭ける</div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`,
+    karuta: () => `<img class="who oya" src="${ART}boss4.png"><div class="kar"><div class="lbl">親</div><div class="hand" id="gbPar"></div><div class="lbl" style="margin-top:10px">あなた</div><div class="hand" id="gbMine"></div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`,
   };
-  const diceScene = (n) => `<img class="who" src="${ART}boss4.png" style="right:4%;height:42%"><div class="lbl" style="position:absolute;left:50%;top:6%;transform:translateX(-50%);font-size:16px" id="gbPL">親の賽</div><div class="tray"><div class="dice" id="gbPD">${Array.from({ length: n }, (_, i) => die(1, 'gp' + i)).join('')}</div></div><div class="lbl" style="position:absolute;left:50%;top:70%;transform:translateX(-50%);font-size:16px" id="gbML">あなたの賽</div><div class="dice" id="gbMD" style="top:78%">${Array.from({ length: n }, (_, i) => die(1, 'gm' + i)).join('')}</div><div class="big"></div><div class="res"></div><div class="panel"></div>`;
+  const diceScene = (n) => `<img class="who oya" src="${ART}boss4.png"><div class="dcol"><div class="lbl" id="gbPL">親の賽</div><div class="tray"><div class="dice" id="gbPD">${Array.from({ length: n }, (_, i) => die(1, 'gp' + i)).join('')}</div></div><div class="lbl" id="gbML">あなたの賽</div><div class="dice" id="gbMD">${Array.from({ length: n }, (_, i) => die(1, 'gm' + i)).join('')}</div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`;
 
   // ---- 下の操作の欄 ----
   const PANEL = {
