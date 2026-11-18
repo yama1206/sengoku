@@ -18,7 +18,14 @@
   #creatPanel .cc{width:min(96vw,520px);max-height:90vh;background:#2a2118;border:1px solid #8a6a2a;border-radius:10px;padding:12px;color:#f3e9d0;display:flex;flex-direction:column}
   #creatPanel .cl{overflow-y:auto;margin-top:8px}
   #creatPanel .it{border-bottom:1px solid rgba(255,255,255,.1);padding:6px 2px;font-size:13px}
-  #creatPanel .it.no{opacity:.5}`;
+  #creatPanel .it.no{opacity:.5}
+  #creatPanel .it{display:flex;gap:10px;align-items:center}
+  #creatPanel .it .ci{flex:0 0 64px;height:64px;display:flex;align-items:center;justify-content:center}
+  #creatPanel .it .ci img{max-width:64px;max-height:64px}
+  #creatPanel .it.no .ci img{filter:brightness(0) invert(1);opacity:.3}
+  #gatherOv .cimg{max-width:200px;max-height:150px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))}`;
+  // 2.19.0 魚・虫の絵（assets/creatures/〇〇.webp、浮世絵ふう。tools/gen_creature_art.py → creature_cut.py）。読めない時は見えなくするだけ
+  const cImg = (c, cls = '') => `<img class="${cls}" src="assets/creatures/${c.id}.webp?v=${SGK.VERSION}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`;
   document.head.appendChild(css);
 
   const box = document.createElement('div'); box.id = 'gatherBox'; box.className = 'hidden';
@@ -79,7 +86,7 @@
   function showResult(L) {
     shownN = L.n; const ok = L.ok, c = L.id && D.creatures.find((x) => x.id === L.id);
     window.removeEventListener('keydown', onKey, true); cancelAnimationFrame(raf); run = null;
-    open(`<div class="big">${SGK.ICON.html(ok ? (L.k === 'f' ? 'fish' : 'bug') : 'miss', 72)}</div><div style="font-size:20px">${L.txt}</div>`
+    open(`<div class="big">${ok && c ? cImg(c, 'cimg') : SGK.ICON.html(ok ? (L.k === 'f' ? 'fish' : 'bug') : 'miss', 72)}</div><div style="font-size:20px">${L.txt}</div>`
       + (ok ? `<div style="margin:8px 0">${L.isNew ? '<b style="color:#e8c46a">図鑑に新しく載りました！</b><br>' : ''}${L.rec ? '<b style="color:#6fbf73">自己ベスト更新！</b><br>' : ''}<span class="muted">${L.r}</span>　<b>+${L.gain}文</b></div>` : (L.hint ? `<div class="muted">${L.hint}</div>` : ''))
       + '<div class="row" style="gap:8px;margin-top:10px"><button class="main" id="gagain" style="flex:1">もう一度</button><button id="gend" style="flex:1">やめる</button></div>');
     $('gagain').onclick = () => { close(); SGK.cmd({ type: 'gatherStart', kind: L.k === 'f' ? 'fish' : 'bug' }); };
@@ -96,7 +103,7 @@
     let p = $('creatPanel'); if (!p) { p = document.createElement('div'); p.id = 'creatPanel'; document.body.appendChild(p); }
     p.innerHTML = `<div class="cc"><div class="row" style="justify-content:space-between;align-items:center"><b>生き物図鑑</b><button id="cpX">閉じる</button></div>
       <div class="row" style="gap:6px;margin-top:6px"><button id="cpF" class="${ctab === 'f' ? 'on' : ''}">魚</button><button id="cpB" class="${ctab === 'b' ? 'on' : ''}">虫</button><span class="muted" style="align-self:center">${got}/${list.length}種</span></div>
-      <div class="cl">${list.map((c) => { const z = Z[c.id]; return z && z[0] ? `<div class="it"><b>${c.n}</b>　<span class="muted">${c.r}</span><br>取った数 ${z[0]}　最大 ${z[1]}${unitOf(c)}　（${c.sz[0]}〜${c.sz[1]}${unitOf(c)}）　基本 ${c.p}文<br><span class="muted">${c.pl.join('・')}／${c.rgT}／${c.m[0]}〜${c.m[1]}月／${c.t.join('・')}</span></div>` : '<div class="it no"><b>？？？</b></div>'; }).join('')}</div></div>`;
+      <div class="cl">${list.map((c) => { const z = Z[c.id]; return z && z[0] ? `<div class="it"><div class="ci">${cImg(c)}</div><div><b>${c.n}</b>　<span class="muted">${c.r}</span><br>取った数 ${z[0]}　最大 ${z[1]}${unitOf(c)}　（${c.sz[0]}〜${c.sz[1]}${unitOf(c)}）　基本 ${c.p}文<br><span class="muted">${c.pl.join('・')}／${c.rgT}／${c.m[0]}〜${c.m[1]}月／${c.t.join('・')}</span></div></div>` : `<div class="it no"><div class="ci">${cImg(c)}</div><b>？？？</b></div>`; }).join('')}</div></div>`;
     $('cpX').onclick = () => p.remove(); $('cpF').onclick = () => { ctab = 'f'; panel(); }; $('cpB').onclick = () => { ctab = 'b'; panel(); };
   }
   menuBtn.onclick = () => { $('mClose').click(); panel(); };

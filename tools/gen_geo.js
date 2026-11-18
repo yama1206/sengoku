@@ -50,9 +50,10 @@ for (const st of D.settlements) { const a0 = ci(st.x), b0 = cj(st.y); for (let d
 for (const st of D.settlements) if (ter[cellOf(st)] === 0) ter[cellOf(st)] = 1;
 
 // ---- 道筋探し ----
+// 2.19.0 cost は Float64（Float32 だと丸めで「古い候補」と見なされ、たどり着けないマスが出ていた）
 const COST = [Infinity, 1, 3.2], SEA = 5, REUSE = 0.45;
 const net = new Uint8Array(N); // 道が通っているマス
-const cost = new Float32Array(N), from = new Int32Array(N), stamp = new Uint32Array(N); let run = 0;
+const cost = new Float64Array(N), from = new Int32Array(N), stamp = new Uint32Array(N); let run = 0;
 function Heap() { this.a = []; }
 Heap.prototype.push = function (k, v) { const a = this.a; a.push([k, v]); let i = a.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (a[p][0] <= a[i][0]) break; [a[p], a[i]] = [a[i], a[p]]; i = p; } };
 Heap.prototype.pop = function () { const a = this.a, top = a[0], last = a.pop(); if (a.length) { a[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < a.length && a[l][0] < a[m][0]) m = l; if (r < a.length && a[r][0] < a[m][0]) m = r; if (m === i) break; [a[m], a[i]] = [a[i], a[m]]; i = m; } } return top; };
@@ -92,6 +93,11 @@ const near = (lat, lon, not) => { const p = ll(lat, lon); let b = null, bd = 15;
 const EDGES = []; // { a, b, name, rank, sea }
 for (const r of sb.ROADS) {
   if (/渡し/.test(r.name)) continue; // 渡しは下で作り直す
+  if (r.strict) { // 2.19.0 途中の [緯度, 経度] を必ず通る道（ほかの道に寄らず、その道筋で新しく敷く）
+    const ids = r.via.filter((v) => typeof v === 'string');
+    EDGES.push({ a: ids[0], b: ids[ids.length - 1], name: r.name, rank: MAJOR.includes(r.name) ? 1 : 2, through: r.via.map((v) => (typeof v === 'string' ? v : ll(v[0], v[1]))) });
+    continue;
+  }
   const ids = r.via.filter((v) => typeof v === 'string');
   const v = r.via.slice();
   if (typeof v[0] !== 'string') { const n = near(v[0][0], v[0][1], ids); if (n) ids.unshift(n); }
@@ -123,7 +129,15 @@ function lay(e, p) { for (const k of p.cells) net[k] = 1; laid.push(Object.assig
 for (const rk of [1, 2]) for (const e of EDGES.filter((x) => x.rank === rk || (x.ferry && rk === 2 && x.rank === 1))) {
   if (e._done) continue; e._done = true;
   const A = byId[e.a], Bb = byId[e.b]; if (!A || !Bb) { console.warn('no', e.a, e.b); continue; }
-  const p = find(cellOf(A), cellOf(Bb), { sea: !!e.ferry }) || find(cellOf(A), cellOf(Bb), { sea: true });
+  let p;
+  if (e.through) { // 途中の点を順に、ほかの道に寄らずにつなぐ
+    const cs = e.through.map((v) => cellOf(typeof v === 'string' ? byId[v] : v)); p = { cells: [cs[0]], walk: 0 };
+    for (let i = 1; i < cs.length && p; i++) {
+      let q = null; // まれに道筋探しがそのマスへ届かないことがあるので、となりのマスも試す（端の拠点のマスは動かさない）
+      for (const o of i === cs.length - 1 ? [0] : [0, 1, -1, gw, -gw, gw + 1, -gw - 1]) { q = find(p.cells[p.cells.length - 1], cs[i] + o, { reuse: false }); if (q) break; }
+      if (!q) { p = null; break; } p.cells.push(...q.cells.slice(1)); p.walk += q.walk;
+    }
+  } else p = find(cellOf(A), cellOf(Bb), { sea: !!e.ferry }) || find(cellOf(A), cellOf(Bb), { sea: true });
   if (!p) { console.warn('道なし', e.name, e.a, e.b); continue; }
   lay(e, p);
 }

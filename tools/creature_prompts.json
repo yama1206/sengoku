@@ -1,0 +1,272 @@
+{
+ "_": "2.19.0 魚・虫の絵の描き方（tools/gen_creature_art.py が使う）。d は英語の見た目の説明。Wikipedia（日本語版）の記事の写真をお手本に、種ごとの見分けどころを書いた。おかしい絵はここを直して作り直す",
+ "f01": {
+  "n": "オイカワ",
+  "d": "pale chub Zacco platypus, slender silvery minnow, breeding male with blue-green and salmon-pink vertical bands on the flanks, red-orange cheeks, very long trailing anal fin"
+ },
+ "f02": {
+  "n": "カワムツ",
+  "d": "dark chub Nipponocypris temminckii, slender olive-brown minnow with one broad dark blue-black horizontal stripe along the side, yellowish belly, faint orange on the pectoral fins"
+ },
+ "f03": {
+  "n": "ウグイ",
+  "d": "Japanese dace Tribolodon hakonensis, slim streamlined olive-brown back, silvery sides, breeding colors of three bright orange-red horizontal stripes on the lower flank, black lines between"
+ },
+ "f04": {
+  "n": "アユ",
+  "d": "ayu sweetfish Plecoglossus altivelis, slender olive-green back fading to silver belly, a yellow oval spot behind the gill cover, small adipose fin, gentle elegant body"
+ },
+ "f05": {
+  "n": "ヤマメ",
+  "d": "yamame masu trout, slender trout with olive-brown back sprinkled with small black dots, silvery white flanks with a row of large dusky grey-blue oval parr marks, plain white belly, black dots only, small adipose fin"
+ },
+ "f06": {
+  "n": "アマゴ",
+  "d": "amago red-spotted masu trout, olive back, dark oval parr marks along the silvery side, scattered small bright vermilion red dots on the flank, small adipose fin"
+ },
+ "f07": {
+  "n": "イワナ",
+  "d": "whitespotted char Salvelinus leucomaenis, dark brownish-olive body covered with many pale cream-white spots, orange-tinted belly, white-edged lower fins, sturdy head"
+ },
+ "f08": {
+  "n": "ドジョウ",
+  "d": "pond loach Misgurnus anguillicaudatus, long slender cylindrical eel-like body, mottled yellowish brown with dark speckles, small mouth with ten tiny barbels, rounded tail fin"
+ },
+ "f09": {
+  "n": "ニホンウナギ",
+  "d": "Japanese eel Anguilla japonica, very long snake-like body gracefully curved into an S shape, dark olive-brown back, pale yellowish belly, continuous fin along back and belly, small pectoral fin"
+ },
+ "f10": {
+  "n": "カジカ",
+  "d": "Japanese fluvial sculpin kajika, small bottom fish with a wide flattened frog-like head and thick lips, body tapering to a slender tail, large rounded fan pectoral fins spread like wings, smooth skin without scales, mottled brown and tan camouflage blotches"
+ },
+ "f11": {
+  "n": "ギンブナ",
+  "d": "silver crucian carp, deep-bodied fish with a high back, olive-silver large scales, no barbels, slightly forked tail"
+ },
+ "f12": {
+  "n": "ゲンゴロウブナ",
+  "d": "Japanese white crucian carp, very tall deep compressed body with a strongly arched back, pale silvery-grey large scales, no barbels"
+ },
+ "f13": {
+  "n": "ニゴロブナ",
+  "d": "nigorobuna crucian carp of Lake Biwa, deep golden-bronze body with large scales, rounded head, thick lower back, no barbels"
+ },
+ "f14": {
+  "n": "ミナミメダカ",
+  "d": "Japanese rice fish medaka, tiny slender translucent fish with a flat back, large upturned eyes on top of the head, pale olive-tan color with a faint dark line along the side, rounded fins set far back"
+ },
+ "f15": {
+  "n": "モツゴ",
+  "d": "stone moroko topmouth gudgeon, small slender fish with a tiny upturned mouth, silvery with one dark horizontal stripe from snout to tail, net-like pattern of dark-edged scales"
+ },
+ "f16": {
+  "n": "タモロコ",
+  "d": "tamoroko Gnathopogon elongatus, small slender fish, pale tan back, a dark lateral line stripe of spots, short barbels at the mouth, translucent fins"
+ },
+ "f17": {
+  "n": "ホンモロコ",
+  "d": "honmoroko Gnathopogon caerulescens, small slender silvery fish of Lake Biwa, faint row of dark dots along the side, olive back, delicate thin body"
+ },
+ "f18": {
+  "n": "ワカサギ",
+  "d": "Japanese smelt wakasagi, small slender translucent silvery fish, a shiny silver stripe along the side, pale olive back, small adipose fin, forked tail"
+ },
+ "f19": {
+  "n": "ビワマス",
+  "d": "Biwa trout, large silvery salmon, bluish-grey back with a few tiny dark spots, pink-flushed sides, forked tail, small adipose fin"
+ },
+ "f20": {
+  "n": "イタセンパラ",
+  "d": "deepbody bitterling, small very deep diamond-shaped compressed body, breeding male with pinkish-purple flush on the flank and a dark shoulder spot, olive back"
+ },
+ "f21": {
+  "n": "マダイ",
+  "d": "red sea bream madai, deep oval body, bright pinkish red with tiny sparkling cobalt blue dots, spiny dorsal fin, forked tail with dark edge, auspicious celebratory fish"
+ },
+ "f22": {
+  "n": "マアジ",
+  "d": "Japanese jack mackerel, streamlined body, greenish back and silvery sides, a row of hard bony scutes along the rear lateral line, a small black spot on the gill cover, yellowish tinge"
+ },
+ "f23": {
+  "n": "マサバ",
+  "d": "chub mackerel, torpedo body, blue-green back with dark wavy zigzag stripes, silvery white belly, small finlets before the deeply forked tail"
+ },
+ "f24": {
+  "n": "マイワシ",
+  "d": "Japanese sardine, small slender fish with dark blue back, silvery sides, a row of seven small round black spots along the flank"
+ },
+ "f25": {
+  "n": "ブリ",
+  "d": "Japanese amberjack buri, large streamlined fish, blue-green back, silvery white belly, one yellow horizontal stripe from eye to tail, yellowish forked tail"
+ },
+ "f26": {
+  "n": "カツオ",
+  "d": "skipjack tuna katsuo, plump torpedo-shaped body, dark blue-violet back, silver belly with four to six dark horizontal stripes on the lower flank, deeply forked tail"
+ },
+ "f27": {
+  "n": "ヒラメ",
+  "d": "olive flounder hirame, flat oval leaf-shaped flatfish, both eyes on the same upper side of the head, a continuous fringe of fins all around the edge of the body, short tail, mottled olive brown top side with pale and dark spots",
+  "v": ", single flatfish seen from directly above lying flat, whole body inside the frame"
+ },
+ "f28": {
+  "n": "スズキ",
+  "d": "Japanese sea bass suzuki, long sleek body, grey-green back and silver sides, large mouth with protruding lower jaw, two dorsal fins the first one spiny"
+ },
+ "f29": {
+  "n": "カサゴ",
+  "d": "marbled rockfish kasago, stout spiny-headed fish, mottled reddish brown with pale blotches, large spiny dorsal fin, big mouth and big eyes, fan-like pectoral fins"
+ },
+ "f30": {
+  "n": "トラフグ",
+  "d": "tiger puffer torafugu, plump rounded body, dark grey-brown back with fine dots, white belly, one large black spot ringed with white behind the pectoral fin, small beak mouth"
+ },
+ "f31": {
+  "n": "コイ",
+  "d": "common carp koi wild type, large bronze-gold body with big rimmed scales in a net pattern, two pairs of barbels at the mouth, reddish lower fins and tail"
+ },
+ "f32": {
+  "n": "ナマズ",
+  "d": "Amur catfish namazu, long body with a wide flat head, wide mouth with two pairs of long whiskers, smooth scaleless dark olive-grey skin with mottling, long anal fin, tiny dorsal fin"
+ },
+ "f33": {
+  "n": "ボラ",
+  "d": "flathead grey mullet bora, cylindrical body with a broad flat head, grey back, silvery sides with several faint dark horizontal stripes, two separate small dorsal fins"
+ },
+ "f34": {
+  "n": "マハゼ",
+  "d": "yellowfin goby mahaze, elongated slender cylindrical goby, big rounded head with bulging eyes close together on top, thick lips, two separate dorsal fins with rows of brown dots, pale sandy beige body with brown speckles, rounded tail"
+ },
+ "f35": {
+  "n": "アナゴ",
+  "d": "whitespotted conger anago, long eel-like body gently curved, light grey-brown back, a row of small white dots along the side and on the head, pale belly"
+ },
+ "b01": {
+  "n": "クマゼミ",
+  "d": "large black cicada kumazemi Cryptotympana facialis seen from above, glossy black body, clear transparent wings with green veins, broad head with large eyes"
+ },
+ "b02": {
+  "n": "カブトムシ",
+  "d": "male Japanese rhinoceros beetle kabutomushi seen from above, glossy reddish dark brown, long forked horn on the head and a short horn on the thorax, six spiny legs"
+ },
+ "b03": {
+  "n": "ノコギリクワガタ",
+  "d": "male saw stag beetle nokogiri-kuwagata seen from above, reddish brown glossy body, long strongly curved mandibles with saw-like rows of small teeth, six legs"
+ },
+ "b04": {
+  "n": "ナガサキアゲハ",
+  "d": "great mormon swallowtail butterfly seen from above with wings spread, large black wings without tails, hindwings with white patches and red spots at the base"
+ },
+ "b05": {
+  "n": "オオカマキリ",
+  "d": "Chinese mantis ookamakiri, bright green long body, triangular head, raised spiny grasping forelegs, long green wings folded over the abdomen, side view"
+ },
+ "b06": {
+  "n": "ゲンジボタル",
+  "d": "genji firefly seen from above, small black soft beetle, pinkish red pronotum with a black cross mark, pale yellow glowing light organ at the tail end"
+ },
+ "b07": {
+  "n": "ミヤマクワガタ",
+  "d": "male miyama stag beetle seen from above, dark brown body covered in fine golden hair, ear-like flaps on the back of the head, long curved mandibles forked at the tips"
+ },
+ "b08": {
+  "n": "ニホンミツバチ",
+  "d": "a single small honeybee in flight seen from above, fuzzy dark brown body, black abdomen with thin pale grey stripes, hairy thorax, four transparent wings spread wide"
+ },
+ "b09": {
+  "n": "ミヤジマトンボ",
+  "d": "miyajima dragonfly Orthetrum poecilops seen from above, slim pale powder-blue abdomen with dark tip, dark thorax, four clear wings spread flat"
+ },
+ "b10": {
+  "n": "ギフチョウ",
+  "d": "Japanese luehdorfia butterfly gifucho seen from above with wings spread, pale yellow wings with bold black vertical tiger stripes, short tails, hindwing edge with red and blue spots"
+ },
+ "b11": {
+  "n": "アサギマダラ",
+  "d": "chestnut tiger butterfly asagimadara seen from above with wings spread flat, forewings black with large pale translucent sky-blue patches, hindwings reddish chestnut brown with pale blue streaks between the veins, slim black body with white dots"
+ },
+ "b12": {
+  "n": "ハンミョウ",
+  "d": "Japanese tiger beetle hanmyo seen from above, jewel-like metallic body with red, green and blue bands, cream spots on the wing cases, large eyes, big curved jaws, long legs"
+ },
+ "b13": {
+  "n": "オオムラサキ",
+  "d": "great purple emperor butterfly oomurasaki seen from above with wings spread, male with brilliant iridescent violet-blue inner wings, dark brown outer wings with white and yellow spots, red spot on hindwing"
+ },
+ "b14": {
+  "n": "ヒラタクワガタ",
+  "d": "male flat stag beetle hirata-kuwagata seen from above, very flat broad glossy black body, long straight thick mandibles with inner teeth"
+ },
+ "b15": {
+  "n": "オオクワガタ",
+  "d": "male giant stag beetle ookuwagata seen from above, thick glossy black body, wide head, strong thick curved mandibles with one inner tooth"
+ },
+ "b16": {
+  "n": "ミンミンゼミ",
+  "d": "robust cicada minminzemi seen from above, body with turquoise green and black pattern, white powder on the belly, clear transparent wings with dark veins"
+ },
+ "b17": {
+  "n": "アキアカネ",
+  "d": "autumn darter red dragonfly akiakane seen from above, slim bright red abdomen, brownish thorax, four clear wings spread flat with small dark wing spots"
+ },
+ "b18": {
+  "n": "オニヤンマ",
+  "d": "golden-ringed dragonfly oniyanma seen from above, very large dragonfly, black body with bright yellow rings, big green eyes touching at one point, clear wings spread flat"
+ },
+ "b19": {
+  "n": "ツクツクボウシ",
+  "d": "small slender cicada tsukutsukuboshi seen from above, olive-green and black patterned body, long clear transparent wings"
+ },
+ "b20": {
+  "n": "モンシロチョウ",
+  "d": "small cabbage white butterfly seen from above with wings spread, white wings with black forewing tips and two black spots, slightly creamy undersides"
+ },
+ "b21": {
+  "n": "ヤマトシジミ",
+  "d": "pale grass blue butterfly yamatoshijimi seen from above with wings spread, tiny butterfly with pale silvery blue wings bordered with dark grey, thin white fringe"
+ },
+ "b22": {
+  "n": "モンキチョウ",
+  "d": "eastern pale clouded yellow butterfly seen from the side with wings closed, lemon yellow wings with a small silver spot ringed in pink, pink edges, black-bordered upper wings"
+ },
+ "b23": {
+  "n": "キアゲハ",
+  "d": "old world swallowtail kiageha seen from above with wings spread, yellow wings with black veins and bands, blue spots on the hindwing border, a red eyespot, tails on the hindwings"
+ },
+ "b24": {
+  "n": "クロアゲハ",
+  "d": "spangle swallowtail kuroageha seen from above with wings spread, large velvety black wings, short tails, small red crescent spots along the hindwing edge"
+ },
+ "b25": {
+  "n": "ハグロトンボ",
+  "d": "black-winged damselfly hagurotombo, very slender metallic green abdomen, broad all-black rounded wings, perched side view with wings closed above the body"
+ },
+ "b26": {
+  "n": "シオカラトンボ",
+  "d": "white-tailed skimmer shiokara dragonfly seen from above, male with pale powder blue-grey abdomen and black tip, dark thorax, clear wings spread flat"
+ },
+ "b27": {
+  "n": "ギンヤンマ",
+  "d": "lesser emperor dragonfly ginyanma seen from above, bright green thorax, sky blue band at the base of the brown abdomen, big green eyes, clear wings spread flat"
+ },
+ "b28": {
+  "n": "アブラゼミ",
+  "d": "large brown cicada aburazemi seen from above, dark brown body, opaque brown mottled wings, unique among cicadas"
+ },
+ "b29": {
+  "n": "ヒグラシ",
+  "d": "evening cicada higurashi seen from above, reddish brown and green patterned slim body, long clear transparent wings with greenish veins"
+ },
+ "b30": {
+  "n": "コクワガタ",
+  "d": "male small stag beetle kokuwagata seen from above, slim dark brown-black body, short slightly curved mandibles with one small inner tooth"
+ },
+ "b31": {
+  "n": "オオスズメバチ",
+  "d": "Asian giant hornet oosuzumebachi seen from above, huge orange-yellow head, dark brown thorax, abdomen with black and yellow-orange bands, amber wings, fierce"
+ },
+ "b32": {
+  "n": "カナブン",
+  "d": "flower chafer kanabun Pseudotorynorrhina japonica seen from above, broad flat oval beetle, metallic bronze-green copper sheen, six legs"
+ }
+}

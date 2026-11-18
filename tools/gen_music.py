@@ -103,6 +103,53 @@ KINDS = {
                   "[Instrumental - biwa strikes over slow taiko]\n\n"
                   "[Chorus - steady war drum march, shakuhachi theme]\n\n"
                   "[Outro - drums fade, lone shakuhachi]"),
+    # 2.19.0 戦場以外の場面の曲（試し。ユーザーが聞いて選ぶ）
+    "s_title": ("cinematic japanese epic, koto, shakuhachi, taiko, string orchestra, "
+                "majestic, grand, sengoku era, sweeping melody",
+                88, "D minor", "4",
+                "[Intro - lone shakuhachi, koto arpeggios]\n\n[Build up - strings swell, soft taiko]\n\n"
+                "[Chorus - full orchestra main theme with koto]\n\n[Instrumental - shakuhachi solo]\n\n"
+                "[Chorus - full orchestra main theme with koto]\n\n[Outro - koto alone]"),
+    "s_day": ("peaceful japanese folk, koto, shinobue flute, light percussion, "
+              "bright countryside, warm, gentle, pastoral",
+              96, "G major", "4",
+              "[Intro - koto plucks]\n\n[Build up - flute melody enters]\n\n[Chorus - koto and flute together]\n\n"
+              "[Instrumental - light hand drum groove]\n\n[Chorus - koto and flute together]\n\n[Outro - soft koto]"),
+    "s_night": ("calm japanese night ambient, solo shakuhachi, soft koto, "
+                "quiet, lonely, moonlight, meditative, slow",
+                60, "A minor", "4",
+                "[Intro - distant shakuhachi]\n\n[Build up - sparse koto notes]\n\n[Chorus - slow shakuhachi melody]\n\n"
+                "[Instrumental - koto alone]\n\n[Chorus - slow shakuhachi melody]\n\n[Outro - fading breath]"),
+    "s_town": ("lively japanese festival town, shamisen, taiko, shinobue, "
+               "hyoshigi clappers, cheerful, bustling market, edo folk",
+               116, "D major", "4",
+               "[Intro - shamisen riff]\n\n[Build up - taiko and clappers join]\n\n[Chorus - festival melody on flute]\n\n"
+               "[Instrumental - shamisen solo]\n\n[Chorus - festival melody on flute]\n\n[Outro - final shamisen strum]"),
+    "s_gamble": ("smoky japanese gambling den, low shamisen, tsuzumi, shakuhachi, "
+                 "sultry, sly, tense, dark jazz feel, night",
+                 84, "E minor", "4",
+                 "[Intro - low shamisen riff]\n\n[Build up - tsuzumi hits]\n\n[Chorus - sly shakuhachi melody]\n\n"
+                 "[Instrumental - shamisen and tsuzumi trade]\n\n[Chorus - sly shakuhachi melody]\n\n[Outro - single tsuzumi hit]"),
+    "s_renpei": ("japanese military training march, taiko drums, shinobue, shamisen, "
+                 "brass section, determined, disciplined, energetic",
+                 120, "C major", "4",
+                 "[Intro - drum roll]\n\n[Build up - marching taiko pattern]\n\n[Chorus - heroic flute and brass theme]\n\n"
+                 "[Instrumental - taiko solo]\n\n[Chorus - heroic flute and brass theme]\n\n[Outro - big drum hit]"),
+    "s_chaya": ("relaxed japanese teahouse, koto, shamisen, soft shakuhachi, "
+                "elegant, cozy, graceful, gentle afternoon",
+                72, "F major", "3",
+                "[Intro - koto melody]\n\n[Build up - soft shamisen]\n\n[Chorus - graceful koto and shakuhachi]\n\n"
+                "[Instrumental - koto alone]\n\n[Chorus - graceful koto and shakuhachi]\n\n[Outro - last koto note]"),
+    "s_home": ("warm japanese home lullaby, soft koto, gentle shakuhachi, "
+               "nostalgic, tender, peaceful, intimate, slow",
+               60, "C major", "4",
+               "[Intro - soft koto]\n\n[Build up - shakuhachi joins]\n\n[Chorus - tender melody]\n\n"
+               "[Instrumental - koto alone]\n\n[Chorus - tender melody]\n\n[Outro - quiet ending]"),
+    "s_siege": ("tense japanese siege music, heavy taiko, cinematic orchestra, low brass, "
+                "shamisen, relentless, grim, epic, war",
+                140, "C minor", "4",
+                "[Intro - war horns, distant drums]\n\n[Build up - taiko and low brass]\n\n[Chorus - full orchestra and taiko]\n\n"
+                "[Instrumental - shamisen riff over drums]\n\n[Chorus - full orchestra and taiko]\n\n[Outro - massive final hit]"),
 }
 
 
