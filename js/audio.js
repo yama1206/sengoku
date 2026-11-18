@@ -1,5 +1,6 @@
-// 音（BGM・効果音）。音源ファイルは使わず、Web Audio でその場で鳴らす和風の音
+// 音（BGM・効果音）。Web Audio でその場で鳴らす和風の音
 // 箏・三味線・尺八・太鼓・鼓・拍子木・鈴・法螺貝ふうの音を合成し、場面ごとに曲を自動で作り続ける
+// 2.15.0 AIで作った曲のファイルがある場面（TRACKS）は、読み込めたらそちらを繰り返し流す
 (function () {
   const A = (SGK.AUDIO = {});
   // 音量は 0〜10 の11段階（全体・BGM・効果音）。0 は消音
@@ -29,6 +30,7 @@
     const rg = ctx.createGain(); rg.gain.value = 0.35; rev.connect(rg); rg.connect(master);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const nd = noiseBuf.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    loadTracks();
     setInterval(() => { schedule(); dinTick(); }, 80);
     return true;
   }
@@ -364,6 +366,30 @@
     setTimeout(() => A.speak(text), wait);
   };
   A.scene = (name) => { want = name; };
+
+  // 2.15.0 曲ファイル（AIで作った曲。tools/gen_music.py → tame.py → loop.py）
+  // loopStart〜loopEnd（秒）をくり返す。読み込み中・失敗した時は合成の曲を流す
+  const TRACKS = {
+    battle: { url: 'assets/bgm/battle.mp3', loopStart: 9.58, loopEnd: 84.226, gain: 1 }, // 一騎打ちの曲（三味線＋ヘヴィロック）
+  };
+  const trackBuf = {};
+  let src = null, srcScene = null;
+  function loadTracks() {
+    for (const [k, T] of Object.entries(TRACKS)) {
+      fetch(T.url + '?v=' + SGK.VERSION).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)))
+        .then((a) => new Promise((ok, ng) => ctx.decodeAudioData(a, ok, ng))).then((b) => { trackBuf[k] = b; })
+        .catch((e) => console.warn('BGM の曲を読めない', k, e));
+    }
+  }
+  function stopTrack() { if (src) { try { src.stop(); } catch (e) {} src.disconnect(); } src = null; srcScene = null; }
+  function startTrack(name) {
+    const T = TRACKS[name], b = trackBuf[name]; if (!T || !b) return false;
+    const s = ctx.createBufferSource(), g = ctx.createGain();
+    s.buffer = b; s.loop = true; s.loopStart = T.loopStart; s.loopEnd = T.loopEnd; g.gain.value = T.gain;
+    s.connect(g); g.connect(bgmBus); s.start(); src = s; srcScene = name; return true;
+  }
+  A.trackInfo = () => ({ ctx: ctx && ctx.state, loaded: Object.keys(trackBuf), scene, playing: srcScene, at: src && ctx ? ctx.currentTime : null }); // 確かめ用
+
   function schedule() {
     if (!ctx || ctx.state !== 'running') return;
     const now = ctx.currentTime;
@@ -371,6 +397,9 @@
       if (!scene) { scene = want; step = 0; nextT = now + 0.1; setLevel(LV_BGM[opt.bgm], 1.0); }
       else { fading = true; setLevel(0.0001, 0.8); setTimeout(() => { scene = want; step = 0; nextT = ctx.currentTime + 0.1; mel = 5; fading = false; setLevel(LV_BGM[opt.bgm], 1.2); }, 850); }
     }
+    // 曲ファイルのある場面：場面が変わったら（フェードが終わってから）差し替える。鳴っている間は合成しない
+    if (!fading && srcScene !== scene) { stopTrack(); if (opt.bgm) startTrack(scene); }
+    if (src && srcScene === scene) { nextT = Math.max(nextT, now); return; }
     const S = SCENES[scene]; if (!S || fading || !opt.bgm) { nextT = Math.max(nextT, now); return; }
     const b = 60 / S.bpm / 2;
     if (nextT < now) nextT = now + 0.05;
