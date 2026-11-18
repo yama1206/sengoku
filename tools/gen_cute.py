@@ -83,6 +83,24 @@ POSE = {
 for _id, _pose in POSE.items():
     _p, _w, _h = KINDS["w_" + _id]
     KINDS["p_" + _id] = (_p.replace(EMPTY, "empty hands holding nothing, no props, " + _pose).replace(CHAR, CHAR_PAINT), _w, _h)
+# 2.14.1 p_ は全員同じ「手を前で組む」立ち方になった。ポーズを文の先頭に置き、正面向きの指定も外す（q_〇〇）
+CHAR_POSE = CHAR_PAINT.replace("upper body from the knees up, facing the viewer", "figure from the knees up, dynamic natural pose")
+POSE2 = {
+    "tsushima2": "POSE: she raises one hand high above her head waving cheerfully, the other hand on her hip",
+    "kyo": "POSE: she lifts her long kimono sleeve with one hand to hide her mouth, body turned three-quarters to the side, eyes smiling at the viewer",
+    "sakai": "POSE: arms crossed firmly over her chest, weight on one hip, head tilted with a sly look",
+    "hakata": "POSE: both fists pumped up in front of her chest, leaning forward with energy, laughing",
+    "shinagawa": "POSE: both palms pressed together in front of her lips, shoulders hunched shyly, looking up at the viewer",
+    "sakata": "POSE: she bends forward in a polite bow with both hands resting on her knees, face lifted to look at the viewer",
+    "niigata": "POSE: one arm stretched out toward the viewer with an open palm as if inviting them in, the other hand on her chest",
+    "tsuruga": "POSE: body turned completely sideways, looking back over her shoulder at the viewer, one hand on her obi",
+    "yamaguchi": "POSE: one hand raised to touch the ornament in her hair, the other arm across her waist, elegant s-curve posture, body turned to the side",
+    "utazu": "POSE: both hands behind her head with elbows out, relaxed and leaning, weight on one leg",
+}
+for _id, _pose in POSE2.items():
+    _p, _w, _h = KINDS["w_" + _id]
+    _p = _p.replace(EMPTY, "").replace(CHAR, CHAR_POSE)
+    KINDS["q_" + _id] = (_pose + ". " + _p + ". " + _pose, _w, _h)
 
 
 def main():
