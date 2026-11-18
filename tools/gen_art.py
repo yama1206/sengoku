@@ -15,6 +15,7 @@ BG = STYLE + ", wide scene, no text, no people in the foreground"
 KINDS = {
     # 特産・品物の印（地図・拠点・持ち物）
     "ico_rice": ("a straw rice bale tied with rope and a sheaf of golden rice ears" + ICON, 1024, 1024),
+    "ico_tea2": ("a single fresh green tea plant sprig with five glossy serrated tea leaves and a small new bud on a thin green stem, freshly picked" + ICON, 1024, 1024),  # 2.13.1 茶の葉に見えるように
     "ico_salt": ("a small straw bag full of white coarse sea salt with salt spilling out" + ICON, 1024, 1024),
     "ico_cotton": ("a rolled bolt of indigo dyed cotton cloth with a white cotton boll" + ICON, 1024, 1024),
     "ico_sake": ("a wooden sake barrel with straw wrapping and a ceramic sake bottle" + ICON, 1024, 1024),

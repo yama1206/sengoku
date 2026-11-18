@@ -8,7 +8,7 @@
     sake: { name: '酒', ic: 'sake', unit: '樽', base: 500, cons: 1, wt: 4 },      // 小樽（酒 約2升）
     firewood: { name: '薪', ic: 'firewood', unit: '束', base: 40, cons: 3, wt: 3 },
     iron: { name: '鉄', ic: 'iron', unit: '貫', base: 800, cons: 0.5, wt: 3.75 },  // 1貫は本物も3.75kg
-    tea: { name: '茶', ic: 'tea', unit: '斤', base: 350, cons: 0.5, wt: 0.6 },   // 1斤は本物も約0.6kg
+    tea: { name: '茶', ic: 'tea2', /* 2.13.1 茶の葉の絵 */ unit: '斤', base: 350, cons: 0.5, wt: 0.6 },   // 1斤は本物も約0.6kg
   };
   const prod = {
     inabayama: { rice: 3, iron: 1, tea: 1 }, ogaki: { rice: 4 }, inuyama: { firewood: 4, sake: 1 },

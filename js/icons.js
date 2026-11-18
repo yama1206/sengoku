@@ -9,5 +9,5 @@
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   I.tok = (s, px = 18) => esc(s).replace(/\{i:(\w+)\}/g, (_, k) => I.html(k, px));
   // 地図の村の特産などで使う絵は、はじめに読んでおく
-  for (const k of ['rice', 'salt', 'cotton', 'sake', 'firewood', 'iron', 'tea']) I.img(k);
+  for (const k of ['rice', 'salt', 'cotton', 'sake', 'firewood', 'iron', 'tea2']) I.img(k);
 })();

@@ -129,7 +129,7 @@
   $('btnNew').onclick = () => openSlots('new');
   { // 2.12.1 タイトルを5回タップするとテストモード（このあと新しく作る世界が、1000貫を持った部将から始まる）
     let n = 0, t0 = 0;
-    document.querySelector('#title h1').addEventListener('click', () => { const now = Date.now(); if (now - t0 > 2500) n = 0; t0 = now; if (++n < 5) return; n = 0; G.testArm = !G.testArm; titleMsg(G.testArm ? 'テストモード：このあと「新しい世界を作る」と、1000貫を持った部将から始まります（右上の「戦闘」で野戦・攻城戦を試せます）' : 'テストモードをやめました'); });
+    document.querySelector('#title h1').addEventListener('click', () => { const now = Date.now(); if (now - t0 > 2500) n = 0; t0 = now; if (++n < 5) return; n = 0; G.testArm = !G.testArm; titleMsg(G.testArm ? 'テストモード：このあと「新しい世界を作る」と、1000貫を持った部将から始まります（左下の「戦闘」で野戦・攻城戦を試せます）' : 'テストモードをやめました'); });
   }
   $('btnContinue').onclick = () => openSlots('load');
   // 年の表示（和暦／西暦／両方）を切り替える。押すたびに次の形式へ（カーソルはその場に残る）
@@ -768,29 +768,61 @@
     const t = Math.max(-1, Math.min(1, Math.log(r) / Math.LN2)), N = [236, 228, 210], C = t < 0 ? [80, 160, 255] : [255, 85, 70], a = Math.abs(t);
     return `rgb(${N.map((n, i) => Math.round(n + (C[i] - n) * a)).join(',')})`;
   }
-  let townTab = 'market', townHtml = '';
+  let townTab = 'street', townHtml = '', stageKey = '';
+  // 2.13.0 町の中：通りの絵から市場・練兵所・賭場・話す（・城・自宅）へ。練兵所＝募兵・調練と仕事・依頼
+  const TOWN_SECS = { street: [], renpei: ['army', 'work', 'jobs'] }, SEC_NAME = { army: '募兵', work: '調練・仕事', jobs: '依頼' };
+  const TA = 'assets/town/';
+  function townStage(P, hs) {
+    const me = P.me, h = P.here, mu = h.musume, big = SGK.DATA.isBig(hs), isHome = me.home && me.home.id === h.id;
+    const say = (who, t) => `<div class="say"><b>${who}</b>${t}</div>`;
+    if (townTab === 'street') {
+      return ['street', 'street2.jpg', '']; // 2.13.1 行き先は上のボタン（ほかの所と同じ並び）
+    }
+    if (townTab === 'market') {
+      return ['', 'shop.jpg', `<img class="who" src="${TA}merchant.png" style="transform:scaleX(-1)">` + say('商人', 'いらっしゃい。よい品が入っていますよ')];
+    }
+    if (townTab === 'renpei') return ['', 'renpei.jpg', `<img class="who" src="${TA}drill.png">` + say('練兵所の師範', '腕を上げたければ、ここで鍛えていけ。兵も雇えるし、仕事の口も回してやるぞ')];
+    if (townTab === 'gamble') return ['', '../gamble/den.jpg', `<img class="who" src="${TA}boss.png">` + say('賭場の胴元', 'おう、遊んでいくかい。運も腕のうちだぜ')];
+    if (townTab === 'talk') { // 2.13.1 茶屋：大きな町には娘がいる
+      if (mu) return ['', 'chaya.jpg', `<img class="who" src="${TA}${mu.img}.png">` + say(`${mu.name}　<span class="heart">${'♥'.repeat(mu.wife ? 5 : mu.st)}${'♡'.repeat(mu.wife ? 0 : 4 - mu.st)}</span>`, (G.muSay && G.muSay[0] === mu.id && performance.now() - G.muSay[2] < 6000) ? G.muSay[1] : mu.line)];
+      return ['', 'chaya.jpg', say('茶屋', '旅の人や町の人が、相場や戦の噂をしている')];
+    }
+    if (townTab === 'home') { const wf = me.wife; return isHome ? ['', 'home.jpg', wf ? `<img class="who" src="${TA}${wf.img}.png">` + say(wf.name, wf.line) : say('自宅', '落ち着ける我が家。金庫と物置があり、ゆっくり休める')] : ['none', '', '']; }
+    return ['none', '', ''];
+  }
   const dayLeft = (dl) => { const d = (dl - G.view.t) / 1440; return d >= 1 ? `あと${Math.floor(d)}日` : 'まもなく期限'; };
   const sName = (id) => (G.view.settlements.find((x) => x.id === id) || {}).name || '?';
   function openTown(open, keep) {
     const t = $('town');
     if (open === false || !G.priv || !G.priv.here) { t.classList.add('hidden'); return; }
-    if (!keep) townTab = 'market'; // 0.75.2 拠点に入ったら市場のタブにカーソルを合わせる
-    t.classList.remove('hidden'); townHtml = ''; renderTown(); setFocus(t, keep ? currentFocus(t) : $('tab-market'));
+    if (!keep) townTab = 'street'; // 2.13.0 拠点に入ったら通りの絵から
+    t.classList.remove('hidden'); townHtml = ''; stageKey = ''; renderTown(); setFocus(t, keep ? currentFocus(t) : $('tab-market'));
   }
-  function setTab(tab) { townTab = tab; townHtml = ''; renderTown(); const t = $('town'); setFocus(t, $('tab-' + tab)); }
+  function setTab(tab) { townTab = tab; townHtml = ''; stageKey = ''; renderTown(); const t = $('town'); setFocus(t, $('tab-' + tab)); }
   function renderTown() {
     const P = G.priv; if (!P || !P.here) return openTown(false);
     const me = P.me, h = P.here, hs = G.view.settlements.find((x) => x.id === h.id);
     $('tab-castle').classList.toggle('hidden', !hs || hs.type !== 'castle');
     $('tab-gamble').classList.toggle('hidden', !SGK.DATA.isBig(hs)); /* 2.8.0 賭場は大きな町だけ */
-    if (townTab === 'gamble' && !SGK.DATA.isBig(hs)) townTab = 'market';
-    if (townTab === 'castle' && (!hs || hs.type !== 'castle')) townTab = 'market';
+    if (townTab === 'gamble' && !SGK.DATA.isBig(hs)) townTab = 'street';
+    if (townTab === 'castle' && (!hs || hs.type !== 'castle')) townTab = 'street';
+    { const [cls, bg, inner] = townStage(P, hs), key = townTab + '|' + bg + '|' + inner; // 2.13.0 町の絵
+      if (key !== stageKey) { stageKey = key; const st = $('townStage'); st.className = cls; st.style.backgroundImage = bg ? `url(${TA}${bg})` : ''; st.innerHTML = inner; } }
     $('townName').textContent = sName(h.id) + (SGK.DATA.isBig(hs) ? '（大きな町）' : '');
     document.querySelectorAll('#town [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === townTab));
     let html = '';
     const NJ = me.nin; // 0.77.0 忍び：工作の城に入ったら「忍び込む」
     if (NJ && NJ.atTgt && NJ.q) html += `<div class="card" style="display:block;border-color:#c33"><b>${SIM.NIN.jobs[NJ.q.k].name}</b>（${NJ.q.foe}・${NJ.q.toName}）<br><span class="muted">${SIM.NIN.jobs[NJ.q.k].desc}。見張り${NJ.d.guards}人・${NJ.d.ck === 'yama' ? '山城' : NJ.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.d.night ? '夜（見張りの目が届きにくい）' : '昼'}・難しさ${SGK.ICON.html('star', 14).repeat(NJ.d.lv)}</span><div class="row" style="margin-top:4px"><button id="nj-go" data-nj="go">忍び込む</button></div></div>`;
-    if (townTab === 'market') {
+    if (townTab === 'street') html += `<div class="muted">${hs && hs.type === 'village' ? '村' : '町'}の通りです。上のボタンから行き先を選んでください</div>`;
+    for (const sec of TOWN_SECS[townTab] || [townTab]) { if ((TOWN_SECS[townTab] || []).length > 1) html += `<div class="secH">${SEC_NAME[sec]}</div>`;
+    if (sec === 'talk' && h.musume) { const m = h.musume, gifts = Object.keys(me.inv || {}).filter((k) => me.inv[k] > 0 && IT[k]); // 2.13.0 看板娘
+      html += `<div class="card" style="display:block"><b>${m.name}</b>　仲 ${m.a}/100・${m.wife ? '夫婦' : m.stName}${m.like ? `　好きな品：${IT[m.like].name}` : '　好きな品：？（顔なじみになると分かる）'}`
+        + `<div class="row" style="flex-wrap:wrap;margin-top:4px"><button id="mu-talk" data-act="musume" data-kind="talk" ${m.talked ? 'disabled' : ''}>${m.talked ? '今日は話した' : '話す'}</button>`
+        + (m.gifted ? '<button disabled>今日は贈った</button>' : gifts.map((k) => `<button id="mu-g-${k}" data-act="musume" data-kind="gift" data-item="${k}">${IT[k].name}を贈る</button>`).join(''))
+        + (m.wife ? '' : `<button id="mu-date" data-act="musume" data-kind="date" ${m.a < SIM.MUSUME.dateNeed || m.dated || me.money < SIM.MUSUME.dateCost ? 'disabled' : ''}>お団子をごちそうする（${SIM.money(SIM.MUSUME.dateCost)}）</button>`)
+        + (!m.married && m.st >= 4 ? '<button id="mu-pro" data-act="musume" data-kind="propose" style="border-color:#e0607e">想いを伝える</button>' : '')
+        + `</div><span class="muted">話す・贈り物は1日1回。${m.a < SIM.MUSUME.dateNeed ? `仲が${SIM.MUSUME.dateNeed}になるとお団子をごちそうできます。` : ''}${m.married && !m.wife ? 'あなたには連れ合いがいます' : '仲が100になると想いを伝えられます'}</span></div>`; }
+    if (sec === 'market') {
       html += `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　${loadTxt(me)}</div><div class="grid">`;
       html += '<span class="h">品</span><span class="h">買値</span><span class="h">売値</span><span class="h">在庫</span><span class="h">所持</span><span></span><span></span><span></span><span></span>';
       for (const [k, buy, sell, stock] of h.market.slice().sort((a, b) => IT[a[0]].base - IT[b[0]].base)) { // 1.6.87 相場の安い順
@@ -816,7 +848,7 @@
           html += `<div class="card"><div><b>${e.name}</b>　<span class="muted">${EQ.slotName[sl]}　${SIM.money(e.cost)}${e.wt ? `　${e.wt}kg` : e.cw ? `　荷+${e.cw}kg` : ''}<br>${eff}</span></div><div class="row"><button id="eq-${id}" data-act="buyEquip" data-kind="${sl}" data-id="${id}" ${have || own2 || me.money < e.cost ? 'disabled' : ''}>${have ? '装備中' : sl === 'wep' ? '主に買う' : '買う'}</button>${b2}</div></div>`;
         }
       }
-    } else if (townTab === 'jobs') {
+    } else if (sec === 'jobs') {
       html += `<div class="muted">受けている依頼（${me.quests.length}/3）</div>`;
       if (!me.quests.length) html += '<div class="muted" style="margin:4px 0 8px">なし</div>';
       for (const q of me.quests) {
@@ -839,7 +871,7 @@
         html += `<div class="card"><div><b>${j.title}</b>　<span class="muted">依頼主：${j.giver}</span><br><span class="muted">${what}　報酬 ${SIM.money(j.reward)}　期限${j.days}日</span></div><div class="row">`
           + (to || j.look ? `<button id="lk-${j.id}" data-look="${to ? j.to : j.look}" data-job="${j.id}">地図で見る</button>` : '') + `<button id="ac-${j.id}" data-act="acceptJob" data-id="${j.id}">受ける</button></div></div>`;
       }
-    } else if (townTab === 'work') {
+    } else if (sec === 'work') {
       const s = G.view.settlements.find((x) => x.id === h.id);
       if (me.busy) {
         const left = Math.max(0, Math.ceil((me.busy.until - G.view.t) / 60));
@@ -861,7 +893,7 @@
           + '</div>';
         if (V.lv < V.max) html += `<div class="row">${V.steps.map((q) => `<button id="iv-${q}" data-act="invest" data-qty="${q}" ${me.money >= Math.min(q, V.need) ? '' : 'disabled'}>${SIM.money(q)}出す</button>`).join('')}<button id="iv-rest" data-act="invest" data-kind="rest" ${me.money >= 1 ? '' : 'disabled'}>残りを出す（${SIM.money(V.need)}）</button></div>`;
       }
-    } else if (townTab === 'army') {
+    } else if (sec === 'army') {
       const TR = SIM.TROOPS, n = SIM.troopCount(me.troops);
       html += `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　兵 ${n}/${me.troopCap}　給金 ${SIM.money(me.wage)}/日</div>`;
       html += '<div class="muted">この拠点で雇える兵</div>';
@@ -873,7 +905,7 @@
       html += '<div class="muted" style="margin-top:10px">率いている兵</div>';
       if (!n) html += '<div class="muted" style="margin-top:4px">まだいません。野盗（地図の×印）と戦うには兵を雇いましょう</div>';
       for (const k in me.troops) html += `<div class="card"><div>${TR[k].name}　${me.troops[k]}人</div><button id="dm-${k}" data-act="dismiss" data-kind="${k}" data-qty="1">1人解き放つ</button></div>`;
-    } else if (townTab === 'castle') {
+    } else if (sec === 'castle') {
       const C = (me.castles || []).find((c) => c.id === h.id);
       if (NJ) { // 0.77.0 忍びの工作の依頼（主家の城で）
         if (NJ.q) html += `<div class="card"><div><b>請け負っている工作</b>　${SIM.NIN.jobs[NJ.q.k].name}：${NJ.q.foe}の${NJ.q.toName}<br><span class="muted">報酬${SIM.money(NJ.q.reward)}・${dayLeft(NJ.q.deadline)}</span></div><button id="nj-look" data-look="${NJ.q.to}">地図で見る</button><button id="nj-drop" data-act="ninDrop">取りやめる</button></div>`;
@@ -915,12 +947,39 @@
           html += `<div class="card"><div><b>仕官</b>　${R.factionHere}の${R.lordHere}様に仕える<br><span class="muted">名声${need}以上（いま${me.fame}）。仕えると俸禄がもらえ、主家の依頼や戦で功績が積めます${ok ? '' : '。この家の武将や隊長に話しかけて顔をつなぐと名声2で仕官できます'}</span></div><button id="tw-serve" data-act="serve" ${ok ? '' : 'disabled'}>武士として仕官</button><button id="tw-serve-n" data-act="serve" data-nin="1" ${ok ? '' : 'disabled'}>忍びとして仕官</button></div>`;
         } else if (R && !R.clan) html += `<div class="muted">この城では仕官できません（城主のいる城で仕官できます）</div>`;
       }
-    } else if (townTab === 'gamble') {
+    } else if (sec === 'home') { // 2.12.6 自宅
+      const HO = me.home, HM = SIM.HOME, K = me.kura || { money: 0, inv: {} };
+      if (!HO || HO.id !== h.id) {
+        html += `<div class="card"><div><b>ここに引っ越す</b><br><span class="muted">いまの自宅：${HO ? HO.name : 'なし'}。${SIM.money(HM.moveCost)}かかります。金庫と物置の中身も一緒に運びます</span></div><button id="hm-move" data-act="home" data-kind="move" ${me.money >= HM.moveCost && !me.busy ? '' : 'disabled'}>引っ越す（${SIM.money(HM.moveCost)}）</button></div>`;
+        html += '<div class="muted">仕官すると、仕えた城へ無料で引っ越します</div>';
+      } else {
+        const hp = me.hpFrac == null ? 1 : me.hpFrac;
+        if (me.busy && me.busy.kind === 'rest') html += `<div class="card"><div><b>休んでいます</b><br><span class="muted">残り約${Math.max(0, Math.ceil((me.busy.until - G.view.t) / 60))}時間　体力 ${Math.round(hp * 100)}%</span></div><button id="hm-stop" data-act="cancelWork">起きる</button></div>`;
+        else html += `<div class="card"><div><b>休む</b><br><span class="muted">${HM.restHours}時間。ふつうに拠点にいるより早く傷が治る（いま体力 ${Math.round(hp * 100)}%）</span></div><button id="hm-rest" data-act="home" data-kind="rest" ${me.busy ? 'disabled' : ''}>休む</button></div>`;
+        html += `<div class="muted" style="margin-top:8px"><b>金庫</b>　預けている ${SIM.money(K.money)}　所持金 ${SIM.money(me.money)}</div><div class="row" style="flex-wrap:wrap">`
+          + [1000, 10000].map((q) => `<button id="hm-pm${q}" data-act="home" data-kind="putM" data-qty="${q}" ${me.money >= q ? '' : 'disabled'}>${SIM.money(q)}預ける</button>`).join('')
+          + `<button id="hm-pma" data-act="home" data-kind="putM" data-qty="-1" ${me.money > 0 ? '' : 'disabled'}>全部預ける</button>`
+          + [1000, 10000].map((q) => `<button id="hm-tm${q}" data-act="home" data-kind="takeM" data-qty="${q}" ${K.money >= q ? '' : 'disabled'}>${SIM.money(q)}出す</button>`).join('')
+          + `<button id="hm-tma" data-act="home" data-kind="takeM" data-qty="-1" ${K.money > 0 ? '' : 'disabled'}>全部出す</button></div>`;
+        html += `<div class="muted" style="margin-top:8px"><b>物置</b>　${loadTxt(me)}</div>`;
+        const ks = [...new Set([...Object.keys(me.inv || {}), ...Object.keys(K.inv || {})])].filter((k) => IT[k]).sort((a, b) => IT[a].base - IT[b].base);
+        if (!ks.length) html += '<div class="muted">荷も物置も空です</div>';
+        else {
+          html += '<div class="grid" style="grid-template-columns:auto auto auto repeat(4,auto)"><span class="h">品</span><span class="h">持っている</span><span class="h">物置</span><span></span><span></span><span></span><span></span>';
+          for (const k of ks) { const it = IT[k], a = me.inv[k] || 0, b = K.inv[k] || 0;
+            html += `<span>${it.ic ? SGK.ICON.html(it.ic, 18) : ''}${it.name}</span><span>${a}</span><span>${b}</span>`
+              + `<button id="hp1-${k}" data-act="home" data-kind="put" data-item="${k}" data-qty="1" ${a ? '' : 'disabled'}>入れる1</button><button id="hpa-${k}" data-act="home" data-kind="put" data-item="${k}" data-qty="-1" ${a ? '' : 'disabled'}>全部入れる</button>`
+              + `<button id="ht1-${k}" data-act="home" data-kind="take" data-item="${k}" data-qty="1" ${b ? '' : 'disabled'}>出す1</button><button id="hta-${k}" data-act="home" data-kind="take" data-item="${k}" data-qty="-1" ${b ? '' : 'disabled'}>全部出す</button>`; }
+          html += '</div>';
+        }
+      }
+    } else if (sec === 'gamble') {
       if (P.here && P.here.gamble && SGK.GAMBLEUI) html += `<div class="card"><div><b>賭場に入る</b><br><span class="muted">行灯の灯る部屋で、壺振りの丁半・賽の目増と四五六・馬くらべ・天正かるた</span></div><button id="gb-open" data-act="gbOpen">入る</button></div><details style="margin-top:6px"><summary class="muted">文字だけで遊ぶ</summary>${SGK.GAMBLE.html(P, G.gbSel, G.myPid)}</details>`; // 2.12.4
       else html += SGK.GAMBLE.html(P, G.gbSel, G.myPid);
     } else {
       html += `<div class="card"><div>ここの人に話を聞く<br><span class="muted">相場の噂などが聞けます</span></div><button id="tk" data-act="talk">話しかける</button></div>`;
     }
+    } // 2.13.0 sec のくり返し
     html += `<div class="muted" style="margin-top:8px">名声 ${me.fame}</div>`;
     if (html !== townHtml) {
       townHtml = html; $('townBody').innerHTML = html;
@@ -978,7 +1037,8 @@
   $('townBtn').onclick = () => openTown(true);
   $('joinBtn').onclick = () => command({ type: 'joinBattle' }); // 1.6.12 合戦の途中参加
   $('testBtn').onclick = () => SGK.TESTUI && SGK.TESTUI.open(G.priv && G.priv.me); // 2.12.1 テストモードの戦闘
-  function cycleTab(d) { const tabs = ['market', 'jobs', 'work', 'army', 'talk', 'gamble', 'castle'].filter((t) => !$('tab-' + t).classList.contains('hidden')); setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
+  $('townStage').addEventListener('click', (e) => { const b = e.target.closest('button[data-tab]'); if (b) setTab(b.dataset.tab); }); // 2.13.0 通りのボタン
+  function cycleTab(d) { const tabs = ['street', 'market', 'renpei', 'gamble', 'talk', 'castle', 'home'].filter((t) => !$('tab-' + t).classList.contains('hidden')); setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
 
   // ---------- 人物（能力・技能・特技・部隊の昇格） ----------
   let charTab = 'eq', charHtml = '';

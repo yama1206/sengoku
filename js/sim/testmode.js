@@ -13,9 +13,9 @@
     if (!p || p.testInit) return; p.testInit = 1;
     const cs = w.settlements.filter((s) => s.type === 'castle' && w.factions[s.owner] && w.factions[s.owner].leader);
     const s = cs.sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
-    if (s) { p.clan = s.owner; p.rank = TEST.rank; p.merit = SIM.RANKS[TEST.rank].merit; p.fame = Math.max(p.fame || 0, SIM.RANKS[TEST.rank].fame); p.status = `${w.factions[s.owner].name} ${SIM.RANKS[TEST.rank].name}`; }
+    if (s) { p.clan = s.owner; p.rank = TEST.rank; p.merit = SIM.RANKS[TEST.rank].merit; p.fame = Math.max(p.fame || 0, SIM.RANKS[TEST.rank].fame); p.status = `${w.factions[s.owner].name} ${SIM.RANKS[TEST.rank].name}`; p.home = s.id; } // 2.12.6 自宅は仕えた城
     p.money = (p.money || 0) + TEST.money;
-    SIM.say(p.id, `テストモードです。${s ? w.factions[s.owner].name + 'の部将として、' : ''}${SIM.money(TEST.money)}を持って始めます。右上の「戦闘」から野戦や攻城戦を試せます`);
+    SIM.say(p.id, `テストモードです。${s ? w.factions[s.owner].name + 'の部将として、' : ''}${SIM.money(TEST.money)}を持って始めます。左下の「戦闘」から野戦や攻城戦を試せます`);
   }
   const baseAdd = SIM.addPlayer;
   SIM.addPlayer = function (w, ...a) { const pid = baseAdd.call(this, w, ...a); if (w && w.test) setup(w, w.players[pid]); return pid; };
