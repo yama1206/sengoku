@@ -785,6 +785,7 @@
     return `rgb(${N.map((n, i) => Math.round(n + (C[i] - n) * a)).join(',')})`;
   }
   let townTab = 'street', townHtml = '', stageKey = '';
+  const TOWN_BGM = { renpei: 'renpei', gamble: 'gamble', talk: 'chaya', home: 'home' }; // 2.14.3 行き先ごとの曲（ほかは町の曲）
   // 2.13.0 町の中：通りの絵から市場・練兵所・賭場・話す（・城・自宅）へ。練兵所＝募兵・調練と仕事・依頼
   const TOWN_SECS = { street: [], renpei: ['army', 'work', 'jobs'] }, SEC_NAME = { army: '募兵', work: '調練・仕事', jobs: '依頼' };
   const TA = 'assets/town/';
@@ -2006,7 +2007,7 @@
       const hereId = P && P.here && !BT ? P.here.id : null;
       if (hereId && hereId !== G.lastHere && $('char').classList.contains('hidden') && $('gameMenu').classList.contains('hidden')) { SGK.AUDIO.sfx('arrive'); openTown(true); }
       // BGM：戦闘・拠点の中・昼・夜で曲を変える
-      SGK.AUDIO.scene(BT ? 'battle' : !$('town').classList.contains('hidden') ? 'town' : SIM.daylight(G.view.t) < 0.5 ? 'night' : 'day');
+      SGK.AUDIO.scene(BT ? 'battle' : SGK.GAMBLEUI && SGK.GAMBLEUI.isOpen() ? 'gamble' : !$('town').classList.contains('hidden') ? (TOWN_BGM[townTab] || 'town') : SIM.daylight(G.view.t) < 0.5 ? 'night' : 'day');
       G.lastHere = hereId;
       { // 0.73.0 評定が開かれたら人物画面の「評定」を開く
         const hy = P && P.me && P.me.hyo; $('ctab-hyo').classList.toggle('hidden', !hy);

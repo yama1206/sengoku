@@ -294,6 +294,45 @@
       if (s % 8 === 0 || s % 8 === 5) tsuzumi(t, 0.18);
       if (s % 16 === 14) hyoshigi(t, 0.12);
     } },
+    // 2.14.3 町の中の行き先ごとの曲
+    // 賭場：薄暗く色っぽい。低い三味線のくり返しに鼓の「ポン」、ときどき尺八がすべりこむ
+    gamble: { bpm: 84, play(s, t, b) {
+      const sc = IN, root = 57, k = s % 8;
+      if (s % 32 === 0) chord = pick([0, 0, -1, 2]);
+      if (k === 0 || k === 3 || k === 6) shami(t, note(sc, root - 12, chord + [0, 2, 1][k / 3]), 0.17);
+      if (k === 2 || k === 5) tsuzumi(t, 0.14);
+      if (k === 7 && R() < 0.5) hyoshigi(t, 0.08);
+      if (s % 2 === 1 && R() < 0.3) shami(t, note(sc, root, chord + walk(0, 7)), 0.1);
+      if (s % 16 === 8 && R() < 0.45) flute(t, note(sc, root + 12, walk(0, 6, 1)), b * pick([3, 5]), 0.08);
+    } },
+    // 練兵所：勇ましい行進。太鼓の刻みに拍子木、陽音階の笛が長くのびる
+    renpei: { bpm: 112, play(s, t, b) {
+      const sc = YO, root = 55, k = s % 8;
+      if (k === 0) taiko(t, 0.5, true);
+      if (k === 4) taiko(t, 0.38, false);
+      if (k === 6 || (k === 7 && R() < 0.4)) taiko(t, 0.28, false);
+      if (k === 2) hyoshigi(t, 0.1);
+      if (s % 16 === 0) chord = pick([0, 0, 2, 3]);
+      if (k === 0 || k === 4) shami(t, note(sc, root - 12, chord), 0.15);
+      if (s % 4 === 0 && R() < 0.75) flute(t, note(sc, root + 12, chord + walk(0, 7)), b * pick([2, 4, 4]), 0.11);
+    } },
+    // 茶屋：やわらかい箏の分散和音、ときどき尺八
+    chaya: { bpm: 66, play(s, t, b) {
+      const sc = YO, root = 64;
+      if (s % 16 === 0) chord = pick([0, 2, 3, 0]);
+      if (s % 2 === 0) koto(t, note(sc, root - 12, chord + [0, 2, 4, 7, 5, 4, 2, 4][(s / 2) % 8]), 0.17);
+      if (s % 16 === 0) koto(t, note(sc, root - 24, chord), 0.16);
+      if (s % 8 === 6 && R() < 0.35) flute(t, note(sc, root, walk(2, 9, 1)), b * pick([4, 6]), 0.09);
+      if (s % 32 === 28 && R() < 0.5) tsuzumi(t, 0.08);
+    } },
+    // 自宅：静かで温かい。ゆっくりの箏だけ
+    home: { bpm: 54, play(s, t, b) {
+      const sc = YO, root = 60;
+      if (s % 32 === 0) chord = pick([0, 0, 3, -2]);
+      if (s % 4 === 0 && R() < 0.85) koto(t, note(sc, root, chord + walk(-1, 6, 1)), 0.14);
+      if (s % 16 === 0) koto(t, note(sc, root - 12, chord), 0.15);
+      if (s % 16 === 10 && R() < 0.4) koto(t, note(sc, root - 12, chord + 4), 0.11);
+    } },
     battle: { bpm: 136, play(s, t, b) {
       const sc = IN, root = 50, k = s % 8;
       if (k === 0) taiko(t, 0.55, true);
