@@ -1145,6 +1145,8 @@
         if (!cur.indep) html += `<div class="card" style="margin-top:10px"><div>出奔する<br><span class="muted">浪人に戻る（名声-3、功績は消え、この家には二度と仕えられない${me.castle ? '。城も返上する' : ''}）</span></div><button id="rk-leave" data-cact="leaveClan">出奔</button></div>`;
       }
     } else {
+      { const cl = me.cloth || {}, nm = (h) => { if (!h) return '元の色'; const f = SIM.CLOTH && SIM.CLOTH.colors.find(([, c]) => c === h); return f ? f[0] : h; }, sw = (h) => (h ? `<i style="display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;background:${h};border:1px solid rgba(255,255,255,.4)"></i>` : ''); // 2.12.5 服の色
+        html += `<div class="card"><div><b>服の色</b>　兵 ${sw(cl.tr)}${nm(cl.tr)}　自分 ${sw(cl.me)}${nm(cl.me)}<br><span class="muted">戦場で見える服の色。人形で確かめてから選べます（変えるたびに${SIM.money(SIM.CLOTH ? SIM.CLOTH.cost : 1000)}）</span></div><button id="cl-open" data-cact="openCloth">色を選ぶ</button></div>`; }
       html += `<div class="muted" style="margin-bottom:6px">兵 ${SIM.troopCount(me.troops)}/${me.troopCap}　所持金 ${SIM.money(me.money)}　給金 ${SIM.money(me.wage)}/日<br>戦や調練で兵が経験を積むと、上の兵種へ昇格できます（どこでもできます）</div>`;
       if (!SIM.troopCount(me.troops)) html += '<div class="muted">まだ兵がいません。拠点の「募兵」で雇えます</div>';
       for (const k in me.troops) {
@@ -1173,6 +1175,7 @@
   });
   $('charBody').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-cact]'); if (!b) return;
+    if (b.dataset.cact === 'openCloth') { if (SGK.CLOTHUI && G.priv) SGK.CLOTHUI.open(G.priv.me); return; } // 2.12.5 服の色
     if (b.dataset.cact === 'openNawa') { const me2 = G.priv && G.priv.me; if (me2 && me2.build && SGK.NAWAEDIT) SGK.NAWAEDIT.open({ mode: 'new', ck: me2.build.ck, money: me2.money }); return; } // 2.12.0 縄張りを描く
     if (b.dataset.cact === 'goPol') return setCTab('pol');
     if (b.dataset.cact === 'backChar') return setCTab('eq');
@@ -1892,6 +1895,7 @@
       if (G.selKind === 'u' && !BT) refreshUnitInfo();
       $('townBtn').classList.toggle('hidden', !(P && P.here) || !!BT);
       $('testBtn').classList.toggle('hidden', !(P && P.me && P.me.test) || !!BT); // 2.12.1
+      if (SGK.RENDER && SGK.RENDER.act3d) SGK.RENDER.act3d.cloth = P && P.battle ? P.battle.cloth || null : null; // 2.12.5 戦場の服の色
       if (SGK.GAMBLEUI && SGK.GAMBLEUI.isOpen()) { const nw = performance.now(); if (!G.gbUiT || nw - G.gbUiT > 250) { G.gbUiT = nw; SGK.GAMBLEUI.update(P); } } // 2.12.4 賭場の画面
       $('joinBtn').classList.toggle('hidden', !(P && P.nearBattle) || !!BT); if (P && P.nearBattle) $('joinBtn').textContent = `合戦に加わる（${P.nearBattle.foe}）${G.padUsed ? ' Ⓐ' : ' [E]'}`;
       // 拠点に着いたら自動で拠点画面を開く

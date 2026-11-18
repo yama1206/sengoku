@@ -50,6 +50,19 @@
     return geo;
   }
 
+  /* 2.12.5 服の所（染める頂点）を、どの骨で動くかと色で見分ける：頭・首・手で動く所（顔・手・陣笠・兜）は染めない。
+     足先の肌色（素足）・黒い具足・白い所も染めない。足軽の着物は肌に近い色なので、色だけでは見分けられない */
+  S.clothMask = (geo, boneNames) => {
+    const P = geo.attributes.position, C = geo.attributes.color, SI = geo.attributes.skinIndex, SW = geo.attributes.skinWeight, m = new Float32Array(P.count);
+    for (let i = 0; i < P.count; i++) {
+      let bi = SI.getX(i), bw = SW.getX(i); for (const k of ['getY', 'getZ', 'getW']) if (SW[k](i) > bw) { bw = SW[k](i); bi = SI[k](i); }
+      const bn = (boneNames[bi] || '').replace(/^mixamorig:?/, ''), r = C.getX(i), g = C.getY(i), b = C.getZ(i), lo = Math.min(r, g, b), hi = Math.max(r, g, b), lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      const skinCol = r > 0.6 && g > 0.45 && b > 0.28 && r > g && g > b && lum > 0.5;
+      const bare = /Head|Neck|Hand|Thumb|Index|Middle|Ring|Pinky|Eye/.test(bn) || (skinCol && /Leg$|Foot|Toe/.test(bn));
+      m[i] = !bare && lum < 0.82 && !(lum < 0.2 && hi - lo < 0.12) ? 1 : 0;
+    }
+    return m;
+  };
   // 動きを焼き込む。1行＝1コマ、1行に骨の数×4画素（行列1つ＝4画素）
   // hipK：腰の位置を体の大きさに合わせる倍率（動きはt3の体で作られているため）
   function bake(gl, clips, hipK) {
@@ -58,6 +71,7 @@
     const sm = meshes[0], sk = sm.skeleton, nb = sk.bones.length;
     const geo = mergeParts(meshes.map((m) => ({ geo: m.geometry, color: m.geometry.attributes.color ? null : m.material.color })), true);
     const bones = {}; for (const b of sk.bones) bones[b.name.replace(/^mixamorig:?/, '')] = b;
+    { const cm = S.clothMask(geo, sk.bones.map((b) => b.name)), C = geo.attributes.color; for (let i = 0; i < cm.length; i++) if (cm[i]) C.setX(i, -Math.max(C.getX(i), 0.001)); } // 2.12.5 服の所は赤をマイナスにして印にする（属性を増やすと数の上限を超えるので）
     const hips = bones.Hips;
     const mixer = new T.AnimationMixer(root), rows = {};
     let H = 0;
@@ -94,8 +108,8 @@
     const P = geo.attributes.position, C = geo.attributes.color;
     for (let i = 0; i < P.count; i++) {
       if (P.getY(i) < y0) continue;
-      const r = C.getX(i), g = C.getY(i), b = C.getZ(i), lo = Math.min(r, g, b), hi = Math.max(r, g, b);
-      if (lo > 0.3 && hi - lo < 0.25 * hi) C.setXYZ(i, 0.05, 0.05, 0.058);
+      const r = Math.abs(C.getX(i)), g = C.getY(i), b = C.getZ(i), lo = Math.min(r, g, b), hi = Math.max(r, g, b);
+      if (lo > 0.3 && hi - lo < 0.25 * hi) C.setXYZ(i, C.getX(i) < 0 ? -0.05 : 0.05, 0.05, 0.058);
     }
     C.needsUpdate = true;
   }
@@ -118,7 +132,7 @@
       sh.uniforms.bT = { value: b.tex }; sh.uniforms.bS = { value: new T.Vector2(b.nb * 4, b.H) }; sh.uniforms.bU = { value: b.upper };
       // aR＝(下半身の行, 上半身の行, 白く光る量)。aC＝上半身を下半身の腰につなぐ行列
       sh.vertexShader = [
-        'uniform sampler2D bT; uniform vec2 bS; uniform float bU[64]; attribute vec4 skinIndex; attribute vec4 skinWeight; attribute vec3 aR; attribute mat4 aC;',
+        'uniform sampler2D bT; uniform vec2 bS; uniform float bU[64]; attribute vec4 skinIndex; attribute vec4 skinWeight; attribute vec4 aR; attribute mat4 aC;',
         'mat4 bM(float i) { bool up = bU[int(i + 0.5)] > 0.5; float y = ((up ? aR.y : aR.x) + 0.5) / bS.y, dx = 1.0 / bS.x, x = (i * 4.0 + 0.5) * dx;',
         '  mat4 m = mat4(texture2D(bT, vec2(x, y)), texture2D(bT, vec2(x + dx, y)), texture2D(bT, vec2(x + 2.0 * dx, y)), texture2D(bT, vec2(x + 3.0 * dx, y)));',
         '  return up ? aC * m : m; }',
@@ -126,15 +140,15 @@
           .replace('#include <skinbase_vertex>', 'mat4 skM = skinWeight.x * bM(skinIndex.x) + skinWeight.y * bM(skinIndex.y) + skinWeight.z * bM(skinIndex.z) + skinWeight.w * bM(skinIndex.w);')
           .replace('#include <skinnormal_vertex>', 'objectNormal = normalize(mat3(skM) * objectNormal);')
           .replace('#include <skinning_vertex>', 'transformed = (skM * vec4(transformed, 1.0)).xyz;')
-          .replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\n  vColor.rgb = mix(vColor.rgb, vec3(1.0), aR.z);\n#endif'),
+          .replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\n  float cl_ = vColor.r < 0.0 ? 1.0 : 0.0; vColor.rgb = abs(vColor.rgb);\n  if (aR.w >= 0.0 && cl_ > 0.5) { vec3 tc = vec3(floor(aR.w / 65536.0), mod(floor(aR.w / 256.0), 256.0), mod(aR.w, 256.0)) / 255.0; vColor.rgb = tc * (0.45 + 0.9 * dot(vColor.rgb, vec3(0.299, 0.587, 0.114))); }\n  vColor.rgb = mix(vColor.rgb, vec3(1.0), aR.z);\n#endif'), // 2.12.5 服を選んだ色に染める（aR.w＝色を1つの数にしたもの。-1 なら元の色。服かどうかは色で見分ける）
       ].join('\n');
     };
-    m.customProgramCacheKey = () => 'sold3d2' + (depth ? 'd' : 'c');
+    m.customProgramCacheKey = () => 'sold3d5' + (depth ? 'd' : 'c');
     return m;
   }
 
   function mkSkin(b, cap, scene) {
-    const ra = new T.InstancedBufferAttribute(new Float32Array(cap * 3), 3), fa = new T.InstancedBufferAttribute(new Float32Array(cap * 16), 16);
+    const ra = new T.InstancedBufferAttribute(new Float32Array(cap * 4), 4), fa = new T.InstancedBufferAttribute(new Float32Array(cap * 16), 16);
     ra.setUsage(T.DynamicDrawUsage); fa.setUsage(T.DynamicDrawUsage);
     b.geo.setAttribute('aR', ra); b.geo.setAttribute('aC', fa);
     const im = new T.InstancedMesh(b.geo, skinMat(b, false), cap);
@@ -203,10 +217,11 @@
   };
   // row＝下半身（または全身）の行、rowU・cs＝上半身の行とつなぐ行列（S.combo で作る。なければ全身 row）
   const I16 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-  S.put = (b, m, row, fx, rowU, cs) => {
+  S.put = (b, m, row, fx, rowU, cs, tint) => { // tint＝服の色 THREE.Color（なければ元の色）
     if (b.n >= b.cap) return false; const n = b.n;
     b.im.setMatrixAt(n, m);
-    b.ra.array[n * 3] = row; b.ra.array[n * 3 + 1] = rowU == null ? row : rowU; b.ra.array[n * 3 + 2] = fx || 0;
+    b.ra.array[n * 4] = row; b.ra.array[n * 4 + 1] = rowU == null ? row : rowU; b.ra.array[n * 4 + 2] = fx || 0;
+    b.ra.array[n * 4 + 3] = tint ? Math.round(Math.min(1, tint.r) * 255) * 65536 + Math.round(Math.min(1, tint.g) * 255) * 256 + Math.round(Math.min(1, tint.b) * 255) : -1; // 2.12.5 服の色
     if (cs && rowU != null) cs.toArray(b.fa.array, n * 16); else b.fa.array.set(I16, n * 16);
     b.n++; return true;
   };

@@ -931,7 +931,7 @@
     Mx.copy(Mu).multiply(SK90); if (sc !== 1) Mx.multiply(Ms.makeScale(sc, sc, sc));
     const row = S3.rowAt(b, c.nm, c.t, c.loop), rowL = c.low ? S3.rowAt(b, c.low.nm, c.low.t, c.low.loop) : row;
     if (c.low) S3.combo(b, rowL, row, Mc, Mcw);
-    S3.put(b, Mx, rowL, s.fl ? 0.22 * Math.min(1, s.fl / 0.15) : 0, c.low ? row : null, c.low ? Mc : null); // 1.6.68 打たれた光りを控えめに（0.6→0.22）
+    S3.put(b, Mx, rowL, s.fl ? 0.22 * Math.min(1, s.fl / 0.15) : 0, c.low ? row : null, c.low ? Mc : null, skTint); // 1.6.68 （2.12.5 skTint＝服の色） 打たれた光りを控えめに（0.6→0.22）
     // 武器を手に持たせる（弓は左手）
     const wn = wepName(wk, tr), kind = wk === 'spearS' || wk === 'spearL' ? 'spear' : wk === 'bow' || wk === 'gun' ? wk : 'sword';
     if (wn || wk === 'shuri') {
@@ -950,6 +950,9 @@
   }
 
   const COL = { A: 0x2f5a96, Aown: 0x3a6ea5, Aally: 0x5d9ab8, B: 0xa8352a };
+  /* 2.12.5 プレイヤーが選んだ服の色（X.cloth＝{ pid: { me:'#色', tr:'#色' } }。main.js が毎コマ入れる）。本人は me、その人の兵は tr */
+  X.cloth = null; let skTint = null; const tintC = {};
+  const clothOf = (s, u) => { const CL = X.cloth; if (!CL || s.side === 'B') return null; const o = s.pc || (u && (u.owner || u.cmd)), c = o && CL[o]; const hx = c && (s.pc || s.hero ? c.me : c.tr); if (!hx) return null; return tintC[hx] || (tintC[hx] = new T.Color(hx)); };
   X.draw = function (b, myPid, sel, dt, terList, cam, w, h) {
     if (!X.on || X.failed) return false;
     if (!X.ready && !init()) return false;
@@ -984,6 +987,7 @@
       let col = s.side === 'B' ? COL.B : own ? COL.Aown : u && (u.owner || u.cmd) ? COL.Aally : COL.A;
       if (u && u.order === 'rout') col = s.side === 'B' ? 0xd88a7f : 0x9db3c7;
       if (s.pc) col = s.pc === myPid ? 0xe8b923 : 0xe88a23;
+      skTint = clothOf(s, u); if (skTint && !(u && u.order === 'rout')) col = skTint.getHex(); // 2.12.5 選んだ服の色
       C.setHex(s.fl ? 0xffffff : col);
       const ride = cav ? 0.95 : 0;
       const stp = mv > 0.6 ? Math.sin(clock * (cav ? 9 : 11) * 0.5 + s.id) : 0; // 0.65.0 足を前後に振る
