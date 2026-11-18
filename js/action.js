@@ -158,7 +158,7 @@
   const hgt = (b, x, y) => { let h = 0; for (const t of b.ter || []) if (t.k === 'h') { const d = Math.hypot(x - t.x, y - t.y); if (d < t.r) h = Math.max(h, 1 - d / t.r); } return h; };
   function terMul(b, s, dx, dy, cav) {
     if (!b.ter || !b.ter.length) return 1;
-    const t = SIM.terAt(b, s); let m = t.f ? (cav ? SIM.CAV_FOREST : 0.8) : 1;
+    const t = SIM.terAt(b, s); let m = t.f ? (cav && !(s.type && TR[s.type] && TR[s.type].noForest) ? SIM.CAV_FOREST : 0.8) : 1; /* 2.17.0 山駆けの騎馬は林でも速い */
     if (t.m && !SIM.onBridge(b.ter, s.x, s.y)) m *= 0.4; if (t.w) m *= cav ? 0.4 : 0.45; /* 1.6.64 川（浅瀬はあいている） */ if (t.s) m *= cav ? 0.3 : 0.5;
     const NW = SIM.nawa(b.ter), road = NW && SIM.nawaArea(NW, s.x, s.y) === 6; if (road) m = Math.max(m, 0.9); /* 2.12.0 道は斜面でも歩ける */
     if ((t.h || (NW && NW.hg)) && (dx || dy)) { const l = Math.hypot(dx, dy) || 1, h0 = SIM.groundH(b, s.x, s.y), h1 = SIM.groundH(b, s.x + dx / l * 1.5, s.y + dy / l * 1.5), sl = (h1 - h0) / 1.5; if (sl > 0.02) m *= Math.max(0.3, 1 - sl * (road ? 0.3 : 0.7)); else if (sl < -0.02) m *= 1.05; } /* 2.12.0 登り坂は急なほど遅い */
@@ -234,7 +234,7 @@
     return hits.length;
   }
   const YARI_T = { yari: 1, nagayari: 1, yarigashira: 1, kiba: 1, horo: 1 };
-  const cpuWep = (s, close) => (!s.hero && TR[s.type] && (TR[s.type].shield || (close && TR[s.type].ranged)) ? ACT.WEP.waki : !close && !s.hero && YARI_T[s.type] ? ACT.WEP.yari : ACT.WEP.tachi); // 0.73.9 CPUも本人と同じ刀・槍の範囲
+  const cpuWep = (s, close) => (!s.hero && TR[s.type] && (TR[s.type].shield || (close && TR[s.type].ranged)) ? ACT.WEP.waki : !close && !s.hero && (YARI_T[s.type] || (TR[s.type] && /^spear/.test(TR[s.type].wk || ''))) ? ACT.WEP.yari : ACT.WEP.tachi); // 0.73.9 CPUも本人と同じ刀・槍の範囲
 
   // ---- 0.64.0 隊のAI（敵の隊と「AIに任せる」にした隊）：u.eo が実際に使う指図 ----
   function aiThink(A, b, u, c, center, all, dt) {
@@ -439,7 +439,7 @@
           if (u.isAI && e.hero && !T.ranged && s.cd > 0.6) { s.x -= Math.cos(s.f) * spd * 0.45 * dt; s.y -= Math.sin(s.f) * spd * 0.45 * dt; } // 打ったら少し引いて、振り回しを避ける
           if (s.cd <= 0) {
             if (T.ranged && !close) {
-              const sp = s.type === 'teppo' || s.type === 'teppogashira' ? 140 : 45, tt = d / sp, ex = e.x + (rr() - 0.5) * d * 0.12, ey = e.y + (rr() - 0.5) * d * 0.12, a = Math.atan2(ey - s.y, ex - s.x);
+              const sp = T.gun ? 140 : 45, tt = d / sp, ex = e.x + (rr() - 0.5) * d * 0.12, ey = e.y + (rr() - 0.5) * d * 0.12, a = Math.atan2(ey - s.y, ex - s.x);
               A.pr.push({ L: d, x0: s.x, y0: s.y, x: s.x, y: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, side: s.side, dmg: T.atk * (u.am || 1) * fmod(u, 'ra') * (sp > 100 ? 2.6 : 2.2) * (0.55 + 0.45 * u.mor / 100) * (1 + Math.max(-0.15, Math.min(0.3, dh * 0.015))), life: tt * 1.3, gun: sp > 100, src: s });
               s.cd = (sp > 100 ? 4 : 2.4) + rr(); s.at = performance.now() / 1000; // 0.66.0 3Dの射る・撃つ動き
             } else { const atk = T.atk * (u.am || 1) * fmod(u, 'ma') * (close ? 0.8 : 1) * (0.55 + 0.45 * u.mor / 100); const CW = cpuWep(s, close); if (!swing(g, s, s.f, CW, (o, k) => melee(b, A, s, o, atk * k))) melee(b, A, s, e, atk); s.cd = CW.cd * 2.2 + rr() * 0.6; s.at = performance.now() / 1000; } // 0.73.10 武器ごとの振りの速さ（刀1.1秒・槍1.76秒＋ゆらぎ） // 0.73.9 CPUも一振りで範囲の敵全員に
@@ -609,7 +609,7 @@
         s._sa = s.at;
         if (s.pc !== myPid) {
           const [v, pan, dd] = pos(s.x, s.y), T = s.hero ? null : TR[s.type];
-          if (T && T.ranged) AU.at(s.type === 'teppo' || s.type === 'teppogashira' ? 'gun' : 'bow', s.type === 'yumi' ? v : Math.max(v, 0.25 / (1 + dd / 60)), pan);
+          if (T && T.ranged) AU.at(T.gun ? 'gun' : 'bow', s.type === 'yumi' ? v : Math.max(v, 0.25 / (1 + dd / 60)), pan);
           else AU.at('swing', v, pan);
           if (dd < 40) act++;
         }

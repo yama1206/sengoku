@@ -6,7 +6,7 @@
   const S = (SGK.SOLD3D = { ready: false, failed: false, loading: false, fps: 30, tiers: [], horses: {}, wep: {}, win: {}, hk: 0.5, seat: 1.5 });
   S.PATH = 'assets/models/';
   const WEPS = ['katana', 'yari', 'yari_t4', 'takeyari', 'yumi', 'yumi_t4', 'teppo', 'teppo_t4'];
-  const ATT = ['RightHand', 'LeftHand', 'Hips', 'Back'];
+  const ATT = ['RightHand', 'LeftHand', 'Hips', 'Back', 'Head', 'Spine2']; // 2.17.0 頭・胸（名物兵の飾りを付ける所）
   // 武器の持ち方：手の骨から見た位置 p（m）と回し方 r（ラジアン、XYZの順）
   // 手の骨の -Z が拳の穴の向き（親指の側）。右手は少し上へ傾ける
   S.GRIP = { R: { p: [0.03, 0.08, 0], r: [-(Math.PI / 2 + 0.35), 0, 0] }, L: { p: [-0.03, 0.08, 0], r: [-Math.PI / 2, 0, 0] } };

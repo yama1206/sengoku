@@ -32,6 +32,9 @@
     town: { nohei: [1, 8], yari: [1, 8], yumi: [0.5, 6], take: [0.5, 5] },
     castle: { yari: [1, 10], yumi: [0.5, 6], kiba: [0.25, 3], take: [0.5, 6] },
   };
+  // 2.17.0 地方ごとの兵（chiho.js が上書き）：拠点で雇える兵の表・雇う値段の倍率
+  SIM.poolOf = (s) => POOL[s.type] || {};
+  SIM.hireMul = () => 1;
   const FIELD = { w: 700, h: 460, ax: 120, bx: 580 }; // 0.79.1 離れて始める（300m→460m） // 戦場（m）。ax/bx：味方・敵の初めの位置
   const MAX_BANDITS = 400; // 1.6.9 200→400 // 地図の広さに合わせて（全国）
 
@@ -67,7 +70,7 @@
     if (w.mday == null) w.mday = w.day;
     for (const s of w.settlements) {
       s.pool = s.pool || {};
-      for (const k in POOL[s.type]) if (s.pool[k] == null) s.pool[k] = Math.floor(POOL[s.type][k][1] / 2);
+      { const PL = SIM.poolOf(s); for (const k in PL) if (s.pool[k] == null) s.pool[k] = Math.floor(PL[k][1] / 2); }
     }
     for (const p of Object.values(w.players)) if (p.battle && !w.battles[p.battle]) p.battle = null;
     for (const b of Object.values(w.battles)) { b.ter = b.ter || []; b.lk = b.lk || { A: null, B: null }; for (const u of b.units) { if (u.f == null) u.f = u.side === 'A' ? 0 : Math.PI; if (u.mor == null) u.mor = u.mo = 65; if (u.n0 == null) u.n0 = u.n; } }
@@ -285,7 +288,7 @@
       const wound = type === 'hero' && owner && w.players[owner] ? Math.max(0.05, w.players[owner].hpFrac == null ? 1 : w.players[owner].hpFrac) : 1; // 本人の傷は戦に持ち越す
       b.units.push({ id: b.next++, side, owner, type, n, n0: n, hp: n * t.hp * hx * m.hm * wound, mh: t.hp * hx * m.hm, am: m.am, da: m.da, ra: m.ra,
         x: base - fx * (t.ranged ? 8 : type === 'hero' ? 4 : 0), y: FIELD.h / 2 + (i - (list.length - 1) / 2) * 14 + (side === 'A' ? (b.pids.length - 1) * 6 : 0),
-        f: side === 'A' ? 0 : Math.PI, mor: type === 'hero' ? 100 : mo, mo, order: side === 'A' ? 'hold' : !t.ranged && i % 2 ? 'flank' : 'charge' }); // 敵の近接は半分が回り込む
+        f: side === 'A' ? 0 : Math.PI, mor: type === 'hero' ? 100 : Math.min(98, mo + (t.mo || 0)), mo: type === 'hero' ? mo : Math.min(98, mo + (t.mo || 0)), order: side === 'A' ? 'hold' : !t.ranged && i % 2 ? 'flank' : 'charge' }); // 敵の近接は半分が回り込む
     });
     if (owner && army.hero && SIM.attachHero) SIM.attachHero(w, b.units.filter((u) => u.owner === owner), owner); // 0.47.0 本人は武器に合った隊に入る
   }
@@ -330,7 +333,7 @@
     const goTo = (u, x, y, spd) => { const d = Math.hypot(x - u.x, y - u.y); if (d < 0.3) return true; const s = Math.min(spd * dt, d); u.x += ((x - u.x) / d) * s; u.y += ((y - u.y) / d) * s; u.f = Math.atan2(y - u.y, x - u.x); return false; };
     for (const u of us) {
       const t = TR[u.type], tu = terAt(b, u);
-      const gen = u.type === 'hero' && !u.owner && !u.cmd, spd = (gen ? TR.kiba.spd : t.spd) * ((t.cav || gen) && tu.f ? SIM.CAV_FOREST : 1) * ((((u.owner || u.cmd) && SIM.ACT && SIM.ACT.OMOD[u.order]) || {}).spd || 1) /* 0.73.8 CPUの武将は騎馬（1.6.64 行の途中の // で後ろが消えていたのを直した） */ * (tu.h ? 0.85 : 1) * (tu.m ? 0.4 : 1) * (tu.w ? 0.45 : 1) * (tu.s ? (t.cav ? 0.3 : 0.5) : 1);
+      const gen = u.type === 'hero' && !u.owner && !u.cmd, spd = (gen ? TR.kiba.spd : t.spd) * ((t.cav || gen) && tu.f && !t.noForest ? SIM.CAV_FOREST : 1) * ((((u.owner || u.cmd) && SIM.ACT && SIM.ACT.OMOD[u.order]) || {}).spd || 1) /* 0.73.8 CPUの武将は騎馬（1.6.64 行の途中の // で後ろが消えていたのを直した） */ * (tu.h ? 0.85 : 1) * (tu.m ? 0.4 : 1) * (tu.w ? 0.45 : 1) * (tu.s ? (t.cav ? 0.3 : 0.5) : 1);
       if (u.order === 'retreat' || u.order === 'rout') {
         const ex = u.side === 'A' ? -4 : FIELD.w + 4; u.x += Math.sign(ex - u.x) * spd * (u.order === 'rout' ? 1.1 : 1) * dt; u.f = u.side === 'A' ? Math.PI : 0;
         if ((u.side === 'A' && u.x < FIELD.ax - 120) || (u.side === 'B' && u.x > FIELD.bx + 120) || u.x < 1 || u.x > FIELD.w - 1) u.gone = true; // 120m 退けば戦場を離れる
@@ -364,12 +367,12 @@
       let mul = 1;
       const dirA = angDiff(e.f, Math.atan2(u.y - e.y, u.x - e.x)), dir = dirA < Math.PI / 3 ? 'front' : dirA < (Math.PI * 2) / 3 ? 'side' : 'rear';
       if (!t.ranged) { if (dir === 'side') mul *= t.cav ? 1.4 : 1.25; if (dir === 'rear') mul *= t.cav ? 1.8 : 1.5; } else if (dir !== 'front') mul *= 1.15;
-      if (t.cav && T2.cls === 'spear' && dir === 'front') mul *= 0.7; // 槍衾への正面突撃
+      if (t.cav && !t.ranged && T2.cls === 'spear' && dir === 'front') mul *= 0.7; // 槍衾への正面突撃
       const melee = ed < rad(u) + rad(e) + 3.5;
-      if (t.ranged && melee) mul *= 0.45; // 弓・鉄砲は接近戦に弱い
+      if (t.ranged && melee) mul *= t.meleeOk ? 0.7 : 0.45; // 弓・鉄砲は接近戦に弱い
       if (t.ranged && !melee && T2.shield) mul *= 0.5; /* 1.6.40 竹束は矢・弾を半分にする */
       if (t.ranged && te.f) mul *= 0.6; // 林の中の敵は射ちにくい
-      if (t.cav && tu.f) mul *= 0.7;
+      if (t.cav && tu.f && !t.noForest) mul *= 0.7;
       if (tu.h && !te.h) mul *= 1.15; // 高所から
       if (b.cside) { // 0.37.0 城攻め：城の中の守り手は討たれにくい。堀や斜面にいる攻め手は狙われやすい
         const kf = b.kf == null ? 1 : b.kf; // 0.40.0 改築が進んでいない城は守り手の有利が小さい
@@ -511,7 +514,7 @@
 
   // ---- 1日ごと：兵の補充・給金・野盗の出現 ----
   function daily(w) {
-    for (const s of w.settlements) for (const k in POOL[s.type]) { const [add, cap] = POOL[s.type][k], m = SIM.poolMul ? SIM.poolMul(s) : 1; s.pool[k] = Math.min(Math.round(cap * m), (s.pool[k] || 0) + add * m); } // 0.41.0 投資で補充が早く・多く
+    for (const s of w.settlements) { const PL = SIM.poolOf(s); for (const k in PL) { const [add, cap] = PL[k], m = SIM.poolMul ? SIM.poolMul(s) : 1; s.pool[k] = Math.min(Math.round(cap * m), (s.pool[k] || 0) + add * m); } } // 0.41.0 投資で補充が早く・多く
     for (const p of Object.values(w.players)) {
       const wage = SIM.wage(p.troops, p); if (!wage) continue;
       if (p.money >= wage) { p.money -= wage; continue; }
@@ -567,7 +570,7 @@
       const s = inTown(w, p), t = TR[c.kind]; if (!s || !t || !SIM.HIRE.includes(c.kind)) return;
       if (c.kind === 'nohei' && SIM.taue && SIM.taue(w)) return SIM.say(p.id, '田植え・稲刈りの季節（5月・9月）なので、農民は雇えません（来月から）');
       if (t.fame && p.fame < t.fame) return SIM.say(p.id, `${t.name}を雇うには名声${t.fame}が必要です`);
-      const cost = Math.round(t.cost * SIM.costMod(p));
+      const cost = Math.round(t.cost * SIM.costMod(p) * SIM.hireMul(s, c.kind));
       const q = Math.min(Math.max(1, +c.qty || 1), Math.floor(s.pool[c.kind] || 0), SIM.troopCap(p) - SIM.troopCount(p.troops), Math.floor(p.money / cost));
       if (q <= 0) return SIM.say(p.id, (s.pool[c.kind] || 0) < 1 ? 'いま雇える者がいません' : SIM.troopCount(p.troops) >= SIM.troopCap(p) ? 'これ以上は率いられません（身分が上がると増えます）' : 'お金が足りません');
       p.money -= q * cost; s.pool[c.kind] -= q; p.troops[c.kind] = (p.troops[c.kind] || 0) + q;
@@ -617,7 +620,7 @@
     const r = basePriv(w, pid); if (!r) return r;
     const p = w.players[pid];
     Object.assign(r.me, { hpFrac: p.hpFrac == null ? 1 : Math.round(p.hpFrac * 1000) / 1000, hpMax: Math.round(TR.hero.hp * (SIM.unitMods(w, pid, 'hero').hm || 1)), follow: SIM.followName(w, p), speed: Math.round(p.speed || 0), troops: p.troops, troopCap: SIM.troopCap(p), wage: SIM.wage(p.troops, p), costMod: SIM.costMod(p) });
-    if (r.here) { const s = SIM.settlement(w, r.here.id); r.here.recruit = Object.keys(POOL[s.type]).map((k) => [k, Math.floor(s.pool[k] || 0)]); }
+    if (r.here) { const s = SIM.settlement(w, r.here.id); r.here.recruit = Object.keys(SIM.poolOf(s)).map((k) => [k, Math.floor(s.pool[k] || 0), SIM.hireMul(s, k)]); r.here.chiho = SIM.chihoOf ? SIM.chihoOf(s) : null; }
     const b = p.battle && w.battles[p.battle];
     r.battle = b ? { id: b.id, foe: b.foe, t: Math.floor(b.t), routed: b.routed, act: b.act ? 1 : 0, canAct: SIM.actCan && SIM.actCan(w, b) ? 1 : 0, lead: b.lead === pid ? (b.leadAll ? 2 : 1) : 0,
       names: Object.fromEntries(b.pids.map((x) => [x, (w.players[x] || {}).name])),

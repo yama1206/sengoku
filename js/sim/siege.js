@@ -53,9 +53,9 @@
     const f = w.factions[s.owner], home = f && w.people[f.leader] && s.lord === f.leader;
     return Math.round((home ? SIEGE_N.garHome : SIEGE_N.gar) + Math.floor((s.dev && s.dev.wall) || 0) * SIEGE_N.garWall + (s.inv || 0) * SIEGE_N.garInv);
   }
-  function garOf(n) { // 兵数から守備兵の内訳を作る
+  function garOf(n, s) { // 兵数から守備兵の内訳を作る（2.17.0 s があれば城のある地方に合わせる）
     const t = { yari: Math.round(n * 0.5), yumi: Math.round(n * 0.25), teppo: Math.round(n * 0.1), take: Math.round(n * 0.06) }; /* 1.6.41 竹束も混ぜる */
-    t.kiba = Math.max(0, n - t.yari - t.yumi - t.teppo - t.take); return t;
+    t.kiba = Math.max(0, n - t.yari - t.yumi - t.teppo - t.take); return s && SIM.chihoMix ? SIM.chihoMix(t, SIM.chihoOf(s)) : t;
   }
   SIM.garrison = (s) => SIM.troopCount(s.gar);
   SIM.garMax = garMax;
@@ -71,7 +71,7 @@
     w.truce = w.truce || {};
     w.camps = w.camps || [];
     if (w.wday == null) w.wday = Math.floor(w.time.min / 1440);
-    for (const s of w.settlements) if (s.type === 'castle' && !s.gar) s.gar = garOf(Math.round(garMax(w, s) * 0.8));
+    for (const s of w.settlements) if (s.type === 'castle' && !s.gar) s.gar = garOf(Math.round(garMax(w, s) * 0.8), s);
     for (const [id, pr] of Object.entries(w.people)) {
       if (pr.loyal != null) continue;
       const f = w.factions[pr.faction], ld = f && w.people[f.leader];
@@ -259,7 +259,7 @@
     for (const s of w.settlements) if (s.type === 'castle' && !s.site) {
       if (SIM.besieged && SIM.besieged(w, s.id)) continue; // 攻城戦の準備をされている城は補充できない
       const mx = garMax(w, s), n = SIM.garrison(s);
-      if (n < mx) { const ad = garOf(Math.min(mx - n, Math.max(2, Math.round(mx * 0.15)))); s.gar = s.gar || {}; for (const k in ad) if (ad[k] > 0) s.gar[k] = (s.gar[k] || 0) + ad[k]; } /* 1.6.28 今いる兵の内訳はそのまま、足りない分を足す */
+      if (n < mx) { const ad = garOf(Math.min(mx - n, Math.max(2, Math.round(mx * 0.15))), s); s.gar = s.gar || {}; for (const k in ad) if (ad[k] > 0) s.gar[k] = (s.gar[k] || 0) + ad[k]; } /* 1.6.28 今いる兵の内訳はそのまま、足りない分を足す */
     }
     for (const s of w.settlements) {
       const pr = s.type === 'castle' && s.lord && w.people[s.lord], f = w.factions[s.owner];

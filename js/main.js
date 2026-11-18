@@ -626,7 +626,7 @@
     const kind = { castle: '城', town: '町', village: '村' }[s.type];
     $('infoName').textContent = s.name;
     const ho = holders()[s.id];
-    $('infoBody').innerHTML = `${kind}${s.site ? `（普請中 ${Math.floor(s.site.prog * 100)}%）` : ''}　勢力：<b style="color:${f ? f.color : '#ccc'}">${f ? f.name : 'なし'}</b>${(() => { const fb = SIM.factionBuff(G.view.factions, s.owner); return fb ? `<span class="muted">（得意：${fb.name}・${fb.text}）</span>` : ''; })()}<br>城主・代官：${ho ? `<b>${ho}</b>（プレイヤー）` : lord || '（不明）'}`;
+    $('infoBody').innerHTML = `${kind}${s.site ? `（普請中 ${Math.floor(s.site.prog * 100)}%）` : ''}　勢力：<b style="color:${f ? f.color : '#ccc'}">${f ? f.name : 'なし'}</b>${(() => { const fb = SIM.factionBuff(G.view.factions, s.owner); return fb ? `<span class="muted">（得意：${fb.name}・${fb.text}）</span>` : ''; })()}${(() => { const r = SIM.chihoOf && SIM.CHIHO[SIM.chihoOf(s)]; return r ? `　<span class="muted">${r.name}（名物：${SIM.TROOPS[r.sp].name}）</span>` : ''; })()}<br>城主・代官：${ho ? `<b>${ho}</b>（プレイヤー）` : lord || '（不明）'}`;
     { const ry = SIM.ryoOf && SIM.ryoOf(s.id), rc = ry && G.view.settlements.find((x) => x.id === ry); // 0.52.0 城と村・町のつながり
       { const pop = (G.mode === 'client' ? G.pp && G.pp[s.id] : ((G.world && G.world.settlements.find((x) => x.id === s.id)) || {}).pop); if (pop) { const ws = G.world && G.world.settlements.find((x) => x.id === s.id), sf = G.mode === 'client' ? (G.ps && G.ps[s.id]) / 100 : ws && SIM.supplyF ? SIM.supplyF(ws) : null; const sl = sf == null || isNaN(sf) ? '' : sf >= 1.05 ? '　物資：豊富（人が増えやすい）' : sf >= 0.75 ? '　物資：ふつう' : sf >= 0.45 ? '　物資：不足（人が増えにくい）' : '　物資：困窮（人が減る）'; $('infoBody').innerHTML += `<br>人口 約${(Math.round(pop / 10) * 10).toLocaleString()}人${sl}`; } }
       if (SIM.minato && SIM.minato(s)) $('infoBody').innerHTML += `<br>${SGK.ICON.html('anchor', 16)} ${SIM.minatoName(s)}（年貢×${SIM.minatoMul(s)}）`;
@@ -914,9 +914,10 @@
       const TR = SIM.TROOPS, n = SIM.troopCount(me.troops);
       html += `<div class="muted" style="margin-bottom:6px">所持金 ${SIM.money(me.money)}　兵 ${n}/${me.troopCap}　給金 ${SIM.money(me.wage)}/日</div>`;
       html += '<div class="muted">この拠点で雇える兵</div>';
-      for (const [k, avail] of h.recruit) {
+      if (h.chiho && SIM.CHIHO && SIM.CHIHO[h.chiho]) { const r = SIM.CHIHO[h.chiho]; html += `<div class="muted" style="margin-bottom:4px">${r.name}の兵　強み：${r.good}　弱み：${r.bad}</div>`; } // 2.17.0
+      for (const [k, avail, hm] of h.recruit) {
         const t = TR[k];
-        html += `<div class="card"><div><b>${t.name}</b>　<span class="muted">${avail}人</span><br><span class="muted">1人 ${SIM.money(Math.round(t.cost * (me.costMod || 1)))}　給金 ${t.wage}文/日${t.fame ? `　名声${t.fame}以上` : ''}</span></div><div class="row">`
+        html += `<div class="card"><div><b>${t.name}</b>${t.home ? '　<span class="muted">〔名物〕</span>' : ''}　<span class="muted">${avail}人</span><br><span class="muted">1人 ${SIM.money(Math.round(t.cost * (me.costMod || 1) * (hm || 1)))}　給金 ${t.wage}文/日${t.fame ? `　名声${t.fame}以上` : ''}</span></div><div class="row">`
           + `<button id="r1-${k}" data-act="recruit" data-kind="${k}" data-qty="1" ${avail ? '' : 'disabled'}>雇う1</button><button id="r5-${k}" data-act="recruit" data-kind="${k}" data-qty="5" ${avail ? '' : 'disabled'}>雇う5</button></div></div>`;
       }
       html += '<div class="muted" style="margin-top:10px">率いている兵</div>';
@@ -1421,11 +1422,19 @@
       const WN = { yari: '槍', nagayari: '槍', yarigashira: '槍', kiba: '槍', horo: '槍', yumi: '弓（近いと刀）', teppo: '鉄砲（近いと刀）', teppogashira: '鉄砲（近いと刀）', banditBow: '弓（近いと刀）', tsuyoyumi: '弓（近いと刀）', yumigashira: '弓（近いと刀）', take: '脇差＋竹束', shiyori: '脇差＋竹束', takegashira: '脇差＋竹束' };
       html += '<div class="muted" style="margin-bottom:6px">数値は兵1人あたり。費用は1人を雇う値段、日当は1人1日の給金。速さは戦場での速さ</div>';
       html += `<div class="card" style="display:block"><b>本人</b>　<span class="muted">いまの装備込み</span><br>体力 ${H.hp}　攻撃 ${Math.round((H.atk + ((wp && wp.atk) || 0)) * 10) / 10}　守り ${H.def + ((ar && ar.da) || 0)}　速さ ${H.spd}${E.horse ? '（馬）' : ''}　武器 ${wp ? wp.name : 'なし'}</div>`;
+      const WK = { spearS: '槍', spearL: t => t.short === '僧兵' ? '薙刀' : '長槍', bow: '弓（近いと刀）', gun: '鉄砲（近いと刀）', sword: '刀' }; // 2.17.0 名物兵
+      const wkName = (k, t) => { const v = t.wk && WK[t.wk]; return typeof v === 'function' ? v(t) : v || WN[k] || '刀'; };
       const row = (k) => { const t = TRS[k], up = (t.up || []).map((u) => TRS[u] && TRS[u].name).filter(Boolean);
-        return `<div class="card" style="display:block"><b>${t.name}</b>${t.tier ? `　<span class="muted">${t.tier}段</span>` : ''}${t.cav ? '　<span class="muted">騎馬（林で遅い）</span>' : ''}<br>体力 ${t.hp}　攻撃 ${t.atk}　守り ${t.def}　速さ ${t.spd}　${t.ranged ? `射程 ${t.range}m` : '近接'}　武器 ${WN[k] || '刀'}`
-          + (t.cost ? `<br><span class="muted">費用 ${SIM.money(t.cost)}　日当 ${t.wage}文${up.length ? `　昇格先 ${up.join('・')}` : ''}</span>` : '') + '</div>'; };
+        return `<div class="card" style="display:block"><b>${t.name}</b>${t.tier ? `　<span class="muted">${t.tier}段</span>` : ''}${t.cav ? `　<span class="muted">騎馬${t.noForest ? '' : '（林で遅い）'}</span>` : ''}${t.mo ? `　<span class="muted">士気+${t.mo}</span>` : ''}<br>体力 ${t.hp}　攻撃 ${t.atk}　守り ${t.def}　速さ ${t.spd}　${t.ranged ? `射程 ${t.range}m` : '近接'}　武器 ${wkName(k, t)}`
+          + (t.note ? `<br><span class="muted">${t.note}</span>` : '')
+          + (t.cost ? `<br><span class="muted">費用 ${SIM.money(t.cost)}　日当 ${t.wage}文${t.fame ? `　名声${t.fame}以上` : ''}${up.length ? `　昇格先 ${up.join('・')}` : ''}</span>` : '') + '</div>'; };
       html += '<div class="muted" style="margin-top:8px">味方の兵</div>';
-      for (const k in TRS) if (TRS[k].cost) html += row(k);
+      for (const k in TRS) if (TRS[k].cost && !TRS[k].home) html += row(k);
+      if (SIM.CHIHO) { // 2.17.0 地方ごとの兵
+        html += '<div class="muted" style="margin-top:8px">地方ごとの兵（名物兵はその地方の城と大きな町で雇えます。拠点を選ぶと地方が分かります）</div>';
+        for (const id of SIM.CHIHO_ORDER) { const r = SIM.CHIHO[id];
+          html += `<div class="secH">${r.name}<span class="muted">（${r.kuni}）</span></div><div class="muted" style="margin:2px 0 4px">強み：${r.good}<br>弱み：${r.bad}</div>` + row(r.sp); }
+      }
       html += '<div class="muted" style="margin-top:8px">敵だけの兵</div>';
       for (const k in TRS) if (k !== 'hero' && !TRS[k].cost) html += row(k);
     return html;

@@ -155,6 +155,20 @@
     mk('mae', new T.TorusGeometry(0.17, 0.03, 4, 10, Math.PI).rotateY(Math.PI / 2).translate(0.12, 1.62, 0), new T.MeshLambertMaterial({ color: 0xf0c230, emissive: 0x5a4200 }), CAP.body, false);
     mk('hachi', new T.TorusGeometry(0.19, 0.035, 4, 12).rotateX(Math.PI / 2).translate(0, 1.4, 0), lam({ color: 0xffffff }), CAP.body, false);
     mk('horoB', new T.SphereGeometry(0.5, 12, 8).scale(0.8, 1, 1).translate(-0.62, 1.45, 0), lam({ color: 0xffffff }), CAP.body);
+    // 2.17.0 名物兵の飾り。頭（h：首の上）または胸（b：背骨の上の方）からの位置。前が +X
+    { const vd = new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide }), wd = () => new T.MeshLambertMaterial({ color: 0xffffff, side: T.DoubleSide }), G0 = 0xd8b030, AN = 0x5a3d22;
+      mk('p_kuwa', merge([[new T.BoxGeometry(0.03, 0.3, 0.035).rotateX(0.5).translate(0.15, 0.3, 0.08), G0], [new T.BoxGeometry(0.03, 0.3, 0.035).rotateX(-0.5).translate(0.15, 0.3, -0.08), G0], [new T.BoxGeometry(0.04, 0.05, 0.16).translate(0.15, 0.17, 0), G0]]), new T.MeshLambertMaterial({ vertexColors: true, emissive: 0x3a2a00 }), CAP.body, false);
+      const tn = []; for (const z of [1, -1]) { tn.push([new T.CylinderGeometry(0.018, 0.024, 0.4, 5).rotateX(z * 0.7).translate(0.04, 0.36, z * 0.15), AN], [new T.CylinderGeometry(0.013, 0.016, 0.16, 4).rotateZ(-0.6).rotateX(z * 0.2).translate(0.1, 0.4, z * 0.17), AN], [new T.CylinderGeometry(0.013, 0.016, 0.14, 4).rotateZ(0.5).rotateX(z * 0.3).translate(-0.02, 0.5, z * 0.25), AN]); }
+      mk('p_tsuno', merge(tn).scale(0.8, 0.8, 0.8), vc, CAP.body, false);
+      mk('p_katou', merge([[new T.SphereGeometry(0.19, 12, 8, Math.PI + 0.7, Math.PI * 2 - 1.4).scale(1, 1.2, 1).translate(-0.02, 0.14, 0), 0xffffff], [new T.CylinderGeometry(0.2, 0.27, 0.22, 12, 1, true, Math.PI / 2 + 0.7, Math.PI * 2 - 1.4).translate(-0.02, -0.03, 0), 0xffffff]]), wd(), CAP.body, false); // 裹頭（顔のところだけあける）
+      mk('p_kasa2', new T.ConeGeometry(0.38, 0.15, 12).translate(0, 0.25, 0), wd(), CAP.body, false);
+      mk('p_ebira', merge([[new T.CylinderGeometry(0.06, 0.05, 0.6, 6).rotateX(0.35).translate(-0.2, 0.0, 0.12), 0x3a2814], [new T.BoxGeometry(0.12, 0.13, 0.12).rotateX(0.35).translate(-0.2, 0.33, 0.23), 0xeee8d8]]), vc, CAP.body, false);
+      mk('p_oosode', merge([[new T.BoxGeometry(0.3, 0.34, 0.04).rotateX(-0.25).translate(0, -0.06, 0.29), 0xffffff], [new T.BoxGeometry(0.3, 0.34, 0.04).rotateX(0.25).translate(0, -0.06, -0.29), 0xffffff]]), lam({ color: 0xffffff }), CAP.body, false);
+      mk('p_mushiro', merge([[new T.CylinderGeometry(0.02, 0.02, 1.6, 4).translate(-0.22, 0.4, 0), 0x3b2a18], [new T.PlaneGeometry(0.3, 0.72).rotateY(Math.PI / 2).translate(-0.22, 0.82, 0.16), 0xe9e4d4], [new T.BoxGeometry(0.03, 0.09, 0.31).translate(-0.22, 1.14, 0.16), 0x1a1a1a], [new T.BoxGeometry(0.03, 0.5, 0.05).translate(-0.22, 0.78, 0.16), 0x1a1a1a]]), vd, CAP.body, false); // 門徒の旗（白地に黒い帯と文字の列）
+      mk('p_itate', merge([[new T.BoxGeometry(0.05, 0.8, 0.46).translate(0.34, -0.55, -0.24), 0x7a5a36], [new T.BoxGeometry(0.06, 0.05, 0.47).translate(0.34, -0.3, -0.24), 0x2a1e12], [new T.BoxGeometry(0.06, 0.05, 0.47).translate(0.34, -0.78, -0.24), 0x2a1e12]]), vc, CAP.body, false);
+      mk('p_dor', new T.BoxGeometry(0.16, 0.13, 0.09).translate(0.06, -0.47, 0.22), lam({ color: 0x2a1e14 }), CAP.body, false);
+      mk('p_baori', new T.BoxGeometry(0.04, 0.62, 0.48).translate(-0.17, -0.24, 0), wd(), CAP.body, false);
+    }
     mk('dosh', new T.CylinderGeometry(0.255, 0.255, 0.5, 10).translate(0, 0.9, 0), lam({ color: 0xffffff }), CAP.body);
     // 倒れた者
     mk('dead', new T.BoxGeometry(1.3, 0.22, 0.45).translate(0, 0.11, 0), white(), CAP.dead, false);
@@ -826,6 +840,7 @@
   function weaponOf(s) {
     if (s.hero) { const n = s.wep && s.wep.name; return n === '槍' ? 'spearL' : n === '弓' ? 'bow' : n === '鉄砲' ? 'gun' : n === '脇差' ? 'waki' : n === '手裏剣' ? 'shuri' : 'sword'; }
     const t = s.type; if (!t || s.kat) return 'sword'; // 0.73.8 近づかれた弓・鉄砲は刀
+    if (TR[t] && TR[t].wk) return TR[t].wk; // 2.17.0 名物兵
     if (t === 'take' || t === 'shiyori' || t === 'takegashira') return 'waki';
     if (t === 'yumi' || t === 'tsuyoyumi' || t === 'yumigashira' || t === 'banditBow') return 'bow'; /* 1.6.67 野盗の弓 */ if (t === 'teppo' || t === 'teppogashira') return 'gun';
     if (t === 'nagayari' || t === 'yarigashira') return 'spearL'; if (t === 'bandit') return 'sword';
@@ -888,6 +903,22 @@
 
   const LOD2 = 400 * 400, /* 2.2.0 人型で描く距離 180m→400m */ DEADN = 120;
   let SK90 = null, Mh = null, Mw = null, Ms = null, Mc = null, Mcw = null;
+  // 2.17.0 名物兵の飾り：頭・胸の位置（人型モデルは骨の位置、遠くの簡単な形は決まった高さ）に、体の向きのまま付ける
+  const PART_AT = { kuwa: 'h', tsuno: 'h', katou: 'h', kasa2: 'h' };
+  let Vh = null, Vb = null, Mp = null, Cp = null, Mhd = null, Mbk = null, Mt = null, Mt2 = null, Qa = null, Qb = null, Pa = null, Sa = null, SK90i = null;
+  const lookOf = (s) => !s.hero && s.type && TR[s.type] && TR[s.type].look;
+  // 骨（頭・胸）の行列：位置は骨の位置、向きは「立っている時からどれだけ回ったか」を体の向きに足す（しゃがむ・前かがみに付いていく）
+  function boneMat(b, name, row, cw, out) {
+    const a = b && b.att[name]; if (!a) return null;
+    if (!Mt) { Mt = new T.Matrix4(); Mt2 = new T.Matrix4(); Qa = new T.Quaternion(); Qb = new T.Quaternion(); Pa = new T.Vector3(); Sa = new T.Vector3(); SK90i = SK90.clone().invert(); }
+    Mt.fromArray(a, b.rows.idle.r0 * 16).decompose(Pa, Qb, Sa); Mt.fromArray(a, row * 16).decompose(Pa, Qa, Sa);
+    out.makeRotationFromQuaternion(Qa.multiply(Qb.invert())).setPosition(Pa); if (cw) out.premultiply(cw);
+    return out.premultiply(Mx).multiply(SK90i);
+  }
+  function putLook(LK, head, back) { // head・back：飾りを置く行列（体の向き・前が +X）
+    if (!Mp) { Mp = new T.Matrix4(); Cp = new T.Color(); }
+    for (const [nm, col] of LK.parts || []) put('p_' + nm, PART_AT[nm] === 'h' ? head : back, col ? Cp.set(col) : (nm === 'katou' ? Cp.set(0xece8dc) : nm === 'oosode' || nm === 'baori' ? Cp.set(0x333333) : undefined));
+  }
   function wepName(wk, tr) {
     if (wk === 'spearS') return tr <= 1 ? 'takeyari' : 'yari';
     if (wk === 'spearL') return tr >= 4 ? 'yari_t4' : 'yari';
@@ -917,7 +948,7 @@
     O.position.set(s.x, gy + jh, s.y); O.rotation.set(0, -f, 0); O.scale.set(1, 1, 1); O.updateMatrix();
     let c, up = 0, fw = 0;
     if (cav) { // 馬に乗る：馬の背に座った姿勢で
-      const hb = S3.horses[s.hero || s.type === 'horo' ? 'white' : 'brown'];
+      const hb = S3.horses[s.hero || s.type === 'horo' ? 'white' : (lookOf(s) && lookOf(s).horse) || 'brown'];
       const hh = s.hh != null ? s.hh : null; if (hh != null) { O.rotation.set(0, -hh, 0); O.updateMatrix(); } /* 1.6.76 馬は馬の向き、乗り手は狙う方へ少しひねる */
       Mx.copy(O.matrix).multiply(SK90).multiply(Ms.makeScale(S3.hk, S3.hk, S3.hk));
       const hr = S3.rowAt(hb, mv < 0.6 ? 'idle' : mv < 6 ? 'walk' : 'gallop', ph, true); S3.put(hb, Mx, hr, 0);
@@ -933,13 +964,15 @@
     if (c.low) S3.combo(b, rowL, row, Mc, Mcw);
     S3.put(b, Mx, rowL, s.fl ? 0.22 * Math.min(1, s.fl / 0.15) : 0, c.low ? row : null, c.low ? Mc : null, skTint); // 1.6.68 （2.12.5 skTint＝服の色） 打たれた光りを控えめに（0.6→0.22）
     // 武器を手に持たせる（弓は左手）
-    const wn = wepName(wk, tr), kind = wk === 'spearS' || wk === 'spearL' ? 'spear' : wk === 'bow' || wk === 'gun' ? wk : 'sword';
+    const wn = (lookOf(s) && lookOf(s).wn) || wepName(wk, tr), kind = wk === 'spearS' || wk === 'spearL' ? 'spear' : wk === 'bow' || wk === 'gun' ? wk : 'sword';
     if (wn || wk === 'shuri') {
       Mw.multiplyMatrices(Mx, S3.weapon(b, row, kind, c.nm, Mh, c.low ? Mcw : null));
       if (wk === 'waki') Mw.multiply(Ms.makeScale(0.7, 0.7, 0.7));
       if (wn) S3.putW(wn, Mw); else put('shuri', Mw);
       if (wk === 'gun' && s.at && nowS - s.at < 0.06) { Mw.multiply(Ms.makeTranslation(0, 1.0, 0)); put('flash', Mw); }
     }
+    { const LK = lookOf(s); if (LK) { if (!Mhd) { Mhd = new T.Matrix4(); Mbk = new T.Matrix4(); } const cw = c.low ? Mcw : null;
+      putLook(LK, boneMat(b, 'Head', row, cw, Mhd) || Mhd.copy(Mu).multiply(Ms.makeTranslation(0, 1.5, 0)), boneMat(b, 'Spine2', row, cw, Mbk) || Mbk.copy(Mu).multiply(Ms.makeTranslation(0, 1.3, 0))); } } // 2.17.0 名物兵の飾り
     // 指物（陣営の色。どの格にも付ける）・竹束・母衣
     const flagC = s.pc ? col : s.side === 'B' ? 0xc8402f : own ? 0xf2f2f2 : 0x6fa7d8;
     if (u && u.order === 'rout') C.setHex(flagC).lerp(C2.setHex(0xffffff), 0.5); else C.setHex(flagC);
@@ -988,6 +1021,7 @@
       if (u && u.order === 'rout') col = s.side === 'B' ? 0xd88a7f : 0x9db3c7;
       if (s.pc) col = s.pc === myPid ? 0xe8b923 : 0xe88a23;
       skTint = clothOf(s, u); if (skTint && !(u && u.order === 'rout')) col = skTint.getHex(); // 2.12.5 選んだ服の色
+      if (!skTint) { const lk = lookOf(s); if (lk && lk.cloth) skTint = tintC[lk.cloth] || (tintC[lk.cloth] = new T.Color(lk.cloth)); } // 2.17.0 名物兵の服の色
       C.setHex(s.fl ? 0xffffff : col);
       const ride = cav ? 0.95 : 0;
       const stp = mv > 0.6 ? Math.sin(clock * (cav ? 9 : 11) * 0.5 + s.id) : 0; // 0.65.0 足を前後に振る
@@ -1030,6 +1064,7 @@
       if (s.type === 'take' || s.type === 'shiyori' || s.type === 'takegashira') put('take', Mu); /* 1.6.40 */
       if (s.type === 'horo') put('horoB', Mu, C.setHex(flagC)); // 母衣衆：背中の母衣
       if (s.hero) put('crest', Mu);
+      { const LK = lookOf(s); if (LK) { if (!Mhd) { Mhd = new T.Matrix4(); Mbk = new T.Matrix4(); } putLook(LK, Mhd.copy(Mu).multiply(L4.m.makeTranslation(0, 1.22, 0)), Mbk.copy(Mu).multiply(L4.m.makeTranslation(0, 1.05, 0))); } } // 2.17.0 名物兵の飾り
       C.setHex(bc).multiplyScalar(0.7);
       putPart('armR', Mu, 0.02, 1.12, 0.33, ps.aR, C); putPart('armL', Mu, 0.02, 1.12, -0.33, ps.aL, C);
       // 武器：持つ手の先に、体に対して ps.tilt の傾きで
