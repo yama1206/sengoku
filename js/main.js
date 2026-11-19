@@ -482,7 +482,7 @@
         onHello: (conn, m) => {
           const pid = SIM.addPlayer(G.world, String(m.token).slice(0, 40), String(m.name || '').slice(0, 12), m.prof);
           if (pid && m.mine && mergeMine(G.world, pid, m.mine)) cloudSoon(); // 2.4.0 引き継ぎで戻ってきた人
-          if (pid) { delete G.sentMine[pid]; conn.send({ t: 'welcome', pid, static: G.stat, ver: SGK.VERSION, hostCode: G.roomCode, hostName: myName() }); toast(`${G.world.players[pid].name} が参加しました`); updateRoom(); setTimeout(() => G.net && G.net.beat(), 500); }
+          if (pid) { delete G.sentMine[pid]; if (G.sentPriv) delete G.sentPriv[pid]; conn.send({ t: 'welcome', pid, static: G.stat, ver: SGK.VERSION, hostCode: G.roomCode, hostName: myName() }); toast(`${G.world.players[pid].name} が参加しました`); updateRoom(); setTimeout(() => G.net && G.net.beat(), 500); }
           return pid;
         },
         onCmd: (pid, cmd) => SIM.applyCommand(G.world, pid, cmd),
@@ -493,6 +493,12 @@
     updateRoom();
   }
   function hostTick() { try { hostTick0(); } catch (e) { const t = 'エラー(ホストの進行): ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastHostErr !== t) { G.lastHostErr = t; errToast(t); } } }
+  // 2.40.4 参加者ごとの「自分用の情報」は、前に送ったものから変わっていなければ送らない（参加者は前のものを使い続ける。念のため5秒ごとには送り直す）
+  function privFor(pid, now) {
+    const pv = SIM.privateState(G.world, pid), j = JSON.stringify(pv); G.sentPriv = G.sentPriv || {}; const o = G.sentPriv[pid];
+    if (o && o.j === j && now - o.t < 5000) return undefined;
+    G.sentPriv[pid] = { j, t: now }; return pv;
+  }
   function hostTick0() {
     const now = performance.now(); const dt = Math.min(5, (now - lastTick) / 1000); lastTick = now;
     G.inBattle = Object.keys(G.world.battles || {}).length > 0; // 0.32.0 誰かが戦闘中は時間を等倍に
@@ -524,7 +530,7 @@
     netAcc += dt * 1000;
     if (netAcc >= CFG.NET_SEND_MS) {
       netAcc = 0;
-      if (G.net) { G.net.each((pid) => { try { const st = { t: 'state', s: SIM.dynamicState(G.world, pid), sp: G.speed, priv: SIM.privateState(G.world, pid), msgs: SIM.drain(pid), bt: G.inBattle }; G.sentOnce = G.sentOnce || {}; if (!G.sentOnce[pid]) { G.sentOnce[pid] = 1; toast(`参加者へ様子を送りはじめました（${Math.round(JSON.stringify(st).length / 1024)}KB）`, 8000); } return st; } catch (e) { // 1.6.3 参加者への様子が作れないときは、ホストと参加者の両方にエラーを出す
+      if (G.net) { G.net.each((pid) => { try { const st = { t: 'state', s: SIM.dynamicState(G.world, pid), sp: G.speed, priv: privFor(pid, now), msgs: SIM.drain(pid), bt: G.inBattle }; G.sentOnce = G.sentOnce || {}; if (!G.sentOnce[pid]) { G.sentOnce[pid] = 1; toast(`参加者へ様子を送りはじめました（${Math.round(JSON.stringify(st).length / 1024)}KB）`, 8000); } return st; } catch (e) { // 1.6.3 参加者への様子が作れないときは、ホストと参加者の両方にエラーを出す
           const t = 'エラー(参加者へ送信): ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastNetErr !== t) { G.lastNetErr = t; errToast(t); } return { t: 'err', text: t }; } }); }
       for (const pid in SIM.out) if (pid !== G.myPid) delete SIM.out[pid]; // 接続していない人宛ては捨てる
     }
@@ -556,7 +562,7 @@
   function startClient(ent, code, again) {
     if (!again) { G.mode = 'connecting'; G.mine = null; } G.roomCode = code; G.hostBoard = ent.board;
     SGK.NET.mine = () => (again && G.mine ? G.mine : null); // 2.4.0 引き継ぎで入り直す時だけ「自分の分」を渡す
-    const onState0 = (m) => { { const t = performance.now(); G.stIv = G.stT ? (G.stIv || 200) * 0.7 + (t - G.stT) * 0.3 : 200; G.stT = t; } G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; G.priv = m.priv; (m.msgs || []).forEach(toastMsg); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } };
+    const onState0 = (m) => { { const t = performance.now(); G.stIv = G.stT ? (G.stIv || 200) * 0.7 + (t - G.stT) * 0.3 : 200; G.stT = t; } G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; if (m.priv) G.priv = m.priv; (m.msgs || []).forEach(toastMsg); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } };
     G.net = SGK.NET.join(ent.peer, ent.board, token, myName(), {
       onWelcome: (m) => { G.hostName = m.hostName; G.mode = 'client'; G.myPid = m.pid; SIM.localPid = m.pid; G.actView = null; G.dyn = null; G.stat = m.static; setTimeout(() => { if (G.mode === 'client' && !G.dyn) errToast('ホストから様子が届いていません（ホストの画面にエラーが出ていないか見てください）'); }, 6000); G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast(again ? '新しいホストにつながりました' : '参加しました'); },
       onErr: (m) => { if (G.lastErr !== m.text) { G.lastErr = m.text; errToast(m.text); } },
