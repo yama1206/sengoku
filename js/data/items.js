@@ -14,6 +14,9 @@
     agate: { name: '瑪瑙', ic: 'star', unit: '粒', base: 360, cons: 0, mine: true, wt: 0.3 },
     jade: { name: '翡翠', ic: 'star', unit: '粒', base: 1500, cons: 0, mine: true, wt: 0.3 },
     garnet: { name: '柘榴石', ic: 'star', unit: '粒', base: 720, cons: 0, mine: true, wt: 0.3 },
+    // 2.36.0 狩猟で手に入る物（市場で売れる）
+    meat: { name: '肉', ic: 'star', unit: '塊', base: 160, cons: 0, mine: true, wt: 2 },
+    hide: { name: '毛皮', ic: 'star', unit: '枚', base: 380, cons: 0, mine: true, wt: 2 },
     tea: { name: '茶', ic: 'tea2', /* 2.13.1 茶の葉の絵 */ unit: '斤', base: 350, cons: 0.5, wt: 0.6 },   // 1斤は本物も約0.6kg
   };
   const prod = {
