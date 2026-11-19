@@ -33,11 +33,12 @@
   document.body.appendChild(box);
   const DF = () => D.gatherDiff; SGK.GATHERUI = { isOpen: () => !!ov };
   const unitOf = (c) => (c.k === 'f' ? 'cm' : 'mm');
-  let ov = null, run = null, doneN = 0, shownN = 0;
+  let ov = null, run = null, doneN = 0, shownN = 0, was = false;
 
   // ---- 地図の下のボタン（立ち止まっていて、ここに生き物がいるとき） ----
   setInterval(() => {
     const P = G.priv, me = P && P.me, inGame = P && !P.battle && G.mode !== 'title' && me;
+    { const live = !!(P && me && G.mode !== 'title'); if (live && !was) { shownN = me.gatLast ? me.gatLast.n : 0; if (me.gat) doneN = me.gat.n; } was = live; } // 2.40.3 世界に入った時点で残っている前回の結果・途中の釣りは、出さない
     const sp = inGame && !ov && me.spot, anyOpen = ['town', 'char', 'info', 'gameMenu'].some((i) => $(i) && !$(i).classList.contains('hidden'));
     box.classList.toggle('hidden', !sp || anyOpen);
     if (sp) {

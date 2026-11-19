@@ -31,10 +31,11 @@
   const box = document.createElement('div'); box.id = 'mineBox'; box.className = 'hidden';
   box.innerHTML = '<small id="mbTag"></small><div class="row"><button id="mbGo">採掘する</button></div>';
   document.body.appendChild(box);
-  let ov = null, run = null, doneN = 0, shownN = 0;
+  let ov = null, run = null, doneN = 0, shownN = 0, was = false;
   UI.isOpen = () => !!ov;
   setInterval(() => {
     const P = G.priv, me = P && P.me, inGame = P && !P.battle && G.mode !== 'title' && me;
+    { const live = !!(P && me && G.mode !== 'title'); if (live && !was) { shownN = me.mineLast ? me.mineLast.n : 0; if (me.mine) doneN = me.mine.n; } was = live; } // 2.40.3 世界に入った時点で残っている前回の結果・途中の採掘は、出さない
     const sp = inGame && !ov && me.mineSpot, anyOpen = ['town', 'char', 'info', 'gameMenu'].some((i) => $(i) && !$(i).classList.contains('hidden'));
     box.classList.toggle('hidden', !sp || anyOpen);
     if (sp) $('mbTag').textContent = sp.near ? `${sp.name}のそば（${sp.near === 'kin' ? '金' : '銀'}が出やすい）` : '山の岩場';
