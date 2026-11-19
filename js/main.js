@@ -1233,6 +1233,10 @@
         }
         html += '<div class="muted" style="margin-top:10px">身分の一覧</div>';
         RK.forEach((r, i) => { if (i && !r.indep) html += `<div class="muted">${i === R.rank ? '▶ ' : ''}${r.name}　功績${r.merit}・名声${r.fame}　俸禄${SIM.money(r.stipend)}/月　人数+${r.cap}</div>`; });
+        if (!cur.indep) { // 2.33.0 武士⇄忍び
+          const toNin = !me.nin, ok = R.atClanCastle && (!toNin || R.rank < 5), nm = toNin ? SIM.NRANKS[Math.min(4, R.rank)].name : SIM.RANKS[R.rank].name;
+          html += `<div class="card" style="margin-top:10px"><div><b>${toNin ? '忍びになる' : '武士に戻る'}</b><br><span class="muted">${toNin ? `${nm}になる（同じ格の忍び）。連れている兵は解き放ち、兵は雇えなくなる。敵の城への工作を請け負える${R.rank >= 5 ? '。城を任されている身分ではなれない' : ''}` : `${nm}に戻る（同じ格の武士）。請け負っている工作は取りやめ。兵を雇えるようになる`}。主家の城で願い出る</span></div><button id="rk-role" data-cact="switchRole" ${ok ? '' : 'disabled'}>${toNin ? '忍びになる' : '武士に戻る'}</button></div>`;
+        }
         if (!cur.indep) html += `<div class="card" style="margin-top:10px"><div>出奔する<br><span class="muted">浪人に戻る（名声-3、功績は消え、この家には二度と仕えられない${me.castle ? '。城も返上する' : ''}）</span></div><button id="rk-leave" data-cact="leaveClan">出奔</button></div>`;
       }
     } else {

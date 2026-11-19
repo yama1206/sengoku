@@ -59,6 +59,23 @@
     const n = SIM.troopCount ? SIM.troopCount(p.troops || {}) : 0; p.troops = {};
     SIM.say(p.id, `${fName(w, p.clan)}の下忍として召し抱えられました！${n ? `連れていた兵${n}人は解き放ちました。` : ''}忍びの間は兵を雇えません`);
   };
+  // 2.33.0 武士⇄忍びの切り替え（主家の城で願い出る。身分は同じ格のまま：足軽⇄下忍、足軽組頭⇄中忍、侍大将⇄上忍、部将⇄忍頭）
+  C.switchRole = (w, p) => {
+    if (!p.clan || p.battle || p.busy) return;
+    const s = here(w, p); if (!s || s.type !== 'castle' || s.owner !== p.clan) return SIM.say(p.id, '主家の城で願い出てください');
+    if (p.camp) return SIM.say(p.id, '陣を敷いている間は替われません');
+    if (p.nin) {
+      if (p.ninQ) SIM.say(p.id, `請け負っていた${NIN.jobs[p.ninQ.k].name}を取りやめました`);
+      p.nin = false; p.ninQ = null; p.status = `${fName(w, p.clan)} ${SIM.RANKS[p.rank].name}`;
+      SIM.say(p.id, `忍びをやめ、${fName(w, p.clan)}の${SIM.RANKS[p.rank].name}として仕えることになりました。兵を雇えます`);
+    } else {
+      if (p.rank >= 5 || (SIM.RANKS[p.rank] || {}).indep) return SIM.say(p.id, '城を任されている身分（城主より上）は忍びになれません');
+      if (p.allies) return SIM.say(p.id, '陣触れで集めた軍勢を率いている間は替われません');
+      const n = SIM.troopCount ? SIM.troopCount(p.troops || {}) : 0; p.troops = {};
+      p.nin = true; nst(w, p);
+      SIM.say(p.id, `${fName(w, p.clan)}の${NR[Math.min(4, p.rank)].name}になりました！${n ? `連れていた兵${n}人は解き放ちました。` : ''}主家の城で敵の城への工作を請け負えます`);
+    }
+  };
   const baseLeave = C.leaveClan;
   C.leaveClan = (w, p, c) => { const was = p.nin; baseLeave(w, p, c); if (was && !p.clan) { p.nin = false; p.ninQ = null; } };
   const basePromote = C.promote;
