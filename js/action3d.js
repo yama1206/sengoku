@@ -998,7 +998,8 @@
     // 武器を手に持たせる（弓は左手）
     const wn = (lookOf(s) && lookOf(s).wn) || wepName(wk, tr), kind = wk === 'spearS' || wk === 'spearL' ? 'spear' : wk === 'bow' || wk === 'gun' ? wk : 'sword';
     if (wn || wk === 'shuri') {
-      Mw.multiplyMatrices(Mx, S3.weapon(b, row, kind, c.nm, Mh, c.low ? Mcw : null));
+      const rowW = kind === 'spear' && !c.atk && (c.nm === 'walk' || c.nm === 'run') ? S3.rowAt(b, 'idle', 0, true) : row; // 2.26.1 歩く・走るあいだ槍は構えを保つ（手の振りでブラブラしない）
+      Mw.multiplyMatrices(Mx, S3.weapon(b, rowW, kind, c.nm, Mh, c.low ? Mcw : null));
       if (wk === 'waki') Mw.multiply(Ms.makeScale(0.7, 0.7, 0.7));
       if (wn) S3.putW(wn, Mw); else put('shuri', Mw);
       if (wk === 'gun' && s.at && nowS - s.at < 0.06) { Mw.multiply(Ms.makeTranslation(0, 1.0, 0)); put('flash', Mw); }
