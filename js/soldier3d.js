@@ -100,7 +100,25 @@
     // 上半身の骨（背骨とその先）。歩きながら攻撃するとき、ここだけ攻撃の動きにする
     const upper = new Float32Array(64);
     sk.bones.forEach((bn, i) => { for (let o = bn; o; o = o.parent) if (/Spine$/.test(o.name)) { upper[i] = 1; break; } });
-    return { geo, tex, nb, H, rows, att, upper, base: base.clone(), baseInv: base.clone().invert() };
+    return { geo, tex, nb, H, rows, att, upper, base: base.clone(), baseInv: base.clone().invert(), boneNames: sk.bones.map((b) => b.name) };
+  }
+
+  /* 2.21.0 肌の色：モデルの肌（0.8,0.6,0.4 など。頂点の色はリニアなので画面では白っぽい肌色になっていた）を、
+     日本人らしい少し日に焼けた肌色に。兵の段（t1〜t4）や服の色に関係なく、いつも同じ色にする（肌に服の印が付いていたら外す）。
+     手（手首から先の骨で動く所）は手袋なので肌にせず、服と同じく選んだ色に染まるようにする（染めない時は革の色） */
+  S.SKIN = [0.6, 0.39, 0.255]; // 画面の色で #cba98b くらい（黄みのある肌色）
+  S.GLOVE = [0.2, 0.15, 0.11]; // 染めない時の手袋（こげ茶の革）
+  function skinTone(geo, boneNames) {
+    const C = geo.attributes.color, SI = geo.attributes.skinIndex, SW = geo.attributes.skinWeight;
+    for (let i = 0; i < C.count; i++) {
+      const r = Math.abs(C.getX(i)), g = C.getY(i), b = C.getZ(i); // 腕の肌は服の印（赤がマイナス）が付いて服の色に染まっていたので、印も外す
+      if (!(r >= 0.62 && r <= 0.88 && g >= 0.5 && g <= 0.68 && b >= 0.3 && b <= 0.47 && r - g > 0.08 && g - b > 0.1)) continue;
+      let bi = SI.getX(i), bw = SW.getX(i); for (const k of ['getY', 'getZ', 'getW']) if (SW[k](i) > bw) { bw = SW[k](i); bi = SI[k](i); }
+      const bn = (boneNames[bi] || '').replace(/^mixamorig:?/, '');
+      if (/Hand|Thumb|Index|Middle|Ring|Pinky/.test(bn)) C.setXYZ(i, -S.GLOVE[0], S.GLOVE[1], S.GLOVE[2]); // 手袋：赤をマイナスにして服の印
+      else C.setXYZ(i, S.SKIN[0], S.SKIN[1], S.SKIN[2]);
+    }
+    C.needsUpdate = true;
   }
 
   // 高さ y0 より上の白っぽい頂点（明るく色みが少ない）を黒漆の色にする
@@ -178,6 +196,7 @@
       for (let i = 0; i < 4; i++) {
         let h = 0; g[1 + i].scene.traverse((o) => { if (!h && o.isBone && /Hips$/.test(o.name)) h = o.position.length(); });
         const bk = bake(g[1 + i], clips, h && aHip ? h / aHip : 1);
+        skinTone(bk.geo, bk.boneNames); // 2.21.0 兵の肌の色をそろえる（馬には使わない）
         if (i === 1 || i === 2) blackHat(bk.geo, 1.4); // t2の陣笠・t3の兜の白い所は黒漆に
         const b = mkSkin(bk, cap, scene);
         const rr = b.rows.ride; b.hipSit = rr && b.att.Hips ? b.att.Hips[rr.r0 * 16 + 13] : 0.53; // 座った姿勢の腰の高さ
