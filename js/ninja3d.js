@@ -419,16 +419,20 @@
   // 人（兵のモデルを1人ずつ複製し、AnimationMixer で動かす）
   // =====================================================================
   const MD = { ready: false, loading: null, rigs: {}, wep: {} };
+  const LOOPC = ['climb_wall', 'climb_ladder', 'swim', 'crouch_walk', 'crouch_idle', 'work', 'talking', 'look_around', 'sleeping'];
+  const has = (ch, n) => !!ch.acts[n];
   function loadModels() {
     if (MD.loading) return MD.loading;
     const Ld = new T.GLTFLoader(), P = (SGK.SOLD3D && SGK.SOLD3D.PATH) || 'assets/models/';
     const get = (u) => new Promise((ok, ng) => Ld.load(P + u, ok, undefined, ng));
-    MD.loading = Promise.all([get('soldier_anims.glb'), get('soldier_t1_rig.glb'), get('soldier_t2_rig.glb'), get('soldier_t3_rig.glb'), get('soldier_t4_rig.glb'), get('equip/yari.glb'), get('equip/katana.glb')]).then((g) => {
+    MD.loading = Promise.all([get('soldier_anims.glb'), get('soldier_t1_rig.glb'), get('soldier_t2_rig.glb'), get('soldier_t3_rig.glb'), get('soldier_t4_rig.glb'), get('equip/yari.glb'), get('equip/katana.glb'), get('ninja_anims.glb').catch(() => null)]).then((g) => {
       let aHip = 0; g[0].scene.traverse((o) => { if (!aHip && /Hips$/.test(o.name)) aHip = o.position.length(); });
       for (let i = 1; i <= 4; i++) {
         const gl = g[i]; let h = 0; gl.scene.traverse((o) => { if (!h && o.isBone && /Hips$/.test(o.name)) h = o.position.length(); });
         const k = h && aHip ? h / aHip : 1, clips = {};
         for (const c of g[0].animations) { const cc = c.clone(); for (const tr of cc.tracks) if (/Hips\.position$/.test(tr.name)) { tr.values = Float32Array.from(tr.values, (v) => v * k); } clips[c.name] = cc; }
+        // 2.31.0 忍びの動き（Mixamo。tools/ninja_anims.py で作る）。くり返す動きは体の移動（登りの上がり・泳ぎの前進）を消して、その場で動くように
+        if (g[7]) for (const c of g[7].animations) { const cc = c.clone(); for (const tr of cc.tracks) if (/Hips\.position$/.test(tr.name)) { const v = Float32Array.from(tr.values, (x) => x * k), n = v.length / 3; if (LOOPC.includes(c.name) && n > 1) for (let i = 0; i < n; i++) for (let a = 0; a < 3; a++) v[i * 3 + a] -= (v[(n - 1) * 3 + a] - v[a]) * i / (n - 1); tr.values = v; } clips[c.name] = cc; }
         MD.rigs['t' + i] = { gl, clips };
       }
       MD.wep.yari = g[5].scene; MD.wep.katana = g[6].scene; MD.ready = true;
@@ -676,7 +680,7 @@
     for (let i = 0; i < folkN + extra; i++) { const p = randNav(R, { x0: 6, z0: 121, x1: W - 6, z1: 129 }, 0) || { x: 30 + i * 8, z: 125 }; const ch = mkChar('t1', { tint: [0x6a5a3a, 0x3a4a6a, 0x7a4a3a, 0x5a6a4a][i % 4] }); scene.add(ch.root); const f = { ch, x: p.x, z: p.z, y: 0, yaw: R() * 6, tx: p.x, tz: p.z, wait: R() * 3, tgt: i < folkN, told: false }; S.folk.push(f); if (f.tgt) L.targets.push({ name: '町人', folk: f, r: 1.6, done: false, x: f.x, z: f.z, y: 0 }); }
     // 寝ている武将・箱・金
     for (const t of L.targets) {
-      if (t.gen) { const ch = mkChar('t4', {}); ch.root.position.set(t.x, t.y + 0.05, t.z); ch.root.rotation.y = Math.PI / 2; scene.add(ch.root); S.others.push(ch); const a = play(ch, 'die', { once: true, fade: 0 }); a.time = a.getClip().duration; t.ch = ch; tick(ch, 0.5, null); ch.root.updateMatrixWorld(true); const hp = ch.bones.Hips.getWorldPosition(new T.Vector3()); ch.root.position.x += t.x - hp.x; ch.root.position.z += t.z - hp.z; const fb = new T.Mesh(new T.BoxGeometry(2.2, 0.12, 1.2), makeMats().futon); fb.position.set(t.x, t.y + 0.06, t.z); scene.add(fb); } // 寝ている姿の腰が布団の真ん中に来るように
+      if (t.gen) { const ch = mkChar('t4', {}); ch.root.position.set(t.x, t.y + 0.05, t.z); ch.root.rotation.y = Math.PI / 2; scene.add(ch.root); S.others.push(ch); if (has(ch, 'sleeping')) play(ch, 'sleeping', { fade: 0 }); else { const a = play(ch, 'die', { once: true, fade: 0 }); a.time = a.getClip().duration; } t.ch = ch; tick(ch, 0.5, null); ch.root.updateMatrixWorld(true); const hp = ch.bones.Hips.getWorldPosition(new T.Vector3()); ch.root.position.x += t.x - hp.x; ch.root.position.z += t.z - hp.z; ch.root.position.y += t.y + 0.2 - hp.y; const fb = new T.Mesh(new T.BoxGeometry(2.2, 0.12, 1.2), makeMats().futon); fb.position.set(t.x, t.y + 0.06, t.z); scene.add(fb); } // 寝ている姿の腰が布団の真ん中に来るように
       if (t.chest) { const b = new T.Mesh(new T.BoxGeometry(0.9, 0.5, 0.6), makeMats().box); b.position.set(t.x, t.y + 0.25, t.z); b.castShadow = true; scene.add(b); }
       t.mk = mkTarget(); scene.add(t.mk);
     }
@@ -771,7 +775,7 @@
       P.yaw += angD(P.yawT, P.yaw) * (1 - Math.exp(-12 * dt));
       // 高さ（段を上がる・落ちる・泳ぐ）
       const fl = floorAt(P.x, P.z, P.y, P.swim ? 2.1 : STEP);
-      if (fl < P.y - 0.03) { if (!P.air) { P.air = true; P.fallFrom = P.y; } P.vy -= GRAV * dt; P.y += P.vy * dt; if (P.y <= fl) { P.y = fl; P.vy = 0; P.air = false; if (P.fallFrom - fl > 2.6 && !wetAt(P.x, P.z)) { noise(P.x, P.z, 8); say('どさっ（物音を立てた）', 1.2); } } }
+      if (fl < P.y - 0.03) { if (!P.air) { P.air = true; P.fallFrom = P.y; } P.vy -= GRAV * dt; P.y += P.vy * dt; if (P.y <= fl) { P.y = fl; P.vy = 0; P.air = false; if (P.fallFrom - fl > 2.6 && !wetAt(P.x, P.z)) { noise(P.x, P.z, 8); say('どさっ（物音を立てた）', 1.2); if (has(P.ch, 'hard_landing')) { P.lock = { kind: 'land', t: 0, dur: 0.7 }; play(P.ch, 'hard_landing', { once: true, restart: true, speed: 1.4, fade: 0.05 }); } } } }
       else { P.y = fl; P.vy = 0; P.air = false; }
       P.swim = wetAt(P.x, P.z) && P.y <= SWIM_Y + 0.05; if (P.swim) { P.crouch = false; if (P.carry) dropBody(P, true); }
       if (P.run && P.moving) { P.noiseT -= dt; if (P.noiseT <= 0) { P.noiseT = 0.45; noise(P.x, P.z, 4.5); } }
@@ -830,20 +834,24 @@
       P.yaw = P.yawT = c.face;
       if (u >= 1) { const e = L.up ? c.U : c.B; P.x = e.x; P.z = e.z; P.y = e.y; P.lock = null; P.air = false; P.vy = 0; P.swim = wetAt(P.x, P.z) && P.y <= SWIM_Y + 0.05; }
     } else if (L.kind === 'take') { if (u >= 1) { P.lock = null; attach(P.ch, 'katana', false); } }
-    else if (L.kind === 'throw') { if (u >= 1) P.lock = null; }
+    else if (L.kind === 'throw' || L.kind === 'land') { if (u >= 1) P.lock = null; }
   }
   function takedown(g, kill) {
     const S = st, P = S.p;
     const fx = Math.sin(g.yaw), fz = Math.cos(g.yaw), bx = g.x - fx * 0.8, bz = g.z - fz * 0.8;
     if (canStand(bx, bz, P.y, 1.7, STEP)) { P.x = bx; P.z = bz; }
     P.yaw = P.yawT = Math.atan2(g.x - P.x, g.z - P.z); P.crouch = false;
-    P.lock = { kind: 'take', t: 0, dur: kill ? 1.0 : 0.85 };
+    P.lock = { kind: 'take', t: 0, dur: kill ? 1.2 : 0.85 };
     if (kill) attach(P.ch, 'katana', true);
-    play(P.ch, kill ? 'sword' : 'spear', { once: true, speed: 1.5, restart: true, fade: 0.08 });
+    play(P.ch, kill && has(P.ch, 'stab') ? 'stab' : kill ? 'sword' : 'spear', { once: true, speed: kill && has(P.ch, 'stab') ? 2.2 : 1.5, restart: true, fade: 0.08 });
     g.down = true; g.dead = !!kill; g.state = 'down'; g.meter = 0; g.downT = 0; g.spr.visible = false; if (g.ch.wep.yari) g.ch.wep.yari.visible = false;
-    play(g.ch, 'hit', { once: true, restart: true, fade: 0.05 }); g.fallAt = 0.35;
+    knock(g, kill ? 'victim_stab' : 'victim_ko');
     if (kill) S.kills++;
     say(kill ? '仕留めた' : '当て身で気を失わせた', 1.2);
+  }
+  function knock(g, vc) { // 2.31.0 倒れる動き（あれば Mixamo の動き、なければ「当たる→倒れる」）
+    if (has(g.ch, vc)) { g.lie = vc; g.fallAt = null; play(g.ch, vc, { once: true, restart: true, fade: 0.08, speed: 1.3 }); }
+    else { g.lie = 'die'; play(g.ch, 'hit', { once: true, restart: true, fade: 0.05 }); g.fallAt = 0.35; }
   }
   function pickBody(P, g) { P.carry = g; g.carried = true; g.hidden = false; P.crouch = false; g.fallAt = null; play(g.ch, 'idle', { fade: 0.05 }); say('担いだ（F で下ろす）', 1.2); }
   function dropBody(P, silent) {
@@ -851,7 +859,7 @@
     const x = P.x + Math.sin(P.yaw) * 0.7, z = P.z + Math.cos(P.yaw) * 0.7;
     g.x = canStand(x, z, P.y, 0.5, STEP) ? x : P.x; g.z = canStand(x, z, P.y, 0.5, STEP) ? z : P.z; g.y = floorAt(g.x, g.z, P.y + 0.3); g.yaw = P.yaw + Math.PI / 2;
     g.hidden = inGrass(g.x, g.z, g.y) || wetAt(g.x, g.z);
-    { const a = play(g.ch, 'die', { once: true, restart: true, fade: 0.05 }); a.time = a.getClip().duration - 0.01; }
+    { const a = play(g.ch, g.lie || 'die', { once: true, restart: true, fade: 0.05 }); a.time = a.getClip().duration - 0.01; }
     if (!silent) say(g.hidden ? '隠した' : '下ろした（草むらや堀に隠すと見つかりにくい）', 1.6);
   }
   function complete(t) {
@@ -860,7 +868,7 @@
     if (k === 'rumor') { t.folk.told = true; say(S.done >= S.need ? '噂を流し終えた。城下の南の端へ戻れ' : `噂を流した（${S.done}/${S.need}）`, 2.2); return; }
     if (k === 'sabo') { addFire(t.s); setTimeout(() => { if (st === S && !S.end) { S.alertAll = true; say('「火事だ！」城中が騒ぎ出した', 2.4); } }, 12000); }
     if (k === 'raid') noise(t.x, t.z, 11);
-    if (k === 'hurt') { if (t.ch) play(t.ch, 'hit', { once: true, restart: true }); noise(t.x, t.z, 14); S.alertAll = true; setTimeout(() => { if (t.ch) { const a = play(t.ch, 'die', { once: true, restart: true }); a.time = a.getClip().duration - 0.01; } }, 600); }
+    if (k === 'hurt') { if (t.ch && !has(t.ch, 'sleeping')) play(t.ch, 'hit', { once: true, restart: true }); noise(t.x, t.z, 14); S.alertAll = true; if (t.ch && !has(t.ch, 'sleeping')) setTimeout(() => { if (t.ch) { const a = play(t.ch, 'die', { once: true, restart: true }); a.time = a.getClip().duration - 0.01; } }, 600); }
     say((k === 'hurt' ? '手傷を負わせた！' : k === 'steal' ? `${t.name}を盗み出した！` : k === 'gate' ? '門に細工をした！' : k === 'sabo' ? '兵糧蔵に火を付けた！' : '武器蔵を打ち壊した！') + ' 城下の南の端へ戻れ', 2.6);
   }
   function addFire(s) {
@@ -872,9 +880,10 @@
   function useTool(k) {
     const S = st, P = S.p; if (P.lock || S.end) return;
     if ((S.tools[k] || 0) - (S.used[k] || 0) <= 0) return say(`${TOOLS.find((t) => t[0] === k)[1]}がない`, 1.2);
-    if (k === 'kemuri') { S.used.kemuri++; const sp = []; for (let i = 0; i < 16; i++) { const m = new T.Sprite(new T.SpriteMaterial({ map: texs().smoke, color: S.night ? 0x5a5c66 : 0xd8d8d4, depthWrite: false, transparent: true, opacity: 0.75 })); m.position.set(P.x + (Math.random() - 0.5) * 2, P.y + 0.5 + Math.random() * 1.6, P.z + (Math.random() - 0.5) * 2); m.scale.setScalar(1.5); m.userData.v = new T.Vector3((Math.random() - 0.5) * 1.6, 0.25 + Math.random() * 0.4, (Math.random() - 0.5) * 1.6); S.scene.add(m); sp.push(m); } S.smokes.push({ x: P.x, y: P.y + 1.2, z: P.z, r: 1.2, t: 0, sp }); say('煙玉！', 0.8); }
-    if (k === 'makibishi') { if (P.swim) return; S.used.makibishi++; const g = new T.Group(); for (let i = 0; i < 14; i++) { const m = new T.Mesh(new T.TetrahedronGeometry(0.06), makeMats().dark); m.position.set((Math.random() - 0.5) * 1.4, 0.04, (Math.random() - 0.5) * 1.4); m.rotation.set(Math.random() * 3, Math.random() * 3, 0); g.add(m); } g.position.set(P.x, P.y, P.z); S.scene.add(g); S.makis.push({ x: P.x, z: P.z, y: P.y, g }); say('撒菱を撒いた', 0.8); }
-    if (k === 'fukiya') { const g = dartTarget(); if (!g) return say('吹き矢の届く見張りがいない', 1.2); S.used.fukiya++; P.lock = { kind: 'throw', t: 0, dur: 0.45 }; P.yaw = P.yawT = Math.atan2(g.x - P.x, g.z - P.z); const m = new T.Mesh(new T.CylinderGeometry(0.01, 0.01, 0.25, 4).rotateX(Math.PI / 2), makeMats().wood); S.scene.add(m); S.darts.push({ g, m, t: 0, a: new T.Vector3(P.x, P.y + 1.5, P.z), dur: Math.hypot(g.x - P.x, g.z - P.z) / 30 + 0.05 }); }
+    const throwA = () => { P.lock = { kind: 'throw', t: 0, dur: 0.6 }; if (has(P.ch, 'throw')) play(P.ch, 'throw', { once: true, restart: true, speed: 2.2, fade: 0.08 }); };
+    if (k === 'kemuri') { S.used.kemuri++; throwA(); const sp = []; for (let i = 0; i < 16; i++) { const m = new T.Sprite(new T.SpriteMaterial({ map: texs().smoke, color: S.night ? 0x5a5c66 : 0xd8d8d4, depthWrite: false, transparent: true, opacity: 0.75 })); m.position.set(P.x + (Math.random() - 0.5) * 2, P.y + 0.5 + Math.random() * 1.6, P.z + (Math.random() - 0.5) * 2); m.scale.setScalar(1.5); m.userData.v = new T.Vector3((Math.random() - 0.5) * 1.6, 0.25 + Math.random() * 0.4, (Math.random() - 0.5) * 1.6); S.scene.add(m); sp.push(m); } S.smokes.push({ x: P.x, y: P.y + 1.2, z: P.z, r: 1.2, t: 0, sp }); say('煙玉！', 0.8); }
+    if (k === 'makibishi') { if (P.swim) return; S.used.makibishi++; throwA(); const g = new T.Group(); for (let i = 0; i < 14; i++) { const m = new T.Mesh(new T.TetrahedronGeometry(0.06), makeMats().dark); m.position.set((Math.random() - 0.5) * 1.4, 0.04, (Math.random() - 0.5) * 1.4); m.rotation.set(Math.random() * 3, Math.random() * 3, 0); g.add(m); } g.position.set(P.x, P.y, P.z); S.scene.add(g); S.makis.push({ x: P.x, z: P.z, y: P.y, g }); say('撒菱を撒いた', 0.8); }
+    if (k === 'fukiya') { const g = dartTarget(); if (!g) return say('吹き矢の届く見張りがいない', 1.2); S.used.fukiya++; throwA(); P.yaw = P.yawT = Math.atan2(g.x - P.x, g.z - P.z); const m = new T.Mesh(new T.CylinderGeometry(0.01, 0.01, 0.25, 4).rotateX(Math.PI / 2), makeMats().wood); S.scene.add(m); S.darts.push({ g, m, t: 0, a: new T.Vector3(P.x, P.y + 1.5, P.z), dur: Math.hypot(g.x - P.x, g.z - P.z) / 30 + 0.05 }); }
   }
   function dartTarget() {
     const S = st, P = S.p, C = S.cam, fx = Math.sin(C.yaw), fz = Math.cos(C.yaw); let best = null, ba = 0.32;
@@ -884,7 +893,7 @@
   function stepFx(dt) {
     const S = st;
     S.smokes = S.smokes.filter((s) => { s.t += dt; s.r = Math.min(4.2, 1.2 + s.t * 3); for (const m of s.sp) { m.position.addScaledVector(m.userData.v, dt * (s.t < 1 ? 2 : 0.4)); m.scale.setScalar(Math.min(4.5, 1.5 + s.t * 1.2)); m.material.opacity = clamp(0.75 * (1 - (s.t - 7) / 2), 0, 0.75); } if (s.t > 9) { for (const m of s.sp) { S.scene.remove(m); m.material.dispose(); } return false; } return true; });
-    S.darts = S.darts.filter((d) => { d.t += dt; const g = d.g, k = clamp(d.t / d.dur, 0, 1); d.m.position.set(lerp(d.a.x, g.x, k), lerp(d.a.y, g.y + 1.4, k), lerp(d.a.z, g.z, k)); d.m.lookAt(g.x, g.y + 1.4, g.z); if (k >= 1) { S.scene.remove(d.m); if (!g.down) { g.down = true; g.dead = false; g.state = 'down'; g.meter = 0; g.spr.visible = false; play(g.ch, 'hit', { once: true, restart: true }); g.fallAt = 0.5; g.downT = 0; if (g.ch.wep.yari) g.ch.wep.yari.visible = false; say('眠らせた', 1); } return false; } return true; });
+    S.darts = S.darts.filter((d) => { d.t += dt; const g = d.g, k = clamp(d.t / d.dur, 0, 1); d.m.position.set(lerp(d.a.x, g.x, k), lerp(d.a.y, g.y + 1.4, k), lerp(d.a.z, g.z, k)); d.m.lookAt(g.x, g.y + 1.4, g.z); if (k >= 1) { S.scene.remove(d.m); if (!g.down) { g.down = true; g.dead = false; g.state = 'down'; g.meter = 0; g.spr.visible = false; knock(g, 'victim_ko'); g.downT = 0; if (g.ch.wep.yari) g.ch.wep.yari.visible = false; say('眠らせた', 1); } return false; } return true; });
     for (const f of S.fires) { f.lt.intensity = 2 + Math.sin(S.t * 13) * 0.4 + Math.sin(S.t * 7.3) * 0.3; for (const m of f.sp) { const ph = (S.t * 0.8 + m.userData.p) % 1; m.position.set(m.userData.b.x, m.userData.b.y + ph * 3, m.userData.b.z); m.scale.setScalar(2.4 * (1 - ph) + 0.3); m.material.opacity = 1 - ph; } }
     S.makis = S.makis.filter((m) => { for (const g of S.guards) { if (g.down || g.stun > 0) continue; if (Math.hypot(g.x - m.x, g.z - m.z) < 0.85 && Math.abs(g.y - m.y) < 0.5) { g.stun = 6; g.meter = 0; g.state = g.route ? 'back' : 'post'; play(g.ch, 'hit', { once: true, restart: true }); say('見張りが撒菱を踏んだ', 1.2); S.scene.remove(m.g); noise(g.x, g.z, 5); return false; } } return true; });
   }
@@ -954,8 +963,8 @@
     ch.root.position.set(g.x, g.y, g.z); ch.root.rotation.set(0, g.yaw, 0);
     if (g.stun > 0) { if (ch.cur !== 'hit' || !ch.acts.hit.isRunning()) play(ch, 'idle'); }
     else if (g.moving) play(ch, st.alertAll && g.state !== 'patrol' ? 'run' : 'walk', { speed: st.alertAll ? 1.1 : 0.9 });
-    else if (ch.cur !== 'spear') play(ch, 'idle');
-    tick(ch, dt, { look: g.look * 0.6, foot: g.stun > 0 });
+    else if (ch.cur !== 'spear') play(ch, has(ch, 'look_around') && (g.wait > 0 || (g.state === 'sus' && g.sub === 'search')) ? 'look_around' : 'idle');
+    tick(ch, dt, { look: ch.cur === 'look_around' ? 0 : g.look * 0.6, foot: g.stun > 0 });
     const show = g.meter > 0.05 && !st.end;
     g.spr.visible = show || (st.end === 'ng' && g.meter >= 1);
     if (show) { g.spr.material.map = g.meter > 0.75 ? texs().x : texs().q; const k = 0.35 + g.meter * 0.5; g.spr.scale.set(k, k, 1); }
@@ -963,7 +972,7 @@
   }
   function stepFolk(f, dt) {
     const ch = f.ch;
-    if (f.wait > 0) { f.wait -= dt; play(ch, 'idle'); if (f.tgt && !f.told) { const P = st.p; if (Math.hypot(P.x - f.x, P.z - f.z) < 2) f.yaw += angD(Math.atan2(P.x - f.x, P.z - f.z), f.yaw) * Math.min(1, dt * 4); } }
+    if (f.wait > 0) { f.wait -= dt; play(ch, f.tgt && !f.told && has(ch, 'talking') && Math.hypot(st.p.x - f.x, st.p.z - f.z) < 2 ? 'talking' : 'idle'); if (f.tgt && !f.told) { const P = st.p; if (Math.hypot(P.x - f.x, P.z - f.z) < 2) f.yaw += angD(Math.atan2(P.x - f.x, P.z - f.z), f.yaw) * Math.min(1, dt * 4); } }
     else {
       const dx = f.tx - f.x, dz = f.tz - f.z, d = Math.hypot(dx, dz);
       if (d < 0.3) { f.wait = 1 + Math.random() * 4; const p = randNav(Math.random, { x0: 6, z0: 121, x1: W - 6, z1: 129 }, 0); if (p) { f.tx = p.x; f.tz = p.z; } }
@@ -977,17 +986,24 @@
   function render(dt) {
     const S = st, P = S.p, C = S.cam, ch = P.ch;
     // 本人の姿勢
-    ch.root.position.set(P.x, P.y + (P.swim ? -0.05 : 0), P.z); ch.root.rotation.set(P.swim ? 0.9 : 0, P.yaw, 0);
+    const swimC = has(ch, 'swim'); ch.root.position.set(P.x, P.y + (P.swim ? (swimC ? 0.22 : -0.05) : 0), P.z); ch.root.rotation.set(P.swim && !swimC ? 0.9 : 0, P.yaw, 0);
     const L = P.lock;
-    let pz = { crouch: P.crouchK * (P.carry ? 0 : 1), work: P.work > 0 ? Math.min(1, P.work * 3) : 0, carry: P.carry ? 1 : 0 };
-    if (L && L.kind === 'climb') { play(ch, 'idle'); pz = { climb: L.t * 7 }; }
+    const crC = has(ch, 'crouch_walk') && has(ch, 'crouch_idle'), wkC = has(ch, 'work') && P.work > 0 && !(st.ctx && st.ctx.work && st.ctx.work.folk);
+    let pz = { crouch: crC || wkC ? 0 : P.crouchK * (P.carry ? 0 : 1), work: P.work > 0 && !wkC ? Math.min(1, P.work * 3) : 0, carry: P.carry ? 1 : 0 };
+    if (L && L.kind === 'climb') { const cn = L.c.kind === 'ladder' ? 'climb_ladder' : 'climb_wall', k = clamp(L.t / L.dur, 0, 1); if (has(ch, cn) && k < 0.82) { play(ch, cn, { speed: cn === 'climb_ladder' ? 1.3 : 1.7, fade: 0.1 }); pz = {}; } else if (has(ch, cn)) { play(ch, 'crouch_idle', { fade: 0.15 }); pz = {}; } else { play(ch, 'idle'); pz = { climb: L.t * 7 }; } }
+    else if (L && L.kind === 'land') { pz = {}; }
     else if (L && L.kind === 'take') { /* 斬る・突く動き */ }
-    else if (L && L.kind === 'throw') { play(ch, 'idle'); pz.throwK = Math.sin(clamp(L.t / L.dur, 0, 1) * Math.PI); }
-    else if (P.swim) { play(ch, 'walk', { speed: 0.6 }); P.swimF += dt * 3; pz = { swim: 1, swimF: P.swimF }; }
+    else if (L && L.kind === 'throw') { if (has(ch, 'throw')) pz = {}; else { play(ch, 'idle'); pz.throwK = Math.sin(clamp(L.t / L.dur, 0, 1) * Math.PI); } }
+    else if (P.swim) { if (swimC) { play(ch, 'swim', { speed: P.moving ? 1 : 0.5 }); pz = {}; } else { play(ch, 'walk', { speed: 0.6 }); P.swimF += dt * 3; pz = { swim: 1, swimF: P.swimF }; } }
     else if (P.air) play(ch, 'idle');
-    else if (P.moving) play(ch, P.run ? 'run' : 'walk', { speed: P.crouch ? 0.75 : P.carry ? 0.8 : 1 });
-    else play(ch, 'idle');
+    else if (wkC) play(ch, 'work');
+    else if (P.moving) play(ch, P.crouch && crC ? 'crouch_walk' : P.run ? 'run' : 'walk', { speed: P.crouch ? (crC ? 1.1 : 0.75) : P.carry ? 0.8 : 1 });
+    else play(ch, P.crouch && crC ? 'crouch_idle' : 'idle');
     tick(ch, dt, pz);
+    if (L && L.kind === 'climb' && (ch.cur === 'climb_wall' || ch.cur === 'climb_ladder')) { // 2.31.0 登る動きは体が前に寄っているので、腰を壁の手前にそろえる
+      ch.root.updateMatrixWorld(true); const h = ch.bones.Hips.getWorldPosition(vb), c = L.c, back = ch.cur === 'climb_ladder' ? 0.05 : 0.12;
+      ch.root.position.x += c.B.x + Math.sin(c.face) * back - h.x; ch.root.position.z += c.B.z + Math.cos(c.face) * back - h.z;
+    }
     // カメラ（右肩ごし。壁にめり込まないよう縮める）
     const tx = P.x - Math.cos(C.yaw) * 0.45, tz = P.z + Math.sin(C.yaw) * 0.45, ty = P.y + (P.swim ? 0.7 : P.crouchK > 0.5 ? 1.2 : 1.6);
     const fx = Math.sin(C.yaw) * Math.cos(C.pitch), fy = -Math.sin(C.pitch), fz = Math.cos(C.yaw) * Math.cos(C.pitch);
