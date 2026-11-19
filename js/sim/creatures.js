@@ -74,7 +74,7 @@
   // いま、ここでいる生き物（kind: 'f'魚 / 'b'虫）
   SIM.spotCreatures = (w, x, y, kind) => {
     const tags = SIM.spotTags(w, x, y), rg = SIM.regionOf(x, y), mon = SIM.month(w), dp = daypart(w);
-    return (D.creatures || []).filter((c) => c.k === kind && c.pl.some((p) => tags.has(p)) && (c.rg ? rg.band >= c.rg[0] && rg.band <= c.rg[1] : c.only.includes(rg.name)) && inMonth(mon, c.m) && c.t.includes(dp));
+    return (D.creatures || []).filter((c) => c.k === kind && c.pl.some((p) => tags.has(p)) && (c.rg ? rg.band >= c.rg[0] && rg.band <= c.rg[1] : c.only.includes(rg.name)) && c.t.includes(dp));
   };
 
   // ---- 命令 ----
