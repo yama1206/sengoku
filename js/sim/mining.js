@@ -100,6 +100,7 @@
 
   // ---- 場所：山地か、金山・銀山のそば ----
   M.nearKm = 12;
+  M.hpCost = 0.08; // 採掘1回で使う体力
   SIM.mineSpot = (w, x, y) => {
     if (SIM.isSea && SIM.isSea(x, y)) return null;
     let best = null, bd = M.nearKm;
@@ -113,6 +114,9 @@
     if (p.busy) return say(p.id, `${p.busy.label}の最中です`);
     if (p.tx != null) return say(p.id, '歩いている最中は始められません。立ち止まってください');
     const sp = SIM.mineSpot(w, p.x, p.y); if (!sp) return say(p.id, 'ここには掘れそうな岩場がありません（山地か金山・銀山のそばで）');
+    // 2.37.0 挑戦した時点で体力を使う（採掘）
+    const hp0 = p.hpFrac == null ? 1 : p.hpFrac; if (hp0 < Math.max(0.1, M.hpCost)) return say(p.id, '体力が足りません。少し休んでから（自宅で休めば早く戻ります）');
+    p.hpFrac = hp0 - M.hpCost;
     const n = (p.mineN = (p.mineN || 0) + 1);
     p.mineLast = null; p.mine = { n, seed: Math.floor(SIM.rand(w) * 4294967296) | 0, near: sp.near, name: sp.name, at: Date.now() };
   };

@@ -77,12 +77,17 @@
     return (D.creatures || []).filter((c) => c.k === kind && c.pl.some((p) => tags.has(p)) && (c.rg ? rg.band >= c.rg[0] && rg.band <= c.rg[1] : c.only.includes(rg.name)) && c.t.includes(dp));
   };
 
+  SIM.GATHER_HP = 0.03; // 釣り・虫取りの1回で使う体力
   // ---- 命令 ----
   C.gatherStart = (w, p, c) => {
     const kind = c.kind === 'bug' ? 'b' : 'f';
     if (p.busy) return say(p.id, `${p.busy.label}の最中です`);
     if (p.tx != null) return say(p.id, '歩いている最中は始められません。立ち止まってください');
     if (SIM.isSea(p.x, p.y)) return;
+    // 2.37.0 挑戦した時点で体力を使う（釣り・虫取り）。体力が足りないときは始められない
+    const hp0 = p.hpFrac == null ? 1 : p.hpFrac, cost = SIM.GATHER_HP;
+    if (hp0 < Math.max(0.1, cost)) return say(p.id, '体力が足りません。少し休んでから（自宅で休めば早く戻ります）');
+    p.hpFrac = hp0 - cost;
     const list = SIM.spotCreatures(w, p.x, p.y, kind), n = (p.gatN = (p.gatN || 0) + 1);
     p.gatLast = null;
     if (!list.length) { p.gat = null; p.gatLast = { n, ok: false, k: kind, txt: kind === 'f' ? 'ここでは、いまの時間に釣れる魚がいないようです' : 'ここでは、いまの時間に捕れる虫がいないようです' }; return; }
