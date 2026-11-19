@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="2.38.0">
+<meta name="sgk-ver" content="2.39.0">
 <title>天下往来</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -132,6 +132,7 @@
   /* 0.46.0 スマホ・タップ操作 */
   .touchOnly { display:none !important; }
   body.touch .touchOnly { display:flex !important; }
+  body.touch .mouseOnly { display:none !important; }
   button { touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
   body.touch button { min-height:36px; }
   #hudR #testBtn, #testBtn { position:fixed; left:98px; bottom:10px; padding:10px 18px; font-size:15px; z-index:5; } /* 2.12.6 右上の並びは地図の下に隠れていたので、メニューの右に出す */
@@ -209,6 +210,7 @@
       <button id="joinBtn" class="hidden">合戦に加わる</button>
       <button id="townBtn" class="hidden">拠点に入る</button>
       <button id="testBtn" class="hidden">戦闘</button>
+      <button id="followBtn2" class="mouseOnly" title="自分のいる位置へ地図を合わせます（Fキーでも）">自分へ</button>
       <button id="charBtn">人物</button>
       <button id="menuBtn">メニュー</button>
     </div>

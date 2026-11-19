@@ -1543,6 +1543,7 @@
   if (matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window) document.body.classList.add('touch');
   $('nearBtn').onclick = () => cycleNear();
   $('followBtn').onclick = () => $('mFollow').click();
+  $('followBtn2').onclick = () => $('mFollow').click(); // 2.39.0 キーボード・マウスのときの「自分へ」ボタン
   // 0.58.0 戦場のズーム：地図と同じ操作（ホイール・ピンチ・＋－ボタン・＋/－キー・LB/RB等）で、指した所を中心に
   const inB = () => !!(G.priv && G.priv.battle);
   function bZoom(k, sx, sy) {
