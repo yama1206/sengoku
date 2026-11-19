@@ -485,13 +485,19 @@
           if (pid) { delete G.sentMine[pid]; if (G.sentPriv) delete G.sentPriv[pid]; conn.send({ t: 'welcome', pid, static: G.stat, ver: SGK.VERSION, hostCode: G.roomCode, hostName: myName() }); toast(`${G.world.players[pid].name} が参加しました`); updateRoom(); setTimeout(() => G.net && G.net.beat(), 500); }
           return pid;
         },
-        onCmd: (pid, cmd) => SIM.applyCommand(G.world, pid, cmd),
+        onCmd: (pid, cmd) => (cmd && cmd.type === 'ninRelay' ? ninRelay(pid, cmd) : SIM.applyCommand(G.world, pid, cmd)),
         onLeave: (pid) => { for (const b of Object.values(G.world.battles || {})) if (b.act) { delete b.act.inp[pid]; } const p = G.world.players[pid]; if (p) toast(`${p.name} が退出しました`); updateRoom(); cloudSoon(); },
       });
       if (!ent.peer) toast('通信の準備ができなかったので、ほかの人は入れません（1人で遊べます）', 5000);
     } else if (SGK.CLOUD.on()) toast('クラウドにつながらないので、この端末だけで遊びます', 5000);
     updateRoom();
   }
+  // 2.41.0 忍びの協力任務のやりとりを、宛先の人へそのまま届ける（ホストが中継役）
+  function ninRelay(from, cmd) {
+    const m = cmd.m, to = cmd.to; if (!m || !Array.isArray(to)) return;
+    for (const t of to.slice(0, 4)) { if (t === G.myPid) { if (SGK.NINJA3D && SGK.NINJA3D.recv) SGK.NINJA3D.recv(from, m); } else if (G.net && G.net.sendTo) G.net.sendTo(t, { t: 'nin', from, m }); }
+  }
+  SGK.ninSend = (to, m) => { if (G.mode === 'host') ninRelay(G.myPid, { m, to }); else if (G.mode === 'client' && G.net) G.net.send({ type: 'ninRelay', to, m }); };
   function hostTick() { try { hostTick0(); } catch (e) { const t = 'エラー(ホストの進行): ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastHostErr !== t) { G.lastHostErr = t; errToast(t); } } }
   // 2.40.4 参加者ごとの「自分用の情報」は、前に送ったものから変わっていなければ送らない（参加者は前のものを使い続ける。念のため5秒ごとには送り直す）
   function privFor(pid, now) {
@@ -571,6 +577,7 @@
       onBye: (why) => { if (again && G.mode === 'client') { G.mode = 'client'; } backToTitle(); titleMsg(why); },
       onLost: (why) => rejoin(why),
       onMine: (m) => { if (m.p && m.p.id === G.myPid) G.mine = { p: m.p, ma: SGK.CLOUD.now() }; },
+      onNin: (m) => { if (SGK.NINJA3D && SGK.NINJA3D.recv) SGK.NINJA3D.recv(m.from, m.m); },
     });
   }
 
@@ -842,7 +849,7 @@
     const NJ = me.nin; // 0.77.0 忍び：工作の城に入ったら「忍び込む」
     const njName = (q) => SIM.NIN.jobs[q.k].name + (q.k === 'steal' && SIM.NIN.steal[q.sk] ? `（${SIM.NIN.steal[q.sk].name}）` : ''); // 2.24.0
     const njDesc = (q) => (q.k === 'steal' && SIM.NIN.steal[q.sk] ? SIM.NIN.steal[q.sk].desc + `（${SIM.NIN.steal[q.sk].where}にある）` : q.k === 'hurt' ? `寝所の${q.whoName || '武将'}に手傷を負わせる（殺しはしない）。成功すると${q.whoName || 'その武将'}は${SIM.NIN.hurtDays}日のあいだ出陣できない` : SIM.NIN.jobs[q.k].desc);
-    if (NJ && NJ.atTgt && NJ.q) html += `<div class="card" style="display:block;border-color:#c33"><b>${njName(NJ.q)}</b>（${NJ.q.foe}・${NJ.q.toName}）<br><span class="muted">${njDesc(NJ.q)}。見張り${NJ.d.guards}人・${NJ.d.ck === 'yama' ? '山城' : NJ.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.d.night ? '夜（見張りの目が届きにくい）' : '昼'}・難しさ${SGK.ICON.html('star', 14).repeat(NJ.d.lv)}</span><div class="row" style="margin-top:4px"><button id="nj-go" data-nj="go">忍び込む</button></div></div>`;
+    if (NJ && NJ.atTgt && NJ.q) html += `<div class="card" style="display:block;border-color:#c33"><b>${njName(NJ.q)}</b>（${NJ.q.foe}・${NJ.q.toName}）<br><span class="muted">${njDesc(NJ.q)}。見張り${NJ.d.guards}人・${NJ.d.ck === 'yama' ? '山城' : NJ.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.d.night ? '夜（見張りの目が届きにくい）' : '昼'}・難しさ${SGK.ICON.html('star', 14).repeat(NJ.d.lv)}</span><div class="row" style="margin-top:4px"><button id="nj-go" data-nj="go">忍び込む</button>${!NJ.room ? '<button id="nj-rec" data-act="ninRecruit">仲間を募る</button>' : ''}</div>${njRoomHtml(NJ.room)}</div>`;
     if (townTab === 'street') html += `<div class="muted">${hs && hs.type === 'village' ? '村' : '町'}の通りです。上のボタンから行き先を選んでください</div>`;
     for (const sec of TOWN_SECS[townTab] || [townTab]) { if ((TOWN_SECS[townTab] || []).length > 1) html += `<div class="secH">${SEC_NAME[sec]}</div>`;
     if (sec === 'talk' && h.musume) { const m = h.musume, gifts = Object.keys(me.inv || {}).filter((k) => me.inv[k] > 0 && IT[k]); // 2.13.0 看板娘
@@ -1037,6 +1044,13 @@
     for (const g of F.roads) h += `<div class="card"><div><b>新しい道</b>：${g.name}へ（約${g.len}km${g.mt ? `・山${g.mt}%` : ''}）<br><span class="muted">${SIM.money(g.cost)}・${g.days}日。脇道ができる</span></div><button id="fr-${g.to}" data-act="fushin" data-kind="road" data-id="${g.to}" ${me.money >= g.cost ? '' : 'disabled'}>道をつくる</button></div>`;
     return h;
   }
+  // 2.41.0 協力任務の部屋（同じ工作を請け負った仲間と一緒に潜入。最大3人・誰かが見つかれば全員失敗・報酬は全員に満額）
+  function njRoomHtml(R) {
+    if (!R) return '';
+    const names = R.names.map((n) => n.replace(/[<&]/g, '')).join('・');
+    if (R.canJoin) return `<div style="margin-top:6px;border-top:1px solid #8884;padding-top:4px"><b>${R.lname.replace(/[<&]/g, '')}が仲間を募っています</b>（${R.n}/${R.max}人：${names}）<div class="row" style="margin-top:4px"><button id="nj-join" data-act="ninJoin">加わる</button></div></div>`;
+    return `<div style="margin-top:6px;border-top:1px solid #8884;padding-top:4px"><b>協力して潜入</b>（${R.n}/${R.max}人：${names}）<div class="row" style="margin-top:4px">${R.leader ? '<button id="nj-cogo" data-act="ninGo">この仲間で出発する</button>' : '<span class="muted">リーダーが出発すると始まります</span>'}<button id="nj-leave" data-act="ninRoomLeave">${R.leader ? '募集をやめる' : '抜ける'}</button></div></div>`;
+  }
   function dirOf(a, b) { const ang = Math.atan2(-(b.y - a.y), b.x - a.x) * 180 / Math.PI; return ['東', '北東', '北', '北西', '西', '南西', '南', '南東'][Math.round(((ang + 360) % 360) / 45) % 8]; }
   // 依頼の届け先を地図で見る（「依頼に戻る」で拠点の画面へ戻れる）
   function lookAt(id, job) {
@@ -1047,15 +1061,28 @@
     if (job) { G.lookJob = job; $('infoGo').textContent = '依頼を受けて、ここへ向かう'; } /* 1.6.47 */
     setFocus($('info'), job ? $('infoGo') : $('infoAct'));
   }
+  // 忍びの潜入を始める（co＝協力任務の部屋の情報。1人のときは null）
+  function startNinja(N, co) {
+    const fin = (r) => { r = r && typeof r === 'object' ? r : { ok: r }; // 2.24.0 3Dの潜入は { ok, kills, unseen, used } を返す
+      if (r.ok === null || r.ok === undefined) { command({ type: 'ninUse', used: r.used || null }); toast('いったん退きました（工作はまだ請け負ったまま）', 1500); }
+      else command({ type: 'ninResult', ok: !!r.ok, kills: r.kills || 0, unseen: !!r.unseen, used: r.used || null }); };
+    if (co) { // 2.41.0 協力任務：部屋を作った人（リーダー）の端末が見張りを動かし、ほかの人へ配る
+      if (!(SGK.NINJA3D && SGK.NINJA3D.can())) { toast('3Dが使えないので、協力任務はできません', 3000); command({ type: 'ninRoomLeave' }); return; }
+      SGK.NINJA3D.start({ q: Object.assign({}, N.q, co.q), d: co.d, tools: N.tools || {}, seed: co.q.id, co: { me: G.myPid, leader: co.lead, members: co.mem, names: co.names, send: SGK.ninSend } }, fin); return;
+    }
+    if (SGK.NINJA3D && SGK.NINJA3D.can()) SGK.NINJA3D.start({ q: N.q, d: N.d, tools: N.tools || {}, seed: N.q.id }, fin); else SGK.NINJA.start(N.q.k, N.d, fin);
+  }
+  // 部屋の出発の合図が届いたら、入っている全員が始める
+  setInterval(() => {
+    const P = G.priv, N = P && P.me && P.me.nin, R = N && N.room;
+    if (!R || !R.go || !R.joined || !N.q || (SGK.NINJA3D && SGK.NINJA3D.on) || (SGK.NINJA && SGK.NINJA.on) || G.lastCoGo === R.go.at) return;
+    G.lastCoGo = R.go.at; openTown(false); startNinja(N, R.go);
+  }, 400);
   $('townBody').addEventListener('click', (e) => {
     const lb = e.target.closest('button[data-look]'); if (lb) return lookAt(lb.dataset.look, lb.dataset.job);
     const lx = e.target.closest('button[data-lookxy]'); if (lx) { const [x, y] = lx.dataset.lookxy.split(',').map(Number); openTown(false); R.cam.follow = false; R.cam.x = x; R.cam.y = y; G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; return; }
     const nj = e.target.closest('button[data-nj]'); // 0.77.0 忍び込む
-    if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; openTown(false);
-      const fin = (r) => { r = r && typeof r === 'object' ? r : { ok: r }; // 2.24.0 3Dの潜入は { ok, kills, unseen, used } を返す
-        if (r.ok === null || r.ok === undefined) { if (r.used) command({ type: 'ninUse', used: r.used }); toast('いったん退きました（工作はまだ請け負ったまま）', 1500); }
-        else command({ type: 'ninResult', ok: !!r.ok, kills: r.kills || 0, unseen: !!r.unseen, used: r.used || null }); };
-      if (SGK.NINJA3D && SGK.NINJA3D.can()) SGK.NINJA3D.start({ q: N.q, d: N.d, tools: N.tools || {}, seed: N.q.id }, fin); else SGK.NINJA.start(N.q.k, N.d, fin); return; }
+    if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; openTown(false); startNinja(N, null); return; }
     const gs = e.target.closest('button[data-gbset]'); if (gs) { G.gbSel = +gs.dataset.gbset; townHtml = ''; renderTown(); return; } // 2.8.0 賭場の掛け金
     const b = e.target.closest('button[data-act]'); if (!b) return;
     if (b.dataset.act === 'smithPlay') { if (SGK.SMITHUI) SGK.SMITHUI.open(b.dataset.id, G.priv && G.priv.me); return; } // 2.29.0 鍛冶のミニゲーム

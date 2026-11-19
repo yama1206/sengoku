@@ -112,6 +112,7 @@
       else if (m.t === 'state') h.onState(m);
       else if (m.t === 'act') { if (h.onAct) h.onAct(m); }
       else if (m.t === 'mine') { if (h.onMine) h.onMine(m); }
+      else if (m.t === 'nin') { if (h.onNin) h.onNin(m); } // 2.41.0 忍びの協力任務のやりとり（ホストが中継）
       else if (m.t === 'err') { if (h.onErr) h.onErr(m); }
       else if (m.t === 'bye') end(m.reason, !!m.h);
     });

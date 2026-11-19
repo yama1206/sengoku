@@ -146,7 +146,7 @@
     p.money -= t.price; p.ninTools[c.kind] = have + 1;
   };
   const useTools = (p, used) => { if (!used || !p.ninTools) return; for (const k in used) if (NIN.tools[k] && k !== 'kaginawa') p.ninTools[k] = Math.max(0, (p.ninTools[k] || 0) - Math.max(0, +used[k] || 0)); };
-  C.ninUse = (w, p, c) => useTools(p, c.used); // 退いたときも使った道具は減る
+  C.ninUse = (w, p, c) => { useTools(p, c.used); leaveRoom(w, p); }; // 退いたときも使った道具は減る
   C.ninTake = (w, p, c) => {
     const s = here(w, p), o = offers(w, p, s).find((x) => x.id === c.id); if (!o) return;
     if (p.ninQ) return SIM.say(p.id, '工作は一度に一つまでです');
@@ -163,12 +163,37 @@
     const night = SIM.daylight ? SIM.daylight(w.time.min) < 0.5 : false;
     return { guards: Math.min(14, 3 + Math.floor(gar / 150) + kai), kai, ck, night, lv: Math.min(5, 1 + Math.floor(gar / 400) + Math.floor(kai / 2)) };
   }
+  // ---- 2.41.0 協力任務：同じ工作を請け負った忍びが、その城で部屋を作って一緒に潜入する（最大3人）。部屋は端末の中だけ（保存しない）
+  const CO_MAX = 3, ROOM_WAIT = 15 * 60 * 1000, ROOM_RUN = 40 * 60 * 1000, ROOMS = {};
+  const roomOf = (w, sid) => { const r = ROOMS[sid]; if (!r) return null; r.mem = r.mem.filter((id) => w.players[id]); if (!r.mem.length || !w.players[r.leader] || Date.now() - r.t > (r.go ? ROOM_RUN : ROOM_WAIT)) { delete ROOMS[sid]; return null; } return r; };
+  const leaveRoom = (w, p) => { for (const sid of Object.keys(ROOMS)) { const r = roomOf(w, sid); if (!r || !r.mem.includes(p.id)) continue; r.mem = r.mem.filter((id) => id !== p.id); if (!r.mem.length || (r.leader === p.id && !r.go)) delete ROOMS[sid]; } };
+  const nm = (w, id) => (w.players[id] || {}).name || '？';
+  C.ninRecruit = (w, p) => {
+    const q = p.ninQ, s = here(w, p); if (!p.nin || !q || !s || s.id !== q.to || p.battle) return;
+    const r = roomOf(w, s.id); if (r) return SIM.say(p.id, r.mem.includes(p.id) ? 'すでに募集しています' : r.go ? '別の仲間がもう潜入しています' : r.id === q.id ? `${nm(w, r.leader)}が募集しています。加わってください` : '別の工作の募集中です');
+    ROOMS[s.id] = { id: q.id, leader: p.id, mem: [p.id], t: Date.now(), go: null };
+    SIM.say(p.id, '仲間を募りました。同じ工作を請け負った忍びが、この城で「加わる」を押すと一緒に潜入できます（最大3人）');
+  };
+  C.ninJoin = (w, p) => {
+    const s = here(w, p), r = s && roomOf(w, s.id), q = p.ninQ; if (!p.nin || !q || !r || r.go || r.id !== q.id || r.mem.includes(p.id)) return;
+    if (r.mem.length >= CO_MAX) return SIM.say(p.id, `満員です（${CO_MAX}人まで）`);
+    r.mem.push(p.id); for (const id of r.mem) SIM.say(id, `${nm(w, p.id)}が潜入に加わりました（${r.mem.length}/${CO_MAX}人）`);
+  };
+  C.ninRoomLeave = (w, p) => leaveRoom(w, p);
+  C.ninGo = (w, p) => {
+    const s = here(w, p), r = s && roomOf(w, s.id), q = p.ninQ; if (!r || r.go || r.leader !== p.id || !q || r.id !== q.id) return;
+    const d = diff(w, s); d.guards = Math.min(16, d.guards + (r.mem.length - 1)); // 仲間が増えたぶん、見張りも少し増える
+    r.go = { at: Date.now(), q: { id: q.id, k: q.k, sk: q.sk || null, whoName: q.whoName || null }, d, mem: r.mem.slice(), lead: p.id, names: Object.fromEntries(r.mem.map((id) => [id, nm(w, id)])) };
+  };
+
   // 成否はミニゲームから届く
   C.ninResult = (w, p, c) => {
     const q = p.ninQ, s = here(w, p); if (!q || !s || s.id !== q.to || p.battle) return;
     p.ninQ = null; const J = NIN.jobs[q.k];
-    useTools(p, c.used);
+    useTools(p, c.used); leaveRoom(w, p);
     if (c.ok) {
+      const dup = s.ninDone === q.id; s.ninDone = q.id; // 2.41.0 仲間が先に果たした工作の効果は、重ねてかけない（報酬は全員に出る）
+      const keep = dup ? { gar: s.gar && Object.assign({}, s.gar), gate: s.gate } : null;
       const now = w.time.min, deb = (v) => { if (!(s.ninT > now) || (s.ninDeb || 0) < v) s.ninDeb = v; s.ninT = Math.max(s.ninT || 0, now + 30 * 1440); };
       if (q.k === 'sabo' || q.k === 'rumor') for (const k in s.gar || {}) s.gar[k] = Math.floor(s.gar[k] * (q.k === 'sabo' ? 0.8 : 0.9));
       if (q.k === 'gate') { s.gate = Math.max(0, SIM.gateF(s) - 0.4); if (s.holder && w.players[s.holder]) SIM.say(s.holder, `${s.name}の門が何者かに壊されました（門の強さ${Math.round(s.gate * 100)}%）。普請で修理できます`); }
@@ -188,6 +213,7 @@
           note = `密書によると、${fName(w, s.owner)}は${tg ? `${tg.name}を攻めようとしています` : 'いまはどこも攻める支度をしていません'}。近くの城の守備兵：${near.join('・') || 'なし'}。`;
         }
       }
+      if (keep) { s.gar = keep.gar; s.gate = keep.gate; }
       const b = NIN.bonus, mulB = 1 + (c.unseen ? b.unseen : 0) + (c.kills ? 0 : b.noKill), rew = Math.round(q.reward * mulB / 10) * 10 + extra;
       const fame = 2 + (c.unseen ? 1 : 0) + (c.kills ? 0 : 1);
       p.money += rew; p.fame += fame; if (SIM.addMerit) SIM.addMerit(w, p, q.merit, `${q.toName}での${J.name}`);
@@ -202,12 +228,18 @@
   SIM.ninDeb = (s, now) => (s && s.ninT > now ? s.ninDeb || 0 : 0);
   SIM.systems.push(function ninNow(w) { SIM._now = w.time.min; });
 
+  function roomInfo(w, p, s) { // 2.41.0 いまいる城の協力部屋（入っている人か、加われる人にだけ見せる）
+    const r = s && p.ninQ && s.id === p.ninQ.to ? roomOf(w, s.id) : null; if (!r) return null;
+    const joined = r.mem.includes(p.id), canJoin = !joined && !r.go && r.id === p.ninQ.id && r.mem.length < CO_MAX;
+    if (!joined && !canJoin) return null;
+    return { joined, canJoin, leader: r.leader === p.id, lname: nm(w, r.leader), names: r.mem.map((id) => nm(w, id)), n: r.mem.length, max: CO_MAX, go: joined ? r.go : null };
+  }
   // ---- 本人だけに送る情報 ----
   const basePriv = SIM.privateState;
   SIM.privateState = (w, pid) => {
     const r = basePriv(w, pid), p = w.players[pid]; if (!r || !p) return r;
     const s = here(w, p);
-    r.me.nin = p.nin ? { rank: NR[p.rank] ? NR[p.rank].name : '', q: p.ninQ || null, tools: Object.assign({}, p.ninTools || {}), offers: offers(w, p, s), atTgt: !!(p.ninQ && s && s.id === p.ninQ.to), d: p.ninQ && s && s.id === p.ninQ.to ? diff(w, s) : null } : null;
+    r.me.nin = p.nin ? { rank: NR[p.rank] ? NR[p.rank].name : '', q: p.ninQ || null, tools: Object.assign({}, p.ninTools || {}), offers: offers(w, p, s), atTgt: !!(p.ninQ && s && s.id === p.ninQ.to), d: p.ninQ && s && s.id === p.ninQ.to ? diff(w, s) : null, room: roomInfo(w, p, s) } : null;
     return r;
   };
 })();
