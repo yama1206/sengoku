@@ -134,7 +134,7 @@
     if (used) await SGK.SAVE.remove(n);
     SGK.SAVE.slot = n;
     const w = slotMode === 'import' ? importWorld : SIM.createWorld(Math.floor(Math.random() * 2 ** 31));
-    if (slotMode !== 'import' && G.testArm) { w.test = 1; G.testArm = false; } // 2.12.1 テストモードの世界
+    if (slotMode !== 'import' && G.testArm) { w.test = G.testArm; G.testArm = 0; } // 2.12.1 テストモードの世界（2.33.1 1＝部将、2＝忍頭）
     const imp = slotMode === 'import'; importWorld = null; titleBack();
     if (imp) delete w.code; // 読み込んだセーブは別の世界として新しいコードを付ける
     playWorld(null, w, imp ? `セーブファイルをスロット${n}に読み込みました` : `スロット${n}に新しい世界を作りました`, n);
@@ -142,7 +142,7 @@
   $('btnNew').onclick = () => openSlots('new');
   { // 2.12.1 タイトルを5回タップするとテストモード（このあと新しく作る世界が、1000貫を持った部将から始まる）
     let n = 0, t0 = 0;
-    document.querySelector('#title h1').addEventListener('click', () => { const now = Date.now(); if (now - t0 > 2500) n = 0; t0 = now; if (++n < 5) return; n = 0; G.testArm = !G.testArm; titleMsg(G.testArm ? 'テストモード：このあと「新しい世界を作る」と、1000貫を持った部将から始まります（左下の「戦闘」で野戦・攻城戦を試せます）' : 'テストモードをやめました'); });
+    document.querySelector('#title h1').addEventListener('click', () => { const now = Date.now(); if (now - t0 > 2500) n = 0; t0 = now; if (++n < 5) return; n = 0; G.testArm = ((G.testArm || 0) + 1) % 3; titleMsg(G.testArm === 1 ? 'テストモード：このあと「新しい世界を作る」と、1000貫を持った部将から始まります（左下の「戦闘」で野戦・攻城戦を試せます）。もう5回タップすると忍びで始めます' : G.testArm === 2 ? 'テストモード（忍び）：このあと「新しい世界を作る」と、1000貫と忍び道具を持った忍頭から始まります（左下の「戦闘」で忍びの任務も試せます）。もう5回タップするとやめます' : 'テストモードをやめました'); }); // 2.33.1 5回ごとに 部将 → 忍び → やめる
   }
   $('btnContinue').onclick = () => openSlots('load');
   // 年の表示（和暦／西暦／両方）を切り替える。押すたびに次の形式へ（カーソルはその場に残る）

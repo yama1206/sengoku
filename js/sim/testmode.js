@@ -1,4 +1,4 @@
-// 2.12.1 テストモード：タイトルを5回タップしてから新しい世界を作ると、1000貫を持った部将から始まる。
+// 2.12.1 テストモード：タイトルを5回タップしてから新しい世界を作ると、1000貫を持った部将から始まる（2.33.1 もう5回タップすると忍頭から）。
 //  「戦闘」ボタンから野戦・攻城戦（城の種類・改築の段階・名のある城・自分の城）をすぐ始めて、戦場を確かめられる。
 //  テストの戦闘が終わると、兵・お金・場所などは始める前に戻す（世界は変わらない）
 (function () {
@@ -15,6 +15,11 @@
     const s = cs.sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
     if (s) { p.clan = s.owner; p.rank = TEST.rank; p.merit = SIM.RANKS[TEST.rank].merit; p.fame = Math.max(p.fame || 0, SIM.RANKS[TEST.rank].fame); p.status = `${w.factions[s.owner].name} ${SIM.RANKS[TEST.rank].name}`; p.home = s.id; } // 2.12.6 自宅は仕えた城
     p.money = (p.money || 0) + TEST.money;
+    if (w.test === 2 && s && SIM.NIN) { // 2.33.1 忍びで始める：忍頭（部将と同じ格）、忍び道具を持てるだけ
+      p.nin = true; p.troops = {}; p.status = `${w.factions[s.owner].name} ${SIM.NRANKS[TEST.rank].name}`;
+      p.ninTools = {}; for (const k in SIM.NIN.tools) p.ninTools[k] = SIM.NIN.tools[k].max;
+      return SIM.say(p.id, `テストモード（忍び）です。${w.factions[s.owner].name}の${SIM.NRANKS[TEST.rank].name}として、${SIM.money(TEST.money)}と忍び道具を持って始めます。主家の城で敵の城への工作を請け負えます。左下の「戦闘」から忍びの任務（3D）もすぐ試せます`);
+    }
     SIM.say(p.id, `テストモードです。${s ? w.factions[s.owner].name + 'の部将として、' : ''}${SIM.money(TEST.money)}を持って始めます。左下の「戦闘」から野戦や攻城戦を試せます`);
   }
   const baseAdd = SIM.addPlayer;
