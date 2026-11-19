@@ -51,16 +51,16 @@
   function drawPrey(ctx, k, x, y, hit) { ctx.font = '56px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.globalAlpha = hit ? 0.5 : 1; ctx.fillText(PREY_ICON[k], x, y); ctx.globalAlpha = 1; }
   function startHunt(n) {
     if (ov) return; const W = 400, H = 300, P = FM().PREY, N = FM().huntN, keys = Object.keys(P), tw = keys.reduce((a, k) => a + P[k].w, 0);
-    run = { n, res: {}, i: 0, cur: null, next: performance.now() + 900, hits: 0, arrows: [], msg: '' };
+    run = { n, res: {}, i: 0, cur: null, next: performance.now() + 900, hits: 0, arrows: [], left: FM().huntArrows, last: performance.now() };
     ov = document.createElement('div'); ov.id = 'huntOv';
-    ov.innerHTML = `<div class="hc"><b>狩り</b><div class="muted" style="margin:2px 0">現れた獲物をすばやくタップして射よう（熊は2回）。${N}回出ます</div><canvas id="hcv" width="${W}" height="${H}" style="width:100%;border-radius:8px;touch-action:none;display:block"></canvas><div id="hmsg" style="min-height:22px;margin:6px 0"></div><button id="hcancel">やめる</button></div>`;
+    ov.innerHTML = `<div class="hc"><b>狩り</b><div class="muted" style="margin:2px 0">現れた獲物をすばやくタップして射よう（熊は3回）。獲物は${N}回出て、矢は${FM().huntArrows}本。外すと減ります</div><canvas id="hcv" width="${W}" height="${H}" style="width:100%;border-radius:8px;touch-action:none;display:block"></canvas><div id="hmsg" style="min-height:22px;margin:6px 0"></div><button id="hcancel">やめる</button></div>`;
     document.body.appendChild(ov);
     const cv = $('hcv'), ctx = cv.getContext('2d');
     const pick = () => { let r = Math.random() * tw; for (const k of keys) { r -= P[k].w; if (r < 0) return k; } return keys[0]; };
     cv.addEventListener('pointerdown', (e) => {
-      e.preventDefault(); if (!run) return; const rc = cv.getBoundingClientRect(), x = ((e.clientX - rc.left) / rc.width) * W, y = ((e.clientY - rc.top) / rc.height) * H;
-      run.arrows.push({ x, y, t: performance.now() });
-      const c = run.cur; if (!c || c.dead || Math.hypot(x - c.x, y - c.y) > 38) return;
+      e.preventDefault(); if (!run || run.left <= 0) return; const rc = cv.getBoundingClientRect(), x = ((e.clientX - rc.left) / rc.width) * W, y = ((e.clientY - rc.top) / rc.height) * H;
+      run.arrows.push({ x, y, t: performance.now() }); run.left--;
+      const c = run.cur; if (!c || c.dead || Math.hypot(x - c.x, y - c.y) > P[c.k].r) return;
       c.hp--; c.hitAt = performance.now();
       if (c.hp <= 0) { c.dead = true; run.res[c.k] = (run.res[c.k] || 0) + 1; run.hits++; $('hmsg').textContent = `${P[c.k].name}を仕留めた！`; c.until = performance.now() + 250; }
     });
@@ -70,16 +70,23 @@
       // 背景（森）
       const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2f5a2a'); g.addColorStop(1, '#1d3a1a'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
       ctx.fillStyle = 'rgba(0,0,0,.25)'; for (let i = 0; i < 8; i++) { ctx.fillRect(20 + i * 52, 0, 10, H); }
+      const dt = Math.min(0.05, (now - run.last) / 1000); run.last = now;
       const c = run.cur;
+      if (c && !c.dead) { // 獲物が動く（壁で跳ね返る）。向きは種類ごとの間隔で変わる
+        const sp = P[c.k].sp; c.zt -= dt;
+        if (P[c.k].zig && c.zt <= 0) { const a = Math.random() * Math.PI * 2; c.vx = Math.cos(a); c.vy = Math.sin(a); c.zt = P[c.k].zig * (0.6 + Math.random() * 0.8); }
+        c.x += c.vx * sp * dt; c.y += c.vy * sp * dt;
+        if (c.x < 30 || c.x > W - 30) { c.vx = -c.vx; c.x = Math.max(30, Math.min(W - 30, c.x)); } if (c.y < 40 || c.y > H - 30) { c.vy = -c.vy; c.y = Math.max(40, Math.min(H - 30, c.y)); }
+      }
       if (c && now > c.until) { if (!c.dead) $('hmsg').textContent = `${P[c.k].name}に逃げられた……`; run.cur = null; run.next = now + 350 + Math.random() * 700; }
       if (!run.cur && now >= run.next) {
-        if (run.i >= N) { $('hmsg').textContent = `おしまい！　仕留めた数：${run.hits}`; const r = run; setTimeout(() => { if (run === r) close(true); }, 1000); run.next = Infinity; }
-        else { const k = pick(), sp = P[k]; run.i++; run.cur = { k, hp: sp.hp, x: 50 + Math.random() * (W - 100), y: 60 + Math.random() * (H - 120), until: now + sp.t * 1000 * Math.max(0.6, 1 - run.i * 0.03) }; }
+        if (run.i >= N || (run.left <= 0 && !run.cur)) { $('hmsg').textContent = `おしまい！　仕留めた数：${run.hits}`; const r = run; setTimeout(() => { if (run === r) close(true); }, 1000); run.next = Infinity; }
+        else { const k = pick(), sp = P[k]; const a = Math.random() * Math.PI * 2; run.i++; run.cur = { k, hp: sp.hp, x: 50 + Math.random() * (W - 100), y: 60 + Math.random() * (H - 120), vx: Math.cos(a), vy: Math.sin(a), zt: sp.zig, until: now + sp.t * 1000 * Math.max(0.5, 1 - run.i * 0.05) }; }
       }
       if (run.cur) drawPrey(ctx, run.cur.k, run.cur.x, run.cur.y, run.cur.dead || (run.cur.hitAt && now - run.cur.hitAt < 120));
       for (const a of run.arrows) if (now - a.t < 200) { ctx.strokeStyle = '#f3e9d0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a.x, H); ctx.lineTo(a.x, a.y); ctx.stroke(); }
       run.arrows = run.arrows.filter((a) => now - a.t < 200);
-      ctx.fillStyle = '#f3e9d0'; ctx.font = '13px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(`${Math.min(run.i, N)}／${N}　仕留めた ${run.hits}`, 8, 6);
+      ctx.fillStyle = '#f3e9d0'; ctx.font = '13px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(`${Math.min(run.i, N)}／${N}　仕留めた ${run.hits}　矢 ${run.left}`, 8, 6);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
