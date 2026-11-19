@@ -556,7 +556,7 @@
   function startClient(ent, code, again) {
     if (!again) { G.mode = 'connecting'; G.mine = null; } G.roomCode = code; G.hostBoard = ent.board;
     SGK.NET.mine = () => (again && G.mine ? G.mine : null); // 2.4.0 引き継ぎで入り直す時だけ「自分の分」を渡す
-    const onState0 = (m) => { G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; G.priv = m.priv; (m.msgs || []).forEach(toastMsg); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } };
+    const onState0 = (m) => { { const t = performance.now(); G.stIv = G.stT ? (G.stIv || 200) * 0.7 + (t - G.stT) * 0.3 : 200; G.stT = t; } G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; G.priv = m.priv; (m.msgs || []).forEach(toastMsg); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } };
     G.net = SGK.NET.join(ent.peer, ent.board, token, myName(), {
       onWelcome: (m) => { G.hostName = m.hostName; G.mode = 'client'; G.myPid = m.pid; SIM.localPid = m.pid; G.actView = null; G.dyn = null; G.stat = m.static; setTimeout(() => { if (G.mode === 'client' && !G.dyn) errToast('ホストから様子が届いていません（ホストの画面にエラーが出ていないか見てください）'); }, 6000); G.disp = {}; G.selected = null; show('game'); hostUI(false); titleMsg(''); updateRoom(); toast(again ? '新しいホストにつながりました' : '参加しました'); },
       onErr: (m) => { if (G.lastErr !== m.text) { G.lastErr = m.text; errToast(m.text); } },
@@ -676,7 +676,11 @@
     if (G.selKind === 'u') { const u = findUnit(G.selected); if (u) command({ type: 'follow', id: u.id }); selectSettlement(null); return; } // 0.60.0 追いかけると閉じる
     const s = G.view.settlements.find((x) => x.id === G.selected);
     if (s && G.lookJob) { command({ type: 'acceptJob', id: G.lookJob }); G.lookJob = null; } /* 1.6.47 依頼を受けてから向かう */
-    if (s) { moveTo(s.x, s.y, s.id); selectSettlement(null); } // 0.54.4 向かうと閉じる
+    if (s) {
+      const m0 = me(), P0 = G.priv; // 2.40.1 すでにその拠点にいるなら、移動しないで拠点の画面を開く（参加者は「着いた」の変化が見えず、開かなかった）
+      if (m0 && m0.at === s.id && m0.tx == null && P0 && P0.here && P0.here.id === s.id && !P0.battle) { selectSettlement(null); openTown(true); return; }
+      moveTo(s.x, s.y, s.id); selectSettlement(null); // 0.54.4 向かうと閉じる
+    }
   };
 
   // ---------- 部隊（CPU・他プレイヤー）の情報 ----------
@@ -1985,8 +1989,14 @@
       // なめらか表示
       const k = Math.min(1, dt * 12);
       for (const e of [...G.view.players, ...G.view.npcs]) {
-        const d = G.disp[e.id];
-        if (!d || Math.hypot(d.x - e.x, d.y - e.y) > 5) G.disp[e.id] = { x: e.x, y: e.y };
+        let d = G.disp[e.id];
+        if (G.mode === 'client') { // 2.40.1 参加者：届いた位置へ、届く間隔ぶんの時間をかけて等速で動かす（0.2秒ごとの位置を追いかけるとカクつくため）
+          if (!d || d.bx == null || Math.hypot(d.bx - e.x, d.by - e.y) > 40) G.disp[e.id] = d = { x: e.x, y: e.y, ax: e.x, ay: e.y, bx: e.x, by: e.y, t: now, dur: 200 };
+          else {
+            if (e.x !== d.bx || e.y !== d.by) { d.ax = d.x; d.ay = d.y; d.bx = e.x; d.by = e.y; d.t = now; d.dur = Math.min(400, Math.max(100, G.stIv || 200)); }
+            const f = Math.min(1, (now - d.t) / d.dur); d.x = d.ax + (d.bx - d.ax) * f; d.y = d.ay + (d.by - d.ay) * f;
+          }
+        } else if (!d || Math.hypot(d.x - e.x, d.y - e.y) > 5) G.disp[e.id] = { x: e.x, y: e.y };
         else { d.x += (e.x - d.x) * k; d.y += (e.y - d.y) * k; }
       }
       const md = m && G.disp[m.id];
