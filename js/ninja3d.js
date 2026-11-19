@@ -622,7 +622,7 @@
   // ---- 始める ----
   N3.start = (opt, done) => {
     if (!N3.can() || !initRenderer()) { N3.failed = true; return SGK.NINJA.start(opt.q.k, opt.d, done); }
-    cb = done; N3.on = true; keys.clear(); vk.clear(); prevK.clear(); prevPad = { 9: true }; look = { dx: 0, dy: 0 };
+    cb = done; N3.wantNight = !!(opt.d && opt.d.night); N3.on = true; keys.clear(); vk.clear(); prevK.clear(); prevPad = { 9: true }; look = { dx: 0, dy: 0 };
     cv.style.display = 'block'; hud.style.display = 'block'; hud.querySelector('.load').style.display = 'flex'; hud.querySelector('.end').style.display = 'none';
     loadModels().then(() => { if (N3.on) setup(opt); }).catch((e) => { console.warn('忍びの3Dを読めませんでした', e); N3.on = false; cv.style.display = 'none'; hud.style.display = 'none'; N3.failed = true; SGK.NINJA.start(opt.q.k, opt.d, done); });
   };
@@ -630,6 +630,7 @@
   N3.test = (k, ck, night, kai, sk) => N3.start({ q: { k, sk: sk || 'mitsu', whoName: '某', id: 'test' + Math.random() }, d: { ck, night: !!night, kai: kai || 0, guards: 3 + (kai || 0) + 3, lv: 2 }, tools: { kemuri: 3, makibishi: 3, fukiya: 5, kaginawa: 1 } }, (r) => { if (SGK.toast) SGK.toast(JSON.stringify(r)); else console.log('忍びの結果', r); });
 
   N3.dbg = () => st; // 確かめる用
+  N3.night = () => !!(st ? st.night : N3.wantNight); // 2.24.1 夜の任務は専用の曲（audio.js の ninja_night）
   function setup(opt) {
     const q = opt.q, d = opt.d, R = rngOf(opt.seed || q.id || 'x'), E = eff(), shadow = !!E.sh, night = !!d.night;
     const job = { k: q.k, sk: q.sk || 'mitsu', whoName: q.whoName };

@@ -2038,7 +2038,7 @@
       const hereId = P && P.here && !BT ? P.here.id : null;
       if (hereId && hereId !== G.lastHere && $('char').classList.contains('hidden') && $('gameMenu').classList.contains('hidden')) { SGK.AUDIO.sfx('arrive'); openTown(true); }
       // BGM：戦闘・拠点の中・昼・夜で曲を変える
-      SGK.AUDIO.scene(BT ? (BT.ck ? 'siege' : 'battle') /* 2.20.0 城の戦は攻城戦の曲 */ : SGK.GAMBLEUI && SGK.GAMBLEUI.isOpen() ? 'gamble' : !$('town').classList.contains('hidden') ? (TOWN_BGM[townTab] || 'town') : SIM.daylight(G.view.t) < 0.5 ? 'night' : 'day');
+      SGK.AUDIO.scene(SGK.NINJA3D && SGK.NINJA3D.on && SGK.NINJA3D.night() ? 'ninja_night' /* 2.24.1 忍びの任務（夜） */ : BT ? (BT.ck ? 'siege' : 'battle') /* 2.20.0 城の戦は攻城戦の曲 */ : SGK.GAMBLEUI && SGK.GAMBLEUI.isOpen() ? 'gamble' : !$('town').classList.contains('hidden') ? (TOWN_BGM[townTab] || 'town') : SIM.daylight(G.view.t) < 0.5 ? 'night' : 'day');
       G.lastHere = hereId;
       { // 0.73.0 評定が開かれたら人物画面の「評定」を開く
         const hy = P && P.me && P.me.hyo; $('ctab-hyo').classList.toggle('hidden', !hy);

@@ -377,6 +377,7 @@
     town: { url: 'assets/bgm/town.mp3', loopStart: 22.09, loopEnd: 62.5104, gain: 1 }, // 通り・曲のない行き先（s_day_2142866112）
     gamble: { url: 'assets/bgm/gamble.mp3', loopStart: 21.78, loopEnd: 81.7975, gain: 1 }, // 賭場（s_gamble_1901902036）
     home: { url: 'assets/bgm/home.mp3', loopStart: 11.48, loopEnd: 59.4664, gain: 1 }, // 自宅（s_home_1234933656）
+    ninja_night: { url: 'assets/bgm/ninja_night.mp3', loopStart: 7.96, loopEnd: 59.9462, gain: 1 }, // 2.24.1 忍びの任務（夜）（s_night_487092298）
   };
   // 2.20.0 曲は場面に入る時に読み込む（全部を先に読むと 1曲 30MB ほどのメモリを食うので、読んだ曲は新しい順に3曲まで残す）
   const trackBuf = {}, loading = {}, recent = [], KEEP = 3;
