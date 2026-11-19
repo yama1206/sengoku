@@ -55,7 +55,7 @@
     window.addEventListener('keydown', onKey, true); window.addEventListener('keyup', swallow, true);
     openOv().innerHTML = `<div class="mc">
       <div class="row" style="justify-content:space-between;align-items:center"><b>採掘：${m.name}</b><span class="muted" id="mHits"></span></div>
-      <div class="tl" id="mTools">${M.TOOLS.map((t, i) => `<button data-t="${i}">${i + 1} ${t.name}<br><small>${t.info}</small></button>`).join('')}<button data-t="3">4 手<br><small>露出した宝石を取り出す</small></button></div>
+      <div class="tl" id="mTools">${M.TOOLS.map((t, i) => `<button data-t="${i}">${t.name}<br><small>${t.info}</small></button>`).join('')}<button data-t="3">手<br><small>露出した宝石を取り出す</small></button></div>
       <canvas id="mCv"></canvas>
       <div class="lg">${M.LV.map((n, i) => `<span><i style="background:${LVC[i]}"></i>${n}</span>`).join('')}</div>
       <div class="gl" id="mGl"></div>
