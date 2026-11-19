@@ -119,6 +119,10 @@
       const [x, y] = R.toScreen(s.x, s.y);
       const fr = frameOf(s.owner), zk = Math.max(0.45, Math.min(1, cam.scale / 4)); // 引いたときは印を小さく
       if (cam.scale < 1.5 && s.type === 'village') continue;
+      if (view.myHome && s.id === view.myHome) { // 2.40.0 自宅のある拠点：青緑の光の輪と「家」の札で目立たせる
+        const hr = (s.type === 'castle' ? 24 : SGK.DATA.isBig(s) ? 26 : 21) * zk;
+        ctx.fillStyle = 'rgba(60,220,190,.28)'; ctx.strokeStyle = '#2fd6b4'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, hr, 0, 7); ctx.fill(); ctx.stroke();
+      }
       if (s.type === 'castle') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 18 * zk, 'shiro', fr[0], fr[1]); // 0.54.7 城は天守の形・町や村は四角（部隊は丸）
       else if (s.type === 'town') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, (SGK.DATA.isBig(s) ? 20 : 15) * zk, 'sq', fr[0], fr[1]); // 1.6.78 大きな町は印を大きく
       else SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 10, 'sq', fr[0], Math.min(fr[1], 2));
@@ -131,6 +135,10 @@
         ctx.moveTo(ax - 4, ay + 1); ctx.quadraticCurveTo(ax - 3, ay + 5, ax, ay + 4); ctx.quadraticCurveTo(ax + 3, ay + 5, ax + 4, ay + 1); ctx.stroke();
       }
       { const tk = SGK.DATA.toku(s); if (tk) { const mx = x, my = y - 18; ctx.fillStyle = 'rgba(245,238,215,.92)'; ctx.strokeStyle = '#8a6a2a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(mx, my, 9, 0, 7); ctx.fill(); ctx.stroke(); { const im = SGK.ICON && SGK.ICON.img(SGK.DATA.mk(tk)); if (im) ctx.drawImage(im, mx - 8, my - 8, 16, 16); } ctx.textBaseline = 'top'; /* 2.12.4 特産の印は絵 */ } } // 1.6.77 村の特産の印
+      if (view.myHome && s.id === view.myHome) { // 「家」の札
+        const hx = x - 14 * zk - 4, hy = y - 12 * zk - 4; ctx.fillStyle = '#2fd6b4'; ctx.strokeStyle = '#0d4a3e'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(hx, hy, 8, 0, 7); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#0d3a30'; ctx.font = 'bold 11px sans-serif'; ctx.textBaseline = 'middle'; ctx.fillText('家', hx, hy + 0.5); ctx.textBaseline = 'top';
+      }
       if (s.id === selectedId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 17, 0, 7); ctx.stroke(); }
       if (s.site) { ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 2; ctx.setLineDash([3, 3]); ctx.strokeRect(x - 13, y - 13, 26, 26); ctx.setLineDash([]); }
       if (cam.scale < 6 && !s.lord && !s.built && s.type !== 'town' && s.id !== selectedId) continue;

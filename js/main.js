@@ -2033,6 +2033,7 @@
       } else {
         G.bcur = null;
         G.view.myClan = P && P.me && P.me.rank ? P.me.rank.clan || null : null;
+        G.view.myHome = P && P.me && P.me.home ? P.me.home.id : null; // 2.40.0 自宅のある拠点を地図で目立たせる
         R.draw(ctx, G.view, G.disp, G.myPid, G.selected, marks);
         if (G.pcurOn) drawMapCur(G.pcur[0], G.pcur[1]);
       }
