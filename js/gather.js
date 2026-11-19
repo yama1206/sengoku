@@ -1,4 +1,4 @@
-// 2.11.0 釣り・虫取りの画面：地図の下のボタン、タイミングを合わせる遊び、生き物図鑑
+// 2.11.0 釣り・虫取りの画面：地図の下のボタン、タイミングを合わせる遊び、生き物図鑑（2.34.0 虫取りは木・飛ぶ・草むらの3つの遊び）
 // 命令は SGK.cmd（main.js が渡す）。状態は G.priv.me（spot・gat・gatLast・zukan）。生き物のデータは SGK.DATA.creatures
 (function () {
   const $ = (id) => document.getElementById(id), G = window.SGK_G, D = SGK.DATA;
@@ -67,20 +67,191 @@
     const fish = g.k === 'f', df = DF()[g.d] || DF().普通;
     run = { g, phase: 'wait', tap: null, rd: 0, qs: [], rounds: fish ? Math.min(5, (RN[g.r] || 1) + (g.fr >= 0.85 ? 1 : 0)) : 1 }; shownN = g.n - 1; keys = {}; window.addEventListener('keydown', onKey, true); window.addEventListener('keyup', onKeyUp, true);
     if (fish) return castScene();
-    open(`<div class="big">${SGK.ICON.html('net', 72)}</div><div id="gmsg">そっと近づく…</div><div style="margin-top:10px"><button id="gcancel">やめる</button></div>`);
+    return bugScene(); // 2.34.0 虫は捕り方が3つ（木・飛ぶ・草むら）
+  }
+  // ---- 2.34.0 虫取りの場面（捕り方は虫で3つ） ----
+  // 木：虫のいそうな木をタップして揺すり、落ちてきた虫が地面を走って逃げる前にタップ
+  // 飛ぶ：速くなったり遅くなったりして飛ぶ虫をタップ（網は3回まで）
+  // 草むら：3つの草むらの間を素早く行き来する影が、最後にどこで止まったかを当てる
+  function bugScene() {
+    const g = run.g, ri = RI[g.r] || 0, hd = ({ 簡単: 0, 普通: 1, 難しい: 2 })[g.d] ?? 1, lk = g.lk || ['fly', 'butterfly', '#e8e0c8'], mode = lk[0], shape = lk[1], col = lk[2];
+    const night = !!(G.priv && G.priv.me && G.priv.me.spot && G.priv.me.spot.dp === '夜'), W = 400, H = 300, GY = 262;
+    const tip = { tree: '虫のいそうな木をタップして揺すろう。落ちてきたら素早くタップ！', fly: '飛んでいる虫をタップして網で捕まえよう（網は3回まで）', grass: '草むらに潜む影の動きをよく見ていよう' }[mode];
+    open(`<canvas id="gcv" width="${W}" height="${H}" style="width:100%;border-radius:8px;touch-action:none;display:block"></canvas><div id="gcm" style="margin:8px 0;min-height:22px">${tip}</div><button id="gcancel">やめる</button>`);
     $('gcancel').onclick = cancel;
-    setTimeout(() => { if (!run || run.g !== g) return; bar(); }, 1000 + Math.random() * 2600);
-    function bar() { // 棒の上を動く印を、緑の所で止める（虫）
-      run.phase = 'bar';
-      const hw = 0.5 * (1 - df.thr), c = hw + 0.05 + Math.random() * (1 - 2 * hw - 0.1);
-      open(`<div style="font-size:18px">網を振るなら、緑の所で！</div><div class="bar"><div class="zone" style="left:${(c - hw) * 100}%;width:${hw * 200}%"></div><div class="mk" id="gmk"></div></div><button class="main" id="gtap">捕まえる！</button>`);
-      let pos = 0, dir = 1, last = performance.now();
-      const step = (now) => { const dt = (now - last) / 1000; last = now; pos += dir * df.spd * dt; if (pos > 1) { pos = 1; dir = -1; } if (pos < 0) { pos = 0; dir = 1; } const m = $('gmk'); if (m) m.style.left = pos * 100 + '%'; raf = requestAnimationFrame(step); };
-      raf = requestAnimationFrame(step);
-      const tap = () => { if (run.phase !== 'bar') return; run.phase = 'done'; cancelAnimationFrame(raf); finish(Math.max(0, 1 - Math.abs(pos - c) / 0.5)); };
-      run.tap = tap; $('gtap').onclick = tap;
+    const cv = $('gcv'), c = cv.getContext('2d'), say = (t) => { const m = $('gcm'); if (m) m.textContent = t; };
+    const toLocal = (e) => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; };
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    let last = performance.now(), end = null, T = 0, prevPad = {};
+    const aim = { x: W / 2, y: H / 2, show: false }, nets = [], parts = [];
+    const done = (ok, m) => { if (end) return; end = { t: ok ? 0.9 : 1.3, q: ok ? 1 : 0 }; say(m); };
+    const swing = (x, y) => nets.push({ x, y, t: 0 });
+
+    // ---- 木 ----
+    const trees = [70, 200, 330].map((x, i) => ({ x, y: 92, shake: 0, tried: false, i })), hid = Math.floor(Math.random() * 3);
+    let bug = null, rustle = 1.2;
+    const RT = Math.max(13, 24 - hd * 4);
+    const treeAt = (x, y) => trees.find((t) => Math.abs(x - t.x) < 56 && y > 26 && y < GY);
+    function shake(t) {
+      if (!t || t.tried || bug || end) return;
+      t.tried = true; t.shake = 0.55;
+      for (let k = 0; k < 9; k++) parts.push({ x: t.x + rnd(-45, 45), y: t.y + rnd(-25, 25), vx: rnd(-20, 20), vy: rnd(15, 45), life: 1.8, leaf: 1, r: rnd(0, 6) });
+      if (t.i === hid) setTimeout(() => { if (!run || end) return; bug = { x: t.x + rnd(-30, 30), y: t.y + 12, vx: rnd(-25, 25), vy: -40, rot: 0, st: 'fall', t: 0 }; say('落ちてきた！'); }, rnd(200, 450));
+      else say('この木にはいないようだ…');
     }
-    function finish(q) { open('<div class="big">…</div>'); doneN = g.n; SGK.cmd({ type: 'gatherEnd', n: g.n, q }); run.phase = 'wait'; }
+    // ---- 飛ぶ ----
+    const fb = { x: rnd(80, W - 80), y: rnd(50, 170), vx: 0, vy: 0, tx: 0, ty: 0, ph: rnd(0, 6), fast: false, mt: rnd(0.8, 1.6), vis: true, face: 1 };
+    const RF = Math.max(11, 23 - hd * 4 - (shape === 'bee' || shape === 'firefly' ? 2 : 0));
+    let tries = 3;
+    const newTarget = () => { fb.tx = rnd(30, W - 30); fb.ty = rnd(28, GY - 50); };
+    newTarget();
+    // ---- 草むら ----
+    const clumps = [80, 200, 320].map((x) => ({ x, y: 212, rus: 0 }));
+    const seq = []; { let cur = Math.floor(Math.random() * 3); seq.push(cur); for (let k = 0; k < 4 + hd * 2 + Math.min(2, ri); k++) { let nx; do nx = Math.floor(Math.random() * 3); while (nx === cur); seq.push(nx); cur = nx; } }
+    const FLW = Array.from({ length: 9 }, (_, k) => [20 + k * 44 + rnd(-10, 10), rnd(14, 34), ['#f0e070', '#f4f0f0', '#d890c8', '#90b0f0'][k % 4]]);
+    const sh = { st: 'intro', t: 0, i: 0, x: clumps[seq[0]].x, y: GY - 12, a: 0, dur: Math.max(0.2, 0.42 - hd * 0.08 - ri * 0.02), wait: 0 };
+
+    function tapAt(x, y) {
+      if (end) return;
+      if (mode === 'tree') {
+        if (bug && bug.st !== 'gone') { swing(x, y); if (Math.hypot(x - bug.x, y - bug.y) < RT) { bug.st = 'got'; done(true, '捕まえた！'); } else say('おっと、外した！'); return; }
+        shake(treeAt(x, y)); return;
+      }
+      if (mode === 'fly') {
+        swing(x, y);
+        if (fb.vis && Math.hypot(x - fb.x, y - fb.y) < RF) { done(true, '捕まえた！'); return; }
+        tries--; fb.fast = true; fb.mt = rnd(0.4, 0.7); newTarget();
+        if (tries <= 0) done(false, '逃げられてしまった…'); else say(`外した！ 網はあと${tries}回`);
+        return;
+      }
+      if (mode === 'grass' && sh.st === 'guess') {
+        const k = clumps.findIndex((q) => Math.abs(x - q.x) < 60 && y > 140);
+        if (k < 0) return;
+        clumps[k].rus = 0.5; const ans = seq[seq.length - 1];
+        if (k === ans) { sh.st = 'got'; done(true, 'いた！ 捕まえた！'); }
+        else { sh.st = 'flee'; sh.x = clumps[ans].x; sh.t = 0; done(false, `はずれ…（${['左', '真ん中', '右'][ans]}の草むらにいた）`); }
+      }
+    }
+    run.tap = () => { aim.show = true; tapAt(aim.x, aim.y); };
+    cv.onpointermove = (e) => { if (e.pointerType === 'touch') return; [aim.x, aim.y] = toLocal(e); aim.show = false; };
+    cv.onpointerdown = (e) => { e.preventDefault(); const [x, y] = toLocal(e); aim.x = x; aim.y = y; aim.show = false; tapAt(x, y); };
+
+    function update(dt) {
+      T += dt;
+      for (const t of trees) t.shake = Math.max(0, t.shake - dt);
+      for (const p of parts) { p.x += p.vx * dt + Math.sin(T * 3 + p.r) * 12 * dt; p.y += p.vy * dt; p.life -= dt; } while (parts.length && parts[0].life <= 0) parts.shift();
+      for (const n of nets) n.t += dt; while (nets.length && nets[0].t > 0.4) nets.shift();
+      if (mode === 'tree') {
+        rustle -= dt; if (rustle <= 0 && !trees[hid].tried) { rustle = rnd(1.2, 2.4) + hd * 0.6; trees[hid].shake = 0.12; parts.push({ x: trees[hid].x + rnd(-35, 35), y: trees[hid].y + rnd(-10, 20), vx: rnd(-10, 10), vy: 20, life: 1.5, leaf: 1, r: 0 }); } // 虫のいる木はときどき葉が揺れる
+        if (bug && bug.st === 'fall') { bug.vy += (330 + hd * 150) * dt; bug.x += bug.vx * dt; bug.y += bug.vy * dt; bug.rot += 7 * dt; if (bug.y >= GY - 6) { bug.y = GY - 6; bug.st = 'run'; bug.t = 0; bug.rot = 0; bug.vx = (Math.random() < 0.5 ? -1 : 1) * (110 + hd * 55 + ri * 12); say('地面に落ちた！ 逃げるぞ！'); } }
+        else if (bug && bug.st === 'run') { bug.t += dt; bug.x += bug.vx * dt; if (bug.t > 1.0 - hd * 0.12 || bug.x < -20 || bug.x > W + 20) { bug.st = 'gone'; done(false, '草むらに逃げられてしまった…'); } }
+        if (!bug && T > 22) done(false, '虫は見つからなかった…');
+      }
+      if (mode === 'fly') {
+        fb.ph += dt; fb.mt -= dt;
+        if (fb.mt <= 0) { fb.fast = !fb.fast && Math.random() < 0.55 + hd * 0.1; fb.mt = fb.fast ? rnd(0.25, 0.6) : rnd(0.7, 2.0) - hd * 0.2; if (fb.fast) newTarget(); }
+        const hover = shape === 'dragonfly' && !fb.fast && Math.sin(fb.ph * 0.9) > 0.55;
+        const sp = hover ? 0 : fb.fast ? 230 + hd * 90 + ri * 20 : 40 + hd * 18;
+        const dx = fb.tx - fb.x, dy = fb.ty - fb.y, d = Math.hypot(dx, dy); if (d < 12) newTarget();
+        const k = Math.min(1, dt * (fb.fast ? 9 : 3)); fb.vx += ((dx / (d || 1)) * sp - fb.vx) * k; fb.vy += ((dy / (d || 1)) * sp - fb.vy) * k;
+        let wob = 0; if (shape === 'butterfly') wob = Math.sin(fb.ph * 9) * 40; if (shape === 'bee') wob = Math.sin(fb.ph * 17) * 55;
+        fb.x = Math.max(12, Math.min(W - 12, fb.x + fb.vx * dt)); fb.y = Math.max(14, Math.min(GY - 20, fb.y + (fb.vy + wob) * dt));
+        if (Math.abs(fb.vx) > 5) fb.face = Math.sign(fb.vx);
+        fb.vis = shape !== 'firefly' || !night || Math.sin(fb.ph * 2.3) > -0.35 + hd * 0.15; // 蛍は光っていない間は見えない
+        if (T > 15) done(false, '飛んでいってしまった…');
+      }
+      if (mode === 'grass') {
+        for (const q of clumps) q.rus = Math.max(0, q.rus - dt);
+        sh.t += dt;
+        if (sh.st === 'intro') { sh.a = Math.min(1, sh.t * 2); clumps[seq[0]].rus = 0.2; if (sh.t > 1.1) { sh.st = 'move'; sh.t = 0; sh.i = 1; } }
+        else if (sh.st === 'move') {
+          const a = clumps[seq[sh.i - 1]], b = clumps[seq[sh.i]], u = Math.min(1, sh.t / sh.dur);
+          sh.x = a.x + (b.x - a.x) * u; sh.y = GY - 12 - Math.sin(u * Math.PI) * 4; sh.a = 0.85;
+          if (u >= 1) { b.rus = 0.35; sh.st = 'hide'; sh.t = 0; sh.wait = Math.random() < 0.3 ? rnd(0.3, 0.7) : rnd(0.05, 0.2); }
+        } else if (sh.st === 'hide') { sh.a = 0; if (sh.t > sh.wait) { if (sh.i >= seq.length - 1) { sh.st = 'guess'; say('どの草むらに隠れた？ タップして当てよう'); } else { sh.i++; sh.st = 'move'; sh.t = 0; } } }
+        else if (sh.st === 'flee') { sh.a = 0.8; sh.x += (sh.x < W / 2 ? -1 : 1) * 260 * dt; }
+        else if (sh.st === 'guess' && T > 30) done(false, '影はどこかへ行ってしまった…');
+      }
+    }
+
+    // ---- 描く ----
+    function sparkle(x, y, r) { // 珍しい虫はキラキラ
+      if (ri < 2) return; const n = ri >= 3 ? 7 : 4; c.save();
+      for (let k = 0; k < n; k++) { const a = T * 1.6 + k * 2.3, px = x + Math.cos(a) * r, py = y + Math.sin(a * 1.3) * r * 0.7, tw = 0.5 + 0.5 * Math.sin(T * 6 + k), s = (ri >= 3 ? 4.5 : 3) * (0.5 + tw); c.globalAlpha = 0.3 + 0.7 * tw; c.fillStyle = ri >= 3 ? '#ffe9a0' : '#e8f6ff'; c.beginPath(); c.moveTo(px, py - s); c.lineTo(px + s * 0.3, py - s * 0.3); c.lineTo(px + s, py); c.lineTo(px + s * 0.3, py + s * 0.3); c.lineTo(px, py + s); c.lineTo(px - s * 0.3, py + s * 0.3); c.lineTo(px - s, py); c.lineTo(px - s * 0.3, py - s * 0.3); c.closePath(); c.fill(); }
+      c.restore();
+    }
+    function drawBug(x, y, rot, face, ph) {
+      c.save(); c.translate(x, y); c.rotate(rot); c.scale(face || 1, 1);
+      const dark = 'rgba(0,0,0,.55)';
+      if (shape === 'kabuto' || shape === 'kuwa' || shape === 'kana' || shape === 'beetle') {
+        c.strokeStyle = '#1a120a'; c.lineWidth = 1.5; for (const s of [-1, 1]) for (const k of [-5, 0, 5]) { c.beginPath(); c.moveTo(k, 0); c.lineTo(k + 3, s * 9); c.stroke(); }
+        c.fillStyle = col; c.beginPath(); c.ellipse(-2, 0, 11, 7.5, 0, 0, 7); c.fill(); c.strokeStyle = dark; c.beginPath(); c.moveTo(-12, 0); c.lineTo(8, 0); c.stroke();
+        c.fillStyle = col; c.beginPath(); c.ellipse(10, 0, 4.5, 5, 0, 0, 7); c.fill();
+        if (shape === 'kabuto') { c.strokeStyle = col; c.lineWidth = 3; c.beginPath(); c.moveTo(13, 0); c.quadraticCurveTo(22, -1, 24, -9); c.stroke(); c.beginPath(); c.moveTo(12, -2); c.lineTo(17, -7); c.stroke(); }
+        if (shape === 'kuwa') { c.strokeStyle = col; c.lineWidth = 2.5; for (const s of [-1, 1]) { c.beginPath(); c.moveTo(13, s * 2); c.quadraticCurveTo(22, s * 7, 23, s * 1); c.stroke(); } }
+        c.fillStyle = 'rgba(255,255,255,.25)'; c.beginPath(); c.ellipse(-4, -3, 5, 2, 0, 0, 7); c.fill();
+      } else if (shape === 'butterfly') {
+        const f = 0.25 + 0.75 * Math.abs(Math.sin(ph * 14));
+        c.fillStyle = col; c.strokeStyle = 'rgba(0,0,0,.6)'; c.lineWidth = 1;
+        for (const s of [-1, 1]) { c.save(); c.scale(1, s * f); c.beginPath(); c.ellipse(2, -9, 9, 9, -0.3, 0, 7); c.fill(); c.stroke(); c.beginPath(); c.ellipse(-5, -6, 6, 6, 0.4, 0, 7); c.fill(); c.stroke(); c.restore(); }
+        c.fillStyle = '#222'; c.beginPath(); c.ellipse(0, 0, 8, 2, 0, 0, 7); c.fill();
+      } else if (shape === 'dragonfly') {
+        c.fillStyle = 'rgba(230,240,255,.55)'; const f = Math.sin(ph * 40) * 0.25;
+        for (const s of [-1, 1]) { c.beginPath(); c.ellipse(4, s * (9 + f * 4), 3, 11, 0.15 * s, 0, 7); c.fill(); c.beginPath(); c.ellipse(-2, s * (9 - f * 4), 3, 10, -0.15 * s, 0, 7); c.fill(); }
+        c.fillStyle = col; c.fillRect(-22, -1.5, 24, 3); c.beginPath(); c.ellipse(5, 0, 6, 3.5, 0, 0, 7); c.fill(); c.beginPath(); c.arc(11, 0, 3.5, 0, 7); c.fill();
+      } else if (shape === 'bee') {
+        c.fillStyle = 'rgba(240,245,255,.6)'; const f = Math.sin(ph * 50) * 3; c.beginPath(); c.ellipse(0, -7 - f, 5, 7, 0.3, 0, 7); c.fill();
+        c.fillStyle = col; c.beginPath(); c.ellipse(0, 0, 8, 5, 0, 0, 7); c.fill(); c.fillStyle = '#1a1208'; for (const k of [-4, 0, 4]) c.fillRect(k - 1, -5, 2, 10); c.beginPath(); c.arc(8, 0, 3.5, 0, 7); c.fill();
+      } else if (shape === 'firefly') {
+        if (night) { const gr = c.createRadialGradient(-4, 0, 1, -4, 0, 16); gr.addColorStop(0, 'rgba(220,255,120,.95)'); gr.addColorStop(1, 'rgba(160,255,80,0)'); c.fillStyle = gr; c.beginPath(); c.arc(-4, 0, 16, 0, 7); c.fill(); }
+        c.fillStyle = col; c.beginPath(); c.ellipse(0, 0, 6, 3, 0, 0, 7); c.fill(); c.fillStyle = '#d33'; c.beginPath(); c.arc(5, 0, 2, 0, 7); c.fill();
+      } else { // 蝉
+        c.fillStyle = 'rgba(230,240,255,.45)'; c.strokeStyle = 'rgba(0,0,0,.4)'; for (const s of [-1, 1]) { c.beginPath(); c.ellipse(-4, s * 5, 12, 4.5, s * 0.25, 0, 7); c.fill(); c.stroke(); }
+        c.fillStyle = col; c.beginPath(); c.ellipse(0, 0, 10, 5, 0, 0, 7); c.fill(); c.beginPath(); c.ellipse(8, 0, 4, 5.5, 0, 0, 7); c.fill();
+      }
+      c.restore();
+    }
+    function tree(t) {
+      const ox = t.shake > 0 ? Math.sin(T * 60) * 6 * Math.min(1, t.shake * 3) : 0;
+      c.fillStyle = night ? '#2e2216' : '#5a4028'; c.fillRect(t.x - 10, t.y + 20, 20, GY - t.y - 20);
+      c.fillStyle = night ? '#3a2a1a' : '#6e5034'; c.fillRect(t.x - 4, t.y + 40, 4, GY - t.y - 50);
+      for (const [dx, dy, r, k] of [[-30, 10, 34, 0], [28, 12, 32, 1], [0, -10, 42, 2], [-14, 26, 28, 3], [18, 28, 28, 4]]) { c.fillStyle = night ? ['#16301e', '#1a3a22', '#1d4026', '#163020', '#1a3622'][k] : ['#3e7a3a', '#478a40', '#4f9446', '#3a7034', '#468440'][k]; c.beginPath(); c.arc(t.x + dx + ox * (1 + k * 0.1), t.y + dy, r, 0, 7); c.fill(); }
+    }
+    function clump(q, k) {
+      const sw = q.rus > 0 ? Math.sin(T * 40) * 5 * Math.min(1, q.rus * 3) : 0;
+      for (let i = 0; i < 26; i++) { const a = (i / 26 - 0.5) * 1.6, h = 38 + ((i * 37 + k * 11) % 23); c.strokeStyle = night ? (i % 2 ? '#1e3a1e' : '#284a26') : (i % 2 ? '#4f8a36' : '#6aa344'); c.lineWidth = 3; c.beginPath(); c.moveTo(q.x + a * 36, GY - 20); c.quadraticCurveTo(q.x + a * 40 + sw * 0.5, GY - 20 - h * 0.6, q.x + a * 50 + sw, GY - 20 - h); c.stroke(); }
+    }
+    function draw() {
+      const sky = c.createLinearGradient(0, 0, 0, GY); if (night) { sky.addColorStop(0, '#0b1230'); sky.addColorStop(1, '#1b2440'); } else { sky.addColorStop(0, '#9fd0ee'); sky.addColorStop(1, '#d8eef0'); }
+      c.fillStyle = sky; c.fillRect(0, 0, W, GY);
+      if (night) { c.fillStyle = '#f2efe0'; c.beginPath(); c.arc(W - 50, 40, 14, 0, 7); c.fill(); }
+      c.fillStyle = night ? '#1c2a16' : '#7aa54e'; c.fillRect(0, GY - 24, W, H - GY + 24); c.fillStyle = night ? '#2a2216' : '#8a6e44'; c.fillRect(0, GY, W, H - GY);
+      if (mode === 'tree') trees.forEach(tree);
+      if (mode === 'fly') for (const [fx, fh, fc] of FLW) { c.strokeStyle = night ? '#24401e' : '#4f8a36'; c.lineWidth = 2; c.beginPath(); c.moveTo(fx, GY - 18); c.lineTo(fx + 2, GY - 18 - fh); c.stroke(); c.fillStyle = night ? 'rgba(200,200,220,.4)' : fc; for (let k = 0; k < 5; k++) { c.beginPath(); c.arc(fx + 2 + Math.cos(k * 1.26) * 4, GY - 18 - fh + Math.sin(k * 1.26) * 4, 3, 0, 7); c.fill(); } } // 野の花
+      if (mode === 'grass') {
+        clumps.forEach(clump);
+        if (sh.a > 0 && sh.st !== 'got') { c.fillStyle = `rgba(8,8,8,${sh.a * 0.85})`; c.beginPath(); c.ellipse(sh.x, sh.y, 16, 6, 0, 0, 7); c.fill(); if (night) { c.fillStyle = `rgba(255,230,140,${sh.a})`; c.fillRect(sh.x + 6, sh.y - 3, 2, 2); c.fillRect(sh.x + 10, sh.y - 3, 2, 2); } } // 影は草むらの手前の地面を走る（夜は目が光る）
+        if (sh.st === 'guess' || sh.st === 'got' || sh.st === 'flee') { c.fillStyle = 'rgba(255,240,170,.85)'; c.font = '16px sans-serif'; c.textAlign = 'center'; clumps.forEach((q, i) => c.fillText(['左', '真ん中', '右'][i], q.x, GY + 22)); }
+        if (sh.st === 'got') { drawBug(clumps[seq[seq.length - 1]].x, GY - 40, 0, 1, T); sparkle(clumps[seq[seq.length - 1]].x, GY - 40, 22); }
+      }
+      for (const p of parts) { c.fillStyle = night ? 'rgba(60,110,60,.8)' : 'rgba(80,140,60,.9)'; c.save(); c.translate(p.x, p.y); c.rotate(p.r + T * 3); c.fillRect(-3, -1.5, 6, 3); c.restore(); }
+      if (mode === 'tree' && bug && bug.st !== 'gone') { drawBug(bug.x, bug.y, bug.rot, bug.vx < 0 ? -1 : 1, T); sparkle(bug.x, bug.y, 20); }
+      if (mode === 'fly') { if (fb.vis) { drawBug(fb.x, fb.y, 0, fb.face, fb.ph); sparkle(fb.x, fb.y, 22); } else if (shape === 'firefly') { c.fillStyle = 'rgba(160,255,80,.08)'; c.beginPath(); c.arc(fb.x, fb.y, 10, 0, 7); c.fill(); } }
+      for (const n of nets) { const k = n.t / 0.4; c.strokeStyle = `rgba(255,255,255,${1 - k})`; c.lineWidth = 2; c.beginPath(); c.arc(n.x, n.y, 10 + k * 16, 0, 7); c.stroke(); }
+      if (aim.show) { c.strokeStyle = 'rgba(255,240,170,.9)'; c.lineWidth = 2; c.setLineDash([5, 4]); c.beginPath(); c.arc(aim.x, aim.y, 14, 0, 7); c.stroke(); c.setLineDash([]); }
+    }
+    function frame(now) {
+      raf = requestAnimationFrame(frame); const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      // 十字キー・スティックで狙いを動かす（Space・Aでタップ）
+      let dx = (keys.ArrowRight || keys.d || keys.D ? 1 : 0) - (keys.ArrowLeft || keys.a || keys.A ? 1 : 0), dy = (keys.ArrowDown || keys.s || keys.S ? 1 : 0) - (keys.ArrowUp || keys.w || keys.W ? 1 : 0);
+      const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter((p) => p && p.connected !== false) : [], gp = pads.find((p) => p.buttons.some((b) => b && b.pressed)) || pads.find((p) => p.mapping === 'standard') || pads[0];
+      if (gp) { const b = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed); dx += (b(15) ? 1 : 0) - (b(14) ? 1 : 0) + (Math.abs(gp.axes[0]) > 0.2 ? gp.axes[0] : 0); dy += (b(13) ? 1 : 0) - (b(12) ? 1 : 0) + (Math.abs(gp.axes[1]) > 0.2 ? gp.axes[1] : 0); if (b(0) && !prevPad[0]) run.tap(); for (let i = 0; i < 17; i++) prevPad[i] = b(i); }
+      if (dx || dy) { aim.show = true; aim.x = Math.max(8, Math.min(W - 8, aim.x + dx * 260 * dt)); aim.y = Math.max(8, Math.min(H - 8, aim.y + dy * 260 * dt)); }
+      update(dt); draw();
+      if (end) { end.t -= dt; if (end.t <= 0) { cancelAnimationFrame(raf); const q = end.q; open('<div class="big">…</div>'); doneN = g.n; SGK.cmd({ type: 'gatherEnd', n: g.n, q }); run.phase = 'wait'; } }
+    }
+    run.phase = 'play';
+    raf = requestAnimationFrame(frame);
   }
   // ---- 釣り場 ----
   function castScene() {

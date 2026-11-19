@@ -107,6 +107,18 @@
     say(p.id, `${sp.n}（${g.size}${unit}）を${g.k === 'f' ? '釣り' : '捕まえ'}ました！ +${SIM.money(gain)}${isNew ? '　図鑑に載りました' : ''}`);
   };
 
+  /* 2.34.0 虫の捕り方と見た目：[遊び, 形, 色]。遊びは tree（木を揺すって落ちたところを捕る）・fly（飛んでいるところを捕る）・grass（草むらの影を当てる）。
+     画面には名前を出さず、この見た目だけを送る（何が捕れたかは捕まえてから分かる） */
+  const BUGLOOK = {
+    b01: ['fly', 'cicada', '#2a2a22'], b02: ['tree', 'kabuto', '#4a2a14'], b03: ['tree', 'kuwa', '#5a2e12'], b04: ['fly', 'butterfly', '#262626'],
+    b05: ['grass', 'mantis', '#6a8a3a'], b06: ['fly', 'firefly', '#2a2a2a'], b07: ['tree', 'kuwa', '#6a3a1a'], b08: ['fly', 'bee', '#c8902a'],
+    b09: ['fly', 'dragonfly', '#3a6a8a'], b10: ['fly', 'butterfly', '#e8d040'], b11: ['fly', 'butterfly', '#9ad0e0'], b12: ['grass', 'beetle', '#3a8a6a'],
+    b13: ['fly', 'butterfly', '#6a4ab0'], b14: ['tree', 'kuwa', '#2a1a10'], b15: ['tree', 'kuwa', '#1a1210'], b16: ['fly', 'cicada', '#3a5a3a'],
+    b17: ['fly', 'dragonfly', '#c84a2a'], b18: ['fly', 'dragonfly', '#2a2a1a'], b19: ['fly', 'cicada', '#4a5a3a'], b20: ['fly', 'butterfly', '#f4f4ec'],
+    b21: ['fly', 'butterfly', '#8aa8d8'], b22: ['fly', 'butterfly', '#e8d84a'], b23: ['fly', 'butterfly', '#e8c84a'], b24: ['fly', 'butterfly', '#1a1a1a'],
+    b25: ['fly', 'dragonfly', '#1a1a2a'], b26: ['fly', 'dragonfly', '#6a8ab8'], b27: ['fly', 'dragonfly', '#4a8a5a'], b28: ['fly', 'cicada', '#5a3a20'],
+    b29: ['fly', 'cicada', '#6a5a2a'], b30: ['tree', 'kuwa', '#2a1a10'], b31: ['fly', 'bee', '#d8902a'], b32: ['tree', 'kana', '#3a6a3a'],
+  };
   // ---- 本人へ ----
   const cache = {};
   const basePriv = SIM.privateState;
@@ -118,7 +130,7 @@
       if (ch && ch.key === key) sp = ch.v; else { const tg = [...SIM.spotTags(w, p.x, p.y)]; sp = { f: SIM.spotCreatures(w, p.x, p.y, 'f').length, b: SIM.spotCreatures(w, p.x, p.y, 'b').length, tags: tg, rg: SIM.regionOf(p.x, p.y).name, dp: daypart(w) }; cache[pid] = { key, v: sp }; }
     }
     r.me.spot = sp; r.me.zukan = p.zukan || {};
-    r.me.gat = p.gat ? { n: p.gat.n, k: p.gat.k, d: (byId(p.gat.id) || {}).d, r: (byId(p.gat.id) || {}).r, fr: p.gat.frac, bite: 1800 + ((p.gat.n * 7919) % 2600) } : null;
+    r.me.gat = p.gat ? { n: p.gat.n, k: p.gat.k, d: (byId(p.gat.id) || {}).d, r: (byId(p.gat.id) || {}).r, fr: p.gat.frac, bite: 1800 + ((p.gat.n * 7919) % 2600), lk: p.gat.k === 'b' ? BUGLOOK[p.gat.id] || ['fly', 'butterfly', '#e8e0c8'] : null } : null;
     r.me.gatLast = p.gatLast || null;
     return r;
   };
