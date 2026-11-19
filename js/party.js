@@ -10,6 +10,7 @@
   const GAMES = {
     race: { name: '馬の障害レース', max: 5, team: true, desc: '柵や堀を跳び越えて走り、ゴールの順位を競う。ジャンプ＝A／Space、ダッシュ＝↑／B（スタミナを使う）' },
     archery: { name: '弓の的当て大会', max: 5, team: true, desc: '動く的を10本で射抜いて点を競う。風で矢が流れる。狙う＝マウス／矢印／スティック、射つ＝クリック／A／Space。金の的は2倍' },
+    fish: { name: '釣り大会', max: 5, team: true, mode: true, desc: '朝・昼・夕の3日間で釣りくらべ。投げる→アタリが来たら素早く合わせる（A／Space／タップ）。勝ち方は「いちばん大きい魚」か「釣った数」を選べます' },
     cart: { name: '荷運び競争（協力）', max: 5, team: false, desc: '全員で荷車を引いてゴールまで運ぶ。←→で進む道を選ぶ（みんなの平均で進む）、A／Spaceを押している間引く。岩にぶつかると荷が崩れる' },
   };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -42,20 +43,21 @@
   const memIds = () => (LB ? LB.mem.map((x) => x.id).filter((id) => id !== ENV.me()) : []);
   PT.openLobby = (g) => {
     if (!ENV || RUN) return; addCss();
-    LB = { g, rid: ENV.me() + '-' + Date.now(), lead: true, leader: ENV.me(), mem: [{ id: ENV.me(), name: ENV.name() }], team: false };
+    LB = { g, rid: ENV.me() + '-' + Date.now(), lead: true, leader: ENV.me(), mem: [{ id: ENV.me(), name: ENV.name() }], team: false, mode: 'big' };
     drawLobby();
   };
   function closeLobby(tell) { if (LB && tell && !LB.lead) send([LB.leader], { k: 'leave', rid: LB.rid }); if (LB && LB.lead) send(memIds(), { k: 'mem', rid: LB.rid, g: LB.g, mem: [], closed: 1 }); LB = null; const b = document.getElementById('ptBox'); if (b) b.remove(); }
-  function pushMem() { if (LB && LB.lead) send(memIds(), { k: 'mem', rid: LB.rid, g: LB.g, mem: LB.mem, team: LB.team }); }
+  function pushMem() { if (LB && LB.lead) send(memIds(), { k: 'mem', rid: LB.rid, g: LB.g, mem: LB.mem, team: LB.team, mode: LB.mode }); }
   function drawLobby() {
     if (!LB) return; const d = GAMES[LB.g], e = box('ptBox'), n = LB.mem.length;
     const list = LB.mem.map((x, i) => `<div class="m">${LB.team ? `<b style="color:${TEAM[i % 2].c}">${TEAM[i % 2].n}</b> ` : ''}${esc(x.name)}${x.id === LB.leader ? '（リーダー）' : ''}</div>`).join('');
-    e.innerHTML = `<div><h2>${d.name}</h2><div class="d">${esc(d.desc)}</div><div>参加者 ${n}/${d.max}人${LB.team ? '（チーム戦：交互に赤・白）' : ''}</div>${list}
-      <div style="margin-top:8px">${LB.lead ? `<button data-a="inv">同じ町の人を誘う</button>${d.team ? `<button data-a="team">${LB.team ? '個人戦にする' : 'チーム戦にする'}</button>` : ''}${n >= 2 ? '<button data-a="go">出発する</button>' : ''}<button data-a="solo">ひとりで練習（報酬なし）</button>` : '<div class="d">リーダーが出発すると始まります</div>'}<button data-a="close">${LB.lead ? 'やめる' : '抜ける'}</button></div></div>`;
+    e.innerHTML = `<div><h2>${d.name}</h2><div class="d">${esc(d.desc)}</div><div>参加者 ${n}/${d.max}人${LB.team ? '（チーム戦：交互に赤・白）' : ''}${d.mode ? `　勝ち方：${LB.mode === 'big' ? '大物（いちばん大きい魚）' : '数（釣った数）'}` : ''}</div>${list}
+      <div style="margin-top:8px">${LB.lead ? `<button data-a="inv">同じ町の人を誘う</button>${d.team ? `<button data-a="team">${LB.team ? '個人戦にする' : 'チーム戦にする'}</button>` : ''}${d.mode ? '<button data-a="mode">勝ち方を変える</button>' : ''}${n >= 2 ? '<button data-a="go">出発する</button>' : ''}<button data-a="solo">ひとりで練習（報酬なし）</button>` : '<div class="d">リーダーが出発すると始まります</div>'}<button data-a="close">${LB.lead ? 'やめる' : '抜ける'}</button></div></div>`;
     e.onclick = (ev) => {
       const b = ev.target.closest('button[data-a]'); if (!b || !LB) return; const a = b.dataset.a;
-      if (a === 'inv') { const to = ENV.others().map((x) => x.id); send(to, { k: 'inv', g: LB.g, rid: LB.rid, nm: ENV.name(), team: LB.team }); b.textContent = to.length ? `${to.length}人に声をかけた` : '同じ町にほかの人がいません'; }
+      if (a === 'inv') { const to = ENV.others().map((x) => x.id); send(to, { k: 'inv', g: LB.g, rid: LB.rid, nm: ENV.name(), team: LB.team, mode: LB.mode }); b.textContent = to.length ? `${to.length}人に声をかけた` : '同じ町にほかの人がいません'; }
       else if (a === 'team') { LB.team = !LB.team; pushMem(); drawLobby(); }
+      else if (a === 'mode') { LB.mode = LB.mode === 'big' ? 'num' : 'big'; pushMem(); drawLobby(); }
       else if (a === 'go') startRoom(false);
       else if (a === 'solo') startRoom(true);
       else closeLobby(true);
@@ -63,14 +65,14 @@
   }
   function startRoom(solo) {
     const seed = (Math.random() * 1e9) | 0, mem = (solo ? [LB.mem[0]] : LB.mem).map((x, i) => ({ id: x.id, name: x.name, tm: i % 2 }));
-    const cfg = { g: LB.g, seed, mem, team: !solo && LB.team, lead: LB.leader, solo };
+    const cfg = { g: LB.g, seed, mem, team: !solo && LB.team, lead: LB.leader, solo, mode: LB.mode };
     if (!solo) send(memIds(), { k: 'go', rid: LB.rid, cfg });
     closeLobby(false); startGame(cfg);
   }
   function showInvite(from, m) {
     if (RUN || !GAMES[m.g]) return; addCss(); const e = box('ptInv'); clearTimeout(invT);
     e.innerHTML = `<b>${esc(m.nm)}</b>が『${GAMES[m.g].name}』${m.team ? '（チーム戦）' : ''}の仲間を募っています <button data-a="y">参加する</button><button data-a="n">閉じる</button>`;
-    e.onclick = (ev) => { const b = ev.target.closest('button[data-a]'); if (!b) return; e.remove(); if (b.dataset.a !== 'y') return; if (LB) closeLobby(true); LB = { g: m.g, rid: m.rid, lead: false, leader: from, mem: [], team: !!m.team }; send([from], { k: 'join', rid: m.rid, nm: ENV.name() }); drawLobby(); };
+    e.onclick = (ev) => { const b = ev.target.closest('button[data-a]'); if (!b) return; e.remove(); if (b.dataset.a !== 'y') return; if (LB) closeLobby(true); LB = { g: m.g, rid: m.rid, lead: false, leader: from, mem: [], team: !!m.team, mode: m.mode || 'big' }; send([from], { k: 'join', rid: m.rid, nm: ENV.name() }); drawLobby(); };
     invT = setTimeout(() => { if (e.parentNode) e.remove(); }, 60000);
   }
 
@@ -79,7 +81,7 @@
     if (m.k === 'inv') return showInvite(from, m);
     if (m.k === 'join') { if (LB && LB.lead && m.rid === LB.rid && LB.mem.length < GAMES[LB.g].max && !LB.mem.some((x) => x.id === from)) { LB.mem.push({ id: from, name: m.nm }); pushMem(); drawLobby(); } return; }
     if (m.k === 'leave') { if (LB && LB.lead && m.rid === LB.rid) { LB.mem = LB.mem.filter((x) => x.id !== from); pushMem(); drawLobby(); } return; }
-    if (m.k === 'mem') { if (LB && !LB.lead && m.rid === LB.rid) { if (m.closed) { closeLobby(false); ENV.toast && ENV.toast('部屋がなくなりました'); } else { LB.mem = m.mem; LB.team = !!m.team; drawLobby(); } } return; }
+    if (m.k === 'mem') { if (LB && !LB.lead && m.rid === LB.rid) { if (m.closed) { closeLobby(false); ENV.toast && ENV.toast('部屋がなくなりました'); } else { LB.mem = m.mem; LB.team = !!m.team; LB.mode = m.mode || 'big'; drawLobby(); } } return; }
     if (m.k === 'go') { if (LB && !LB.lead && m.rid === LB.rid && !RUN) { closeLobby(false); startGame(m.cfg); } return; }
     if (RUN && RUN.on) RUN.on(from, m);
   };
@@ -112,11 +114,11 @@
     const touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches), hold = (el, k) => { const on = (e) => { e.preventDefault(); if (!IN[k]) { if (k === 'a') IN.aT = 1; if (k === 'l') IN.lT = 1; if (k === 'r') IN.rT = 1; } IN[k] = 1; }, off = (e) => { e.preventDefault(); IN[k] = 0; }; el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointerleave', off); el.addEventListener('pointercancel', off); };
     const mkBtn = (host, txt, k) => { const b = document.createElement('button'); b.textContent = txt; host.appendChild(b); hold(b, k); };
     const pl = root.querySelector('.pl'), pr = root.querySelector('.pr');
-    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { mkBtn(pl, 'ダッシュ', 'b'); mkBtn(pr, 'ジャンプ', 'a'); } else mkBtn(pr, '射つ', 'a'); }
+    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { mkBtn(pl, 'ダッシュ', 'b'); mkBtn(pr, 'ジャンプ', 'a'); } else if (cfg.g === 'fish') mkBtn(pr, '釣る', 'a'); else mkBtn(pr, '射つ', 'a'); }
     const ptr = (e) => { const r = cv.getBoundingClientRect(); IN.mx = (e.clientX - r.left) * cv.width / r.width; IN.my = (e.clientY - r.top) * cv.height / r.height; };
-    cv.addEventListener('pointermove', ptr); cv.addEventListener('pointerdown', (e) => { ptr(e); if (cfg.g === 'archery' && !touch) IN.click = 1; else if (cfg.g === 'archery') IN.click = 1; });
+    cv.addEventListener('pointermove', ptr); cv.addEventListener('pointerdown', (e) => { ptr(e); if (cfg.g === 'archery') IN.click = 1; else if (cfg.g === 'fish') IN.aT = 1; });
     const env = { cfg, me, ids: cfg.mem.map((x) => x.id), names: Object.fromEntries(cfg.mem.map((x) => [x.id, x.name])), tm: Object.fromEntries(cfg.mem.map((x) => [x.id, x.tm])), others: cfg.mem.map((x) => x.id).filter((id) => id !== me), cv, g2, finished: false, gone: {} };
-    const game = { race: raceGame, archery: archeryGame, cart: cartGame }[cfg.g](env);
+    const game = { race: raceGame, archery: archeryGame, cart: cartGame, fish: fishGame }[cfg.g](env);
     let raf = 0, last = performance.now(); const stop = () => { cancelAnimationFrame(raf); removeEventListener('resize', onR); root.remove(); RUN = null; for (const k of ['l', 'r', 'u', 'd', 'a', 'b']) IN[k] = 0; };
     RUN = { on: (from, m) => { if (m.k === 'quit') { env.gone[from] = 1; } if (game.msg) game.msg(from, m); } };
     env.end = (res) => { if (env.finished) return; env.finished = true; showResult(env, res, () => stop()); };
@@ -259,6 +261,57 @@
         env.ids.forEach((id, i) => drawText(g, `${nameOf(env, id)}　${S[id].sc}点${S[id].done ? '（終了）' : ''}`, W0 - 16, 30 + i * 20, { sz: 15, al: 'right', c: tcol(env, id) }));
         if (cfg.team) { const pts = [0, 0]; for (const id of env.ids) pts[env.tm[id]] += S[id].sc; drawText(g, `赤 ${pts[0]} ― 白 ${pts[1]}`, W0 / 2, H0 - 16, { sz: 20, b: 1, al: 'center' }); }
         if (t < 0) drawText(g, String(Math.ceil(-t)), W0 / 2, H0 / 2, { sz: 90, b: 1, al: 'center' });
+      },
+    };
+  }
+
+  // =====================================================================
+  // 釣り大会：朝・昼・夕の3日間（1日40秒）。勝ち方は mode='big'（いちばん大きい魚）か 'num'（釣った数）
+  // =====================================================================
+  const FISH = [ // 名前, 最小cm, 最大cm, 出やすさ
+    ['メダカ', 3, 6, 5], ['フナ', 12, 30, 9], ['ハゼ', 8, 20, 9], ['アユ', 12, 28, 7], ['ニジマス', 25, 55, 6], ['コイ', 35, 80, 5], ['ナマズ', 40, 90, 3], ['イワナ', 20, 45, 4], ['ウナギ', 40, 100, 2], ['イトウ', 70, 140, 1], ['主（ぬし）', 120, 200, 0.4]];
+  function fishGame(env) {
+    const { cfg, me, g2: g, cv } = env, DAY = 40, DN = ['朝', '昼', '夕'], big = cfg.mode !== 'num', tot = FISH.reduce((a, f) => a + f[3], 0);
+    const S = {}; for (const id of env.ids) S[id] = { n: 0, best: 0, bn: '', done: false }; const m0 = S[me];
+    let t = -2, st = 'idle', wait = 0, win = 0, msg = '', msgT = 0, last = null, tm = 0, bob = 0, doneAt = null, dayShown = -1;
+    const pick = () => { let r = Math.random() * tot; for (const f of FISH) { r -= f[3]; if (r <= 0) return f; } return FISH[1]; };
+    function finishAll() {
+      const key = (x) => (big ? x.best : x.n), rk = env.ids.slice().sort((a, b) => key(S[b]) - key(S[a]) || S[b].n - S[a].n), n = rk.length, myRank = rk.indexOf(me) + 1; let team = null, rows = [];
+      const lab = (x) => (big ? (x.best ? `${x.bn} ${x.best}cm` : '釣れず') : `${x.n}匹`) + (big ? `（${x.n}匹）` : x.best ? `（最大 ${x.best}cm）` : '');
+      if (cfg.team) { const pts = [0, 0]; for (const id of env.ids) { const o = S[id], tt = env.tm[id]; pts[tt] = big ? Math.max(pts[tt], o.best) : pts[tt] + o.n; } const u = big ? 'cm' : '匹';
+        team = pts[0] === pts[1] ? 'draw' : (pts[0] > pts[1] ? 0 : 1) === env.tm[me] ? 'win' : 'lose'; rows.push(`<b>チーム戦（${big ? '各チームの最大' : '合計'}）　赤 ${pts[0]}${u} ― 白 ${pts[1]}${u}　${pts[0] === pts[1] ? '引き分け' : pts[0] > pts[1] ? '赤の勝ち' : '白の勝ち'}</b>`); }
+      rk.forEach((id, i) => rows.push(`${i + 1}位　<b style="color:${tcol(env, id)}">${esc(nameOf(env, id))}</b>　${lab(S[id])}`));
+      env.end({ title: cfg.team ? (team === 'win' ? 'チームの勝ち！' : team === 'lose' ? 'チームの負け…' : '引き分け') : `${myRank}位`, rows, cmd: { type: 'partyResult', game: 'fish', n, rank: myRank, team } });
+    }
+    return {
+      msg(from, m) { const o = S[from]; if (!o) return; if (m.k === 'f') { o.n = m.n; o.best = m.b; o.bn = m.bn; } else if (m.k === 'done') { o.n = m.n; o.best = m.b; o.bn = m.bn; o.done = true; } },
+      update(dt) {
+        t += dt; if (t < 0) return; msgT -= dt; bob += dt;
+        const day = Math.min(2, Math.floor(t / DAY)); if (day !== dayShown) { dayShown = day; msg = `${day + 1}日目（${DN[day]}）`; msgT = 2; }
+        if (t >= DAY * 3) { if (!m0.done) { m0.done = true; doneAt = t; send(env.others, { k: 'done', n: m0.n, b: m0.best, bn: m0.bn }); } }
+        else if (st === 'idle') { if (IN.aT) { st = 'wait'; wait = 1.2 + Math.random() * 3.2; msg = '投げた…'; msgT = 3; } }
+        else if (st === 'wait') { if (IN.aT) { st = 'idle'; msg = '早すぎた！'; msgT = 1.5; } else { wait -= dt; if (wait <= 0) { st = 'bite'; win = 0.85; msg = 'アタリ！！'; msgT = 1; } } }
+        else if (st === 'bite') { win -= dt; if (IN.aT) { const f = pick(), q = 0.75 + 0.25 * (win / 0.85), sz = Math.round((f[1] + (f[2] - f[1]) * Math.pow(Math.random(), 1.7)) * q); m0.n++; last = { nm: f[0], sz }; if (sz > m0.best) { m0.best = sz; m0.bn = f[0]; } msg = `${f[0]} ${sz}cm！${sz >= m0.best && m0.n > 1 ? '（自己ベスト）' : ''}`; msgT = 2.5; st = 'idle'; send(env.others, { k: 'f', n: m0.n, b: m0.best, bn: m0.bn }); }
+          else if (win <= 0) { st = 'idle'; msg = '逃げられた…'; msgT = 1.5; } }
+        const alive = env.ids.filter((id) => !env.gone[id]);
+        if (alive.every((id) => S[id].done) || (doneAt != null && t > doneAt + 15) || t > DAY * 3 + 30) finishAll();
+        void tm;
+      },
+      draw() {
+        const W0 = cv.width, H0 = cv.height, day = clamp(Math.floor(Math.max(0, t) / DAY), 0, 2), sky = ['#bfe3f5', '#8fcdf2', '#f4b27a'][day];
+        g.fillStyle = sky; g.fillRect(0, 0, W0, H0 * 0.45); g.fillStyle = '#6fae56'; g.fillRect(0, H0 * 0.38, W0, H0 * 0.1); g.fillStyle = '#3d7fb0'; g.fillRect(0, H0 * 0.48, W0, H0);
+        g.strokeStyle = '#ffffff44'; g.lineWidth = 2; for (let i = 0; i < 8; i++) { const y = H0 * (0.55 + i * 0.06) + Math.sin(bob * 2 + i) * 3; g.beginPath(); g.moveTo(0, y); g.lineTo(W0, y); g.stroke(); }
+        g.fillStyle = day === 2 ? '#ff9a3c' : '#fff6a0'; g.beginPath(); g.arc(W0 * (0.2 + day * 0.3), H0 * 0.14, 30, 0, 7); g.fill();
+        const fx = W0 * 0.5, fy = H0 * 0.66 + (st === 'bite' ? Math.sin(bob * 40) * 6 + 8 : Math.sin(bob * 3) * 2);
+        drawMan(g, W0 * 0.2, H0 * 0.5, 1.8, tcol(env, me), 0, st !== 'idle'); g.strokeStyle = '#3a2410'; g.lineWidth = 2; g.beginPath(); g.moveTo(W0 * 0.2 - 20, H0 * 0.5 - 50); g.lineTo(fx, H0 * 0.55); g.stroke();
+        if (st !== 'idle') { g.fillStyle = '#e03030'; g.beginPath(); g.arc(fx, fy, 8, 0, 7); g.fill(); g.fillStyle = '#fff'; g.fillRect(fx - 8, fy, 16, 4); if (st === 'bite') drawText(g, '！', fx, fy - 20, { sz: 40, b: 1, al: 'center', c: '#ff4' }); }
+        const rem = Math.max(0, DAY - (Math.max(0, t) - day * DAY)); drawText(g, `${day + 1}日目（${DN[day]}）　残り ${Math.ceil(rem)}秒`, 16, 30, { sz: 20, b: 1 }); bar(g, 16, 40, 160, 8, rem / DAY, '#f2c14e');
+        drawText(g, `${m0.n}匹　最大 ${m0.best ? m0.bn + ' ' + m0.best + 'cm' : '―'}`, 16, 74, { sz: 17 }); drawText(g, big ? '勝ち方：大物' : '勝ち方：数', 16, 98, { sz: 14, c: '#f2c14e' });
+        env.ids.forEach((id, i) => drawText(g, `${nameOf(env, id)}　${big ? (S[id].best ? S[id].best + 'cm' : '―') : S[id].n + '匹'}${S[id].done ? '（終了）' : ''}`, W0 - 16, 30 + i * 20, { sz: 15, al: 'right', c: tcol(env, id) }));
+        if (msgT > 0) drawText(g, msg, W0 / 2, H0 * 0.3, { sz: 34, b: 1, al: 'center' });
+        else if (st === 'idle' && t >= 0 && t < DAY * 3) drawText(g, 'A／Space／タップで投げる', W0 / 2, H0 * 0.92, { sz: 18, al: 'center' });
+        if (t < 0) drawText(g, String(Math.ceil(-t)), W0 / 2, H0 / 2, { sz: 90, b: 1, al: 'center' });
+        void last;
       },
     };
   }
