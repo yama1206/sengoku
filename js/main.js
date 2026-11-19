@@ -495,9 +495,12 @@
   // 2.41.0 忍びの協力任務のやりとりを、宛先の人へそのまま届ける（ホストが中継役）
   function ninRelay(from, cmd) {
     const m = cmd.m, to = cmd.to; if (!m || !Array.isArray(to)) return;
-    for (const t of to.slice(0, 4)) { if (t === G.myPid) { if (SGK.NINJA3D && SGK.NINJA3D.recv) SGK.NINJA3D.recv(from, m); } else if (G.net && G.net.sendTo) G.net.sendTo(t, { t: 'nin', from, m }); }
+    for (const t of to.slice(0, 4)) { if (t === G.myPid) { { const Rv = m.ch === 'party' ? SGK.PARTY : SGK.NINJA3D; if (Rv && Rv.recv) Rv.recv(from, m); } } else if (G.net && G.net.sendTo) G.net.sendTo(t, { t: 'nin', from, m }); }
   }
   SGK.ninSend = (to, m) => { if (G.mode === 'host') ninRelay(G.myPid, { m, to }); else if (G.mode === 'client' && G.net) G.net.send({ type: 'ninRelay', to, m }); };
+  // 2.42.0 みんなで遊ぶミニゲーム（party.js）に、自分の名前・同じ町の人・送る道具を渡す
+  if (SGK.PARTY) SGK.PARTY.init({ me: () => G.myPid, name: () => myName(), send: (to, m) => SGK.ninSend(to, m), cmd: (c) => command(c), toast: (s) => toast(s, 2500),
+    others: () => { const m0 = me(); return m0 && m0.at ? G.view.players.filter((p) => p.id !== G.myPid && p.at === m0.at).map((p) => ({ id: p.id, name: p.name })) : []; } });
   function hostTick() { try { hostTick0(); } catch (e) { const t = 'エラー(ホストの進行): ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastHostErr !== t) { G.lastHostErr = t; errToast(t); } } }
   // 2.40.4 参加者ごとの「自分用の情報」は、前に送ったものから変わっていなければ送らない（参加者は前のものを使い続ける。念のため5秒ごとには送り直す）
   function privFor(pid, now) {
@@ -577,7 +580,7 @@
       onBye: (why) => { if (again && G.mode === 'client') { G.mode = 'client'; } backToTitle(); titleMsg(why); },
       onLost: (why) => rejoin(why),
       onMine: (m) => { if (m.p && m.p.id === G.myPid) G.mine = { p: m.p, ma: SGK.CLOUD.now() }; },
-      onNin: (m) => { if (SGK.NINJA3D && SGK.NINJA3D.recv) SGK.NINJA3D.recv(m.from, m.m); },
+      onNin: (m) => { const Rv = m.m && m.m.ch === 'party' ? SGK.PARTY : SGK.NINJA3D; if (Rv && Rv.recv) Rv.recv(m.from, m.m); },
     });
   }
 
@@ -850,6 +853,7 @@
     const njName = (q) => SIM.NIN.jobs[q.k].name + (q.k === 'steal' && SIM.NIN.steal[q.sk] ? `（${SIM.NIN.steal[q.sk].name}）` : ''); // 2.24.0
     const njDesc = (q) => (q.k === 'steal' && SIM.NIN.steal[q.sk] ? SIM.NIN.steal[q.sk].desc + `（${SIM.NIN.steal[q.sk].where}にある）` : q.k === 'hurt' ? `寝所の${q.whoName || '武将'}に手傷を負わせる（殺しはしない）。成功すると${q.whoName || 'その武将'}は${SIM.NIN.hurtDays}日のあいだ出陣できない` : SIM.NIN.jobs[q.k].desc);
     if (NJ && NJ.atTgt && NJ.q) html += `<div class="card" style="display:block;border-color:#c33"><b>${njName(NJ.q)}</b>（${NJ.q.foe}・${NJ.q.toName}）<br><span class="muted">${njDesc(NJ.q)}。見張り${NJ.d.guards}人・${NJ.d.ck === 'yama' ? '山城' : NJ.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.d.night ? '夜（見張りの目が届きにくい）' : '昼'}・難しさ${SGK.ICON.html('star', 14).repeat(NJ.d.lv)}</span><div class="row" style="margin-top:4px"><button id="nj-go" data-nj="go">忍び込む</button>${!NJ.room ? '<button id="nj-rec" data-act="ninRecruit">仲間を募る</button>' : ''}</div>${njRoomHtml(NJ.room)}</div>`;
+    if (townTab === 'street' && SGK.PARTY) html += '<div class="card" style="display:block"><b>みんなで遊ぶ</b>（同じ町にいる人を誘えます。2人から）<div class="row" style="margin-top:4px"><button data-party="race">馬の障害レース</button><button data-party="archery">弓の的当て</button><button data-party="cart">荷運び（協力）</button></div></div>';
     if (townTab === 'street') html += `<div class="muted">${hs && hs.type === 'village' ? '村' : '町'}の通りです。上のボタンから行き先を選んでください</div>`;
     for (const sec of TOWN_SECS[townTab] || [townTab]) { if ((TOWN_SECS[townTab] || []).length > 1) html += `<div class="secH">${SEC_NAME[sec]}</div>`;
     if (sec === 'talk' && h.musume) { const m = h.musume, gifts = Object.keys(me.inv || {}).filter((k) => me.inv[k] > 0 && IT[k]); // 2.13.0 看板娘
@@ -1081,6 +1085,7 @@
   $('townBody').addEventListener('click', (e) => {
     const lb = e.target.closest('button[data-look]'); if (lb) return lookAt(lb.dataset.look, lb.dataset.job);
     const lx = e.target.closest('button[data-lookxy]'); if (lx) { const [x, y] = lx.dataset.lookxy.split(',').map(Number); openTown(false); R.cam.follow = false; R.cam.x = x; R.cam.y = y; G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; return; }
+    const pb = e.target.closest('button[data-party]'); if (pb) { openTown(false); SGK.PARTY.openLobby(pb.dataset.party); return; } // 2.42.0
     const nj = e.target.closest('button[data-nj]'); // 0.77.0 忍び込む
     if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; openTown(false); startNinja(N, null); return; }
     const gs = e.target.closest('button[data-gbset]'); if (gs) { G.gbSel = +gs.dataset.gbset; townHtml = ''; renderTown(); return; } // 2.8.0 賭場の掛け金

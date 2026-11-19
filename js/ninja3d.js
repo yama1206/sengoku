@@ -167,6 +167,7 @@
     const outY = yama ? 0 : 0;
     L.posts.push({ x: CX - 1.7, z: OB.z1 + (yama ? 3 : 1.6), yaw: 0, y: yama ? undefined : 0.05 }, { x: CX + 1.7, z: OB.z1 + (yama ? 3 : 1.6), yaw: 0, y: yama ? undefined : 0.05 });
     L.posts.push({ x: CX + 2, z: IB.z1 + (mizu ? 5 : 1.8), yaw: 0 });
+    if (!mizu) L.posts.push({ x: OB.x0 + 9, z: OB.z1 - 9, yaw: -0.8 }, { x: OB.x1 - 9, z: OB.z1 - 9, yaw: 0.8 }, { x: OB.x0 + 9, z: OB.z0 + 9, yaw: 2.4 }, { x: OB.x1 - 9, z: OB.z0 + 9, yaw: -2.4 }); // 2.42.0 外曲輪の四隅にも見張り
     if (kai >= 2) L.posts.push({ x: yg.x, z: yg.z, y: yg.y, yaw: Math.PI * 0.75 });
     void outY;
     return L;
@@ -664,14 +665,15 @@
     const P = S.p = { x: L.start.x, z: L.start.z, y: 0, vy: 0, yaw: Math.PI, yawT: Math.PI, crouch: false, run: false, swim: false, carry: null, lock: null, work: 0, workK: 0, air: false, fallFrom: 0, noiseT: 0, crouchK: 0, swimF: 0, ch: mkChar('t1', { tint: 0x1c2233, hood: true, weps: ['katana'] }) };
     attach(P.ch, 'katana', false); scene.add(P.ch.root);
     // 見張り
-    const ng = clamp(d.guards || 4, 3, 16), townN = q.k === 'rumor' ? 3 + Math.floor(ng / 3) : 1;
+    const ng = clamp(Math.round((d.guards || 4) * 1.8) + 4, 8, 30), // 2.42.0 見張りを大きく増やして難しく
+       townN = q.k === 'rumor' ? 3 + Math.floor(ng / 3) : 1;
     const mkG = (x, z, yaw, rig, wep, post, y) => { const ch = mkChar(rig || 't2', { weps: [wep || 'yari'] }); scene.add(ch.root); const g = { ch, x, z, y: y != null ? y : floorAt(x, z, 50), yaw, yaw0: yaw, state: post ? 'post' : 'patrol', meter: 0, seeT: 9, path: null, pi: 0, route: null, ri: 0, wait: 0, stun: 0, down: false, dead: false, phase: R() * 6, spr: mkMark(), look: 0 }; g.y = y != null ? y : (navAt(x, z) ?? floorAt(x, z, baseAt(x, z) + 1)); scene.add(g.spr); S.guards.push(g); return g; };
     for (const p of L.posts) mkG(p.x, p.z, p.yaw, p.rig, p.wep, true, p.y);
     const regions = [{ x0: L.OB.x0 + 2, z0: L.OB.z0 + 2, x1: L.OB.x1 - 2, z1: L.OB.z1 - 2, h: L.hO, w: 0.6 }, { x0: L.IB.x0 + 2, z0: L.IB.z0 + 2, x1: L.IB.x1 - 2, z1: L.IB.z1 - 2, h: L.hI, w: 0.4 }];
     const patrolN = Math.max(1, ng - L.posts.length + (q.k === 'hurt' ? 2 : 0));
     for (let i = 0; i < patrolN + townN; i++) {
       const town = i >= patrolN, rg = town ? { x0: 4, z0: 121, x1: W - 4, z1: 129, h: 0 } : regions[i % 3 === 2 ? 1 : 0];
-      const pts = []; for (let k = 0; k < (town ? 2 : 3); k++) { const p = randNav(R, rg, rg.h); if (p) pts.push(p); }
+      const pts = []; for (let k = 0; k < (town ? 3 : 4); k++) { const p = randNav(R, rg, rg.h); if (p) pts.push(p); }
       if (pts.length < 2) continue;
       const route = []; for (let k = 0; k < pts.length; k++) { const a = pts[k], b = pts[(k + 1) % pts.length], pth = navPath(a.x, a.z, b.x, b.z); if (pth) { pth[pth.length - 1].stop = 1; route.push(...pth); } }
       if (route.length < 2) continue;
@@ -746,7 +748,7 @@
   const litAt = (x, z) => st.fires.some((f) => (x - f.x) ** 2 + (z - f.z) ** 2 < 144) || (st.night && LV.lamps.some((l) => (x - l.x) ** 2 + (z - l.z) ** 2 < l.r * l.r));
   function seeFactor(g, tx, ty, tz, P) {
     const dx = tx - g.x, dz = tz - g.z, d = Math.hypot(dx, dz), eye = g.y + 1.6;
-    let range = (st.night ? 11 : 21) * (st.alertAll ? 1.35 : 1);
+    let range = (st.night ? 14 : 25) * (st.alertAll ? 1.35 : 1); // 2.42.0 見える距離を少し伸ばした
     if (st.night && litAt(tx, tz)) range = Math.max(range, 18);
     if (P) { if (P.crouch) range *= 0.62; if (P.swim) range *= 0.4; if (P.run) range *= 1.15; if (P.hide) range = Math.min(range, 1.6); }
     const near = d < (P && (P.crouch || P.hide) ? 1.1 : 2.2) && Math.abs(ty - eye) < 2.2;
@@ -965,7 +967,7 @@
     // 見る
     let f = 0, vp = P; // 2.41.0 いちばんよく見える人に反応する（協力のときは仲間も）
     for (const q of S.ps) { const ff = seeFactor(g, q.x, q.y + (q.swim ? 0.25 : q.crouch ? 0.75 : 1.3), q.z, q); if (ff > f) { f = ff; vp = q; } }
-    if (f > 0 && !N3.god) { g.meter += dt * (0.3 + 1.9 * f * f) * (S.alertAll ? 1.5 : 1); g.seeT = 0; if (g.meter >= 0.28) { toSus(g, vp.x, vp.z); S.unseen = false; } }
+    if (f > 0 && !N3.god) { g.meter += dt * (0.4 + 2.3 * f * f) * (S.alertAll ? 1.5 : 1); g.seeT = 0; if (g.meter >= 0.28) { toSus(g, vp.x, vp.z); S.unseen = false; } }
     else { g.seeT += dt; if (g.seeT > 1.2) g.meter = Math.max(0, g.meter - dt * 0.2); }
     if (g.meter >= 1) { S.end = 'ng'; S.endT = 1.8; g.spr.material.map = texs().x; g.spr.visible = true; g.yaw = Math.atan2(vp.x - g.x, vp.z - g.z); play(g.ch, 'spear', { once: true, restart: true }); say(vp === P ? '見つかった！' : `見つかった！（${vp.name || '仲間'}）`, 2); return; }
     // 倒れた仲間に気づく
@@ -1146,7 +1148,7 @@
   function render(dt) {
     const S = st, P = S.p, C = S.cam, ch = P.ch;
     // 本人の姿勢
-    const swimC = has(ch, 'swim'); ch.root.position.set(P.x, P.y + (P.swim ? (swimC ? 0.22 : -0.05) : 0), P.z); ch.root.rotation.set(P.swim && !swimC ? 0.9 : 0, P.yaw, 0);
+    const swimC = has(ch, 'swim'); ch.root.position.set(P.x, P.y + (P.swim ? (swimC ? 0.22 : -0.05) : 0), P.z); ch.root.rotation.set(P.swim && !swimC ? 0.9 : 0, P.yaw + (P.lock && P.lock.kind === 'climb' && P.lock.c.kind === 'ladder' ? Math.PI : 0), 0); // 2.42.0 ハシゴは表裏が逆だったので向きを反転
     const L = P.lock;
     const crC = has(ch, 'crouch_walk') && has(ch, 'crouch_idle'), wkC = has(ch, 'work') && P.work > 0 && !(st.ctx && st.ctx.work && st.ctx.work.folk);
     let pz = { crouch: crC || wkC ? 0 : P.crouchK * (P.carry ? 0 : 1), work: P.work > 0 && !wkC ? Math.min(1, P.work * 3) : 0, carry: P.carry ? 1 : 0 };
