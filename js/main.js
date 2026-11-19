@@ -981,6 +981,7 @@
         const hp = me.hpFrac == null ? 1 : me.hpFrac;
         if (me.busy && me.busy.kind === 'rest') html += `<div class="card"><div><b>休んでいます</b><br><span class="muted">残り約${Math.max(0, Math.ceil((me.busy.until - G.view.t) / 60))}時間　体力 ${Math.round(hp * 100)}%</span></div><button id="hm-stop" data-act="cancelWork">起きる</button></div>`;
         else html += `<div class="card"><div><b>休む</b><br><span class="muted">${HM.restHours}時間。ふつうに拠点にいるより早く傷が治る（いま体力 ${Math.round(hp * 100)}%）</span></div><button id="hm-rest" data-act="home" data-kind="rest" ${me.busy ? 'disabled' : ''}>休む</button></div>`;
+        if (SGK.SMITHUI) html += SGK.SMITHUI.html(me); // 2.29.0 作業場（鍛冶）
         html += `<div class="muted" style="margin-top:8px"><b>金庫</b>　預けている ${SIM.money(K.money)}　所持金 ${SIM.money(me.money)}</div><div class="row" style="flex-wrap:wrap">`
           + [1000, 10000].map((q) => `<button id="hm-pm${q}" data-act="home" data-kind="putM" data-qty="${q}" ${me.money >= q ? '' : 'disabled'}>${SIM.money(q)}預ける</button>`).join('')
           + `<button id="hm-pma" data-act="home" data-kind="putM" data-qty="-1" ${me.money > 0 ? '' : 'disabled'}>全部預ける</button>`
@@ -1046,6 +1047,7 @@
       if (SGK.NINJA3D && SGK.NINJA3D.can()) SGK.NINJA3D.start({ q: N.q, d: N.d, tools: N.tools || {}, seed: N.q.id }, fin); else SGK.NINJA.start(N.q.k, N.d, fin); return; }
     const gs = e.target.closest('button[data-gbset]'); if (gs) { G.gbSel = +gs.dataset.gbset; townHtml = ''; renderTown(); return; } // 2.8.0 賭場の掛け金
     const b = e.target.closest('button[data-act]'); if (!b) return;
+    if (b.dataset.act === 'smithPlay') { if (SGK.SMITHUI) SGK.SMITHUI.open(b.dataset.id, G.priv && G.priv.me); return; } // 2.29.0 鍛冶のミニゲーム
     if (b.dataset.act === 'gbOpen') { if (SGK.GAMBLEUI) SGK.GAMBLEUI.open(G.priv, G.myPid); return; } // 2.12.4 賭場の画面
     if (b.dataset.act === 'openNawaEdit') { const me2 = G.priv && G.priv.me, C2 = me2 && (me2.castles || []).find((x) => x.id === b.dataset.id); if (C2 && C2.nawa && SGK.NAWAEDIT) SGK.NAWAEDIT.open({ mode: 'edit', id: C2.id, plan: C2.nawa, ck: C2.nawa.ck, money: me2.money }); return; } // 2.12.0 縄張りを描き直す
     const c = { type: b.dataset.act };
@@ -1109,7 +1111,7 @@
       for (const id of ids) {
         const sl = EQ.slotOf(id), e = EQ[sl][id];
         const bt = sl === 'wep' ? `<button id="gq-${id}" data-cact="equipGear" data-id="${id}" data-to="wep">主に</button><button id="gq2-${id}" data-cact="equipGear" data-id="${id}" data-to="wep2">副に</button>` : `<button id="gq-${id}" data-cact="equipGear" data-id="${id}" data-to="${sl}">付ける</button>`;
-        html += `<div class="card"><div><b>${e.name}</b>${G2[id] > 1 ? ` ×${G2[id]}` : ''}　<span class="muted">${EQ.slotName[sl]}<br>${desc(sl, e)}</span></div><div class="row">${bt}${me.canSell ? `<button id="gs-${id}" data-cact="sellGear" data-id="${id}">売る ${SIM.money(Math.floor(e.cost * EQ.sell))}</button>` : ''}</div></div>`;
+        html += `<div class="card"><div><b>${e.name}</b>${G2[id] > 1 ? ` ×${G2[id]}` : ''}　<span class="muted">${EQ.slotName[sl]}<br>${desc(sl, e)}</span></div><div class="row">${bt}${me.canSell ? `<button id="gs-${id}" data-cact="sellGear" data-id="${id}">売る ${SIM.money(Math.floor((e.cost || e.val || 0) * EQ.sell))}</button>` : ''}</div></div>`;
       }
       if (C.off) html += '<div class="muted" style="margin-top:8px">いまは能力値・技能・特技はありません。本人の強さは装備で変わります（武具は京・堺・博多などの大きな町で買えます）</div>';
     } else if (charTab === 'skill') { // 0.76.0 技能：使うと伸び、25・50・75・100で特技が自動で付く

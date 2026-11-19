@@ -115,7 +115,7 @@
   SIM.commands.sellGear = (w, p, c) => {
     const s = here(w, p); if (!shopList(s).length) return SIM.say(p.id, '武具は大きな町（京・堺・博多など）でしか売れません');
     const sl = EQ.slotOf(c.id); if (!sl || !(p.gear[c.id] > 0)) return;
-    const v = Math.floor(EQ[sl][c.id].cost * EQ.sell); gAdd(p, c.id, -1); p.money += v; SIM.say(p.id, `${EQ[sl][c.id].name}を${SIM.money(v)}で売りました`);
+    const v = Math.floor((EQ[sl][c.id].cost || EQ[sl][c.id].val || 0) * EQ.sell); gAdd(p, c.id, -1); p.money += v; SIM.say(p.id, `${EQ[sl][c.id].name}を${SIM.money(v)}で売りました`);
   };
 
   SIM.commands.swapWep = (w, p) => { const e = eqOf(p); if (p.battle || !e.wep2) return; if (item('wep', e.wep2).sub) return SIM.say(p.id, '竹束は主の武器にできません'); [e.wep, e.wep2] = [e.wep2, e.wep]; SIM.say(p.id, `主の武器を${item('wep', e.wep).name}にしました`); };
