@@ -169,7 +169,7 @@
     baseEnsure(w);
     if (!w.mineGoods) { // 古いセーブ・新しいワールドに1度だけ：近くの町・城に産出と少しの在庫、よそは在庫なし
       w.mineGoods = 1;
-      for (const s of w.settlements) { const ok = s.type !== 'village' && nearMine(s); for (const k in M.GP) { s.prod[k] = ok ? M.GP[k] : 0; s.stock[k] = ok ? 2 : 0; } }
+      for (const s of w.settlements) { const ok = s.type !== 'village' && nearMine(s); for (const k in M.GP) { if (SGK.DATA.toku(s) === k) { s.stock[k] = Math.max(s.stock[k] || 0, 4); continue; } s.prod[k] = ok ? M.GP[k] : 0; s.stock[k] = ok ? 2 : 0; } } // 2.32.1 鉄鉱石が特産の村はそのまま
     }
     return w;
   };

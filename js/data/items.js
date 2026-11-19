@@ -45,7 +45,7 @@
   // 1.6.78 大きな町（地方ごとに1つ以上）。武具はここでしか売り買いできない
   const BIG = ['sakata', 'shinagawa', 'niigata', 'tsuruga', 'tsushima', 'kyo', 'sakai', 'yamaguchi', 'utazu', 'hakata'];
   SGK.DATA.isBig = (s) => !!(s && BIG.includes(s.id));
-  // 1.6.87 村の特産：地形で決める（塩＝海・酒＝川・木綿＝森・茶＝平地に近い。2.32.0 鉄＝山はなくした）。1つの城の領内の村のうち1つだけ
+  // 1.6.87 村の特産：地形で決める（塩＝海・鉄鉱石＝山・酒＝川・木綿＝森・茶＝平地に近い。2.32.1 山の村は鉄から鉄鉱石に）。1つの城の領内の村のうち1つだけ
   let TOKU = null;
   function buildToku() {
     const SIM = SGK.SIM, T = SGK.DATA.terrain || {}, D = SGK.DATA.settlements, MAXD = 30;
@@ -58,7 +58,7 @@
     const cl = (d) => Math.max(0, 1 - d / MAXD);
     const best = {}; // 城ごとに一番ふさわしい村
     for (const v of D) if (v.type === 'village') {
-      const sc = { salt: cl(near(v, '海')) * 1.05, sake: cl(riv(v)) * 1.02, cotton: cl(near(v, '森')) * 0.98, tea: plain(v) * 0.78 };
+      const sc = { salt: cl(near(v, '海')) * 1.05, ironore: cl(near(v, '山地')) * 1.08, sake: cl(riv(v)) * 1.02, cotton: cl(near(v, '森')) * 0.98, tea: plain(v) * 0.78 };
       let k = 'tea'; for (const x in sc) if (sc[x] > sc[k]) k = x;
       const c = cs.slice().sort((a, b) => dd(a, v) - dd(b, v))[0], key = c ? c.id : v.id, h = (hash(v.id, 3) % 1000) / 1e6; // 同点は決まった順
       if (!best[key] || sc[k] + h > best[key].s) best[key] = { id: v.id, k, s: sc[k] + h };

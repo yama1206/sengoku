@@ -36,7 +36,7 @@
       const d = SGK.DATA.settlements.find((x) => x.id === s.id) || {};
       s.prod = s.prod || d.prod || {};
       if (!Object.keys(s.prod).length) s.prod = JSON.parse(JSON.stringify(d.prod && Object.keys(d.prod).length ? d.prod : SGK.DATA.defProd(s))); // 古いセーブで生産のない拠点に付ける
-      { const tk = SGK.DATA.toku(s); if (s.type === 'village') for (const k in s.prod) if (k !== 'rice' && k !== 'firewood' && k !== tk && s.prod[k] > 3) s.prod[k] = 3; if (tk && !((s.prod[tk] || 0) >= 7)) s.prod[tk] = 7; } // 1.6.77 特産は多く作る（古いセーブも）。1.6.87 特産でなくなった品は3まで
+      { const tk = SGK.DATA.toku(s); if (s.type === 'village') for (const k in s.prod) if (k !== 'rice' && k !== 'firewood' && k !== tk && s.prod[k] > 3) s.prod[k] = 3; const want = I()[tk] && I()[tk].mine ? 1.5 : 7; if (tk && !((s.prod[tk] || 0) >= want)) s.prod[tk] = want; } // 2.32.1 鉄鉱石の特産は掘り出す量なので少なめ // 1.6.77 特産は多く作る（古いセーブも）。1.6.87 特産でなくなった品は3まで
       s.size = s.size || SIZE[s.type]; if (SGK.DATA.isBig(s)) s.size = Math.max(s.size, 3); // 1.6.78 大きな町は品物が多い
       s.stock = s.stock || {};
       for (const k in I()) if (s.stock[k] == null) s.stock[k] = Math.max(6, Math.round(target(s, k))); // 1.6.88 開始時はどこも目安どおりの在庫（相場どおりの値段から始まる）
