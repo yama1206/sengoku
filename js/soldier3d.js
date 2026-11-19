@@ -116,7 +116,7 @@
       let bi = SI.getX(i), bw = SW.getX(i); for (const k of ['getY', 'getZ', 'getW']) if (SW[k](i) > bw) { bw = SW[k](i); bi = SI[k](i); }
       const bn = (boneNames[bi] || '').replace(/^mixamorig:?/, '');
       if (/Hand|Thumb|Index|Middle|Ring|Pinky/.test(bn)) C.setXYZ(i, -S.GLOVE[0], S.GLOVE[1], S.GLOVE[2]); // 手袋：赤をマイナスにして服の印
-      else C.setXYZ(i, S.SKIN[0], S.SKIN[1], S.SKIN[2]);
+      else C.setXYZ(i, S.SKIN[0], -S.SKIN[1], S.SKIN[2]); // 肌：緑をマイナスにして肌の印（空の映り込みを弱める。look を見る）
     }
     C.needsUpdate = true;
   }
@@ -135,22 +135,24 @@
   // 2.7.0 質感：色の暗い所（黒漆の具足・陣笠）はつやを出し、明るい灰色（刃・金具）は金属に。ふちを少し明るくして形を見やすく
   S.mats = [];
   S.setEnv = (env) => { for (const m of S.mats) { m.envMap = env; m.envMapIntensity = 0.55; m.needsUpdate = true; } };
-  function look(sh, metal) {
+  function look(sh, metal, skin) {
+    // 2.22.0 肌（緑がマイナスの印）は空の明るさを強く映さない。戦場では空の映り込みで白っぽく見えていた
+    if (skin) sh.fragmentShader = 'varying float vSk_;\n' + sh.fragmentShader.replace('#include <lights_fragment_maps>', '#include <lights_fragment_maps>\n  if (vSk_ > 0.5) { iblIrradiance *= 0.3; radiance *= 0.15; }');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n#ifdef USE_COLOR\n  float lum_ = dot(vColor.rgb, vec3(0.299, 0.587, 0.114)), sat_ = max(vColor.r, max(vColor.g, vColor.b)) - min(vColor.r, min(vColor.g, vColor.b));\n  roughnessFactor = mix(0.42, 0.88, smoothstep(0.04, 0.22, lum_));\n#endif')
       .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n#ifdef USE_COLOR\n' + (metal ? '  if (lum_ > 0.45 && sat_ < 0.12) { metalnessFactor = 0.9; roughnessFactor = 0.3; }\n' : '  if (lum_ > 0.6 && sat_ < 0.08 && lum_ < 0.85) { metalnessFactor = 0.5; roughnessFactor = 0.45; }\n') + '#endif')
-      .replace('#include <dithering_fragment>', '  { float rim_ = 1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0); gl_FragColor.rgb += vec3(1.0, 0.93, 0.8) * pow(rim_, 3.0) * 0.22; }\n#include <dithering_fragment>');
+      .replace('#include <dithering_fragment>', '  { float rim_ = 1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0); gl_FragColor.rgb += vec3(1.0, 0.93, 0.8) * pow(rim_, 3.0) * ' + (skin ? '0.22 * (1.0 - 0.8 * vSk_)' : '0.22') + '; }\n#include <dithering_fragment>');
   }
   const stdMat = (metal) => { const m = new T.MeshStandardMaterial({ vertexColors: true, side: T.DoubleSide, roughness: 0.85, metalness: 0 }); S.mats.push(m); return m; };
   // 焼き込んだ骨の行列で体を動かす素材（影用も）
   function skinMat(b, depth) {
     const m = depth ? new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking }) : stdMat(false);
     m.onBeforeCompile = (sh) => {
-      if (!depth) look(sh, false);
+      if (!depth) look(sh, false, true);
       sh.uniforms.bT = { value: b.tex }; sh.uniforms.bS = { value: new T.Vector2(b.nb * 4, b.H) }; sh.uniforms.bU = { value: b.upper };
       // aR＝(下半身の行, 上半身の行, 白く光る量)。aC＝上半身を下半身の腰につなぐ行列
       sh.vertexShader = [
-        'uniform sampler2D bT; uniform vec2 bS; uniform float bU[64]; attribute vec4 skinIndex; attribute vec4 skinWeight; attribute vec4 aR; attribute mat4 aC;',
+        'uniform sampler2D bT; uniform vec2 bS; uniform float bU[64]; attribute vec4 skinIndex; attribute vec4 skinWeight; attribute vec4 aR; attribute mat4 aC; varying float vSk_;',
         'mat4 bM(float i) { bool up = bU[int(i + 0.5)] > 0.5; float y = ((up ? aR.y : aR.x) + 0.5) / bS.y, dx = 1.0 / bS.x, x = (i * 4.0 + 0.5) * dx;',
         '  mat4 m = mat4(texture2D(bT, vec2(x, y)), texture2D(bT, vec2(x + dx, y)), texture2D(bT, vec2(x + 2.0 * dx, y)), texture2D(bT, vec2(x + 3.0 * dx, y)));',
         '  return up ? aC * m : m; }',
@@ -158,10 +160,10 @@
           .replace('#include <skinbase_vertex>', 'mat4 skM = skinWeight.x * bM(skinIndex.x) + skinWeight.y * bM(skinIndex.y) + skinWeight.z * bM(skinIndex.z) + skinWeight.w * bM(skinIndex.w);')
           .replace('#include <skinnormal_vertex>', 'objectNormal = normalize(mat3(skM) * objectNormal);')
           .replace('#include <skinning_vertex>', 'transformed = (skM * vec4(transformed, 1.0)).xyz;')
-          .replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\n  float cl_ = vColor.r < 0.0 ? 1.0 : 0.0; vColor.rgb = abs(vColor.rgb);\n  if (aR.w >= 0.0 && cl_ > 0.5) { vec3 tc = vec3(floor(aR.w / 65536.0), mod(floor(aR.w / 256.0), 256.0), mod(aR.w, 256.0)) / 255.0; vColor.rgb = tc * (0.45 + 0.9 * dot(vColor.rgb, vec3(0.299, 0.587, 0.114))); }\n  vColor.rgb = mix(vColor.rgb, vec3(1.0), aR.z);\n#endif'), // 2.12.5 服を選んだ色に染める（aR.w＝色を1つの数にしたもの。-1 なら元の色。服かどうかは色で見分ける）
+          .replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\n  float cl_ = vColor.r < 0.0 ? 1.0 : 0.0; vSk_ = vColor.g < 0.0 ? 1.0 : 0.0; vColor.rgb = abs(vColor.rgb);\n  if (aR.w >= 0.0 && cl_ > 0.5) { vec3 tc = vec3(floor(aR.w / 65536.0), mod(floor(aR.w / 256.0), 256.0), mod(aR.w, 256.0)) / 255.0; vColor.rgb = tc * (0.45 + 0.9 * dot(vColor.rgb, vec3(0.299, 0.587, 0.114))); }\n  vColor.rgb = mix(vColor.rgb, vec3(1.0), aR.z);\n#endif'), // 2.12.5 服を選んだ色に染める（aR.w＝色を1つの数にしたもの。-1 なら元の色。服かどうかは色で見分ける）
       ].join('\n');
     };
-    m.customProgramCacheKey = () => 'sold3d5' + (depth ? 'd' : 'c');
+    m.customProgramCacheKey = () => 'sold3d6' + (depth ? 'd' : 'c');
     return m;
   }
 

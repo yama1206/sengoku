@@ -290,7 +290,7 @@
       fc.fillStyle = g; fc.beginPath(); fc.moveTo(sx(d.x), sy(d.y)); fc.arc(sx(d.x), sy(d.y), u[8] * L.sc, fa - HALF, fa + HALF); fc.closePath(); fc.fill();
       fc.fillStyle = 'rgba(0,0,0,.7)'; fc.beginPath(); fc.arc(sx(d.x), sy(d.y), 14 * L.sc, 0, 7); fc.fill();
     }
-    ctx.drawImage(fogCv, 0, 0);
+    if (W > 0 && H > 0) ctx.drawImage(fogCv, 0, 0); // 2.22.0 画面の大きさが0の時（隠れている時）は描かない
     ctx.strokeStyle = '#4b5530'; ctx.lineWidth = 2; ctx.strokeRect(sx(0), sy(0), F.w * L.sc, F.h * L.sc);
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     for (const u of bt.units) {

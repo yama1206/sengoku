@@ -5,12 +5,20 @@
   const X = R.act3d = { on: true, ready: false, failed: false };
   try { const v = localStorage.getItem('sgk-act3d'); if (v === '0') X.on = false; } catch (e) { /* 保存できない環境 */ }
   // 0.75.0 ビデオ設定：影（0切・1低・2高）、草の量（0なし・1少なめ・2普通・3多め）
-  X.vid = { sh: 2, gr: 2, pp: 1 }; /* 2.2.0 pp：画面の仕上げ（0切・1入） */ try { Object.assign(X.vid, JSON.parse(localStorage.getItem('sgk-vid') || '{}')); } catch (e) { /* 無視 */ }
+  X.vid = { sh: 2, gr: 2, pp: 1, lo: 0, men: 360 }; /* 2.2.0 pp：画面の仕上げ（0切・1入）。2.23.0 lo：超低画質、men：戦場に同時に出る兵の数 */
+  // 2.23.0 スマホは初めから超低画質（自分で設定を変えたら、それを使う）
+  X.phone = /Android|iPhone|iPod|iPad/i.test(navigator.userAgent || '') || (!!window.matchMedia && matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 820);
+  if (X.phone) Object.assign(X.vid, { lo: 1, men: 150 });
+  try { Object.assign(X.vid, JSON.parse(localStorage.getItem('sgk-vid') || '{}')); } catch (e) { /* 無視 */ }
+  X.MEN = [80, 120, 150, 200, 250, 360, 500]; // 設定で選べる数
+  X.eff = () => (X.vid.lo ? { sh: 0, gr: 0, pp: 0, pr: 1 } : { sh: X.vid.sh, gr: X.vid.gr, pp: X.vid.pp, pr: Math.min(2, window.devicePixelRatio || 1) }); // 超低画質：影・草・仕上げを切り、細かさは画面の1倍
+  if (SGK.SIM && SGK.SIM.ACT) SGK.SIM.ACT.fieldMen = () => X.vid.men || 360;
   let grassM = null;
   X.setVid = (k, v) => { X.vid[k] = v; try { localStorage.setItem('sgk-vid', JSON.stringify(X.vid)); } catch (e) { /* 無視 */ } X.applyVid(); };
   X.applyVid = () => {
-    if (sun) { const sh = X.vid.sh, sz = sh === 1 ? 2048 : 4096, bx = sh === 1 ? 90 : 130; sun.castShadow = sh > 0; { const c = sun.shadow.camera; if (c.right !== bx) { c.left = c.bottom = -bx; c.right = c.top = bx; c.updateProjectionMatrix(); } } /* 2.2.0 影を細かく・広く */ if (sun.shadow.mapSize.x !== sz) { sun.shadow.mapSize.set(sz, sz); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } } }
-    if (grassM) grassM.count = Math.floor(grassM.userData.full * [0, 0.2, 0.55, 1][X.vid.gr]);
+    const E = X.eff(); if (rd && rd.getPixelRatio() !== E.pr) rd.setPixelRatio(E.pr);
+    if (sun) { const sh = E.sh, sz = sh === 1 ? 2048 : 4096, bx = sh === 1 ? 90 : 130; sun.castShadow = sh > 0; { const c = sun.shadow.camera; if (c.right !== bx) { c.left = c.bottom = -bx; c.right = c.top = bx; c.updateProjectionMatrix(); } } /* 2.2.0 影を細かく・広く */ if (sun.shadow.mapSize.x !== sz) { sun.shadow.mapSize.set(sz, sz); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } } }
+    if (grassM) grassM.count = Math.floor(grassM.userData.full * [0, 0.2, 0.55, 1][E.gr]);
   };
   X.toggle = () => { X.on = !X.on; try { localStorage.setItem('sgk-act3d', X.on ? '1' : '0'); } catch (e) { /* 無視 */ } if (!X.on && cv) cv.style.display = 'none'; return X.on; };
 
@@ -45,7 +53,7 @@
     const m = document.getElementById('map'); m.parentNode.insertBefore(cv, m);
     if (T.ColorManagement) T.ColorManagement.legacyMode = false; /* 2.1.0 色を正しく扱う（明暗がはっきりする） */
     try { rd = new T.WebGLRenderer({ canvas: cv, antialias: true }); } catch (e) { X.failed = true; return false; }
-    rd.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    rd.setPixelRatio(X.eff().pr);
     rd.shadowMap.enabled = true; rd.shadowMap.type = T.PCFSoftShadowMap;
     rd.outputEncoding = T.sRGBEncoding; rd.toneMapping = T.ACESFilmicToneMapping; rd.toneMappingExposure = 1.0;
     scene = new T.Scene(); scene.background = new T.Color(0xcfdde6); scene.fog = new T.Fog(0xcfdde6, 150, 520);
@@ -1130,7 +1138,7 @@
       fm.position.set(hh.x, hgt(hh.x, hh.y) + 0.9, hh.y); fm.rotation.set(0, -hh.sw.a, 0); fm.scale.set(hh.sw.r, 1, hh.sw.r); fi++;
     }
     for (; fi < X.fans.length; fi++) X.fans[fi].visible = false;
-    if (X.vid.pp !== 0 && ppRender()) { /* 2.2.0 仕上げ処理つきで描いた */ } else { rd.setRenderTarget(null); rd.render(scene, cam3); }
+    if (X.eff().pp !== 0 && ppRender()) { /* 2.2.0 仕上げ処理つきで描いた */ } else { rd.setRenderTarget(null); rd.render(scene, cam3); }
     // 掃除：いなくなった兵の記録を消す
     if (last.size > A.s.length * 2 + 50) { const ids = new Set(A.s.map((s) => s.id)); for (const k of last.keys()) if (!ids.has(k)) last.delete(k); }
     return true;

@@ -2,7 +2,9 @@
 (function () {
   const SIM = SGK.SIM, R = SGK.RENDER, TR = SIM.TROOPS;
   const ACT = SIM.ACT = {
-    MAXMEN: 360,     // 戦場に出す兵の上限（多いときは1人が何人分かを受け持つ）
+    MAXMEN: 360,     // 戦場に同時に出す兵の数（2.23.0 設定で変えられる：ACT.fieldMen）。残りは控えにいて、減ったら後ろから増援として出る
+    POOL: 2400,      // 2.23.0 控えも合わせた兵の数の上限（これより多い軍は、1人が何人分かを受け持つ）
+    REIN: 0.35,      // 2.23.0 増援が1人出る間隔（秒、隊ごと）
     SQUEEZE: 0.55,   // 両軍の初めの間合いを縮める
     SPD: 0.9,        // 移動の速さの倍率（0.61.2 1.5→0.9）
     HERO_HP: 2.5,
@@ -26,12 +28,14 @@
   const rr = () => Math.random();
   const live = (s) => s.hp > 0 && !s.gone;
 
-  SIM.actCan = (w, b) => b && !b.act; // 1.6.11 攻城戦でも自分で戦える
+  SIM.actCan = (w, b) => { if (b && b.plan === undefined && SIM.planBegin) SIM.planBegin(w, b); return !!b && !b.act && !b.plan; }; // 1.6.11 攻城戦でも自分で戦える。2.22.0 軍議の間はまだ
   SIM.actStart = (w, b, pid) => {
     const F = SIM.FIELD, cx = F.w / 2;
     const us = b.units.filter((u) => u.hp > 0 && !u.gone);
     const total = us.reduce((a, u) => a + (u.type === 'hero' ? 0 : u.n), 0);
-    const A = b.act = { pid, pids: (b.pids || [pid]).slice(), inp: {}, dq: {}, dc: 0, k: Math.max(1, Math.ceil(total / ACT.MAXMEN)), s: [], pr: [], fx: [], dead: [], next: 1 };
+    const k = Math.max(1, Math.ceil(total / ACT.POOL)), sprites = us.reduce((a, u) => a + (u.type === 'hero' ? 0 : Math.max(1, Math.ceil(u.n / k))), 0);
+    const cap = (SIM.ACT.fieldMen && SIM.ACT.fieldMen()) || ACT.MAXMEN; // 2.23.0 戦場に同時に出す数（設定）
+    const A = b.act = { pid, pids: (b.pids || [pid]).slice(), inp: {}, dq: {}, dc: 0, k, r: Math.min(1, cap / Math.max(1, sprites)), s: [], pr: [], fx: [], dead: [], next: 1 };
     for (const u of us) { if (!b.cside) u.x = cx + (u.x - cx) * ACT.SQUEEZE; actAdd(A, b, u); }
     A.byG = {}; for (const u of b.units) A.byG[u.id] = u;
     A.trees = treePts(b.id, b.ter || []);
@@ -45,11 +49,11 @@
         A.s.push({ id: A.next++, g: u.id, side: u.side, x: u.x - (u.side === 'A' ? 6 : -6), y: u.y, f: u.f, hp: u.hp * ACT.HERO_HP, mh: u.mh * ACT.HERO_HP, hero: 1, pc: u.owner && A.pids.includes(u.owner) ? u.owner : 0, cd: 0, dash: 0, dcd: 0 });
         return;
       }
-      const m = Math.max(1, Math.ceil(u.n / A.k));
-      u.m0 = m; u.nA = u.n; u.ax = u.x; u.ay = u.y; u.af = u.f;
+      const m = Math.max(1, Math.ceil(u.n / A.k)), on = Math.max(1, Math.min(m, Math.round(m * (A.r == null ? 1 : A.r)))); // 2.23.0 on 人だけ出し、残りは控え（u.rq）
+      u.m0 = m; u.nA = u.n; u.ax = u.x; u.ay = u.y; u.af = u.f; u.on = on; u.rq = m - on; u.hpS = u.hp / m * ACT.MEN_HP;
       const L = [];
-      for (let i = 0; i < m; i++) {
-        const s = { id: A.next++, g: u.id, side: u.side, ox: 0, oy: 0, hp: u.hp / m * ACT.MEN_HP, mh: u.hp / m * ACT.MEN_HP, cd: rr() * 1.5, type: u.type };
+      for (let i = 0; i < on; i++) {
+        const s = { id: A.next++, g: u.id, side: u.side, ox: 0, oy: 0, hp: u.hpS, mh: u.hpS, cd: rr() * 1.5, type: u.type };
         L.push(s); A.s.push(s);
       }
       layout(u, L); for (const s of L) place(s, u);
@@ -299,6 +303,7 @@
     const HGT = (b.ter || []).some((t) => t.k === 'h') || !!(SIM.nawa(b.ter) && SIM.nawa(b.ter).hg); /* 2.12.0 高さのある戦場か */
     const CW = SIM.nawa(b.ter); if (CW && !A.gt) { A.gt = SIM.gateInit(CW, b.gf); SIM.nawaWarm(CW); }
     WB = CW ? [CW, A.gt, b.cside] : null; if (CW && b.cside && !A.posted) setPosts(A, b, CW);
+    reinforce(A, b, dt); // 2.23.0 減った隊に控えから増援
     const all = A.s.filter(live), g = grid(all);
     const center = {};
     for (const s of all) if (!s.hero) { const c = center[s.g] || (center[s.g] = { x: 0, y: 0, n: 0 }); c.x += s.x; c.y += s.y; c.n++; }
@@ -509,20 +514,40 @@
       }
     }
     sync(b, A); b.visA = b.units.filter((u) => u.side === 'B').map((u) => u.id);
-    const fightB = A.s.some((s) => s.side === 'B' && live(s) && (s.hero || !['rout', 'retreat'].includes((A.byG[s.g] || {}).order)));
+    const fightB = A.s.some((s) => s.side === 'B' && live(s) && (s.hero || !['rout', 'retreat'].includes((A.byG[s.g] || {}).order))) || reserveLeft(b, 'B');
     const bn = b.units.filter((u) => u.side === 'B' && u.hp > 0 && !u.gone).reduce((a, u) => a + u.n, 0);
     if (!b.routed && bn < b.foeN * 0.2) { b.routed = true; b.units.forEach((u) => { if (u.side === 'B') u.order = 'rout'; }); sayAll(A, `${b.foe}が逃げ出しました！`); }
-    const aLive = A.s.some((s) => s.side === 'A' && live(s));
+    const aLive = A.s.some((s) => s.side === 'A' && live(s)) || reserveLeft(b, 'A');
     if (!fightB) return SIM._finishBattle(w, b, 'win');
     if (!aLive) return SIM._finishBattle(w, b, A.s.some((s) => s.side === 'A' && s.gone && s.hp > 0) ? 'escape' : 'lose');
   };
+  /* 2.23.0 増援：戦場にいる兵が出す数（u.on）より減ったら、控え（u.rq）から隊の後ろへ1人ずつ足す。崩れた・退いている隊には来ない */
+  function reinforce(A, b, dt) {
+    const F = SIM.FIELD, cnt = {};
+    for (const s of A.s) if (!s.hero && live(s)) cnt[s.g] = (cnt[s.g] || 0) + 1;
+    for (const u of b.units) {
+      if (!u.rq || u.type === 'hero' || u.order === 'rout' || u.order === 'retreat') { u.rt = 0; continue; }
+      let need = (u.on || 0) - (cnt[u.id] || 0); if (need <= 0) { u.rt = 0; continue; }
+      u.rt = (u.rt || 0) + dt; let add = 0;
+      while (need > 0 && u.rq > 0 && u.rt >= ACT.REIN) {
+        u.rt -= ACT.REIN; need--; u.rq--; add++;
+        const back = (u.af || 0) + Math.PI, d = 9 + rr() * 5, sd = (rr() - 0.5) * 10;
+        const s = { id: A.next++, g: u.id, side: u.side, ox: 0, oy: 0, hp: u.hpS, mh: u.hpS, cd: 1 + rr(), type: u.type, f: u.af || 0,
+          x: Math.max(2, Math.min(F.w - 2, (u.ax || u.x) + Math.cos(back) * d - Math.sin(back) * sd)), y: Math.max(2, Math.min(F.h - 2, (u.ay || u.y) + Math.sin(back) * d + Math.cos(back) * sd)) };
+        A.s.push(s);
+      }
+      if (add) { A.newS = 15; SIM.actForm(b, u); }
+    }
+  }
+  const reserveLeft = (b, side) => b.units.some((u) => u.side === side && u.rq > 0 && u.order !== 'rout' && u.order !== 'retreat');
   function sync(b, A) { // 兵一人ひとりの体力を、元の部隊（数・体力）に戻す：結果の計算はこれまでどおり
     const acc = {};
     for (const s of A.s) { const a = acc[s.g] || (acc[s.g] = { hp: 0, n: 0, go: 0 }); if (s.hp > 0) { a.hp += s.hp; a.n++; if (s.gone) a.go++; } }
     for (const u of b.units) {
       const a = acc[u.id]; if (!a) continue;
       if (u.type === 'hero') { u.hp = a.hp / ACT.HERO_HP; u.gone = a.n > 0 && a.go === a.n; continue; }
-      u.hp = a.hp / ACT.MEN_HP; u.n = a.n ? Math.max(1, Math.round((u.nA || u.n0) * a.n / (u.m0 || 1))) : 0;
+      const rq = u.rq || 0; // 2.23.0 控えの兵も数と体力に入れる
+      u.hp = (a.hp + rq * (u.hpS || 0)) / ACT.MEN_HP; u.n = a.n + rq ? Math.max(1, Math.round((u.nA || u.n0) * (a.n + rq) / (u.m0 || 1))) : 0;
       u.gone = a.n > 0 && a.go === a.n;
     }
   }
@@ -543,6 +568,7 @@
   const q10 = (v) => Math.round(v * 10);
   // full = 動かない情報（陣営・隊・兵種・操る人）も送る
   SIM.actSnap = (b, full) => {
+    if (b.act.newS > 0) { b.act.newS--; full = true; } // 2.23.0 増援が出たら、参加者にも新しい兵の情報を送る
     const A = b.act, L = A.s.filter(live), o = { id: b.id, s: [], pr: [], dc: A.dc, dead: A.dead.slice(-40).map((d) => [q10(d.x), q10(d.y), d.side === 'A' ? 0 : 1]) };
     for (const s of L) o.s.push(s.id, q10(s.x), q10(s.y), Math.round((s.f || 0) * 100), Math.round((s.hp / s.mh) * 100), (s.fl ? 1 : 0) | (s.at && performance.now() / 1000 - s.at < 0.3 ? 2 : 0) | (s.kat ? 4 : 0));
     for (const p of A.pr) o.pr.push(q10(p.x), q10(p.y), Math.round(p.vx), Math.round(p.vy), p.gun ? 1 : 0, q10(p.h || 0));

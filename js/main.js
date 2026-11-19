@@ -1350,6 +1350,13 @@
     $('battleTitle').textContent = `${bt.foe}との戦い${bt.ck ? '（' + SIM.ckName(bt.ck) + '）' : ''}`;
     $('battleInfo').textContent = `味方 ${sum('A')}　敵 ${sum('B')}${bt.routed ? '（敗走中）' : ''}　${bt.t}秒`;
     let html = ''; // 部隊の一覧は出さない（地図の上でクリックして選ぶ）
+    if (bt.plan) { // 2.22.0 軍議：戦は止まっている。隊を置き直して、全員が準備完了で始まる
+      const PL = bt.plan, nm = (x) => (bt.names && bt.names[x]) || '仲間', many = PL.ready.length + PL.wait.length > 1;
+      $('battleTitle').textContent = `軍議　${bt.foe}との戦い${bt.ck ? '（' + SIM.ckName(bt.ck) + '）' : ''}`;
+      html += `<div class="bu"><span class="nm muted">隊をクリックして選び、置きたい場所をクリック（初めの場所から${PL.reach}mまで）。右ドラッグで向き。突撃・防御・待機で始めの構えも決められます</span></div>`;
+      if (many) html += `<div class="bu"><span class="nm">準備完了：${PL.ready.map(nm).join('・') || 'まだ誰も'}${PL.wait.length ? `<span class="muted">　待っている：${PL.wait.map(nm).join('・')}</span>` : ''}${PL.left != null ? `<span class="muted">（あと${PL.left}秒で始まります）</span>` : ''}</span></div>`;
+      html += `<div class="row" style="margin-top:4px"><button id="bReady" class="main" data-bact="planReady">${PL.me ? '準備完了を取り消す' : '準備完了（合戦を始める）'}</button></div>`;
+    }
     // 0.46.0 タップでも指図できるように：選んだ隊と全軍への指図ボタン
     const su = bt.units.find((u) => u[0] === G.selUnit && u[2] === G.myPid);
     const AB = actB(), ob = (unit) => ['charge', 'guard', 'hold', ...(AB ? ['follow'] : [])].map((o) => `<button id="bo-${unit}-${o}" data-unit="${unit}" data-order="${o}">${ORDN[o]}</button>`).join('');
@@ -1496,10 +1503,13 @@
   actDefLbl();
   act3dLbl();
   // 0.75.0 ビデオ設定（影・草の量）
-  const vidLbl = () => { const V = R.act3d && R.act3d.vid; if (!V) return; $('mShadow').textContent = `影：${['切', '低', '高'][V.sh]}`; $('mGrass').textContent = `草の量：${['なし', '少なめ', '普通', '多め'][V.gr]}`; $('mPost').textContent = `画面の仕上げ：${V.pp === 0 ? '切' : '入'}`; };
+  const vidLbl = () => { const V = R.act3d && R.act3d.vid; if (!V) return; $('mLow').textContent = `超低画質：${V.lo ? '入（影・草・仕上げなし）' : '切'}`; $('mMen').textContent = `戦場に出る兵の数：${V.men}人まで（残りは増援）`; $('mShadow').textContent = `影：${['切', '低', '高'][V.sh]}`; $('mGrass').textContent = `草の量：${['なし', '少なめ', '普通', '多め'][V.gr]}`; $('mPost').textContent = `画面の仕上げ：${V.pp === 0 ? '切' : '入'}`; };
   $('mShadow').onclick = () => { if (R.act3d) R.act3d.setVid('sh', (R.act3d.vid.sh + 1) % 3); vidLbl(); };
   $('mGrass').onclick = () => { if (R.act3d) R.act3d.setVid('gr', (R.act3d.vid.gr + 1) % 4); vidLbl(); };
   $('mPost').onclick = () => { if (R.act3d) R.act3d.setVid('pp', R.act3d.vid.pp === 0 ? 1 : 0); vidLbl(); };
+  // 2.23.0 超低画質（スマホは初めから入）と、戦場に同時に出る兵の数（減ったら控えから増援が出る）
+  $('mLow').onclick = () => { if (R.act3d) R.act3d.setVid('lo', R.act3d.vid.lo ? 0 : 1); vidLbl(); };
+  $('mMen').onclick = () => { const X = R.act3d; if (!X) return; const L = X.MEN, i = L.indexOf(X.vid.men); X.setVid('men', L[(i + 1) % L.length]); vidLbl(); toast('次の合戦から変わります', 1200); };
   vidLbl();
   const VOL = { all: 'vAll', bgm: 'vBgm', sfx: 'vSfx' };
   for (const k in VOL) $(VOL[k]).textContent = SGK.AUDIO.label(k);

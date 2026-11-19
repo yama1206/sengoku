@@ -553,8 +553,40 @@
     banditTick,
     healTick,
     patrolTick,
-    function battles(w, dtMin) { const sec = (dtMin / CFG.MIN_PER_SEC) * BATTLE_PACE; for (const b of Object.values(w.battles)) if (!b.act) stepBattle(w, b, sec); },
+    function battles(w, dtMin) {
+      const sec = (dtMin / CFG.MIN_PER_SEC) * BATTLE_PACE, real = dtMin / CFG.MIN_PER_SEC;
+      for (const b of Object.values(w.battles)) {
+        if (b.plan === undefined) planBegin(w, b); // 2.22.0 始まる前に軍議
+        if (b.plan) { planTick(w, b, real); continue; }
+        if (!b.act) stepBattle(w, b, sec);
+      }
+    },
   );
+
+  /* 2.22.0 軍議：戦が始まる前に、上からの地図で自分の隊を置き直す。戦は止まっていて、参加しているプレイヤー全員が
+     「準備完了」を押したら始まる。二人以上の時は、抜けた人で止まったままにならないよう PLAN.max 秒で自動で始める */
+  const PLAN = SIM.PLAN = { max: 180, reach: 45 }; // reach：初めの場所からどれだけ動かせるか（m）
+  SIM.planBegin = (w, b) => planBegin(w, b);
+  function planBegin(w, b) {
+    if (!b.pids || !b.pids.length || b.t > 0) { b.plan = null; return; }
+    b.plan = { ready: {}, t: 0 };
+    for (const u of b.units) { u.px0 = u.x; u.py0 = u.y; }
+    b.pids.forEach((pid) => SIM.say(pid, '軍議：地図で隊を選んで置き場所をクリック（右ドラッグで向き）。整ったら「準備完了」'));
+  }
+  function planTick(w, b, real) {
+    const P = b.plan; P.t += real;
+    const all = b.pids.length && b.pids.every((pid) => P.ready[pid]);
+    if (all || (b.pids.length > 1 && P.t > PLAN.max) || !b.pids.length) {
+      b.plan = null;
+      b.pids.forEach((pid) => SIM.say(pid, all ? '軍議が終わりました。合戦の始まりです！' : '時間になったので合戦を始めます！'));
+    }
+  }
+  function planPlace(b, u, x, y) { // 初めの場所から PLAN.reach の中、戦場の中に置く。隊に入っている本人もいっしょに
+    const ox = u.px0 == null ? u.x : u.px0, oy = u.py0 == null ? u.y : u.py0;
+    let dx = x - ox, dy = y - oy; const d = Math.hypot(dx, dy); if (d > PLAN.reach) { dx *= PLAN.reach / d; dy *= PLAN.reach / d; }
+    u.x = Math.max(2, Math.min(FIELD.w - 2, ox + dx)); u.y = Math.max(2, Math.min(FIELD.h - 2, oy + dy));
+    for (const h of b.units) if (h.att === u.id) { h.x = u.x; h.y = u.y; }
+  }
 
   // ---- コマンド ----
   function inTown(w, p) {
@@ -588,13 +620,20 @@
       for (const u of b.units) if ((u.owner === p.id || u.cmd === p.id) && u.order !== 'rout' && (c.unit === 'all' || u.id === +c.unit)) {
         if (c.order === 'form') { if (SIM.ACT && SIM.ACT.FORMS[c.fm]) { u.fm = c.fm; if (SIM.actForm) SIM.actForm(b, u); } continue; } // 0.75.0 隊形
         if (c.order === 'fire') { u.nofire = !c.on; continue; } // 0.75.0 射撃の許可
-        if (c.order === 'face') { if (Number.isFinite(+c.f)) u.mf = +c.f; continue; } // 0.59.0 着いたら（止まっているなら今）この向きを向く
+        if (c.order === 'face') { if (Number.isFinite(+c.f)) { u.mf = +c.f; if (b.plan) { u.f = u.mf; for (const h of b.units) if (h.att === u.id) h.f = u.f; } } continue; } // 0.59.0 着いたら（止まっているなら今）この向きを向く（2.22.0 軍議中はすぐ向く）
+        if (b.plan && c.order === 'move') { planPlace(b, u, +c.x || 0, +c.y || 0); continue; } // 2.22.0 軍議中は歩かせずにそこへ置く
         u.order = c.order; if (c.order !== 'hold') u.mf = null;
         { const tg = (c.order === 'charge' || c.order === 'flank') && c.tg != null && b.units.find((v) => v.id === +c.tg); u.ct = tg && tg.side !== u.side ? tg.id : null; } // 1.6.66 突撃先の隊
         if (c.order === 'move') { u.mx = Math.max(2, Math.min(FIELD.w - 2, +c.x || 0)); u.my = Math.max(2, Math.min(FIELD.h - 2, +c.y || 0)); }
       }
     },
-    battleAuto(w, p) { const b = w.battles[p.battle]; if (b) autoResolve(w, b); },
+    battleAuto(w, p) { const b = w.battles[p.battle]; if (b && !b.plan) autoResolve(w, b); },
+    planReady(w, p, c) { // 2.22.0 軍議の準備完了（もう一度押すと取り消し）
+      const b = w.battles[p.battle]; if (!b || !b.plan) return;
+      b.plan.ready[p.id] = c.on == null ? !b.plan.ready[p.id] : !!c.on;
+      const left = b.pids.filter((x) => !b.plan.ready[x]).length;
+      if (b.plan.ready[p.id] && left) b.pids.forEach((x) => { if (x !== p.id) SIM.say(x, `${p.name || '仲間'}の準備ができました（あと${left}人）`); });
+    },
     battleFlee(w, p) {
       const b = w.battles[p.battle]; if (!b) return;
       const before = b.start[p.id] || {}, tr = surviving(w, b, p.id);
@@ -622,7 +661,8 @@
     Object.assign(r.me, { hpFrac: p.hpFrac == null ? 1 : Math.round(p.hpFrac * 1000) / 1000, hpMax: Math.round(TR.hero.hp * (SIM.unitMods(w, pid, 'hero').hm || 1)), follow: SIM.followName(w, p), speed: Math.round(p.speed || 0), troops: p.troops, troopCap: SIM.troopCap(p), wage: SIM.wage(p.troops, p), costMod: SIM.costMod(p) });
     if (r.here) { const s = SIM.settlement(w, r.here.id); r.here.recruit = Object.keys(SIM.poolOf(s)).map((k) => [k, Math.floor(s.pool[k] || 0), SIM.hireMul(s, k)]); r.here.chiho = SIM.chihoOf ? SIM.chihoOf(s) : null; }
     const b = p.battle && w.battles[p.battle];
-    r.battle = b ? { id: b.id, foe: b.foe, t: Math.floor(b.t), routed: b.routed, act: b.act ? 1 : 0, canAct: SIM.actCan && SIM.actCan(w, b) ? 1 : 0, lead: b.lead === pid ? (b.leadAll ? 2 : 1) : 0,
+    if (b && b.plan === undefined) planBegin(w, b); // 2.22.0 できたばかりの戦は、まず軍議
+    r.battle = b ? { id: b.id, plan: b.plan ? { me: b.plan.ready[pid] ? 1 : 0, ready: b.pids.filter((x) => b.plan.ready[x]), wait: b.pids.filter((x) => !b.plan.ready[x]), left: b.pids.length > 1 ? Math.max(0, Math.ceil(PLAN.max - b.plan.t)) : null, reach: PLAN.reach } : null, foe: b.foe, t: Math.floor(b.t), routed: b.routed, act: b.act ? 1 : 0, canAct: SIM.actCan && SIM.actCan(w, b) ? 1 : 0, lead: b.lead === pid ? (b.leadAll ? 2 : 1) : 0,
       names: Object.fromEntries(b.pids.map((x) => [x, (w.players[x] || {}).name])),
       ter: b.ter || [], ck: b.ck || null, units: b.units.filter((u) => alive(u) && (u.side === 'A' || (b.visA || []).includes(u.id)))
         .map((u) => [u.id, u.side, u.owner || u.cmd || null, u.type, u.n, r1(u.x), r1(u.y), u.order, Math.round(visRange(b, u)), Math.round(u.mor), Math.round(u.f * 100) / 100, u.type === 'hero' ? Math.ceil(u.hp) : undefined, r1(reachOf(b, u)), u.gname || undefined, u.att != null ? u.att : undefined, u.lead ? 1 : undefined]) } : null;
