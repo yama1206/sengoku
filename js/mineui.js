@@ -190,4 +190,15 @@
     p.querySelectorAll('button[data-id]').forEach((b) => (b.onclick = () => { SGK.cmd({ type: 'oreSell', id: b.dataset.id }); setTimeout(panel, 400); }));
   }
   menuBtn.onclick = () => { $('mClose').click(); panel(); };
+
+  // ---- 鉱石図鑑 ----
+  const zb = document.createElement('button'); zb.id = 'mOreZ'; zb.textContent = '鉱石図鑑'; menuBtn.insertAdjacentElement('afterend', zb);
+  function zukan() {
+    const me = G.priv && G.priv.me; if (!me) return; const Z = me.oreZ || {};
+    let p = $('minePanel'); if (!p) { p = document.createElement('div'); p.id = 'minePanel'; document.body.appendChild(p); }
+    const got = M.MIN.filter((m) => (Z[m.id] || []).some((n) => n)).length;
+    p.innerHTML = `<div class="cc"><div class="row" style="justify-content:space-between;align-items:center"><b>鉱石図鑑</b><span class="muted">${got}/${M.MIN.length}種</span><button id="opX">閉じる</button></div><div class="cl">${M.MIN.map((m) => { const a = Z[m.id]; if (!a || !a.some((n) => n)) return '<div class="it"><b>？？？</b></div>'; const best = [3, 2, 1, 0].find((q) => a[q]); return `<div class="it"><div>${chip(m)}<b>${m.name}</b>　<span class="muted">最高 ${M.QN[best]}</span><br><span style="font-size:12px">${M.DESC[m.id]}</span><br><span class="muted">採取 ${a.reduce((x, y) => x + y, 0)}個（${[3, 2, 1, 0].filter((q) => a[q]).map((q) => M.QN[q] + '×' + a[q]).join('・')}）　無傷の値 約${SGK.SIM.money(m.price * M.QM[3])}</span></div></div>`; }).join('')}</div></div>`;
+    $('opX').onclick = () => p.remove();
+  }
+  zb.onclick = () => { $('mClose').click(); zukan(); };
 })();
