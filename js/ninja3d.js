@@ -464,11 +464,12 @@
   }
   function mkChar(rig, o) {
     o = o || {};
-    const R = MD.rigs[rig], root = cloneSk(R.gl.scene), bones = {};
+    const R = MD.rigs[rig], root = cloneSk(R.gl.scene), bones = {}, ch0 = [];
     root.traverse((x) => {
       if (x.isBone) bones[x.name.replace(/^mixamorig:?/, '')] = x;
-      if (x.isMesh) { x.geometry = x.geometry.clone(); x.material = charMat(); x.castShadow = true; x.receiveShadow = false; x.frustumCulled = false; if (x.isSkinnedMesh && (o.tint || o.hood || true)) paint(x, o.tint ? new T.Color(o.tint) : null, o.hood, rig === 't2' || rig === 't3'); }
+      if (x.isMesh) { x.geometry = x.geometry.clone(); if (x.isSkinnedMesh && SGK.SOLD3D && SGK.SOLD3D.fixArmWeights) { ch0.push(x); } x.material = charMat(); x.castShadow = true; x.receiveShadow = false; x.frustumCulled = false; if (x.isSkinnedMesh && (o.tint || o.hood || true)) paint(x, o.tint ? new T.Color(o.tint) : null, o.hood, rig === 't2' || rig === 't3'); }
     });
+    root.updateMatrixWorld(true); if (rig !== 't1') for (const x of ch0) SGK.SOLD3D.fixArmWeights(x); // 2.30.1 腰の帯が腕に付いてこないように
     const mixer = new T.AnimationMixer(root), acts = {};
     for (const k in R.clips) acts[k] = mixer.clipAction(R.clips[k]);
     const q0 = []; for (const b of Object.values(bones)) q0.push([b, b.quaternion.clone()]);

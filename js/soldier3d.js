@@ -63,11 +63,47 @@
     }
     return m;
   };
+  /* 2.30.1 腕の骨の重みの付きすぎを直す：自動で骨を入れた時、腰の帯・草摺など（腰の高さで腕から離れた所）が腕や手の骨にも
+     引っぱられる重みになっていて、腕を振ると服の一部が付いてきていた。腰の高さの頂点で、腕（上腕・前腕・手）から離れているものは、
+     腕の重みを外して残りの骨（なければ背骨か腰）に分け直す。頂点の位置と骨の位置は、読み込んだ時の姿（バインドの姿）で比べる。
+     t1（素手の足軽）は袖が腰まで垂れていて、袖が腕について行くのが正しいので直さない（直すと袖がちぎれる） */
+  S.fixArmWeights = (mesh) => {
+    if (!T) T = window.THREE;
+    const geo = mesh.geometry, P = geo.attributes.position, SI = geo.attributes.skinIndex, SW = geo.attributes.skinWeight; if (!P || !SI || !SW) return 0;
+    const bones = mesh.skeleton.bones, names = bones.map((b) => b.name.replace(/^mixamorig:?/, '')), idx = (n) => names.indexOf(n);
+    const wp = (i) => { const v = new T.Vector3(); bones[i].getWorldPosition(v); return v; };
+    mesh.updateMatrixWorld(true); const iH = idx('Hips'), iS = idx('Spine'); if (iH < 0) return 0;
+    const HP = wp(iH), hipY = HP.y, segs = [];
+    for (const s of ['Left', 'Right']) { const a = idx(s + 'Arm'), f = idx(s + 'ForeArm'), h = idx(s + 'Hand'); if (a < 0 || f < 0 || h < 0) continue; const A = wp(a), F = wp(f), H = wp(h), E = H.clone().add(H.clone().sub(F).normalize().multiplyScalar(0.2)); segs.push([A, F], [F, H], [H, E]); }
+    const arm = names.map((n) => /Shoulder|Arm|Hand|Thumb|Index|Middle|Ring|Pinky/.test(n));
+    const v = new T.Vector3(), q = new T.Vector3(), d = (p, a, b) => { q.subVectors(b, a); const t = Math.max(0, Math.min(1, v.copy(p).sub(a).dot(q) / (q.lengthSq() || 1))); return p.distanceTo(q.multiplyScalar(t).add(a)); };
+    const p = new T.Vector3(), K = ['X', 'Y', 'Z', 'W'], N = P.count, cls = new Int8Array(N); // 0：腕の重みなし、1：外す、2：残す
+    const finger = names.map((n) => /Thumb|Index|Middle|Ring|Pinky/.test(n));
+    for (let k = 0; k < N; k++) {
+      let aw = 0, bi = -1, bw = 0; for (const c of K) { const b = SI['get' + c](k), w = SW['get' + c](k); if (arm[b]) aw += w; if (w > bw) { bw = w; bi = b; } }
+      if (aw < 0.01) continue;
+      p.fromBufferAttribute(P, k).applyMatrix4(mesh.bindMatrix);
+      if (p.y > hipY + 0.25 || finger[bi]) { cls[k] = 2; continue; } // 腰より上と、指の骨で動く所はそのまま
+      let near = 9; for (const [a, b] of segs) near = Math.min(near, d(p, a, b));
+      cls[k] = near < 0.085 ? 2 : 1; // 手首から先・前腕のすぐそばは手そのもの。それより離れた腰の高さの所（帯・草摺）は外す // 手首から先・前腕のすぐそばは手そのもの。それより離れた腰の高さの所（裾・帯）は外す
+    }
+    let n = 0;
+    for (let k = 0; k < N; k++) {
+      if (cls[k] !== 1) continue;
+      p.fromBufferAttribute(P, k).applyMatrix4(mesh.bindMatrix);
+      const ws = K.map((c) => (arm[SI['get' + c](k)] ? 0 : SW['get' + c](k))), rest = ws.reduce((x, y) => x + y, 0);
+      if (rest > 0.01) K.forEach((c, j) => SW['set' + c](k, ws[j] / rest));
+      else { SI.setXYZW(k, p.y > hipY + 0.05 && iS >= 0 ? iS : iH, 0, 0, 0); SW.setXYZW(k, 1, 0, 0, 0); }
+      n++;
+    }
+    SI.needsUpdate = SW.needsUpdate = true; return n;
+  };
   // 動きを焼き込む。1行＝1コマ、1行に骨の数×4画素（行列1つ＝4画素）
   // hipK：腰の位置を体の大きさに合わせる倍率（動きはt3の体で作られているため）
-  function bake(gl, clips, hipK) {
+  function bake(gl, clips, hipK, fixArms) {
     const root = gl.scene; root.updateMatrixWorld(true);
     const meshes = []; root.traverse((o) => { if (o.isSkinnedMesh) meshes.push(o); });
+    if (fixArms) for (const m of meshes) S.fixArmWeights(m); // 2.30.1
     const sm = meshes[0], sk = sm.skeleton, nb = sk.bones.length;
     const geo = mergeParts(meshes.map((m) => ({ geo: m.geometry, color: m.geometry.attributes.color ? null : m.material.color })), true);
     const bones = {}; for (const b of sk.bones) bones[b.name.replace(/^mixamorig:?/, '')] = b;
@@ -197,7 +233,7 @@
       const clips = an.animations.map((c) => [c.name, c]);
       for (let i = 0; i < 4; i++) {
         let h = 0; g[1 + i].scene.traverse((o) => { if (!h && o.isBone && /Hips$/.test(o.name)) h = o.position.length(); });
-        const bk = bake(g[1 + i], clips, h && aHip ? h / aHip : 1);
+        const bk = bake(g[1 + i], clips, h && aHip ? h / aHip : 1, i > 0);
         skinTone(bk.geo, bk.boneNames); // 2.21.0 兵の肌の色をそろえる（馬には使わない）
         if (i === 1 || i === 2) blackHat(bk.geo, 1.4); // t2の陣笠・t3の兜の白い所は黒漆に
         const b = mkSkin(bk, cap, scene);
