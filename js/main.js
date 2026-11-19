@@ -982,6 +982,7 @@
         if (me.busy && me.busy.kind === 'rest') html += `<div class="card"><div><b>休んでいます</b><br><span class="muted">残り約${Math.max(0, Math.ceil((me.busy.until - G.view.t) / 60))}時間　体力 ${Math.round(hp * 100)}%</span></div><button id="hm-stop" data-act="cancelWork">起きる</button></div>`;
         else html += `<div class="card"><div><b>休む</b><br><span class="muted">${HM.restHours}時間。ふつうに拠点にいるより早く傷が治る（いま体力 ${Math.round(hp * 100)}%）</span></div><button id="hm-rest" data-act="home" data-kind="rest" ${me.busy ? 'disabled' : ''}>休む</button></div>`;
         if (SGK.SMITHUI) html += SGK.SMITHUI.html(me); // 2.29.0 作業場（鍛冶）
+        if (SGK.FARMUI) html += SGK.FARMUI.html(me); // 2.35.0 畑（農業）
         html += `<div class="muted" style="margin-top:8px"><b>金庫</b>　預けている ${SIM.money(K.money)}　所持金 ${SIM.money(me.money)}</div><div class="row" style="flex-wrap:wrap">`
           + [1000, 10000].map((q) => `<button id="hm-pm${q}" data-act="home" data-kind="putM" data-qty="${q}" ${me.money >= q ? '' : 'disabled'}>${SIM.money(q)}預ける</button>`).join('')
           + `<button id="hm-pma" data-act="home" data-kind="putM" data-qty="-1" ${me.money > 0 ? '' : 'disabled'}>全部預ける</button>`
