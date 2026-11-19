@@ -43,9 +43,9 @@
     shingenzutsumi: { name: '信玄堤', only: 'takeda', cost: 2500, up: 150, text: '治水と同じ効き目（人口の上限+15%・洪水が起きにくく被害も半分）' },
     shikou: { name: '四公六民', only: 'hojo', cost: 1500, up: 100, text: '年貢・領内の上がり-15%。人口がよく増える' },
     sanbon: { name: '三本の矢', only: 'mori', cost: 2000, up: 100, text: '上納を上げても城主の忠誠が下がらない' },
-    egoshu: { name: '堺の会合衆', only: 'miyoshi', cost: 2500, up: 200, text: '家の拠点で鉄・茶・酒・木綿・塩が15%安く買える' },
+    egoshu: { name: '堺の会合衆', only: 'miyoshi', cost: 2500, up: 200, text: '家の拠点で茶・酒・木綿・塩が15%安く買える' },
     yukiguni: { name: '雪国の備え', only: 'nagao', cost: 2000, up: 100, text: '領内は積雪でも遅くなりにくい・兵糧の減りが3割少ない' },
-    nanban: { name: '南蛮貿易', only: 'otomo', cost: 3000, up: 200, text: '湊町の上がり+30%・家の拠点で鉄が15%安く買える' },
+    nanban: { name: '南蛮貿易', only: 'otomo', cost: 3000, up: 200, text: '湊町の上がり+30%・家の拠点で塩が15%安く買える' },
     monto: { name: '門徒動員', only: 'honganji', cost: 2000, up: 200, text: '集まる兵+40%' },
     // プレイヤーの家（3つから1つ選ぶ）
     goyo: { name: '御用商人', mine: true, cost: 2500, up: 150, text: '家の町の品物の生産+15%・家の拠点で品物が10%安く買える' },
@@ -76,8 +76,8 @@
     if (k === 'rice') { if (s.type === 'village' && has(o, 'shinden')) m *= 1.2; m *= harvMul(s); }
     return m;
   };
-  const TRADE = ['iron', 'tea', 'sake', 'cotton', 'salt'];
-  { const b0 = SIM.buyPrice; SIM.buyPrice = (s, k, p) => { let m = 1; const o = s && s.owner; if (has(o, 'egoshu') && TRADE.includes(k)) m *= 0.85; if (has(o, 'nanban') && k === 'iron') m *= 0.85; if (has(o, 'goyo')) m *= 0.9; return Math.ceil(b0(s, k, p) * m); }; }
+  const TRADE = ['tea', 'sake', 'cotton', 'salt'];
+  { const b0 = SIM.buyPrice; SIM.buyPrice = (s, k, p) => { let m = 1; const o = s && s.owner; if (has(o, 'egoshu') && TRADE.includes(k)) m *= 0.85; if (has(o, 'nanban') && k === 'salt') m *= 0.85; if (has(o, 'goyo')) m *= 0.9; return Math.ceil(b0(s, k, p) * m); }; }
   SIM.popMod = (w, s) => {
     const o = s.owner; let g = 0, cap = 1;
     if (has(o, 'kenchi')) g -= 0.003;

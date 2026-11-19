@@ -25,6 +25,13 @@
     syncMap(w);
     if (w.day == null) w.day = Math.floor(w.time.min / 1440);
     w.jobs = w.jobs || {};
+    // 2.32.0 鉄（品物）をなくした：古いセーブの在庫・生産・荷・依頼・取引から消し、持っていた鉄は元値（1貫800文）で買い取る
+    for (const s of w.settlements) { if (s.stock) delete s.stock.iron; if (s.prod) delete s.prod.iron; }
+    for (const p of Object.values(w.players)) for (const box of [p, p.kura]) { if (!box || !box.inv || !box.inv.iron) continue; const n = box.inv.iron; delete box.inv.iron; if (box.cost) delete box.cost.iron; p.money = (p.money || 0) + n * 800; if (SIM.say) SIM.say(p.id, `鉄は市場で扱わなくなりました。持っていた鉄${n}貫を${SIM.money ? SIM.money(n * 800) : n * 800 + '文'}で買い取りました`); }
+    for (const p of Object.values(w.players)) { if (p.cost) delete p.cost.iron; if (p.quests) p.quests = p.quests.filter((q) => q.item !== 'iron'); }
+    for (const id in w.jobs || {}) if (w.jobs[id] && w.jobs[id].item === 'iron') delete w.jobs[id];
+    for (const id in w.offers || {}) if (w.offers[id] && w.offers[id].item === 'iron') delete w.offers[id];
+    for (const n of Object.values(w.npcs || {})) if (n.cargo && n.cargo.item === 'iron') n.cargo = null;
     for (const s of w.settlements) {
       const d = SGK.DATA.settlements.find((x) => x.id === s.id) || {};
       s.prod = s.prod || d.prod || {};
