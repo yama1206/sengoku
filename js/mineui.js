@@ -166,7 +166,7 @@
   // ---- 結果 ----
   function showResult(L) {
     shownN = L.n; window.removeEventListener('keydown', onKey, true); cancelAnimationFrame(raf); run = null;
-    const rows = L.out.map((o) => { const m = M.byId(o.id); return `<div class="it">${chip(m)}<span style="flex:1">${m.name}</span><b>${M.QN[o.q]}</b></div>`; }).join('');
+    const rows = L.out.map((o) => { const m = M.byId(o.id); return `<div class="it">${chip(m)}<span style="flex:1">${m.name}</span><b>${M.QN[o.q]}</b>${M.GOODS[o.id] ? `<span class="muted" style="margin-left:6px">${o.n ? '物資×' + o.n : '物資にならず'}</span>` : ''}</div>`; }).join('');
     openOv().innerHTML = `<div class="mc" style="text-align:center"><div style="font-size:20px;margin:6px">採掘の結果</div>
       <div style="text-align:left;font-size:13px">${rows || '<div class="muted" style="text-align:center">取れた鉱物はありませんでした</div>'}</div>
       <div class="muted" style="margin:8px 0">手数 ${L.hits}${L.bonus ? `　手際のよさで +${SGK.SIM.money(L.bonus)}` : ''}${L.lost.length ? `　取り出せなかった鉱物 ${L.lost.length}個` : ''}</div>

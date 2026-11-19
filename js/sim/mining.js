@@ -29,6 +29,9 @@
   ];
   // 図鑑の説明（性質・出やすい所）
   M.DESC = { gold: '川や山の砂・石英の筋に混じる金。金山のそばで出やすい。柔らかく傷つきやすい。', silver: '銀を含む鉱石。銀山のそばで出やすい。', copper: '緑青をふく赤茶の鉱石。丈夫で、少々の衝撃には耐える。', iron: '刀や鉄砲の元になる鉱石。大きな塊で丈夫。', lead: '重くて柔らかい灰色の鉱石。銀山では銀と一緒に出ることが多い。', sulfur: '火山のそばの黄色い鉱物。もろく、大型の道具は禁物。', quartz: '透きとおった結晶。割れやすいので、慎重に。', agate: '縞模様の美しい石。割れ目から欠けやすい。', jade: '緑の硬玉。とても丈夫だがめったに出ない。', garnet: '赤い小さな粒の宝石。衝撃にやや弱い。' };
+  // 物資（荷物・市場で売買できる品。js/data/items.js）になる鉱物と、品質ごとの個数
+  M.GOODS = { iron: 'ironore', quartz: 'quartz', agate: 'agate', jade: 'jade', garnet: 'garnet' };
+  M.QN_N = [0, 1, 2, 3];
   M.byId = (id) => M.MIN.find((m) => m.id === id);
   // 品質：傷の少なさ（耐久0〜100）で決まる。破片＝完全に壊れた
   M.QN = ['破片', '低品質', '通常品質', '最高品質'];
@@ -121,7 +124,14 @@
     for (const e of log) { const t = Math.floor(e / 1000), i = e % 1000; if (Number.isInteger(e) && t >= 0 && t <= 3) M.step(S, t, i); }
     const R = M.result(S), ore = (p.ore = p.ore || {});
     const oz = (p.oreZ = p.oreZ || {});
-    for (const o of R.out) { const a = (ore[o.id] = ore[o.id] || [0, 0, 0, 0]); a[o.q]++; const z = (oz[o.id] = oz[o.id] || [0, 0, 0, 0]); z[o.q]++; }
+    const goods = [];
+    for (const o of R.out) {
+      const z = (oz[o.id] = oz[o.id] || [0, 0, 0, 0]); z[o.q]++;
+      const gi = M.GOODS[o.id];
+      if (gi) { // 物資になる鉱物：品質を個数に換算して荷物へ（最高3・通常2・低品質1・破片0）
+        const n = M.QN_N[o.q]; o.n = n; if (n > 0) { p.inv = p.inv || {}; p.cost = p.cost || {}; const have = p.inv[gi] || 0, old = p.cost[gi] != null ? p.cost[gi] : 0; p.cost[gi] = (old * have) / (have + n); p.inv[gi] = have + n; goods.push(gi); }
+      } else { const a = (ore[o.id] = ore[o.id] || [0, 0, 0, 0]); a[o.q]++; }
+    }
     const bonus = Math.round(R.value * R.bonus); if (bonus > 0) p.money += bonus;
     p.mineLast = { n: m.n, name: m.name, out: R.out, lost: R.lost, hits: R.hits, bonus, value: R.value };
     p.mineCnt = (p.mineCnt || 0) + 1;
