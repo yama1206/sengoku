@@ -160,4 +160,24 @@
     r.me.mineLast = p.mineLast || null; r.me.ore = p.ore || {}; r.me.oreZ = p.oreZ || {};
     return r;
   };
+
+  // ---- 金山・銀山の近くの町・城にだけ、鉄鉱石・宝石が少し出る ----
+  M.townKm = 45; M.GP = { ironore: 0.25, quartz: 0.1, agate: 0.1, jade: 0.04, garnet: 0.08 }; // 1日の産出（目安）
+  const nearMine = (s) => (D.mines || []).some((m) => Math.hypot(m.x - s.x, m.y - s.y) <= M.townKm);
+  const baseEnsure = SIM.ensure;
+  SIM.ensure = function (w) {
+    baseEnsure(w);
+    if (!w.mineGoods) { // 古いセーブ・新しいワールドに1度だけ：近くの町・城に産出と少しの在庫、よそは在庫なし
+      w.mineGoods = 1;
+      for (const s of w.settlements) { const ok = s.type !== 'village' && nearMine(s); for (const k in M.GP) { s.prod[k] = ok ? M.GP[k] : 0; s.stock[k] = ok ? 2 : 0; } }
+    }
+    return w;
+  };
+  // 物資のそろい具合（人口の増え方）には、この物資を入れない
+  const baseSup = SIM.supplyF;
+  SIM.supplyF = (s) => {
+    if (!s || !s.stock) return 1; let a = 0, n = 0;
+    for (const k in D.items) { if (D.items[k].mine) continue; const wt = k === 'rice' ? 2 : 1; a += Math.min(1.3, s.stock[k] / SIM.stockTarget(s, k)) * wt; n += wt; }
+    return n ? a / n : 1;
+  };
 })();

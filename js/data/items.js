@@ -8,12 +8,12 @@
     sake: { name: '酒', ic: 'sake', unit: '樽', base: 500, cons: 1, wt: 4 },      // 小樽（酒 約2升）
     firewood: { name: '薪', ic: 'firewood', unit: '束', base: 40, cons: 3, wt: 3 },
     iron: { name: '鉄', ic: 'iron', unit: '貫', base: 800, cons: 0.5, wt: 3.75 },  // 1貫は本物も3.75kg
-    // 2.28.0 採掘で取れる物資（品質は個数に換算して入る）。後で加工できるようにする予定。生産はなく、市場では少しだけ回る
-    ironore: { name: '鉄鉱石', ic: 'iron', unit: '塊', base: 120, cons: 0.05, wt: 4 },
-    quartz: { name: '水晶', ic: 'star', unit: '粒', base: 540, cons: 0.02, wt: 0.3 },
-    agate: { name: '瑪瑙', ic: 'star', unit: '粒', base: 360, cons: 0.02, wt: 0.3 },
-    jade: { name: '翡翠', ic: 'star', unit: '粒', base: 1500, cons: 0.01, wt: 0.3 },
-    garnet: { name: '柘榴石', ic: 'star', unit: '粒', base: 720, cons: 0.02, wt: 0.3 },
+    // 2.28.0 採掘で取れる物資（品質は個数に換算して入る）。後で加工できるようにする予定。金山・銀山の近くの町・城だけで少し産する（mine:true）
+    ironore: { name: '鉄鉱石', ic: 'iron', unit: '塊', base: 120, cons: 0, mine: true, wt: 4 },
+    quartz: { name: '水晶', ic: 'star', unit: '粒', base: 540, cons: 0, mine: true, wt: 0.3 },
+    agate: { name: '瑪瑙', ic: 'star', unit: '粒', base: 360, cons: 0, mine: true, wt: 0.3 },
+    jade: { name: '翡翠', ic: 'star', unit: '粒', base: 1500, cons: 0, mine: true, wt: 0.3 },
+    garnet: { name: '柘榴石', ic: 'star', unit: '粒', base: 720, cons: 0, mine: true, wt: 0.3 },
     tea: { name: '茶', ic: 'tea2', /* 2.13.1 茶の葉の絵 */ unit: '斤', base: 350, cons: 0.5, wt: 0.6 },   // 1斤は本物も約0.6kg
   };
   const prod = {

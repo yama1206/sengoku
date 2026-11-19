@@ -82,7 +82,7 @@
         return Object.assign(base, { type: 'escort', to: to.id, days: Math.ceil(d / 18) + 4, reward: r10(300 + d * 15), title: `${to.name}まで行商人の護衛`, what: `行商人について${to.name}まで守る（${dirOf(s, to)}へ約${Math.round(d)}km）`, look: to.id });
       }
       const tos = w.settlements.filter((t) => t.type === 'town' && t !== s && dist(s, t) < 100 && !SIM.foeDest(w, s, t)); if (!tos.length) return null; // 0.74.3 100km以内・戦の相手の町はなし
-      const to = pick(w, tos), d = dist(s, to), k = pick(w, Object.keys(I())), it = I()[k], qty = 6 + Math.floor(rnd(w) * 10); /* 1.6.34 品物を預かって代わりに売る。売上は依頼主のもの、報酬は安め */
+      const to = pick(w, tos), d = dist(s, to), k = pick(w, Object.keys(I()).filter((k) => !I()[k].mine)), it = I()[k], qty = 6 + Math.floor(rnd(w) * 10); /* 1.6.34 品物を預かって代わりに売る。売上は依頼主のもの、報酬は安め */
       return Object.assign(base, { type: 'sell', given: 1, to: to.id, item: k, qty, left: qty, days: Math.ceil(d / 20) + 10, reward: r10(it.base * qty * 0.08 + 100 + d * 12), title: `預かった${it.name}${qty}${it.unit}を${to.name}で売る`, what: `預かった${it.name}${qty}${it.unit}を${to.name}の市で売りさばく（${dirOf(s, to)}へ約${Math.round(d)}km。売上は依頼主に渡す。報酬は別）`, look: to.id });
     }
     if (s.type !== 'castle' || !s.owner || !w.factions[s.owner]) return null;
