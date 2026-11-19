@@ -128,6 +128,7 @@
     el.querySelector('#gbTabs').innerHTML = Object.entries(NAMES).map(([k, n]) => `<button data-tab="${k}" class="${k === tab ? 'on' : ''}">${n}</button>`).join('');
     const st = el.querySelector('#gbStage');
     if (full || !st.dataset.g || st.dataset.g !== tab) { st.dataset.g = tab; st.innerHTML = SCENE[tab](); }
+    if (!busy[tab] && (mine(gb[tab]) || gb[tab].phase === 'play')) clear(st); // 2.31.1 次の勝負に賭けたら（札が配られたら）前の勝負の結果の文字を消す
     PANEL[tab](st.querySelector('.panel'), gb[tab], me);
     const L = gb[tab].last;
     if (L && L.id != null && L.id !== seen[tab] && !busy[tab]) { seen[tab] = L.id; busy[tab] = 1; PLAY[tab](st, L, gb[tab]).catch(() => {}).then(() => { busy[tab] = 0; if (el) render(false); }); }
@@ -176,7 +177,7 @@
       if (!busy.karuta) { // 配られた札（演出中でなければ今の札を出す）
         const par = el.querySelector('#gbPar'), my = el.querySelector('#gbMine');
         if (par && T.phase === 'play') { const h1 = T.parent.map((c) => cardHtml(c)).join(''), h2 = myH ? myH.cards.map((c) => cardHtml(c)).join('') : '<span class="rule">（見物中）</span>'; if (par.dataset.h !== h1) { par.dataset.h = h1; par.innerHTML = h1; } if (my.dataset.h !== h2) { const nn = my.querySelectorAll('.kc').length; my.dataset.h = h2; my.innerHTML = h2; [...my.querySelectorAll('.kc')].slice(nn).forEach((c) => { c.classList.add('deal'); sfx('card'); }); } }
-        else if (par && T.phase === 'bet' && !T.last) { par.innerHTML = cardHtml(null) + cardHtml(null); my.innerHTML = ''; }
+        else if (par && T.phase === 'bet' && (!T.last || mb) && par.dataset.h !== 'new') { par.dataset.h = 'new'; my.dataset.h = ''; par.innerHTML = cardHtml(null) + cardHtml(null); my.innerHTML = ''; } // 2.31.1 次の勝負に賭けたら前の札も片づける
       }
       let h = `<div class="rule">${esc(G.GAMES.karuta.rule)}</div><div class="row">`;
       if (T.phase === 'bet') h += mb ? `<span>${mb.bet}文 賭けた</span><button data-cmd="gbDeal" data-id="karuta">札を配る</button><button data-cmd="gbCancel" data-id="karuta">取り消す</button>` : `<button data-cmd="gbBet" data-id="karuta" ${me.money < sel ? 'disabled' : ''}>${sel}文 賭ける</button>`;
