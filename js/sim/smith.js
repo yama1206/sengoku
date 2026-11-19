@@ -101,4 +101,32 @@
     };
     return r;
   };
+
+  // ---- 森で薪を集める：体力（傷の少なさ）を使う。体力は時間がたつと戻る（拠点にいると早い・自宅で休むとさらに早い） ----
+  const WD = (SM.WOOD = { cost: 0.08, min: 0.25, lo: 3, hi: 6 });
+  const hpOf = (p) => (p.hpFrac == null ? 1 : p.hpFrac);
+  const woodCache = {};
+  SIM.commands.gatherWood = (w, p) => {
+    if (p.battle) return;
+    if (p.busy) return say(p.id, `${p.busy.label}の最中です`);
+    if (p.tx != null || p.at) return say(p.id, '森の中で立ち止まっているときにできます');
+    if (SIM.terrainAt(p.x, p.y) !== '森') return say(p.id, 'ここは森ではありません');
+    if (hpOf(p) < WD.min) return say(p.id, '体力が足りません。少し休んでから（体力が戻るまで待つか、自宅で休んでください）');
+    p.hpFrac = Math.max(0, hpOf(p) - WD.cost);
+    const n = WD.lo + Math.floor(SIM.rand(w) * (WD.hi - WD.lo + 1));
+    p.inv = p.inv || {}; p.cost = p.cost || {};
+    const hv = p.inv.firewood || 0, old = p.cost.firewood != null ? p.cost.firewood : 0; p.cost.firewood = (old * hv) / (hv + n); p.inv.firewood = hv + n;
+    say(p.id, `薪を${n}束集めました（体力 ${Math.round(p.hpFrac * 100)}%）`);
+  };
+  const basePriv2 = SIM.privateState;
+  SIM.privateState = (w, pid) => {
+    const r = basePriv2(w, pid), p = w.players[pid]; if (!r || !p || !r.me) return r;
+    let ok = false;
+    if (p.tx == null && !p.busy && !p.at && !p.battle) {
+      const key = `${Math.round(p.x * 2)},${Math.round(p.y * 2)}`, ch = woodCache[pid];
+      if (ch && ch.key === key) ok = ch.v; else { ok = SIM.terrainAt(p.x, p.y) === '森'; woodCache[pid] = { key, v: ok }; }
+    }
+    r.me.woodSpot = ok ? { cost: WD.cost, min: WD.min } : null;
+    return r;
+  };
 })();

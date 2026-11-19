@@ -83,4 +83,17 @@
     $('smGo').onclick = strike; $('smCancel').onclick = close;
     window.addEventListener('keydown', onKey, true); prevA = prevB = true; raf = requestAnimationFrame(draw);
   };
+
+  // ---- 森の薪集め：地図の下のボタン（体力を使う） ----
+  const box = document.createElement('div'); box.id = 'woodBox'; box.className = 'hidden';
+  box.style.cssText = 'position:fixed;left:10px;bottom:104px;z-index:6;display:flex;flex-direction:column;gap:4px;align-items:flex-start';
+  box.innerHTML = '<small id="wbTag" style="background:rgba(20,16,10,.7);color:#ddd;border-radius:4px;padding:1px 6px;font-size:11px"></small><button id="wbGo" style="padding:8px 12px;font-size:14px">薪を集める</button>';
+  document.body.appendChild(box);
+  setInterval(() => {
+    const P = G.priv, me = P && P.me, sp = me && !P.battle && G.mode !== 'title' && me.woodSpot;
+    const anyOpen = ['town', 'char', 'info', 'gameMenu'].some((i) => $(i) && !$(i).classList.contains('hidden')), mineOn = !!(me && me.mineSpot); // 山の岩場と重なるときは採掘のボタンを優先
+    box.classList.toggle('hidden', !sp || anyOpen || ov || mineOn);
+    if (sp) { const hp = me.hpFrac == null ? 1 : me.hpFrac; $('wbTag').textContent = `森（体力 ${Math.round(hp * 100)}%・1回で${Math.round(sp.cost * 100)}%使う）`; $('wbGo').disabled = hp < sp.min; }
+  }, 200);
+  $('wbGo').onclick = () => SGK.cmd({ type: 'gatherWood' });
 })();
