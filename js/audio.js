@@ -30,7 +30,6 @@
     const rg = ctx.createGain(); rg.gain.value = 0.35; rev.connect(rg); rg.connect(master);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const nd = noiseBuf.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
-    loadTracks();
     setInterval(() => { schedule(); dinTick(); }, 80);
     return true;
   }
@@ -345,6 +344,7 @@
       if (s % 32 === 16 && R() < 0.6) flute(t, note(sc, root + 24, pick([2, 3, 4])), b * 6, 0.1);
     } },
   };
+  SCENES.siege = SCENES.battle; SCENES.market = SCENES.town; // 2.20.0 曲ファイルを読めない時の合成の曲
 
   let scene = null, want = null, step = 0, nextT = 0, fading = false;
   function setLevel(v, time = 0.6) { if (!ctx) return; const t = ctx.currentTime; bgmBus.gain.cancelScheduledValues(t); bgmBus.gain.setValueAtTime(Math.max(0.0001, bgmBus.gain.value), t); bgmBus.gain.linearRampToValueAtTime(v, t + time); }
@@ -370,16 +370,30 @@
   // 2.15.0 曲ファイル（AIで作った曲。tools/gen_music.py → tame.py → loop.py）
   // loopStart〜loopEnd（秒）をくり返す。読み込み中・失敗した時は合成の曲を流す
   const TRACKS = {
-    battle: { url: 'assets/bgm/battle.mp3', loopStart: 9.58, loopEnd: 84.226, gain: 1 }, // 一騎打ちの曲（三味線＋ヘヴィロック）
+    // 2.20.0 ユーザーが選んだ曲。前の戦の曲（三味線＋ヘヴィロック）は攻城戦へ
+    battle: { url: 'assets/bgm/battle.mp3', loopStart: 7.95, loopEnd: 76.5175, gain: 1 }, // 野戦：太鼓とオーケストラ（s_siege_1671793101）
+    siege: { url: 'assets/bgm/siege.mp3', loopStart: 9.58, loopEnd: 84.226, gain: 1 }, // 攻城戦：一騎打ちの曲（三味線＋ヘヴィロック）
+    market: { url: 'assets/bgm/market.mp3', loopStart: 21.63, loopEnd: 82.2519, gain: 1 }, // 市場（s_day_199674712）
+    town: { url: 'assets/bgm/town.mp3', loopStart: 22.09, loopEnd: 62.5104, gain: 1 }, // 通り・曲のない行き先（s_day_2142866112）
+    gamble: { url: 'assets/bgm/gamble.mp3', loopStart: 21.78, loopEnd: 81.7975, gain: 1 }, // 賭場（s_gamble_1901902036）
+    home: { url: 'assets/bgm/home.mp3', loopStart: 11.48, loopEnd: 59.4664, gain: 1 }, // 自宅（s_home_1234933656）
   };
-  const trackBuf = {};
+  // 2.20.0 曲は場面に入る時に読み込む（全部を先に読むと 1曲 30MB ほどのメモリを食うので、読んだ曲は新しい順に3曲まで残す）
+  const trackBuf = {}, loading = {}, recent = [], KEEP = 3;
   let src = null, srcScene = null;
-  function loadTracks() {
-    for (const [k, T] of Object.entries(TRACKS)) {
-      fetch(T.url + '?v=' + SGK.VERSION).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)))
-        .then((a) => new Promise((ok, ng) => ctx.decodeAudioData(a, ok, ng))).then((b) => { trackBuf[k] = b; })
-        .catch((e) => console.warn('BGM の曲を読めない', k, e));
-    }
+  function loadTrack(k) {
+    const T = TRACKS[k]; if (!T || !ctx || trackBuf[k] || loading[k]) return;
+    loading[k] = fetch(T.url + '?v=' + SGK.VERSION).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)))
+      .then((a) => new Promise((ok, ng) => ctx.decodeAudioData(a, ok, ng)))
+      .then((b) => {
+        trackBuf[k] = b; recent.unshift(k);
+        while (recent.length > KEEP) { // 鳴っている曲と今読んだ曲は残し、いちばん古い曲を捨てる
+          let i = recent.length - 1; while (i >= 0 && (recent[i] === srcScene || recent[i] === k)) i--;
+          if (i < 0) break; delete trackBuf[recent[i]]; recent.splice(i, 1);
+        }
+      })
+      .catch((e) => console.warn('BGM の曲を読めない', k, e))
+      .finally(() => { delete loading[k]; });
   }
   function stopTrack() { if (src) { try { src.stop(); } catch (e) {} src.disconnect(); } src = null; srcScene = null; }
   function startTrack(name) {
@@ -393,6 +407,7 @@
   function schedule() {
     if (!ctx || ctx.state !== 'running') return;
     const now = ctx.currentTime;
+    if (want) loadTrack(want); // 次の場面の曲を、フェードの間に読み始める
     if (want !== scene && !fading) {
       if (!scene) { scene = want; step = 0; nextT = now + 0.1; setLevel(LV_BGM[opt.bgm], 1.0); }
       else { fading = true; setLevel(0.0001, 0.8); setTimeout(() => { scene = want; step = 0; nextT = ctx.currentTime + 0.1; mel = 5; fading = false; setLevel(LV_BGM[opt.bgm], 1.2); }, 850); }
