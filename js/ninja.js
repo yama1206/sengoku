@@ -29,7 +29,7 @@
     const free = (x, y, m = 18) => x > 20 && x < W - 20 && y > 20 && y < H - 20 && !S.walls.concat(S.water).some((r) => x > r.x - m && x < r.x + r.w + m && y > r.y - m && y < r.y + r.h + m);
     const spot = (y0, y1) => { for (let i = 0; i < 400; i++) { const x = rnd(60, W - 60), y = rnd(y0, y1); if (free(x, y, 26)) return { x, y }; } return { x: W / 2, y: (y0 + y1) / 2 }; };
     if (k === 'rumor') for (let i = 0; i < 3; i++) { const p = spot(505, 625); S.folk.push({ x: p.x, y: p.y, a: rnd(0, 6), told: 0 }); }
-    else S.tg.push(Object.assign(spot(110, k === 'raid' ? 260 : 330), { name: k === 'raid' ? '武器蔵' : k === 'gate' ? '城門' : '兵糧蔵' }));
+    else S.tg.push(Object.assign(spot(110, k === 'raid' ? 260 : 330), { name: k === 'raid' ? '武器蔵' : k === 'gate' ? '城門' : k === 'hurt' ? '寝所' : k === 'steal' ? '蔵' : '兵糧蔵' })); // 2.24.0 3Dが使えない時の代わりにも使う
     // 見張り：壁にぶつからない直線を行き来する
     const range = (130 + d.lv * 14) * (d.night ? 0.62 : 1), spd = 38 + d.lv * 7;
     const ng = k === 'rumor' ? Math.max(2, Math.ceil(d.guards / 2)) : d.guards;

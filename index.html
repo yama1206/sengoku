@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="2.23.1">
+<meta name="sgk-ver" content="2.24.0">
 <title>天下往来</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -308,7 +308,7 @@
 <script>
   // 更新が確実に反映されるよう、毎回最新のファイルを読み込む
   (function () {
-    const files = ['js/config.js', 'js/icons.js', 'js/data/world1560.js', 'js/data/villages.js', 'js/data/geo.js', 'js/data/lakes.js', 'js/data/rivers.js', 'js/data/creatures.js', 'js/data/items.js', 'js/data/bushoart.js', 'js/sim/world.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/sim/castle.js', 'js/sim/daimyo.js', 'js/sim/siege.js', 'js/sim/army.js', 'js/sim/bushou.js', 'js/sim/supply.js', 'js/sim/house.js', 'js/sim/quest.js', 'js/sim/fushin.js', 'js/sim/invest.js', 'js/sim/equip.js', 'js/sim/chiho.js', 'js/sim/castlemap.js', 'js/sim/kuni.js', 'js/sim/nawa.js', 'js/sim/nawagen.js', 'js/sim/torihiki.js', 'js/sim/gamble.js', 'js/sim/title.js', 'js/sim/creatures.js', 'js/sim/seisaku.js', 'js/sim/skill.js', 'js/sim/shinobi.js', 'js/sim/testmode.js', 'js/sim/cloth.js', 'js/sim/home.js', 'js/sim/musume.js', 'js/save.js', 'js/net/cloud.js', 'js/net/net.js', 'js/kamon.js', 'js/render.js', 'js/audio.js', 'js/action.js', 'js/lib/BufferGeometryUtils.js', 'js/lib/GLTFLoader.js', 'js/soldier3d.js', 'js/action3d.js', 'js/ninja.js', 'js/main.js', 'js/gather.js', 'js/nawaedit.js', 'js/testui.js', 'js/gambleui.js', 'js/clothui.js'];
+    const files = ['js/config.js', 'js/icons.js', 'js/data/world1560.js', 'js/data/villages.js', 'js/data/geo.js', 'js/data/lakes.js', 'js/data/rivers.js', 'js/data/creatures.js', 'js/data/items.js', 'js/data/bushoart.js', 'js/sim/world.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/sim/castle.js', 'js/sim/daimyo.js', 'js/sim/siege.js', 'js/sim/army.js', 'js/sim/bushou.js', 'js/sim/supply.js', 'js/sim/house.js', 'js/sim/quest.js', 'js/sim/fushin.js', 'js/sim/invest.js', 'js/sim/equip.js', 'js/sim/chiho.js', 'js/sim/castlemap.js', 'js/sim/kuni.js', 'js/sim/nawa.js', 'js/sim/nawagen.js', 'js/sim/torihiki.js', 'js/sim/gamble.js', 'js/sim/title.js', 'js/sim/creatures.js', 'js/sim/seisaku.js', 'js/sim/skill.js', 'js/sim/shinobi.js', 'js/sim/testmode.js', 'js/sim/cloth.js', 'js/sim/home.js', 'js/sim/musume.js', 'js/save.js', 'js/net/cloud.js', 'js/net/net.js', 'js/kamon.js', 'js/render.js', 'js/audio.js', 'js/action.js', 'js/lib/BufferGeometryUtils.js', 'js/lib/GLTFLoader.js', 'js/soldier3d.js', 'js/action3d.js', 'js/ninja.js', 'js/ninja3d.js', 'js/main.js', 'js/gather.js', 'js/nawaedit.js', 'js/testui.js', 'js/gambleui.js', 'js/clothui.js'];
     /* 1.6.54 一度に並べて読み込む（順番は async=false で守る）。版が同じ間はブラウザに残したものを使う（版が上がると新しく読む） */
     const mv = document.querySelector('meta[name="sgk-ver"]'), v = (mv && mv.content) || Date.now();
     for (const f of files) { const s = document.createElement('script'); s.src = f + '?v=' + v; s.async = false; document.body.appendChild(s); }

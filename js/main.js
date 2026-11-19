@@ -830,7 +830,9 @@
     document.querySelectorAll('#town [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === townTab));
     let html = '';
     const NJ = me.nin; // 0.77.0 忍び：工作の城に入ったら「忍び込む」
-    if (NJ && NJ.atTgt && NJ.q) html += `<div class="card" style="display:block;border-color:#c33"><b>${SIM.NIN.jobs[NJ.q.k].name}</b>（${NJ.q.foe}・${NJ.q.toName}）<br><span class="muted">${SIM.NIN.jobs[NJ.q.k].desc}。見張り${NJ.d.guards}人・${NJ.d.ck === 'yama' ? '山城' : NJ.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.d.night ? '夜（見張りの目が届きにくい）' : '昼'}・難しさ${SGK.ICON.html('star', 14).repeat(NJ.d.lv)}</span><div class="row" style="margin-top:4px"><button id="nj-go" data-nj="go">忍び込む</button></div></div>`;
+    const njName = (q) => SIM.NIN.jobs[q.k].name + (q.k === 'steal' && SIM.NIN.steal[q.sk] ? `（${SIM.NIN.steal[q.sk].name}）` : ''); // 2.24.0
+    const njDesc = (q) => (q.k === 'steal' && SIM.NIN.steal[q.sk] ? SIM.NIN.steal[q.sk].desc + `（${SIM.NIN.steal[q.sk].where}にある）` : q.k === 'hurt' ? `寝所の${q.whoName || '武将'}に手傷を負わせる（殺しはしない）。成功すると${q.whoName || 'その武将'}は${SIM.NIN.hurtDays}日のあいだ出陣できない` : SIM.NIN.jobs[q.k].desc);
+    if (NJ && NJ.atTgt && NJ.q) html += `<div class="card" style="display:block;border-color:#c33"><b>${njName(NJ.q)}</b>（${NJ.q.foe}・${NJ.q.toName}）<br><span class="muted">${njDesc(NJ.q)}。見張り${NJ.d.guards}人・${NJ.d.ck === 'yama' ? '山城' : NJ.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.d.night ? '夜（見張りの目が届きにくい）' : '昼'}・難しさ${SGK.ICON.html('star', 14).repeat(NJ.d.lv)}</span><div class="row" style="margin-top:4px"><button id="nj-go" data-nj="go">忍び込む</button></div></div>`;
     if (townTab === 'street') html += `<div class="muted">${hs && hs.type === 'village' ? '村' : '町'}の通りです。上のボタンから行き先を選んでください</div>`;
     for (const sec of TOWN_SECS[townTab] || [townTab]) { if ((TOWN_SECS[townTab] || []).length > 1) html += `<div class="secH">${SEC_NAME[sec]}</div>`;
     if (sec === 'talk' && h.musume) { const m = h.musume, gifts = Object.keys(me.inv || {}).filter((k) => me.inv[k] > 0 && IT[k]); // 2.13.0 看板娘
@@ -927,9 +929,13 @@
     } else if (sec === 'castle') {
       const C = (me.castles || []).find((c) => c.id === h.id);
       if (NJ) { // 0.77.0 忍びの工作の依頼（主家の城で）
-        if (NJ.q) html += `<div class="card"><div><b>請け負っている工作</b>　${SIM.NIN.jobs[NJ.q.k].name}：${NJ.q.foe}の${NJ.q.toName}<br><span class="muted">報酬${SIM.money(NJ.q.reward)}・${dayLeft(NJ.q.deadline)}</span></div><button id="nj-look" data-look="${NJ.q.to}">地図で見る</button><button id="nj-drop" data-act="ninDrop">取りやめる</button></div>`;
-        else if (NJ.offers.length) for (const o of NJ.offers) html += `<div class="card"><div><b>${SIM.NIN.jobs[o.k].name}</b>　${o.foe}の${o.toName}（${o.km}km・期限${o.days}日）<br><span class="muted">${SIM.NIN.jobs[o.k].desc}。報酬${SIM.money(o.reward)}</span></div><button id="nj-${o.k}" data-act="ninTake" data-id="${o.id}">請け負う</button></div>`;
+        if (NJ.q) html += `<div class="card"><div><b>請け負っている工作</b>　${njName(NJ.q)}：${NJ.q.foe}の${NJ.q.toName}<br><span class="muted">報酬${SIM.money(NJ.q.reward)}・${dayLeft(NJ.q.deadline)}</span></div><button id="nj-look" data-look="${NJ.q.to}">地図で見る</button><button id="nj-drop" data-act="ninDrop">取りやめる</button></div>`;
+        else if (NJ.offers.length) for (const o of NJ.offers) html += `<div class="card"><div><b>${njName(o)}</b>　${o.foe}の${o.toName}（${o.km}km・期限${o.days}日）<br><span class="muted">${njDesc(o)}。報酬${SIM.money(o.reward)}</span></div><button id="nj-${o.k}" data-act="ninTake" data-id="${o.id}">請け負う</button></div>`;
         else if (hs && hs.owner === me.rank.clan) html += `<div class="muted" style="margin-bottom:6px">いま工作を頼める敵の城がありません（戦をしている家の100km以内の城が対象）</div>`;
+        if (hs && hs.owner === me.rank.clan) { // 2.24.0 忍び道具
+          html += '<div class="secH">忍び道具</div>';
+          for (const [k, t] of Object.entries(SIM.NIN.tools)) { const n = (NJ.tools || {})[k] || 0; html += `<div class="card"><div><b>${t.name}</b>　${n}/${t.max}<br><span class="muted">${t.desc}。${SIM.money(t.price)}</span></div><button id="nt-${k}" data-act="ninBuy" data-kind="${k}" ${n >= t.max || me.money < t.price ? 'disabled' : ''}>買う</button></div>`; }
+        }
       }
       if (h.site != null) {
         const B = me.build;
@@ -1033,7 +1039,11 @@
     const lb = e.target.closest('button[data-look]'); if (lb) return lookAt(lb.dataset.look, lb.dataset.job);
     const lx = e.target.closest('button[data-lookxy]'); if (lx) { const [x, y] = lx.dataset.lookxy.split(',').map(Number); openTown(false); R.cam.follow = false; R.cam.x = x; R.cam.y = y; G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; return; }
     const nj = e.target.closest('button[data-nj]'); // 0.77.0 忍び込む
-    if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; openTown(false); SGK.NINJA.start(N.q.k, N.d, (ok) => { if (ok === null) toast('いったん退きました（工作はまだ請け負ったまま）', 1500); else command({ type: 'ninResult', ok: !!ok }); }); return; }
+    if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; openTown(false);
+      const fin = (r) => { r = r && typeof r === 'object' ? r : { ok: r }; // 2.24.0 3Dの潜入は { ok, kills, unseen, used } を返す
+        if (r.ok === null || r.ok === undefined) { if (r.used) command({ type: 'ninUse', used: r.used }); toast('いったん退きました（工作はまだ請け負ったまま）', 1500); }
+        else command({ type: 'ninResult', ok: !!r.ok, kills: r.kills || 0, unseen: !!r.unseen, used: r.used || null }); };
+      if (SGK.NINJA3D && SGK.NINJA3D.can()) SGK.NINJA3D.start({ q: N.q, d: N.d, tools: N.tools || {}, seed: N.q.id }, fin); else SGK.NINJA.start(N.q.k, N.d, fin); return; }
     const gs = e.target.closest('button[data-gbset]'); if (gs) { G.gbSel = +gs.dataset.gbset; townHtml = ''; renderTown(); return; } // 2.8.0 賭場の掛け金
     const b = e.target.closest('button[data-act]'); if (!b) return;
     if (b.dataset.act === 'gbOpen') { if (SGK.GAMBLEUI) SGK.GAMBLEUI.open(G.priv, G.myPid); return; } // 2.12.4 賭場の画面
@@ -1797,7 +1807,7 @@
     }
   }
   function pollPad(dt) {
-    if (SGK.NINJA && SGK.NINJA.on) return [0, 0]; // 0.77.0 潜入中
+    if ((SGK.NINJA && SGK.NINJA.on) || (SGK.NINJA3D && SGK.NINJA3D.on)) return [0, 0]; // 0.77.0 潜入中
     // 0.63.1 PCで別の機器（仮想コントローラーなど）が先に並ぶと使えなくなるので、最後に触ったコントローラーを使う（なければ標準配置のもの）
     const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter((p) => p && p.connected !== false) : [];
     for (const p of pads) if (p.buttons.some((b) => b && b.pressed)) { if (G.padIdx !== p.index) { G.padIdx = p.index; for (const k in padPrev) padPrev[k] = true; } break; }
