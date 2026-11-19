@@ -554,10 +554,10 @@
     healTick,
     patrolTick,
     function battles(w, dtMin) {
-      const sec = (dtMin / CFG.MIN_PER_SEC) * BATTLE_PACE, real = dtMin / CFG.MIN_PER_SEC;
+      const sec = (dtMin / CFG.MIN_PER_SEC) * BATTLE_PACE;
       for (const b of Object.values(w.battles)) {
         if (b.plan === undefined) planBegin(w, b); // 2.22.0 始まる前に軍議
-        if (b.plan) { planTick(w, b, real); continue; }
+        if (b.plan) continue; // 軍議の間は進めない（終わりの確かめは SIM.planCheck。時間を止めていても動く）
         if (!b.act) stepBattle(w, b, sec);
       }
     },
@@ -573,6 +573,8 @@
     for (const u of b.units) { u.px0 = u.x; u.py0 = u.y; }
     b.pids.forEach((pid) => SIM.say(pid, '軍議：地図で隊を選んで置き場所をクリック（右ドラッグで向き）。整ったら「準備完了」'));
   }
+  // 2.23.1 ホストが毎フレーム、本当の経過秒で呼ぶ（時間を「停止」にしていても軍議は終わる。前は止めていると始まらなかった）
+  SIM.planCheck = (w, real) => { for (const b of Object.values(w.battles || {})) { if (b.plan === undefined) planBegin(w, b); if (b.plan) planTick(w, b, real); } };
   function planTick(w, b, real) {
     const P = b.plan; P.t += real;
     const all = b.pids.length && b.pids.every((pid) => P.ready[pid]);

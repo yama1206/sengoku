@@ -499,6 +499,7 @@
     G.effSpeed = G.inBattle && G.speed > 1 ? 1 : G.speed;
     { const on = new Set([G.myPid, ...(G.net ? G.net.pids() : [])]); for (const id in G.world.players) G.world.players[id].off = !on.has(id); } // 0.61.1 いま接続していない人（前のマルチプレイの参加者）は地図に出さない
     SIM.step(G.world, dt * CFG.MIN_PER_SEC * G.effSpeed);
+    if (SIM.planCheck) SIM.planCheck(G.world, dt); // 2.23.1 軍議の終わり（時間を止めていても）
     // 0.62.0 ホストが入っていない「自分で戦う」の戦闘は、ここで進めて、その人へ様子を送る
     for (const b of Object.values(G.world.battles || {})) {
       if (!b.act || b.pids.includes(G.myPid)) continue;
@@ -1983,6 +1984,7 @@
           const h = my.find((u) => u[15]) || my.find((u) => u[3] === 'hero' && u[14] == null); G.selUnit = h ? h[0] : my[0] && my[0][0];
         }
         if (G.bcur) { R.bcam.x += (G.bcur[0] - R.bcam.x) * Math.min(1, k * 0.5); R.bcam.y += (G.bcur[1] - R.bcam.y) * Math.min(1, k * 0.5); }
+        if (BT.plan) G.planOf = BT.id; else if (G.planOf === BT.id) { G.planOf = null; if (G.mode === 'host' && G.speed === 0) { G.speed = 1; G.autoPause = 0; toast('合戦が始まったので、時間を動かしました', 1500); } } // 2.23.1 止めたままだと合戦が進まないので
         if (G.actDef && BT.canAct && !BT.act && G.autoActFor !== BT.id) { G.autoActFor = BT.id; command({ type: 'actStart' }); } // 1.6.13 戦が始まったら自分で戦う
         const AB = actB();
         if (!AB) { R.act3dOn = false; if (R.ordMenu) ordMenu(null); }
