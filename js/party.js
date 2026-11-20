@@ -244,7 +244,7 @@
         for (const m of marks) if (!m.shown && t >= m.at) { m.shown = true; me0.sc += m.pts; send(env.others, { k: 'sc', s: me0.sc, n: marks.filter((q) => q.shown).length }); }
         if (me0.n >= ARROWS && marks.every((m) => m.shown) && !me0.done) { me0.done = true; doneAt = t; send(env.others, { k: 'done', s: me0.sc }); }
         const alive = env.ids.filter((id) => !env.gone[id]);
-        if (alive.every((id) => S[id].done) || (doneAt != null && t > doneAt + 20) || t > 120) finishAll();
+        if (alive.every((id) => S[id].done) || t > 120) finishAll(); // 2.59.2 全員が射終わるまで待つ（相手の最後の点が入らず、二人とも1位になるのを防ぐ）
         void tOver;
       },
       draw() {
@@ -273,15 +273,16 @@
     const { cfg, me, g2: g, cv } = env, DAY = 40, DN = ['朝', '昼', '夕'], big = cfg.mode !== 'num';
     const RW = { ありふれた: 10, 見かける: 6, 珍しい: 3, 稀少: 1.2, '幻のような': 0.4 }, LIST = ((SGK.DATA && SGK.DATA.creatures) || []).filter((c) => c.k === 'f'), TW = LIST.reduce((a, c) => a + (RW[c.r] || 1), 0);
     const S = {}; for (const id of env.ids) S[id] = { n: 0, best: 0, bn: '', done: false }; const m0 = S[me];
-    let t = -2, busy = false, msg = '', msgT = 0, doneAt = null, dayShown = -1, over = false;
+    let t = -2, busy = false, msg = '', msgT = 0, doneAt = null, dayShown = -1, over = false, catchImg = null; // 2.59.2 釣れた魚の絵（assets/creatures/〇〇.webp）
+    const IMG = {}; const fishImg = (id) => { if (!IMG[id]) { const im = new Image(); im.src = `assets/creatures/${id}.webp?v=${SGK.VERSION}`; IMG[id] = im; } return IMG[id]; };
     const pick = () => { let r = Math.random() * TW; for (const c of LIST) { r -= RW[c.r] || 1; if (r <= 0) return c; } return LIST[0]; };
     function cast() {
-      if (busy || !LIST.length || !SGK.GATHERUI || !SGK.GATHERUI.party) return; const sp = pick(), frac = (Math.random() + Math.random()) / 2; busy = true;
+      if (busy || !LIST.length || !SGK.GATHERUI || !SGK.GATHERUI.party) return; const sp = pick(), frac = (Math.random() + Math.random()) / 2; busy = true; catchImg = null; fishImg(sp.id); /* 先に読んでおく */
       SGK.GATHERUI.party({ n: -1, k: 'f', id: sp.id, d: sp.d, r: sp.r, fr: frac }, (q) => {
         busy = false; if (q < 0) { msg = 'やめた'; msgT = 1.5; return; }
         const thr = ((SGK.DATA.gatherDiff || {})[sp.d] || { thr: 0.6 }).thr; if (q < thr) { msg = '逃げられた…'; msgT = 2; return; }
         const sz = Math.round((sp.sz[0] + (sp.sz[1] - sp.sz[0]) * frac) * 10) / 10; m0.n++; const rec = sz > m0.best; if (rec) { m0.best = sz; m0.bn = sp.n; }
-        msg = `${sp.n}（${sz}cm）を釣った！${rec && m0.n > 1 ? ' 自己ベスト！' : ''}`; msgT = 3; send(env.others, { k: 'f', n: m0.n, b: m0.best, bn: m0.bn });
+        msg = `${sp.n}（${sz}cm）を釣った！${rec && m0.n > 1 ? ' 自己ベスト！' : ''}`; msgT = 3; catchImg = fishImg(sp.id); send(env.others, { k: 'f', n: m0.n, b: m0.best, bn: m0.bn });
       });
     }
     function finishAll() {
@@ -301,7 +302,7 @@
         if (t >= DAY * 3) { if (!m0.done && !busy) { m0.done = true; doneAt = t; send(env.others, { k: 'done', n: m0.n, b: m0.best, bn: m0.bn }); } if (busy && t > DAY * 3 + 25 && SGK.GATHERUI.stop) SGK.GATHERUI.stop(); }
         else if (!busy && IN.aT) cast();
         const alive = env.ids.filter((id) => !env.gone[id]);
-        if (alive.every((id) => S[id].done) || (doneAt != null && t > doneAt + 15) || t > DAY * 3 + 45) finishAll();
+        if (alive.every((id) => S[id].done) || t > DAY * 3 + 40) finishAll(); // 2.59.2 全員の最後の結果（done）がそろうまで待つ（前は自分が終わって15秒で決めていたので、相手の最後の1匹が入らず、二人とも1位になることがあった）。相手が釣りの途中なら+25秒で止まる
       },
       draw() {
         const W0 = cv.width, H0 = cv.height, day = clamp(Math.floor(Math.max(0, t) / DAY), 0, 2), sky = ['#bfe3f5', '#8fcdf2', '#f4b27a'][day];
@@ -310,6 +311,12 @@
         const rem = Math.max(0, DAY - (Math.max(0, t) - day * DAY)); drawText(g, `${day + 1}日目（${DN[day]}）　残り ${Math.ceil(rem)}秒`, 16, 30, { sz: 20, b: 1 }); bar(g, 16, 40, 160, 8, rem / DAY, '#f2c14e');
         drawText(g, `${m0.n}匹　最大 ${m0.best ? m0.bn + ' ' + m0.best + 'cm' : '―'}`, 16, 74, { sz: 17 }); drawText(g, big ? '勝ち方：大物' : '勝ち方：数', 16, 98, { sz: 14, c: '#f2c14e' });
         env.ids.forEach((id, i) => drawText(g, `${nameOf(env, id)}　${big ? (S[id].best ? S[id].best + 'cm' : '―') : S[id].n + '匹'}${S[id].done ? '（終了）' : ''}`, W0 - 16, 30 + i * 20, { sz: 15, al: 'right', c: tcol(env, id) }));
+        if (msgT > 0 && catchImg && catchImg.complete && catchImg.naturalWidth) { // 2.59.2 釣れた魚の絵を、言葉の下に出す
+          const sc = Math.min(260 / catchImg.naturalWidth, (H0 * 0.32) / catchImg.naturalHeight), w = catchImg.naturalWidth * sc, h = catchImg.naturalHeight * sc;
+          g.save(); g.globalAlpha = Math.min(1, msgT * 2); g.fillStyle = 'rgba(255,248,230,.85)'; g.beginPath(); g.ellipse(W0 / 2, H0 * 0.38 + h / 2 + 10, w / 2 + 26, h / 2 + 18, 0, 0, 7); g.fill();
+          g.drawImage(catchImg, W0 / 2 - w / 2, H0 * 0.38 + 10, w, h); g.restore();
+        }
+        if (msgT <= 0) catchImg = null;
         if (msgT > 0) drawText(g, msg, W0 / 2, H0 * 0.34, { sz: 30, b: 1, al: 'center' });
         else if (!busy && t >= 0 && t < DAY * 3) drawText(g, 'A／Space／タップで釣りを始める', W0 / 2, H0 * 0.6, { sz: 20, al: 'center' });
         if (t < 0) drawText(g, String(Math.ceil(-t)), W0 / 2, H0 / 2, { sz: 90, b: 1, al: 'center' });
