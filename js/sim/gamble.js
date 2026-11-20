@@ -3,7 +3,7 @@
 (function () {
   const SIM = SGK.SIM, DATA = SGK.DATA;
   const G = (SGK.GAMBLE = {});
-  G.BETS = [10, 50, 100, 500, 1000];
+  G.BETS = [10, 50, 100, 500, 1000, 3000, 5000]; // 2.60.2 3貫・5貫を足す
   G.GAMES = {
     chouhan: { name: '丁半', rule: 'サイコロ2つの合計が偶数なら「丁」、奇数なら「半」。当たれば2倍。誰かが壺を開けると全員の勝負が決まります。' },
     memashi: { name: '目増', rule: '親と自分がサイコロを2つずつ振り、合計が大きい方の勝ち（勝てば2倍・同じなら賭け金が戻る）。' },
@@ -193,14 +193,14 @@
     const gb = P.here.gamble, me = P.me; if (!gb) return '<div class="muted">賭場があるのは大きな町だけです</div>';
     sel = G.BETS.includes(sel) ? sel : 100;
     let h = G.css + `<div class="muted">所持金 ${money(me.money)}　<span class="muted">（同じ町にいる人と同じ卓で勝負できます）</span></div>`;
-    h += '<div class="row" style="margin:6px 0">掛け金：' + G.BETS.map((b) => `<button data-gbset="${b}" class="${b === sel ? 'on' : ''}">${b}文</button>`).join('') + '</div>';
+    h += '<div class="row" style="margin:6px 0">掛け金：' + G.BETS.map((b) => `<button data-gbset="${b}" class="${b === sel ? 'on' : ''}">${SIM.money(b)}</button>`).join('') + '</div>';
     const last = (L) => (L ? `<div class="muted" style="margin-top:4px">前の勝負：${L.head}${L.by ? `（${L.by}が開けた）` : ''}<br>${L.lines.join('<br>')}</div>` : '');
-    const who = (T) => (T.bets.length ? `卓：${T.bets.map((x) => `${x.name}${x.pick ? (x.pick === 'even' ? '[丁]' : '[半]') : ''}${x.bet}文`).join('、')}` : '卓：まだ誰も賭けていません');
+    const who = (T) => (T.bets.length ? `卓：${T.bets.map((x) => `${x.name}${x.pick ? (x.pick === 'even' ? '[丁]' : '[半]') : ''}${SIM.money(x.bet)}`).join('、')}` : '卓：まだ誰も賭けていません');
     for (const g of ['chouhan', 'memashi', 'shigoro']) {
       const T = gb[g], mine = T.bets.find((x) => x.id === myId), G0 = G.GAMES[g];
       h += `<div class="card" style="display:block"><b>${G0.name}</b><br><span class="muted">${G0.rule}</span><div class="muted" style="margin-top:4px">${who(T)}</div><div class="row" style="margin-top:6px">`;
-      if (!mine) h += g === 'chouhan' ? `<button id="gb-${g}-e" data-act="gbBet" data-id="${g}" data-qty="${sel}" data-kind="even" ${me.money < sel ? 'disabled' : ''}>丁に${sel}文</button><button id="gb-${g}-o" data-act="gbBet" data-id="${g}" data-qty="${sel}" data-kind="odd" ${me.money < sel ? 'disabled' : ''}>半に${sel}文</button>` : `<button id="gb-${g}-b" data-act="gbBet" data-id="${g}" data-qty="${sel}" ${me.money < sel ? 'disabled' : ''}>${sel}文を賭ける</button>`;
-      else h += `<span>賭け済み ${mine.bet}文${mine.pick ? (mine.pick === 'even' ? '（丁）' : '（半）') : ''}</span><button id="gb-${g}-r" data-act="gbRoll" data-id="${g}">${g === 'chouhan' ? '壺を開ける' : '振る'}</button><button id="gb-${g}-c" data-act="gbCancel" data-id="${g}">取り消す</button>`;
+      if (!mine) h += g === 'chouhan' ? `<button id="gb-${g}-e" data-act="gbBet" data-id="${g}" data-qty="${sel}" data-kind="even" ${me.money < sel ? 'disabled' : ''}>丁に${SIM.money(sel)}</button><button id="gb-${g}-o" data-act="gbBet" data-id="${g}" data-qty="${sel}" data-kind="odd" ${me.money < sel ? 'disabled' : ''}>半に${SIM.money(sel)}</button>` : `<button id="gb-${g}-b" data-act="gbBet" data-id="${g}" data-qty="${sel}" ${me.money < sel ? 'disabled' : ''}>${SIM.money(sel)}を賭ける</button>`;
+      else h += `<span>賭け済み ${SIM.money(mine.bet)}${mine.pick ? (mine.pick === 'even' ? '（丁）' : '（半）') : ''}</span><button id="gb-${g}-r" data-act="gbRoll" data-id="${g}">${g === 'chouhan' ? '壺を開ける' : '振る'}</button><button id="gb-${g}-c" data-act="gbCancel" data-id="${g}">取り消す</button>`;
       h += `</div>${last(T.last)}</div>`;
     }
     { const U = gb.uma, mine = U.bets.find((x) => x.id === myId), L = U.last;
@@ -211,20 +211,20 @@
         h += '<div style="margin-top:6px;background:#3d5a2a;border-radius:4px;padding:2px 0">' + L.fin.map((x, i) => `<div style="position:relative;height:22px;border-bottom:1px dashed rgba(255,255,255,.25)"><span style="position:absolute;right:${n ? 0 : (x * 0.88).toFixed(1)}%;${n ? `animation:um${L.id}_${i} ${Math.max(3, n * 0.45).toFixed(1)}s linear forwards;` : ''}font-size:18px;white-space:nowrap">${SGK.ICON ? SGK.ICON.html('horse', 22) : ''}<small style="font-size:10px;color:#fff">${i + 1}</small></span></div>`).join('') + '<div class="muted" style="text-align:left;font-size:10px">← ゴール</div></div>';
         h += `<div class="muted" style="margin-top:4px">前のレース：${L.head}${L.by ? `（${L.by}が走らせた）` : ''}<br>${L.lines.join('<br>') || '賭けた人はいませんでした'}</div>`;
       }
-      h += '<div style="margin-top:6px">' + U.horses.map((x, i) => `<div class="row" style="align-items:center;gap:6px;margin:2px 0"><span style="min-width:120px">${i + 1} ${x.name}<span class="muted">（${x.form}）</span></span><span>${x.odds}倍</span>` + (mine ? (mine.pick === i ? '<b>←賭け済み</b>' : '') : `<button id="gb-uma-${i}" data-act="gbBet" data-id="uma" data-qty="${sel}" data-kind="${i}" ${me.money < sel ? 'disabled' : ''}>${sel}文</button>`) + '</div>').join('') + '</div>';
-      h += `<div class="muted" style="margin-top:4px">${U.bets.length ? '卓：' + U.bets.map((x) => `${x.name}[${U.horses[x.pick].name}]${x.bet}文`).join('、') : '卓：まだ誰も賭けていません'}</div>`;
+      h += '<div style="margin-top:6px">' + U.horses.map((x, i) => `<div class="row" style="align-items:center;gap:6px;margin:2px 0"><span style="min-width:120px">${i + 1} ${x.name}<span class="muted">（${x.form}）</span></span><span>${x.odds}倍</span>` + (mine ? (mine.pick === i ? '<b>←賭け済み</b>' : '') : `<button id="gb-uma-${i}" data-act="gbBet" data-id="uma" data-qty="${sel}" data-kind="${i}" ${me.money < sel ? 'disabled' : ''}>${SIM.money(sel)}</button>`) + '</div>').join('') + '</div>';
+      h += `<div class="muted" style="margin-top:4px">${U.bets.length ? '卓：' + U.bets.map((x) => `${x.name}[${U.horses[x.pick].name}]${SIM.money(x.bet)}`).join('、') : '卓：まだ誰も賭けていません'}</div>`;
       if (mine) h += `<div class="row" style="margin-top:6px"><button id="gb-uma-r" data-act="gbRoll" data-id="uma">走らせる</button><button id="gb-uma-c" data-act="gbCancel" data-id="uma">取り消す</button></div>`;
       h += '</div>'; }
     const K = gb.karuta, mineB = K.bets.find((x) => x.id === myId), myH = K.hands.find((x) => x.id === myId);
     h += `<div class="card" style="display:block"><b>${G.GAMES.karuta.name}</b><br><span class="muted">${G.GAMES.karuta.rule}</span>`;
     if (K.phase === 'bet') {
-      h += `<div class="muted" style="margin-top:4px">${K.bets.length ? '卓：' + K.bets.map((x) => `${x.name}${x.bet}文`).join('、') : '卓：まだ誰も賭けていません'}</div><div class="row" style="margin-top:6px">`;
-      if (!mineB) h += `<button id="gb-k-b" data-act="gbBet" data-id="karuta" data-qty="${sel}" ${me.money < sel ? 'disabled' : ''}>${sel}文を賭ける</button>`;
-      else h += `<span>賭け済み ${mineB.bet}文</span><button id="gb-k-d" data-act="gbDeal" data-id="karuta">札を配る</button><button id="gb-k-c" data-act="gbCancel" data-id="karuta">取り消す</button>`;
+      h += `<div class="muted" style="margin-top:4px">${K.bets.length ? '卓：' + K.bets.map((x) => `${x.name}${SIM.money(x.bet)}`).join('、') : '卓：まだ誰も賭けていません'}</div><div class="row" style="margin-top:6px">`;
+      if (!mineB) h += `<button id="gb-k-b" data-act="gbBet" data-id="karuta" data-qty="${sel}" ${me.money < sel ? 'disabled' : ''}>${SIM.money(sel)}を賭ける</button>`;
+      else h += `<span>賭け済み ${SIM.money(mineB.bet)}</span><button id="gb-k-d" data-act="gbDeal" data-id="karuta">札を配る</button><button id="gb-k-c" data-act="gbCancel" data-id="karuta">取り消す</button>`;
       h += '</div>';
     } else {
       h += `<div style="margin-top:6px">親：${K.parent.map(cardHtml).join('')}</div>`;
-      for (const x of K.hands) h += `<div>${x.name}（${x.bet}文）${x.cards.map(cardHtml).join('')} ${x.done ? '<span class="muted">勝負</span>' : '<span class="muted">考え中…</span>'}</div>`;
+      for (const x of K.hands) h += `<div>${x.name}（${SIM.money(x.bet)}）${x.cards.map(cardHtml).join('')} ${x.done ? '<span class="muted">勝負</span>' : '<span class="muted">考え中…</span>'}</div>`;
       h += '<div class="row" style="margin-top:6px">';
       if (myH && !myH.done) h += `<button id="gb-k-h" data-act="gbHit" data-id="karuta">もう1枚引く</button><button id="gb-k-s" data-act="gbStand" data-id="karuta">勝負する</button>`;
       if (myH) h += `<button id="gb-k-x" data-act="gbClose" data-id="karuta">みんな勝負にして締める</button>`;

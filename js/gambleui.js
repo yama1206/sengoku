@@ -124,7 +124,7 @@
   function render(full) {
     const gb = P.here.gamble, me = P.me;
     el.querySelector('#gbMoney').innerHTML = `${SGK.ICON ? SGK.ICON.html('coins', 20) : ''} ${money(me.money)}`;
-    el.querySelector('#gbBets').innerHTML = G.BETS.map((v) => `<button data-sel="${v}" class="${v === sel ? 'on' : ''}">${v}文</button>`).join('');
+    el.querySelector('#gbBets').innerHTML = G.BETS.map((v) => `<button data-sel="${v}" class="${v === sel ? 'on' : ''}">${money(v)}</button>`).join('');
     el.querySelector('#gbTabs').innerHTML = Object.entries(NAMES).map(([k, n]) => `<button data-tab="${k}" class="${k === tab ? 'on' : ''}">${n}</button>`).join('');
     const st = el.querySelector('#gbStage');
     if (full || !st.dataset.g || st.dataset.g !== tab) { st.dataset.g = tab; st.innerHTML = SCENE[tab](); }
@@ -137,7 +137,7 @@
   const setPanel = (pn, key, html) => { if (lastHtml[key] !== html) { lastHtml[key] = html; pn.innerHTML = html; } if (pn.parentElement) pn.parentElement.style.setProperty('--pb', pn.offsetHeight + 18 + 'px'); }; // --pb：上の絵や賽を欄に重ねないため
   const logHtml = (L) => (L ? `<div class="log">前の勝負：${esc(L.head)}${L.by ? `（${esc(L.by)}）` : ''}<br>${(L.lines || []).map(esc).join('<br>')}</div>` : '');
   const coin = () => (SGK.ICON ? SGK.ICON.html('coins', 18) : '');
-  const chip = (x, t) => `<span class="chip">${coin()}${esc(x.name)}${t ? ' ' + t : ''} ${x.bet}文</span>`;
+  const chip = (x, t) => `<span class="chip">${coin()}${esc(x.name)}${t ? ' ' + t : ''} ${money(x.bet)}</span>`;
   const mine = (T) => T.bets.find((x) => x.id === myId);
   function banner(st, txt, col) { const b = st.querySelector('.big'); if (!b) return; b.textContent = txt; b.style.textShadow = `0 0 18px ${col || '#c81e1e'},0 4px 0 #400`; b.classList.add('show'); }
   function result(st, L) {
@@ -164,13 +164,13 @@
       const m = mine(T);
       const e = el.querySelector('#gbE'), o = el.querySelector('#gbO');
       if (e) { const h1 = T.bets.filter((x) => x.pick === 'even').map((x) => chip(x)).join(''), h2 = T.bets.filter((x) => x.pick === 'odd').map((x) => chip(x)).join(''); if (e.innerHTML !== h1) e.innerHTML = h1; if (o.innerHTML !== h2) o.innerHTML = h2; }
-      setPanel(pn, 'ch', `<div class="rule">${esc(G.GAMES.chouhan.rule)}</div><div class="row">${m ? `<span>${m.pick === 'even' ? '丁' : '半'}に${m.bet}文 張った</span><button data-cmd="gbRoll" data-id="chouhan">勝負！（壺を開ける）</button><button data-cmd="gbCancel" data-id="chouhan">取り消す</button>` : `<button data-cmd="gbBet" data-id="chouhan" data-kind="even" ${me.money < sel ? 'disabled' : ''}>丁に張る（${sel}文）</button><button data-cmd="gbBet" data-id="chouhan" data-kind="odd" ${me.money < sel ? 'disabled' : ''}>半に張る（${sel}文）</button>`}</div>${logHtml(T.last)}`);
+      setPanel(pn, 'ch', `<div class="rule">${esc(G.GAMES.chouhan.rule)}</div><div class="row">${m ? `<span>${m.pick === 'even' ? '丁' : '半'}に${money(m.bet)} 張った</span><button data-cmd="gbRoll" data-id="chouhan">勝負！（壺を開ける）</button><button data-cmd="gbCancel" data-id="chouhan">取り消す</button>` : `<button data-cmd="gbBet" data-id="chouhan" data-kind="even" ${me.money < sel ? 'disabled' : ''}>丁に張る（${money(sel)}）</button><button data-cmd="gbBet" data-id="chouhan" data-kind="odd" ${me.money < sel ? 'disabled' : ''}>半に張る（${money(sel)}）</button>`}</div>${logHtml(T.last)}`);
     },
     memashi(pn, T, me) { dicePanel(pn, T, me, 'memashi'); },
     shigoro(pn, T, me) { dicePanel(pn, T, me, 'shigoro'); },
     uma(pn, T, me) {
       const m = mine(T);
-      setPanel(pn, 'um', `<div class="rule">${esc(G.GAMES.uma.rule)}</div><div class="row">${T.horses.map((x, i) => `<button data-cmd="gbBet" data-id="uma" data-kind="${i}" ${m || me.money < sel ? 'disabled' : ''} class="${m && m.pick === i ? 'on' : ''}" style="font-size:12px">${i + 1} ${esc(x.name)}<br>${x.odds}倍・${x.form}</button>`).join('')}</div><div class="row">${m ? `<button data-cmd="gbRoll" data-id="uma">走らせる</button><button data-cmd="gbCancel" data-id="uma">取り消す</button>` : `<span class="rule">賭ける馬を選んでください（${sel}文）</span>`}<span class="rule">${T.bets.map((x) => `${esc(x.name)}［${x.pick + 1}］${x.bet}文`).join('、')}</span></div>${logHtml(T.last)}`);
+      setPanel(pn, 'um', `<div class="rule">${esc(G.GAMES.uma.rule)}</div><div class="row">${T.horses.map((x, i) => `<button data-cmd="gbBet" data-id="uma" data-kind="${i}" ${m || me.money < sel ? 'disabled' : ''} class="${m && m.pick === i ? 'on' : ''}" style="font-size:12px">${i + 1} ${esc(x.name)}<br>${x.odds}倍・${x.form}</button>`).join('')}</div><div class="row">${m ? `<button data-cmd="gbRoll" data-id="uma">走らせる</button><button data-cmd="gbCancel" data-id="uma">取り消す</button>` : `<span class="rule">賭ける馬を選んでください（${money(sel)}）</span>`}<span class="rule">${T.bets.map((x) => `${esc(x.name)}［${x.pick + 1}］${money(x.bet)}`).join('、')}</span></div>${logHtml(T.last)}`);
     },
     karuta(pn, T, me) {
       const mb = mine(T), myH = T.hands.find((x) => x.id === myId);
@@ -180,14 +180,14 @@
         else if (par && T.phase === 'bet' && (!T.last || mb) && par.dataset.h !== 'new') { par.dataset.h = 'new'; my.dataset.h = ''; par.innerHTML = cardHtml(null) + cardHtml(null); my.innerHTML = ''; } // 2.31.1 次の勝負に賭けたら前の札も片づける
       }
       let h = `<div class="rule">${esc(G.GAMES.karuta.rule)}</div><div class="row">`;
-      if (T.phase === 'bet') h += mb ? `<span>${mb.bet}文 賭けた</span><button data-cmd="gbDeal" data-id="karuta">札を配る</button><button data-cmd="gbCancel" data-id="karuta">取り消す</button>` : `<button data-cmd="gbBet" data-id="karuta" ${me.money < sel ? 'disabled' : ''}>${sel}文 賭ける</button>`;
+      if (T.phase === 'bet') h += mb ? `<span>${money(mb.bet)} 賭けた</span><button data-cmd="gbDeal" data-id="karuta">札を配る</button><button data-cmd="gbCancel" data-id="karuta">取り消す</button>` : `<button data-cmd="gbBet" data-id="karuta" ${me.money < sel ? 'disabled' : ''}>${money(sel)} 賭ける</button>`;
       else { if (myH && !myH.done) h += `<button data-cmd="gbHit" data-id="karuta">もう1枚引く</button><button data-cmd="gbStand" data-id="karuta">勝負する</button>`; if (myH) h += `<button data-cmd="gbClose" data-id="karuta">みんな勝負にして締める</button>`; h += `<span class="rule">${T.hands.map((x) => `${esc(x.name)}${x.done ? '（勝負）' : '（考え中）'}`).join('、')}</span>`; }
-      setPanel(pn, 'ka', h + `</div><div class="rule">${T.phase === 'bet' ? T.bets.map((x) => `${esc(x.name)} ${x.bet}文`).join('、') : ''}</div>${logHtml(T.last)}`);
+      setPanel(pn, 'ka', h + `</div><div class="rule">${T.phase === 'bet' ? T.bets.map((x) => `${esc(x.name)} ${money(x.bet)}`).join('、') : ''}</div>${logHtml(T.last)}`);
     },
   };
   function dicePanel(pn, T, me, g) {
     const m = mine(T);
-    setPanel(pn, g, `<div class="rule">${esc(G.GAMES[g].rule)}</div><div class="row">${m ? `<span>${m.bet}文 賭けた</span><button data-cmd="gbRoll" data-id="${g}">振る</button><button data-cmd="gbCancel" data-id="${g}">取り消す</button>` : `<button data-cmd="gbBet" data-id="${g}" ${me.money < sel ? 'disabled' : ''}>${sel}文 賭ける</button>`}<span class="rule">${T.bets.map((x) => `${esc(x.name)} ${x.bet}文`).join('、')}</span></div>${logHtml(T.last)}`);
+    setPanel(pn, g, `<div class="rule">${esc(G.GAMES[g].rule)}</div><div class="row">${m ? `<span>${money(m.bet)} 賭けた</span><button data-cmd="gbRoll" data-id="${g}">振る</button><button data-cmd="gbCancel" data-id="${g}">取り消す</button>` : `<button data-cmd="gbBet" data-id="${g}" ${me.money < sel ? 'disabled' : ''}>${money(sel)} 賭ける</button>`}<span class="rule">${T.bets.map((x) => `${esc(x.name)} ${money(x.bet)}`).join('、')}</span></div>${logHtml(T.last)}`);
   }
   const SUIT = ['sword', 'cup', 'club', 'coin'], KAN = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
   function cardHtml(c, back) {
