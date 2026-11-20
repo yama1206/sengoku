@@ -188,7 +188,7 @@
     for (const n of view.npcs) {
       const d = disp[n.id] || n; const [x, y] = R.toScreen(d.x, d.y);
       if (n.id === selectedId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 11, 0, 7); ctx.stroke(); }
-      if (n.kind === 'merchant') { ctx.fillStyle = '#7a5a2e'; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fill(); }
+      if (n.kind === 'merchant') { ctx.fillStyle = '#9b3fc4'; ctx.strokeStyle = '#fff8e6'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x, y, 4.2, 0, 7); ctx.fill(); ctx.stroke(); } // 2.59.3 行商人は紫に白の縁（茶色だと道と見分けにくかった）
       else if (n.kind === 'bandit') {
         ctx.fillStyle = 'rgba(245,238,215,.85)'; ctx.strokeStyle = '#e0281e'; ctx.lineWidth = 3; // 敵対：赤い枠
         ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.fill(); ctx.stroke();
