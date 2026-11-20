@@ -78,6 +78,7 @@
   };
 
   SIM.GATHER_HP = 0.03; // 釣り・虫取りの1回で使う体力
+  SIM.GATHER_CATCH_HP = 0.03; // 2.60.7 捕れたときにさらに使う体力（大物・珍しいものほど少し多い）
   // ---- 命令 ----
   C.gatherStart = (w, p, c) => {
     const kind = c.kind === 'bug' ? 'b' : 'f';
@@ -104,12 +105,14 @@
     if (q < dif.thr) return void (p.gatLast = { n: g.n, ok: false, k: g.k, txt: g.k === 'f' ? '逃げられた…' : '逃げられた…', hint: sp.r === '幻のような' || sp.r === '稀少' ? '大物の気配がした' : '' });
     const z = (p.zukan = p.zukan || {}), e = (z[g.id] = z[g.id] || [0, 0]), isNew = e[0] === 0, rec = g.size > e[1];
     e[0]++; if (rec) e[1] = g.size;
+    { const RX = { ありふれた: 0, 見かける: 0.005, 珍しい: 0.01, 稀少: 0.015, '幻のような': 0.02 }, hc = SIM.GATHER_CATCH_HP * (0.7 + 0.6 * g.frac) + (RX[sp.r] || 0); // 2.60.7 捕れたら体力を使う
+      p.hpFrac = Math.max(0.05, (p.hpFrac == null ? 1 : p.hpFrac) - hc); g.hpUse = Math.round(hc * 100); }
     const gain = Math.max(1, Math.round(sp.p * (0.7 + 0.8 * g.frac))); p.money += gain;
     const mi = monthIdx(w), zm = (p.zmon = p.zmon || {}), mm = (zm[mi] = zm[mi] || { n: 0 }); mm.n++; // 大会のための月ごとの記録（一番大きかった物）
     const key = g.k === 'f' ? 'f' : 'b'; if (!mm[key] || g.frac > mm[key][2]) mm[key] = [g.id, g.size, Math.round(g.frac * 1000) / 1000]; for (const k of Object.keys(zm)) if (+k < mi - 3) delete zm[k];
     const unit = g.k === 'f' ? 'cm' : 'mm';
     p.gatLast = { n: g.n, ok: true, k: g.k, id: g.id, name: sp.n, size: g.size, unit, gain, isNew, rec: rec && !isNew, r: sp.r, txt: `${sp.n}（${g.size}${unit}）を${g.k === 'f' ? '釣った' : '捕まえた'}！` };
-    say(p.id, `${sp.n}（${g.size}${unit}）を${g.k === 'f' ? '釣り' : '捕まえ'}ました！ +${SIM.money(gain)}${isNew ? '　図鑑に載りました' : ''}`);
+    say(p.id, `${sp.n}（${g.size}${unit}）を${g.k === 'f' ? '釣り' : '捕まえ'}ました！ +${SIM.money(gain)}・体力-${g.hpUse}%${isNew ? '　図鑑に載りました' : ''}`);
   };
 
   /* 2.34.0 虫の捕り方と見た目：[遊び, 形, 色]。遊びは tree（木を揺すって落ちたところを捕る）・fly（飛んでいるところを捕る）・grass（草むらの影を当てる）。
