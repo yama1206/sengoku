@@ -21,7 +21,9 @@ function townStage(P, hs) {
   if (townTab === 'market') {
     return ['', 'shop.jpg', `<img class="who" src="${TA}merchant_p.png" style="transform:scaleX(-1)">` + say('商人', 'いらっしゃい。よい品が入っていますよ')];
   }
-  if (townTab === 'renpei') return ['', 'renpei.jpg', `<img class="who" src="${TA}drill_p.png">` + say('練兵所の師範', '腕を上げたければ、ここで鍛えていけ。兵も雇えるし、仕事の口も回してやるぞ')];
+  if (townTab === 'renpei') { const o = h.otoko; // 2.61.0 大きな町の練兵所には、仲良くなれる男がいる
+    if (o) return ['', 'renpei.jpg', `<img class="who" src="${TA}${o.img}.png" onerror="this.onerror=null;this.src='${TA}drill_p.png'">` + say(`${o.name}　<span class="heart">${'♥'.repeat(o.st)}${'♡'.repeat(4 - o.st)}</span>`, o.line)];
+    return ['', 'renpei.jpg', `<img class="who" src="${TA}drill_p.png">` + say('練兵所の師範', '腕を上げたければ、ここで鍛えていけ。兵も雇えるし、仕事の口も回してやるぞ')]; }
   if (townTab === 'gosho' && h.gosho) return ['', 'gosho.jpg', `<img class="who" src="${TA}gosho_p.png" onerror="this.src='${TA}merchant_p.png'">` + say(h.gosho.name, me.sho && me.sho.house === h.id ? 'おう、精が出るな。商いは信用が第一だぞ' : '手前どもの蔵には、よそでは手に入らぬ家宝がございます')]; // 2.55.0 豪商
   if (townTab === 'soncho' && h.soncho) return ['', 'soncho.jpg', `<img class="who" src="${TA}soncho_p.png">` + say(h.soncho.me ? '村の衆' : `村長 ${h.soncho.head}`, h.soncho.me ? '村長様、今日もよろしくお願いいたします' : me.nomin && h.soncho.mine ? 'おう、今日も精を出してくれよ。田んぼは待ってくれんでな' : '見ねえ顔だな。働き手ならいつでも歓迎するぞ')]; // 2.56.1 村長
   if (townTab === 'mise') return ['', 'shop.jpg', `<img class="who" src="${TA}merchant_p.png">` + say('店の番頭', me.shoka && me.shoka.own ? '旦那様、本日も商いに励みます' : '自分の店を持つのは、商人の夢でございます')]; // 2.56.0 自分の店
@@ -69,6 +71,13 @@ function renderTown() {
   else if (NJ && NJ.def) html += `<div class="card" style="display:block;border-color:#c33"><b>急報：城の守り</b><br><span class="muted">${njDefTxt(NJ.def)}。期限までに${NJ.def.toName}へ駆けつけてください（${dayLeft(NJ.def.deadline)}）。間に合わないと工作を果たされます</span><div class="row" style="margin-top:4px"><button id="nj-deflook" data-look="${NJ.def.to}">地図で見る</button></div></div>`;
   if (townTab === 'street' && SGK.PARTY) html += '<div class="card" style="display:block"><b>みんなで遊ぶ</b>（同じ町にいる人を誘えます。2人から）<div class="row" style="margin-top:4px"><button data-party="race">馬の障害レース</button><button data-party="archery">弓の的当て</button><button data-party="fish">釣り大会</button><button data-party="cart">荷運び（協力）</button></div></div>';
   if (townTab === 'street') html += `<div class="muted">${hs && hs.type === 'village' ? '村' : '町'}の通りです。上のボタンから行き先を選んでください</div>`;
+  if (townTab === 'renpei' && h.otoko) { const m = h.otoko, gifts = Object.keys(me.inv || {}).filter((k) => me.inv[k] > 0 && IT[k]); // 2.61.0 練兵所の男（看板娘と同じ。命令は data-id="man"）
+    html += `<div class="card" style="display:block"><b>${m.name}</b>（${m.role}・${m.age}歳くらい）　仲 ${m.a}/100・${m.stName}${m.like ? `　好きな品：${IT[m.like].name}` : '　好きな品：？（顔なじみになると分かる）'}`
+      + `<div class="row" style="flex-wrap:wrap;margin-top:4px"><button id="rp-talk" data-act="musume" data-id="man" data-kind="talk" ${m.talked ? 'disabled' : ''}>${m.talked ? '今日は話した' : '話す'}</button>`
+      + (m.gifted ? '<button disabled>今日は贈った</button>' : gifts.map((k) => `<button id="rp-g-${k}" data-act="musume" data-id="man" data-kind="gift" data-item="${k}">${IT[k].name}を贈る</button>`).join(''))
+      + `<button id="rp-date" data-act="musume" data-id="man" data-kind="date" ${m.a < SIM.MUSUME.dateNeed || m.dated || me.money < SIM.MUSUME.dateCost ? 'disabled' : ''}>酒を酌み交わす（${SIM.money(SIM.MUSUME.dateCost)}）</button>`
+      + (!m.married && m.st >= 4 ? '<button id="rp-pro" data-act="musume" data-id="man" data-kind="propose" style="border-color:#e0607e">想いを伝える</button>' : '')
+      + `</div><span class="muted">話す・贈り物は1日1回。${m.a < SIM.MUSUME.dateNeed ? `仲が${SIM.MUSUME.dateNeed}になると酒を酌み交わせます。` : ''}${m.married ? 'あなたには連れ合いがいます' : '仲が100になると想いを伝えられます'}</span></div>`; }
   for (const sec of TOWN_SECS[townTab] || [townTab]) { if ((TOWN_SECS[townTab] || []).length > 1) html += `<div class="secH">${SEC_NAME[sec]}</div>`;
   if (sec === 'talk' && h.musume) { const m = h.musume, gifts = Object.keys(me.inv || {}).filter((k) => me.inv[k] > 0 && IT[k]); // 2.13.0 看板娘
     html += `<div class="card" style="display:block"><b>${m.name}</b>　仲 ${m.a}/100・${m.wife ? '夫婦' : m.stName}${m.like ? `　好きな品：${IT[m.like].name}` : '　好きな品：？（顔なじみになると分かる）'}`

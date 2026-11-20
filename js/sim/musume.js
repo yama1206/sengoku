@@ -19,16 +19,38 @@
     yamaguchi: { type: 'エレガント', name: '桜', like: 'cotton', shop: '小間物屋', lines: ['ようこそ。西の京、山口の茶屋でございます', 'またお目にかかれて、うれしゅうございます', 'あなたとのお話は、琴の音より心地よいですわ', '……あなたを想うと、胸が春のように温かくなりますの', '今日は、わたくしの心をお伝えしてもよろしいかしら'], likeT: 'まあ、美しい木綿。あなたの目利きには感心いたしますわ', gift: 'ありがとうございます。大切にいたします', date: '桜の下でのお茶会、まるで夢のようですわ', yes: 'はい……。わたくし、あなたと生涯を共にいたします', wife: 'おかえりなさいませ。今宵は一曲、お聴かせしましょうか' },
     utazu: { type: '綺麗', name: '楓', like: 'salt', shop: 'うどん屋', lines: ['いらっしゃい！お茶のあとは讃岐のうどんもどう？', 'お、また来たね！大盛りにしとこうか？', 'あんたってさ、話してて飽きないんだよね', '……あんたのぶんだけ、こっそり具を多くしてるの、気づいてた？', 'ねえ、今日はうどんの話じゃないんだけど……いい？'], likeT: 'いい塩！これでだしがもっとおいしくなるよ', gift: 'ありがと！今度なにかおごるね', date: 'たまには食べる側もいいね。あんたと一緒だと特に', yes: 'えへへ……もちろん！これからは毎日、あんたにうどん作るよ', wife: 'おかえり！今日もうどん、打っといたよ' },
   };
+  // 2.61.0 練兵所の男たち（大きな町に一人ずつ）。若者からイケオジまで。仕組みは看板娘と同じで、id は 'r_町'（夫婦になれるのは娘とあわせて一人だけ）
+  //  age は見た目の年、role は練兵所での役目。date は「酒を酌み交わす」
+  MU.men = {
+    tsushima: { name: '源太', age: 22, role: '槍の稽古番', like: 'sake', lines: ['おっ、見ない顔だな！槍の稽古なら任せとけ！', 'また来たのか！よし、今日も一本やってくか？', 'お前と稽古してると、時間があっという間なんだよな', '……なんかさ、お前が来ないと、調子出ないんだよ', 'なあ、ちょっといいか。……真面目な話なんだ'], likeT: 'おおっ、酒じゃねえか！分かってるなぁ、お前！', gift: 'ありがとな！大事にするよ', date: 'お前と飲む酒は、なんでかいつもよりうまいんだよな', yes: '……ほんとか！？よっしゃあ！一生大事にする。約束だ！', wife: 'おかえり！今日も無事でよかった。腹減ってないか？' },
+    shinagawa: { name: '新之助', age: 24, role: '弓の指南', like: 'tea', lines: ['あ……弓の稽古ですか。よ、よろしくお願いします', 'あ、また来てくださったんですね。……うれしいです', 'あなたと話していると、不思議と落ち着くんです', '……あなたが来る日は、的がよく当たるんです。なぜでしょうね', 'あの……聞いてほしいことが、あるんです'], likeT: 'このお茶……覚えていてくださったんですね', gift: 'ありがとうございます。大切にします', date: 'こうして並んで飲むのは……少し照れますね。でも、うれしいです', yes: 'ぼくで……いいんですか。はい。一生、あなたのそばにいます', wife: 'おかえりなさい。……ずっと、待っていました' },
+    tsuruga: { name: '隼人', age: 26, role: '物見の指南', like: 'meat', lines: ['……何の用だ。稽古なら、手加減はしない', 'また来たのか。……物好きだな', 'お前の足さばき、悪くない。……少しは見どころがある', '……お前の気配だけは、すぐに分かるようになった', '……少し、話がある。逃げるなよ'], likeT: '……肉か。俺の好み、よく見ているな', gift: '……もらっておく。礼は言う', date: '……たまには、こういうのも悪くない。お前となら', yes: '……ああ。お前は俺が守る。この先ずっとだ', wife: '……おかえり。遅かったな。……心配した' },
+    yamaguchi: { name: '朔之丞', age: 28, role: '剣の指南', like: 'cotton', lines: ['ようこそ、西の京の練兵所へ。剣の稽古でしたら、お相手いたしましょう', 'また会えましたね。今日の空のように、晴れやかなお顔だ', 'あなたの剣には、まっすぐな心が出ている。好ましく思います', '……あなたを待つ間に詠んだ歌が、もう何首にもなりました', '今宵は、あなたに伝えたいことがあるのです'], likeT: '良い木綿ですね。あなたの見立てはいつも確かだ', gift: 'ありがとう。あなたの心遣いがうれしい', date: '月を肴に盃を交わす……あなたとなら、どんな名月にも勝る', yes: '……この朔之丞、生涯をかけてあなたを想いましょう', wife: 'おかえりなさい。今日も、あなたの無事を祈っていましたよ' },
+    sakata: { name: '岩鉄', age: 32, role: '力自慢の師範代', like: 'rice', lines: ['がはは！よく来たな！まずは米俵を担いで足腰を鍛えるぞ！', 'おう、また来たか！今日もしっかり食ってきたか？', 'お前は根性がある。気に入ったぞ！', '……お前が来ると、なんだか胸のあたりがあったかくなるんだ', 'その……な。俺は口下手だが、言わせてくれ'], likeT: 'おお、いい米だ！これで握り飯をたらふく作れるぞ！', gift: 'ありがとよ！大事にするぞ', date: 'がはは、お前と飲む酒はうまい！もう一杯いくか！', yes: '……っ、ほ、本当か！？よし、お前のことは俺が一生食わせてやる！', wife: 'おう、おかえり！飯、大盛りにしといたぞ！' },
+    utazu: { name: '大吾', age: 35, role: '船手の頭', like: 'salt', lines: ['よう！海の男の稽古はきついぞ。ついてこれるか？', 'お、また来たな！潮風が気持ちいい日だろ', 'お前、海に出ても度胸が据わってそうだな。いい目をしてる', '……沖に出てても、お前の顔が浮かぶんだ。参ったぜ', 'なあ。今日は、波より大事な話がある'], likeT: 'いい塩だ！魚がうまく焼けるぜ。ありがとな', gift: 'ありがてえ。大事にするよ', date: '海を見ながら飲む酒は格別だ。お前が隣にいると、なおさらな', yes: 'よっしゃ！お前は俺の港だ。どこへ行っても、お前の所に帰ってくる', wife: 'おかえり！今日は大漁だったぜ。お前の好きな魚もあるぞ' },
+    sakai: { name: '左近', age: 38, role: '鉄砲の指南', like: 'tea', lines: ['いらっしゃい。鉄砲の稽古なら、堺の左近にお任せを', 'おや、また来たね。……君の顔を見ると、商いの勘が冴える', '君は面白い。腕も、目の付けどころもね', '……正直に言おう。君が来ない日は、どうにも落ち着かない', '少し、二人きりで話せるかな'], likeT: 'ほう、良い茶だ。君は本当に、僕のことをよく見ている', gift: 'ありがとう。ありがたく頂くよ', date: '君と交わす盃は、どんな南蛮の酒より上等だね', yes: '……参った。僕の負けだ。君を一生、大事にさせてもらうよ', wife: 'おかえり。茶を点てておいた。……今日の話を聞かせてくれるかい' },
+    kyo: { name: '宗月', age: 45, role: '剣術師範', like: 'tea', lines: ['ほう、京の練兵所へようこそ。剣を学びたいなら、まず心を整えなされ', 'また来たか。……いい目になってきたな', 'お主との稽古は、わしにとっても学びが多い', '……この歳になって、人を待つ楽しさを知るとはな', '少し、わしの話を聞いてくれるか'], likeT: '良い茶だ。……お主、わしの好みを覚えておったか', gift: 'かたじけない。ありがたく頂こう', date: 'お主と酌み交わす酒は、静かで、それでいて温かい', yes: '……わしのような者でよいのか。ならば、残りの人生、お主のために使おう', wife: 'おかえり。湯を沸かしておいた。まずはゆっくり休みなさい' },
+    niigata: { name: '景光', age: 52, role: '軍学の師', like: 'sake', lines: ['よく来られた。兵法を学ぶなら、まず地を知り、人を知ることだ', 'また来たな。今日はどの陣立てを語ろうか', 'お主の策は筋がいい。教えがいがある', '……戦の読みは得意だが、お主の心だけは読めなくてな', '一つ、策ではない話をさせてくれ'], likeT: '越後の酒か。……お主、なかなかの策士だな', gift: 'ありがとう。大事にさせてもらうよ', date: '雪見酒にはまだ早いが……お主とならば、いつでも名月だ', yes: 'ふふ……これほど嬉しい勝ち戦はない。共に歩もう、末永く', wife: 'おかえり。熱燗をつけておいた。今日の話を肴にしよう' },
+    hakata: { name: '玄斎', age: 58, role: '弓馬の老師', like: 'tea', lines: ['ふむ、よく来た。年寄りの稽古は厳しいぞ。覚悟はよいか', 'おお、また来たか。足腰が少し締まったようだな', 'お主はまっすぐだ。若い頃のわしを見ているようだ', '……この老いぼれの心を、こうも揺らすとはな', '老いぼれの戯言と思わず、聞いてくれるか'], likeT: 'ほう、良い茶だ。……お主の気遣いが、何より沁みる', gift: 'ありがとうよ。大事に使わせてもらう', date: 'お主と交わす盃で、わしもまだまだ若返る心地がするわい', yes: '……そうか。ならばこの命、まだまだ大事にせねばならんな。共に参ろう', wife: 'おお、おかえり。無事で何よりだ。さあ、茶でも飲もう' },
+  };
+  MU.manImg = (town) => 'rp_' + town; // 絵：assets/town/rp_〇〇.png
+  MU.who = (id) => (id && id.indexOf('r_') === 0 ? MU.men[id.slice(2)] : MU.girls[id]);
+  MU.imgOf = (id) => (id && id.indexOf('r_') === 0 ? MU.manImg(id.slice(2)) : MU.img(id));
   MU.img = (id) => 'w_' + (({ kyo: 'yamaguchi_a', yamaguchi: 'kyo_a' })[id] || id + '_a'); // 絵のファイル名（2.13.1 大人の和服の女性に描き直し。2.14.2 背景に合わせてアニメ調の _a に）
   const day = (w) => Math.floor(w.time.min / 1440);
   const here = (w, p) => (p.at && p.tx == null ? SIM.settlement(w, p.at) : null);
   const rec = (p, id) => { p.love = p.love || {}; return (p.love[id] = p.love[id] || { a: 0, t: -1, g: -1, d: -1 }); };
-  const need = (w, p) => { const s = here(w, p); const g = s && MU.girls[s.id]; if (!g) { SIM.say(p.id, 'ここには看板娘はいません'); return null; } if (p.wife === s.id) { SIM.say(p.id, `${g.name}は自宅で待っています`); return null; } if (p.battle) return null; return [s, g, rec(p, s.id)]; };
+  const need = (w, p, man) => { // man：練兵所の男（2.61.0）。戻り値 [拠点, 相手, 仲の記録, id]
+    const s = here(w, p); const g = s && (man ? MU.men : MU.girls)[s.id], key = s && (man ? 'r_' + s.id : s.id);
+    if (!g) { SIM.say(p.id, man ? 'この練兵所には話し相手がいません' : 'ここには看板娘はいません'); return null; }
+    if (p.wife === key) { SIM.say(p.id, `${g.name}は自宅で待っています`); return null; }
+    if (p.battle) return null; return [s, g, rec(p, key), key];
+  };
   const up = (r, n) => { r.a = Math.min(MU.max, r.a + n); };
   const sayG = (p, g, t) => SIM.say(p.id, `${g.name}「${t}」`);
 
   SIM.commands.musume = (w, p, c) => {
-    const x = need(w, p); if (!x) return; const [s, g, r] = x, d = day(w), wife = p.wife === s.id;
+    const man = !!(c && c.id === 'man'), x = need(w, p, man); if (!x) return; const [s, g, r, key] = x, d = day(w), wife = p.wife === key;
     const k = c && c.kind;
     if (k === 'talk') {
       if (r.t === d) return sayG(p, g, wife ? g.wife : '今日はもうたくさんお話ししましたね。また明日');
@@ -44,15 +66,15 @@
     }
     if (k === 'date') {
       if (r.a < MU.dateNeed) return SIM.say(p.id, 'もう少し親しくなってからにしましょう');
-      if (r.d === d) return SIM.say(p.id, 'ごちそうは1日に1度までです');
-      if (p.money < MU.dateCost) return SIM.say(p.id, `お団子の代金${SIM.money(MU.dateCost)}が足りません`);
+      if (r.d === d) return SIM.say(p.id, man ? '酒は1日に1度までです' : 'ごちそうは1日に1度までです');
+      if (p.money < MU.dateCost) return SIM.say(p.id, `${man ? 'お酒' : 'お団子'}の代金${SIM.money(MU.dateCost)}が足りません`);
       p.money -= MU.dateCost; r.d = d; up(r, MU.date);
       return sayG(p, g, g.date);
     }
     if (k === 'propose') {
-      if (p.wife) return SIM.say(p.id, p.wife === s.id ? 'もう夫婦です' : 'あなたにはもう連れ合いがいます');
+      if (p.wife) return SIM.say(p.id, p.wife === key ? 'もう夫婦です' : 'あなたにはもう連れ合いがいます');
       if (r.a < MU.max) return SIM.say(p.id, 'まだ想いを伝えるには早いようです');
-      p.wife = s.id; sayG(p, g, g.yes);
+      p.wife = key; sayG(p, g, g.yes);
       return SIM.say(p.id, `${g.name}と夫婦になりました！これからは自宅で待っていてくれます（休むと傷がさらに早く治ります）`);
     }
   };
@@ -60,11 +82,15 @@
   const basePriv = SIM.privateState;
   SIM.privateState = function (w, pid) {
     const r = basePriv.apply(this, arguments); const p = w.players[pid]; if (!r || !p || !r.me) return r;
-    const wg = p.wife && MU.girls[p.wife];
-    r.me.wife = wg ? { id: p.wife, img: MU.img(p.wife), name: wg.name, line: wg.wife } : null;
+    const wg = p.wife && MU.who(p.wife);
+    r.me.wife = wg ? { id: p.wife, img: MU.imgOf(p.wife), name: wg.name, line: wg.wife } : null;
     if (r.here && MU.girls[r.here.id] && p.wife !== r.here.id) { // 夫婦になった娘は茶屋にはいない（自宅にいる）
       const id = r.here.id, g = MU.girls[id], q = (p.love || {})[id] || { a: 0, t: -1, g: -1, d: -1 }, d = day(w), st = MU.stageOf(q.a);
       r.here.musume = { id, img: MU.img(id), type: g.type, name: g.name, shop: g.shop, a: q.a, st, stName: MU.stages[st], like: st >= 1 ? g.like : null, talked: q.t === d, gifted: q.g === d, dated: q.d === d, wife: p.wife === id, married: !!p.wife, line: p.wife === id ? g.wife : g.lines[st] };
+    }
+    if (r.here && MU.men[r.here.id] && p.wife !== 'r_' + r.here.id) { // 2.61.0 練兵所の男（夫婦になったら自宅にいる）
+      const id = r.here.id, key = 'r_' + id, g = MU.men[id], q = (p.love || {})[key] || { a: 0, t: -1, g: -1, d: -1 }, d = day(w), st = MU.stageOf(q.a);
+      r.here.otoko = { id, img: MU.manImg(id), name: g.name, age: g.age, role: g.role, a: q.a, st, stName: MU.stages[st], like: st >= 1 ? g.like : null, talked: q.t === d, gifted: q.g === d, dated: q.d === d, married: !!p.wife, line: g.lines[st] };
     }
     return r;
   };
