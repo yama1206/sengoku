@@ -509,6 +509,7 @@
     for (const t of to.slice(0, 4)) { if (t === G.myPid) { { const Rv = m.ch === 'party' ? SGK.PARTY : SGK.NINJA3D; if (Rv && Rv.recv) Rv.recv(from, m); } } else if (G.net && G.net.sendTo) G.net.sendTo(t, { t: 'nin', from, m }); }
   }
   SGK.ninSend = (to, m) => { if (G.mode === 'host') ninRelay(G.myPid, { m, to }); else if (G.mode === 'client' && G.net) G.net.send({ type: 'ninRelay', to, m }); };
+  SIM.online = () => [G.myPid, ...(G.mode === 'host' && G.net && G.net.pids ? G.net.pids() : [])]; // 2.57.1 いまつながっている人（人と人の忍びの対戦の相手を選ぶ）
   // 2.42.0 みんなで遊ぶミニゲーム（party.js）に、自分の名前・同じ町の人・送る道具を渡す
   if (SGK.PARTY) SGK.PARTY.init({ me: () => G.myPid, name: () => myName(), send: (to, m) => SGK.ninSend(to, m), cmd: (c) => command(c), toast: (s) => toast(s, 2500),
     others: () => { const m0 = me(); return m0 && m0.at ? G.view.players.filter((p) => p.id !== G.myPid && p.at === m0.at).map((p) => ({ id: p.id, name: p.name })) : []; } });
@@ -875,9 +876,11 @@
     const NJ = me.nin; // 0.77.0 忍び：工作の城に入ったら「忍び込む」
     const njName = (q) => SIM.NIN.jobs[q.k].name + (q.k === 'steal' && SIM.NIN.steal[q.sk] ? `（${SIM.NIN.steal[q.sk].name}）` : ''); // 2.24.0
     const njDesc = (q) => (q.k === 'steal' && SIM.NIN.steal[q.sk] ? SIM.NIN.steal[q.sk].desc + `（${SIM.NIN.steal[q.sk].where}にある）` : q.k === 'hurt' ? `寝所の${q.whoName || '武将'}に手傷を負わせる（殺しはしない）。成功すると${q.whoName || 'その武将'}は${SIM.NIN.hurtDays}日のあいだ出陣できない` : SIM.NIN.jobs[q.k].desc);
-    if (NJ && NJ.atTgt && NJ.q) html += `<div class="card" style="display:block;border-color:#c33"><b>${njName(NJ.q)}</b>（${NJ.q.foe}・${NJ.q.toName}）<br><span class="muted">${njDesc(NJ.q)}。見張り${NJ.d.guards}人・${NJ.d.ck === 'yama' ? '山城' : NJ.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.d.night ? '夜（見張りの目が届きにくい）' : '昼'}・難しさ${SGK.ICON.html('star', 14).repeat(NJ.d.lv)}</span><div class="row" style="margin-top:4px"><button id="nj-go" data-nj="go">忍び込む</button>${!NJ.room ? '<button id="nj-rec" data-act="ninRecruit">仲間を募る</button>' : ''}</div>${njRoomHtml(NJ.room)}</div>`;
-    const njDefTxt = (q) => `${q.foeName}の忍び${q.n > 1 ? q.n + '人' : ''}が${q.toName}に入り込み、${njName(q)}${q.k === 'hurt' ? `（${q.whoName || '武将'}）` : ''}を狙っている`; // 2.57.0 城の守り
-    if (NJ && NJ.def && NJ.def.at) html += `<div class="card" style="display:block;border-color:#c33"><b>城の守り</b>（${NJ.def.toName}）<br><span class="muted">${njDefTxt(NJ.def)}。城の中で曲者を探し、追って当て身で捕らえる（生け捕りにすると敵の動きが分かる）。${NJ.def.d ? `${NJ.def.d.ck === 'yama' ? '山城' : NJ.def.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.def.d.night ? '夜（曲者が見えにくい）' : '昼'}・` : ''}${dayLeft(NJ.def.deadline)}・報酬${SIM.money(NJ.def.reward)}</span><div class="row" style="margin-top:4px"><button id="nj-def" data-njdef="go">曲者を探す</button></div></div>`;
+    if (NJ && NJ.atTgt && NJ.q) html += `<div class="card" style="display:block;border-color:#c33"><b>${njName(NJ.q)}</b>（${NJ.q.foe}・${NJ.q.toName}）<br><span class="muted">${njDesc(NJ.q)}。見張り${NJ.d.guards}人・${NJ.d.ck === 'yama' ? '山城' : NJ.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.d.night ? '夜（見張りの目が届きにくい）' : '昼'}・難しさ${SGK.ICON.html('star', 14).repeat(NJ.d.lv)}</span>${NJ.pvp ? `<br><b style="color:#ff8a6a">${NJ.pvp.here ? `守りの忍び「${String(NJ.pvp.name).replace(/[<&]/g, '')}」がこの城で待ち構えている（忍び込むと対戦になる）` : `守りの忍び「${String(NJ.pvp.name).replace(/[<&]/g, '')}」が駆けつけてくるかもしれない`}</b>` : ''}<div class="row" style="margin-top:4px"><button id="nj-go" data-nj="go">忍び込む</button>${!NJ.room ? '<button id="nj-rec" data-act="ninRecruit">仲間を募る</button>' : ''}</div>${njRoomHtml(NJ.room)}</div>`;
+    const njDefTxt = (q) => `${q.foeName}の忍び${q.pvp ? `「${String(q.pvpName).replace(/[<&]/g, '')}」` : q.n > 1 ? q.n + '人' : ''}が${q.toName}${q.pvp ? 'で' : 'に入り込み、'}${njName(q)}${q.k === 'hurt' ? `（${q.whoName || '武将'}）` : ''}を狙っている`; // 2.57.0 城の守り
+    if (NJ && NJ.def && NJ.def.pvp && NJ.def.at) html += `<div class="card" style="display:block;border-color:#c33"><b>城の守り（人の忍び）</b>（${NJ.def.toName}）<br><span class="muted">${njDefTxt(NJ.def)}。この城で待ち構えていると、相手が忍び込んできたときに一緒の3Dが始まります（城を出ないでください）。後ろから近づいて当て身で捕らえれば勝ち。相手に工作を果たされて城下へ抜けられたら負け。${dayLeft(NJ.def.deadline)}・報酬${SIM.money(NJ.def.reward)}</span></div>`; // 2.57.1
+    else if (NJ && NJ.def && NJ.def.pvp) html += `<div class="card" style="display:block;border-color:#c33"><b>急報：城の守り（人の忍び）</b><br><span class="muted">${njDefTxt(NJ.def)}。${NJ.def.toName}へ駆けつけて待ち構えてください（${dayLeft(NJ.def.deadline)}）。間に合わなければ相手は見張りだけを相手にします</span><div class="row" style="margin-top:4px"><button id="nj-deflook" data-look="${NJ.def.to}">地図で見る</button></div></div>`;
+    else if (NJ && NJ.def && NJ.def.at) html += `<div class="card" style="display:block;border-color:#c33"><b>城の守り</b>（${NJ.def.toName}）<br><span class="muted">${njDefTxt(NJ.def)}。城の中で曲者を探し、追って当て身で捕らえる（生け捕りにすると敵の動きが分かる）。${NJ.def.d ? `${NJ.def.d.ck === 'yama' ? '山城' : NJ.def.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.def.d.night ? '夜（曲者が見えにくい）' : '昼'}・` : ''}${dayLeft(NJ.def.deadline)}・報酬${SIM.money(NJ.def.reward)}</span><div class="row" style="margin-top:4px"><button id="nj-def" data-njdef="go">曲者を探す</button></div></div>`;
     else if (NJ && NJ.def) html += `<div class="card" style="display:block;border-color:#c33"><b>急報：城の守り</b><br><span class="muted">${njDefTxt(NJ.def)}。期限までに${NJ.def.toName}へ駆けつけてください（${dayLeft(NJ.def.deadline)}）。間に合わないと工作を果たされます</span><div class="row" style="margin-top:4px"><button id="nj-deflook" data-look="${NJ.def.to}">地図で見る</button></div></div>`;
     if (townTab === 'street' && SGK.PARTY) html += '<div class="card" style="display:block"><b>みんなで遊ぶ</b>（同じ町にいる人を誘えます。2人から）<div class="row" style="margin-top:4px"><button data-party="race">馬の障害レース</button><button data-party="archery">弓の的当て</button><button data-party="fish">釣り大会</button><button data-party="cart">荷運び（協力）</button></div></div>';
     if (townTab === 'street') html += `<div class="muted">${hs && hs.type === 'village' ? '村' : '町'}の通りです。上のボタンから行き先を選んでください</div>`;
@@ -1117,6 +1120,27 @@
     if (!(SGK.NINJA3D && SGK.NINJA3D.can())) { const ok = Math.random() < 0.6; fin({ ok, caught: ok ? 1 : 0, killed: 0 }); return; }
     SGK.NINJA3D.start({ def: { n: q.n }, q: { k: q.k, sk: q.sk, whoName: q.whoName, id: q.id }, d: q.d, tools: N.tools || {}, seed: q.id }, fin);
   }
+  // 2.57.1 人と人の忍びの対戦：合図が届いたら、攻める人（見張りを動かす）と守る人の両方が始める
+  function startNinjaPvp(N, go) {
+    const att = go.att === G.myPid, co = { me: G.myPid, leader: go.att, members: [go.att, go.def], names: go.names || {}, send: SGK.ninSend, pvp: { role: att ? 'att' : 'def', foe: att ? go.def : go.att } };
+    if (!(SGK.NINJA3D && SGK.NINJA3D.can())) { toast('3Dが使えないので、対戦はできません', 3000); command({ type: 'ninUse', used: null }); return; }
+    if (att) {
+      SGK.NINJA3D.start({ q: Object.assign({}, N.q, go.q), d: go.d, tools: N.tools || {}, seed: go.q.id, co }, (r) => { r = r && typeof r === 'object' ? r : { ok: r };
+        if (r.ok === null || r.ok === undefined) { command({ type: 'ninUse', used: r.used || null }); toast('いったん退きました（工作はまだ請け負ったまま）', 1500); }
+        else command({ type: 'ninResult', ok: !!r.ok, kills: r.kills || 0, unseen: !!r.unseen, used: r.used || null }); });
+    } else {
+      command({ type: 'ninDefGo' });
+      SGK.NINJA3D.start({ def: { n: 1, pvp: true }, q: go.q, d: go.d, tools: N.tools || {}, seed: go.q.id, co }, (r) => { r = r && typeof r === 'object' ? r : { ok: r };
+        if (r.ok === null || r.ok === undefined) { command({ type: 'ninUse', used: r.used || null }); toast('対戦を抜けました', 1500); }
+        else command({ type: 'ninDefResult', ok: !!r.ok, caught: r.caught || 0, killed: r.killed || 0, ko: !!r.ko, used: r.used || null }); });
+    }
+  }
+  setInterval(() => {
+    const N = G.priv && G.priv.me && G.priv.me.nin, go = N && N.pvpGo;
+    if (!go || (SGK.NINJA3D && SGK.NINJA3D.on) || (SGK.NINJA && SGK.NINJA.on) || G.lastPvpGo === go.at) return;
+    if (go.att === G.myPid ? !N.q : !N.def) return;
+    G.lastPvpGo = go.at; openTown(false); startNinjaPvp(N, go);
+  }, 400);
   // 部屋の出発の合図が届いたら、入っている全員が始める
   setInterval(() => {
     const P = G.priv, N = P && P.me && P.me.nin, R = N && N.room;
@@ -1128,7 +1152,7 @@
     const lx = e.target.closest('button[data-lookxy]'); if (lx) { const [x, y] = lx.dataset.lookxy.split(',').map(Number); openTown(false); R.cam.follow = false; R.cam.x = x; R.cam.y = y; G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; return; }
     const pb = e.target.closest('button[data-party]'); if (pb) { openTown(false); SGK.PARTY.openLobby(pb.dataset.party); return; } // 2.42.0
     const nj = e.target.closest('button[data-nj]'); // 0.77.0 忍び込む
-    if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; openTown(false); startNinja(N, null); return; }
+    if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; if (N.pvp && N.pvp.here) { command({ type: 'ninPvpGo' }); toast('守りの忍びと対戦します…', 2000); return; } openTown(false); startNinja(N, null); return; } // 2.57.1 守る人がいれば対戦
     const nd = e.target.closest('button[data-njdef]'); // 2.57.0 城の守り
     if (nd) { const N = G.priv && G.priv.me.nin; if (!N || !N.def || !N.def.at) return; openTown(false); startNinjaDef(N); return; }
     const gs = e.target.closest('button[data-gbset]'); if (gs) { G.gbSel = +gs.dataset.gbset; townHtml = ''; renderTown(); return; } // 2.8.0 賭場の掛け金

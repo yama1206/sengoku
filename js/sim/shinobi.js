@@ -146,16 +146,54 @@
     p.money -= t.price; p.ninTools[c.kind] = have + 1;
   };
   const useTools = (p, used) => { if (!used || !p.ninTools) return; for (const k in used) if (NIN.tools[k] && k !== 'kaginawa') p.ninTools[k] = Math.max(0, (p.ninTools[k] || 0) - Math.max(0, +used[k] || 0)); };
-  C.ninUse = (w, p, c) => { useTools(p, c.used); leaveRoom(w, p); if (p.ninDef) p.ninDef.go = false; }; // 退いたときも使った道具は減る
+  C.ninUse = (w, p, c) => { useTools(p, c.used); leaveRoom(w, p); if (p.ninDef) { p.ninDef.go = false; p.ninDef.fight = false; } const s = here(w, p); if (s) pvpEnd(w, s.id, p.id); }; // 退いたときも使った道具は減る
   C.ninTake = (w, p, c) => {
     const s = here(w, p), o = offers(w, p, s).find((x) => x.id === c.id); if (!o) return;
     if (p.ninQ) return SIM.say(p.id, '工作は一度に一つまでです');
     p.ninQ = Object.assign({}, o, { from: s.id, deadline: w.time.min + o.days * 1440 });
     SIM.say(p.id, `${o.toName}への${NIN.jobs[o.k].name}を請け負いました（期限${o.days}日）。その城に入り「忍び込む」で工作します`);
+    pvpAlert(w, p);
   };
-  C.ninDrop = (w, p) => { if (!p.ninQ) return; SIM.say(p.id, `${NIN.jobs[p.ninQ.k].name}の工作を取りやめました`); p.ninQ = null; };
+  C.ninDrop = (w, p) => { if (!p.ninQ) return; SIM.say(p.id, `${NIN.jobs[p.ninQ.k].name}の工作を取りやめました`); pvpClear(w, p, 'drop'); p.ninQ = null; };
   // 期限切れ
-  SIM.systems.push(function ninTick(w) { for (const p of Object.values(w.players)) if (p.ninQ && w.time.min > p.ninQ.deadline) { SIM.say(p.id, `${p.ninQ.toName}への工作の期限が過ぎました`); p.ninQ = null; } });
+  SIM.systems.push(function ninTick(w) { for (const p of Object.values(w.players)) if (p.ninQ && w.time.min > p.ninQ.deadline) { SIM.say(p.id, `${p.ninQ.toName}への工作の期限が過ぎました`); pvpClear(w, p, 'drop'); p.ninQ = null; } });
+
+  // ---- 2.57.1 人と人の対戦：プレイヤーの忍びが敵の城への工作を請け負うと、その城の家に仕えるプレイヤーの忍び（いま入っている人）に急報が届く。
+  // 守る人がその城で待ち構えているときに攻める人が忍び込むと、二人一緒の3Dになる（見張りは攻める人の端末が動かす）。
+  // 守る人は攻める人を当て身で捕らえれば勝ち。攻める人は工作を果たして城下へ抜ければ勝ち（守る人を後ろから当て身で倒すこともできる）
+  const PVP = {}, PVP_RUN = 40 * 60 * 1000;
+  const onlineIds = (w) => (SIM.online ? SIM.online() : Object.keys(w.players));
+  function pvpAlert(w, a) {
+    const q = a.ninQ, t = q && SIM.settlement(w, q.to); if (!t || !t.owner) return;
+    const on = new Set(onlineIds(w));
+    const b = Object.values(w.players).filter((x) => x !== a && on.has(x.id) && x.nin && x.clan === t.owner && !(x.ninDef && x.ninDef.pvp)).sort((x, y) => Math.hypot(x.x - t.x, x.y - t.y) - Math.hypot(y.x - t.x, y.y - t.y))[0];
+    if (!b) return;
+    const J = NIN.jobs[q.k], days = Math.max(1, Math.round((q.deadline - w.time.min) / 1440));
+    if (b.ninDef && !b.ninDef.go) b.ninDef = null; // 人の曲者を先に（ふつうの急報は取り消す）
+    if (b.ninDef) return;
+    b.ninDef = { id: `pvp-${q.id}`, pvp: a.id, pvpName: a.name, k: q.k, sk: q.sk || null, who: q.who || null, whoName: q.whoName || null, to: t.id, toName: t.name, foe: a.clan, foeName: fName(w, a.clan), n: 1,
+      deadline: q.deadline, reward: Math.round(J.reward * 1.3 / 10) * 10, merit: J.merit + 10, go: false };
+    q.pvpDef = b.id;
+    SIM.say(b.id, `急報！ ${fName(w, a.clan)}の忍び「${a.name}」が${t.name}を狙っています（期限${days}日）。${t.name}で待ち構え、忍び込んできたら捕らえてください`);
+    SIM.say(a.id, `${t.name}には${fName(w, t.owner)}の忍び「${b.name}」がいます。守りに来るかもしれません`);
+  }
+  function pvpClear(w, a, why, ok) { // 攻める人の工作が終わったとき、守る人の急報を片づける（対戦の最中なら守る人の結果を待つ）
+    const q = a.ninQ, b = q && q.pvpDef && w.players[q.pvpDef], d = b && b.ninDef;
+    if (!d || d.pvp !== a.id || d.fight) return;
+    b.ninDef = null;
+    SIM.say(b.id, why === 'drop' ? `${a.name}は${d.toName}への工作をあきらめたようです` : ok ? `${d.toName}で${a.name}に${NIN.jobs[d.k].name}を果たされてしまいました（守りに間に合わなかった）` : `${a.name}は${d.toName}の見張りに見つかり、逃げ去りました`);
+  }
+  const pvpOf = (w, sid) => { const r = PVP[sid]; if (!r) return null; if (Date.now() - r.at > PVP_RUN || !w.players[r.att] || !w.players[r.def]) { delete PVP[sid]; return null; } return r; };
+  C.ninPvpGo = (w, a) => { // 攻める人が「忍び込む」を押したとき、守る人がその城にいれば対戦を始める
+    const q = a.ninQ, s = here(w, a); if (!q || !s || s.id !== q.to || a.battle || !q.pvpDef) return;
+    const b = w.players[q.pvpDef], d = b && b.ninDef, bs = b && here(w, b);
+    if (!d || d.pvp !== a.id || !bs || bs.id !== s.id || b.battle || !new Set(onlineIds(w)).has(b.id)) return SIM.say(a.id, '守りの忍びは城にいないようです');
+    if (pvpOf(w, s.id)) return;
+    d.fight = true; d.go = true;
+    PVP[s.id] = { att: a.id, def: b.id, at: Date.now(), go: { at: Date.now(), att: a.id, def: b.id, q: { id: q.id, k: q.k, sk: q.sk || null, whoName: q.whoName || null }, d: diff(w, s), names: { [a.id]: nm(w, a.id), [b.id]: nm(w, b.id) } } };
+    SIM.say(a.id, `${s.name}には守りの忍び「${b.name}」が待ち構えています！`); SIM.say(b.id, `${a.name}が${s.name}に忍び込んできた！`);
+  };
+  const pvpEnd = (w, sid, pid) => { const r = PVP[sid]; if (r && (r.att === pid || r.def === pid)) { r[pid === r.att ? 'attDone' : 'defDone'] = 1; if (r.attDone && r.defDone) delete PVP[sid]; } };
 
   // ---- 潜入の難しさ（城の規模・改修・山城か平城か・昼夜） ----
   function diff(w, s) {
@@ -254,6 +292,11 @@
       if (!q) { rollDef(w, p, false); continue; }
       const s = SIM.settlement(w, q.to);
       if (!s || s.owner !== p.clan) { SIM.say(p.id, `${q.toName}はもう主家の城ではないので、守りの任務はなくなりました`); p.ninDef = null; continue; }
+      if (q.pvp) { // 2.57.1 人の曲者：攻める人の工作がなくなったら片づける（対戦の最中は待つ）
+        const a = w.players[q.pvp];
+        if ((!q.fight && (!a || !a.ninQ || a.ninQ.pvpDef !== p.id)) || w.time.min > q.deadline + 1440) p.ninDef = null;
+        continue;
+      }
       if (!q.go && w.time.min > q.deadline) defFail(w, p, s, 'late');
     }
   });
@@ -263,6 +306,14 @@
     const q = p.ninDef, s = here(w, p); if (!q || !s || s.id !== q.to) return;
     useTools(p, c.used);
     const caught = clampI(Math.floor(+c.caught || 0), 0, q.n), killed = clampI(Math.floor(+c.killed || 0), 0, q.n - caught);
+    if (q.pvp) { // 2.57.1 人と人の対戦の結果（城への効き目は攻める人の結果でかかる）
+      pvpEnd(w, s.id, p.id); p.ninDef = null;
+      const an = `「${q.pvpName}」`;
+      if (!c.ok) return SIM.say(p.id, c.ko ? `${an}に後ろから当て身を受け、気を失いました……` : `${an}に${NIN.jobs[q.k].name}を果たされ、逃げられました……`);
+      const got = caught + killed > 0, rew = Math.round(q.reward * (got ? 1 : 0.4) / 10) * 10, merit = got ? q.merit : Math.round(q.merit * 0.4), fame = got ? 4 : 1;
+      p.money += rew; p.fame += fame; if (SIM.addMerit) SIM.addMerit(w, p, merit, `${s.name}の守り`);
+      return SIM.say(p.id, `${s.name}を守りました！ ${got ? `${q.foeName}の忍び${an}を${killed ? '討ち取りました' : '捕らえました'}。` : `${an}は見張りに見つかって逃げ去りました。`}報酬${SIM.money(rew)}・名声+${fame}。${caught ? `問いただすと：${intelOf(w, q.foe, s)}` : ''}`);
+    }
     if (!c.ok) return defFail(w, p, s, 'lost', caught, killed);
     p.ninDef = null;
     const all = caught + killed >= q.n, rew = Math.round(q.reward * (all ? 1 : 0.5) * (1 + NIN.def.perCatch * caught) / 10) * 10;
@@ -274,6 +325,7 @@
   // 成否はミニゲームから届く
   C.ninResult = (w, p, c) => {
     const q = p.ninQ, s = here(w, p); if (!q || !s || s.id !== q.to || p.battle) return;
+    pvpClear(w, p, 'res', !!c.ok); pvpEnd(w, s.id, p.id); // 2.57.1
     p.ninQ = null; const J = NIN.jobs[q.k];
     useTools(p, c.used); leaveRoom(w, p);
     if (c.ok) {
@@ -308,6 +360,11 @@
     const s = here(w, p);
     r.me.nin = p.nin ? { rank: NR[p.rank] ? NR[p.rank].name : '', q: p.ninQ || null, tools: Object.assign({}, p.ninTools || {}), offers: offers(w, p, s), atTgt: !!(p.ninQ && s && s.id === p.ninQ.to), d: p.ninQ && s && s.id === p.ninQ.to ? diff(w, s) : null, room: roomInfo(w, p, s),
       def: p.ninDef ? Object.assign({}, p.ninDef, { at: !!(s && s.id === p.ninDef.to), d: s && s.id === p.ninDef.to ? diff(w, s) : null }) : null } : null; // 2.57.0 城の守り
+    if (r.me.nin && s) { // 2.57.1 人と人の対戦：守る人がこの城にいるか・始まりの合図
+      const q = p.ninQ, b = q && q.pvpDef && s.id === q.to ? w.players[q.pvpDef] : null, bs = b && here(w, b);
+      if (b && b.ninDef && b.ninDef.pvp === p.id) r.me.nin.pvp = { name: b.name, here: !!(bs && bs.id === s.id) };
+      const R = pvpOf(w, s.id); if (R && (R.att === p.id || R.def === p.id) && !R[R.att === p.id ? 'attDone' : 'defDone']) r.me.nin.pvpGo = R.go;
+    }
     return r;
   };
 })();
