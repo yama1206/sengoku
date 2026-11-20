@@ -62,8 +62,8 @@
   FM.animalVal = (a) => Math.round((FM.ANIMALS[a.k].sell * (0.7 + 0.1 * (a.care || 0) + (a.nat || 0) / 250)) / 10) * 10;
   // 狩猟：森の中で、現れた獲物を素早くタップして射る。w＝出やすさ、t＝見えている秒数、hp＝必要な命中数
   // t＝見えている秒数、r＝当たりの大きさ(px)、sp＝動く速さ(px/秒)、zig＝向きを変える間隔(秒、0なら直進)、hp＝必要な命中数。難しさは兎＜鹿＜猪＜熊（猪は速い直進、熊は3回当てる）
-  FM.PREY = { rabbit: { name: '兎', t: 1.0, r: 27, sp: 110, zig: 0.25, hp: 1, meat: 1, hide: 0, w: 5 }, deer: { name: '鹿', t: 0.9, r: 26, sp: 150, zig: 0.5, hp: 1, meat: 3, hide: 1, w: 4 }, boar: { name: '猪', t: 0.75, r: 22, sp: 260, zig: 0, hp: 1, meat: 4, hide: 1, w: 3 }, bear: { name: '熊', t: 1.5, r: 36, sp: 90, zig: 0.7, hp: 3, meat: 6, hide: 2, w: 1 } };
-  FM.huntN = 10; FM.huntArrows = 14; // 矢の数（外すと減る）
+  FM.PREY = { rabbit: { name: '兎', t: 1.0, r: 27, sp: 110, zig: 0.25, hp: 1, meat: 1, hide: 0, w: 5 }, deer: { name: '鹿', t: 0.9, r: 26, sp: 150, zig: 0.5, hp: 1, meat: 2, hide: 1, w: 4 }, boar: { name: '猪', t: 0.75, r: 22, sp: 260, zig: 0, hp: 1, meat: 2, hide: 0, w: 3 }, bear: { name: '熊', t: 1.5, r: 36, sp: 90, zig: 0.7, hp: 3, meat: 4, hide: 2, w: 1 } };
+  FM.huntN = 6; FM.huntArrows = 9; // 矢の数（外すと減る）。2.60.3 稼げすぎたので獲物10回→6回・矢14→9、鹿・猪・熊の肉と猪の毛皮を減らす（1回の儲けは前の4割ほど）
   FM.huntCost = 0.1; FM.huntMin = 0.25;
   const day = (w) => Math.floor(w.time.min / 1440);
   const here = (w, p) => (p.at && p.tx == null ? SIM.settlement(w, p.at) : null);
