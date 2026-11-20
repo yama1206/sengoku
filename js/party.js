@@ -8,15 +8,15 @@
   let ENV = null; // { me(), name(), others(), send(to, m), cmd(c) }
   PT.init = (e) => { ENV = e; };
   const GAMES = {
-    race: { name: '馬の障害レース', max: 5, team: true, desc: '柵や堀を跳び越えて走り、ゴールの順位を競う。ジャンプ＝A／Space、ダッシュ＝↑／B（スタミナを使う）' },
-    archery: { name: '弓の的当て大会', max: 5, team: true, desc: '動く的を10本で射抜いて点を競う。風で矢が流れる。狙う＝マウス／矢印／スティック、射つ＝クリック／A／Space。金の的は2倍' },
-    fish: { name: '釣り大会', max: 5, team: true, mode: true, desc: '朝・昼・夕の3日間（1日40秒）で釣りくらべ。釣り方はいつもの釣りと同じ（浮きを投げる→アタリ→タイミング）。勝ち方は「いちばん大きい魚」か「釣った数」を選べます' },
-    cart: { name: '荷運び競争（協力）', max: 5, team: false, desc: '全員で荷車を引いてゴールまで運ぶ。←→で進む道を選ぶ（みんなの平均で進む）、A／Spaceを押している間引く。岩にぶつかると荷が崩れる' },
+    race: { name: '馬の障害レース', max: 10, team: true, desc: '柵や堀を跳び越えて走り、ゴールの順位を競う。ジャンプ＝A／Space、ダッシュ＝↑／B（スタミナを使う）' },
+    archery: { name: '弓の的当て大会', max: 10, team: true, desc: '動く的を10本で射抜いて点を競う。風で矢が流れる。狙う＝マウス／矢印／スティック、射つ＝クリック／A／Space。金の的は2倍' },
+    fish: { name: '釣り大会', max: 10, team: true, mode: true, desc: '朝・昼・夕の3日間（1日40秒）で釣りくらべ。釣り方はいつもの釣りと同じ（浮きを投げる→アタリ→タイミング）。勝ち方は「いちばん大きい魚」か「釣った数」を選べます' },
+    cart: { name: '荷運び競争（協力）', max: 10, team: false, desc: '全員で荷車を引いてゴールまで運ぶ。←→で進む道を選ぶ（みんなの平均で進む）、A／Spaceを押している間引く。岩にぶつかると荷が崩れる' },
   };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v), r1 = (v) => Math.round(v * 10) / 10, r2 = (v) => Math.round(v * 100) / 100;
   const mulberry = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  const TEAM = [{ n: '赤', c: '#e0463c' }, { n: '白', c: '#f2f2f2' }], PAL = ['#e0463c', '#3c8ce0', '#e0b43c', '#4cc06a', '#b46ae0'];
+  const TEAM = [{ n: '赤', c: '#e0463c' }, { n: '白', c: '#f2f2f2' }], PAL = ['#e0463c', '#3c8ce0', '#e0b43c', '#4cc06a', '#b46ae0', '#ee8a3c', '#3cc8c8', '#e06aa8', '#8a8a8a', '#7a5a3a'];
   const send = (to, m) => { if (ENV && to.length) ENV.send(to, Object.assign({ ch: 'party' }, m)); };
 
   // ---- 見た目（CSS） ----
@@ -137,7 +137,7 @@
     e.querySelector('button').onclick = () => { e.remove(); close(); };
   }
   const nameOf = (env, id) => env.names[id] || '？';
-  const tcol = (env, id) => (env.cfg.team ? TEAM[env.tm[id]].c : PAL[env.ids.indexOf(id) % 5]);
+  const tcol = (env, id) => (env.cfg.team ? TEAM[env.tm[id]].c : PAL[env.ids.indexOf(id) % PAL.length]);
   function drawText(g, s, x, y, o) { o = o || {}; g.font = (o.b ? 'bold ' : '') + (o.sz || 16) + 'px sans-serif'; g.textAlign = o.al || 'left'; g.fillStyle = o.c || '#fff'; g.strokeStyle = '#000'; g.lineWidth = 3; g.strokeText(s, x, y); g.fillText(s, x, y); }
 
   // ---- 馬・人の絵（仮） ----
@@ -355,9 +355,9 @@
         const gy = cy - (LEN - C.d) * ppm; if (gy > -20) { g.fillStyle = '#fff'; g.fillRect(x0, gy, rw, 8); drawText(g, 'ゴール', W0 / 2, gy - 8, { sz: 18, b: 1, al: 'center' }); }
         const cxp = x0 + ln * (C.lane + 0.5); g.save(); g.translate(cxp, cy + (C.stun > 0 ? Math.sin(ph * 6) * 2 : 0));
         g.fillStyle = '#7a4a22'; g.fillRect(-26, -30, 52, 60); g.fillStyle = '#c9a15a'; const h = 50 * C.load; g.fillRect(-22, 24 - h, 44, h); g.strokeStyle = '#3a2410'; g.lineWidth = 3; g.strokeRect(-26, -30, 52, 60); g.restore();
-        env.ids.forEach((id, i) => { const q = PS[id], px = cxp + (i - (env.ids.length - 1) / 2) * 30, py = cy - 50 - (q.pull ? 6 : 0); drawMan(g, px, py + 24, 0.9, PAL[i % 5], ph + i, q.pull); });
+        env.ids.forEach((id, i) => { const q = PS[id], px = cxp + (i - (env.ids.length - 1) / 2) * 30, py = cy - 50 - (q.pull ? 6 : 0); drawMan(g, px, py + 24, 0.9, PAL[i % PAL.length], ph + i, q.pull); });
         const hx = 16; drawText(g, `荷 ${Math.round(C.load * 100)}%`, hx, 34, { sz: 22, b: 1 }); bar(g, hx, 42, 150, 10, C.load, '#c9a15a'); drawText(g, `道のり ${Math.round(clamp(C.d / LEN, 0, 1) * 100)}%　${Math.max(0, C.t).toFixed(0)}/${TL}秒`, hx, 74, { sz: 14 });
-        env.ids.forEach((id, i) => { const q = PS[id], yy = H0 - 24 - (env.ids.length - 1 - i) * 22; drawText(g, `${nameOf(env, id)} ${'←↑→'[q.lane] === '↑' ? '↑' : q.lane === 0 ? '←' : '→'}${q.lane === 1 ? '(中)' : ''}`, W0 - 170, yy, { sz: 13, al: 'right', c: PAL[i % 5] }); bar(g, W0 - 160, yy - 11, 110, 8, q.stam, q.pull ? '#f2c14e' : '#9aa'); });
+        env.ids.forEach((id, i) => { const q = PS[id], yy = H0 - 24 - (env.ids.length - 1 - i) * 22; drawText(g, `${nameOf(env, id)} ${'←↑→'[q.lane] === '↑' ? '↑' : q.lane === 0 ? '←' : '→'}${q.lane === 1 ? '(中)' : ''}`, W0 - 170, yy, { sz: 13, al: 'right', c: PAL[i % PAL.length] }); bar(g, W0 - 160, yy - 11, 110, 8, q.stam, q.pull ? '#f2c14e' : '#9aa'); });
         if (flash > 0) { g.fillStyle = `rgba(255,60,40,${flash})`; g.fillRect(0, 0, W0, H0); drawText(g, '荷が崩れた！', W0 / 2, H0 / 2, { sz: 40, b: 1, al: 'center' }); }
         if (C.t < 0) drawText(g, String(Math.ceil(-C.t)), W0 / 2, H0 / 2, { sz: 90, b: 1, al: 'center' });
       },
