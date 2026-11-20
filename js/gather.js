@@ -261,7 +261,7 @@
     $('gcancel').onclick = cancel; $('gcancel').classList.add('main'); $('gcancel').classList.remove('main');
     // 2.60.6 魚影の長さは本当の大きさ（cm）で決める（大きい魚ほど大きい影。小さい魚の差も見えるよう対数で）
     const cm = g.cm || (() => { const sp = (SGK.DATA.creatures || []).find((x) => x.id === g.id); return sp ? sp.sz[0] + (sp.sz[1] - sp.sz[0]) * (g.fr || 0.5) : 20; })();
-    const shadowLen = (x) => Math.max(16, Math.min(150, 20 + 32 * Math.log2(Math.max(1, x) / 5)));
+    const shadowLen = (x) => Math.max(10, Math.min(90, 12 + 20 * Math.log2(Math.max(1, x) / 5))); // 2.60.8 全体に小さく（前の6割ほど）
     const cv = $('gcv'), c = cv.getContext('2d'), len = shadowLen(cm), left = Math.random() < 0.5;
     const F = { x: left ? -len : W + len, y: 70 + Math.random() * 110, vx: (left ? 1 : -1) * (24 + ri * 7), ph: Math.random() * 6, mode: 'swim', t: 0 };
     const aim = { x: BX, y: 130 }, rip = []; let bob = null, msg = '', end = null, last = performance.now(), prevPad = {};
