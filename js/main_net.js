@@ -131,7 +131,7 @@ SIM.online = () => [G.myPid, ...(G.mode === 'host' && G.net && G.net.pids ? G.ne
 // 2.42.0 みんなで遊ぶミニゲーム（party.js）に、自分の名前・同じ町の人・送る道具を渡す
 if (SGK.PARTY) SGK.PARTY.init({ me: () => G.myPid, name: () => myName(), send: (to, m) => SGK.ninSend(to, m), cmd: (c) => command(c), toast: (s) => toast(s, 2500),
   others: () => { const m0 = me(); return m0 && m0.at ? G.view.players.filter((p) => p.id !== G.myPid && p.at === m0.at).map((p) => ({ id: p.id, name: p.name })) : []; } });
-function hostTick() { try { hostTick0(); } catch (e) { const t = 'エラー(ホストの進行): ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastHostErr !== t) { G.lastHostErr = t; errToast(t); } } }
+function hostTick() { if (G.mode !== 'host' || !G.world) { timerWorker.postMessage(0); return; } /* 2.59.1 ホストでなくなったのに時計が残っていたら止める */ try { hostTick0(); } catch (e) { const t = 'エラー(ホストの進行): ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastHostErr !== t) { G.lastHostErr = t; errToast(t); } } }
 // 2.40.4 参加者ごとの「自分用の情報」は、前に送ったものから変わっていなければ送らない（参加者は前のものを使い続ける。念のため5秒ごとには送り直す）
 function privFor(pid, now) {
   const pv = SIM.privateState(G.world, pid), j = JSON.stringify(pv); G.sentPriv = G.sentPriv || {}; const o = G.sentPriv[pid];
@@ -203,6 +203,7 @@ document.querySelectorAll('[data-speed]').forEach((b) => (b.onclick = () => { G.
 
 // ---------- 参加者 ----------
 function startClient(ent, code, again) {
+  timerWorker.postMessage(0); // 2.59.1 参加者になるときはホストの時計を止める
   if (!again) { G.mode = 'connecting'; G.mine = null; } G.roomCode = code; G.hostBoard = ent.board;
   SGK.NET.mine = () => (again && G.mine ? G.mine : null); // 2.4.0 引き継ぎで入り直す時だけ「自分の分」を渡す
   const onState0 = (m) => { { const t = performance.now(); G.stIv = G.stT ? (G.stIv || 200) * 0.7 + (t - G.stT) * 0.3 : 200; G.stT = t; } G.dyn = m.s; G.speed = m.sp; G.inBattle = m.bt; if (m.priv) G.priv = m.priv; (m.msgs || []).forEach(toastMsg); if (!G.centered) { G.centered = true; buildView(); centerOnMe(); } };
@@ -220,8 +221,9 @@ function startClient(ent, code, again) {
 }
 
 function backToTitle() {
+  timerWorker.postMessage(0); // 2.59.1 ホストの時計はいつも止める（ホストから参加者に切り替わった後でも）
   if (G.mode === 'host') {
-    SGK.SAVE.save(G.world); timerWorker.postMessage(0);
+    if (G.world) SGK.SAVE.save(G.world);
     const net = G.net; if (net) net.close();
     cloudSave().finally(() => { if (net) net.unboard(); }); // 保存が終わってから掲示板を消す（次の人が古い世界を読まないように）
   } else if (G.net) G.net.close();

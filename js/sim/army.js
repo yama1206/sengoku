@@ -10,7 +10,7 @@
   const scale = (tr, r) => { const o = {}; for (const k in tr) { const v = Math.round(tr[k] * r); if (v > 0) o[k] = v; } return o; };
   const addTr = (a, b) => { const o = Object.assign({}, a); for (const k in b) o[k] = (o[k] || 0) + b[k]; return o; };
   // 数値はすべて仮（ここで調整）
-  const AR = { siegeDays: 1, marchDays: (n) => Math.min(3.5, 1 + n / 80), speed: 25, reliefKm: 50, fightKm: 2, liftKm: 3, musterRank: 3, musterKm: 40, musterDays: 30, musterCD: 20, musterRate: 0.4 };
+  const AR = { siegeDays: 5, /* 2.59.1 CPUの攻城戦の準備（城を囲む日数）は5日 */ marchDays: (n) => Math.min(3.5, 1 + n / 80), speed: 25, reliefKm: 50, fightKm: 2, liftKm: 3, musterRank: 3, musterKm: 40, musterDays: 30, musterCD: 20, musterRate: 0.4 };
   SIM.ARMY = AR;
 
   // ---- 空いた城に武将を置く（CPUの家） ----
