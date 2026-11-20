@@ -73,6 +73,21 @@
   // 2.59.0 拠点の種類ごとの使う量（use があればそれ、なければ cons）と、城の守備兵が食べる米（40人で1日1俵）
   const consOf = (s, k) => { const it = I()[k]; return it.use ? it.use[s.type] || 0 : it.cons; };
   SIM.consOf = consOf;
+  // ---- 2.60.0 食料：米・麦・大豆・大根・肉・卵（items の food＝1つで何人日ぶんか）。兵は安い食料から食べる（米と麦が先、肉・卵はあと） ----
+  SIM.FOODS = () => Object.keys(I()).filter((k) => I()[k].food > 0).sort((a, b) => I()[a].base / I()[a].food - I()[b].base / I()[b].food);
+  SIM.GAR_FOOD = ['rice', 'mugi', 'daizu', 'daikon']; // 城の守備兵・軍勢が食べる順（町の人が食べる麦などを先に食べつくさないよう、米が先）
+  SIM.foodMD = (box, list) => (list || SIM.FOODS()).reduce((a, k) => a + ((box && box[k]) || 0) * I()[k].food, 0); // 人日
+  // box から md 人日ぶん食べる。whole なら1つ単位で（プレイヤーの荷）、そうでなければ端数も（拠点の蔵）。戻り値：{ ate: {品: 数}, left: 食べられなかった人日 }
+  SIM.eatFood = (box, md, whole, order) => { // order：食べる順（なければ安い順）
+    const ate = {};
+    for (const k of order || SIM.FOODS()) {
+      if (md <= 1e-9) break; if (!(I()[k] && I()[k].food > 0)) continue;
+      const f = I()[k].food, have = (box && box[k]) || 0; if (have <= 0) continue;
+      let q = Math.min(have, md / f); if (whole) q = Math.min(have, Math.floor(md / f + 1e-9)); if (q <= 0) continue;
+      box[k] = have - q; md -= q * f; ate[k] = q;
+    }
+    return { ate, left: md };
+  };
   SIM.garRice = (s) => (s.type === 'castle' && SIM.garrison ? SIM.garrison(s) / 40 : 0);
   function target(s, k) { return (consOf(s, k) * sz(s) + pm(s, k) + (k === 'rice' ? SIM.garRice(s) : 0)) * 12 + 4; }
   SIM.stockTarget = target;
@@ -107,13 +122,14 @@
   // ---- 2.59.0 城の守備兵が城の米を食べる。囲まれていて米が尽きると、守備兵が逃げ出す ----
   function garEat(w, s, LG) {
     const need = SIM.garRice(s); if (!need) return;
-    const eat = Math.min(need, s.stock.rice || 0);
-    s.stock.rice -= eat; if (SIM.LEDGER) SIM.LEDGER.note('stock', 'rice', '守備兵の兵糧', -eat);
+    const r = SIM.eatFood(s.stock, need * 40, false, SIM.GAR_FOOD); // 2.60.0 米が先、足りなければ麦・大豆・大根
+    if (SIM.LEDGER) for (const k in r.ate) SIM.LEDGER.note('stock', k, '守備兵の兵糧', -r.ate[k]);
+    const eat = need - r.left / 40;
     if (eat >= need * 0.999 || !SIM.inWar(w, s) || !s.gar) { s.starve = 0; return; }
     const lack = 1 - eat / need, before = SIM.garrison(s); s.starve = (s.starve || 0) + 1;
     for (const k in s.gar) { s.gar[k] = Math.floor(s.gar[k] * (1 - 0.12 * lack)); if (s.gar[k] <= 0) delete s.gar[k]; }
     const lost = before - SIM.garrison(s);
-    if (lost > 0 && s.starve === 1) for (const p of Object.values(w.players)) if (p.clan === s.owner) SIM.say(p.id, `${s.name}の兵糧が尽きました！ 守備兵が逃げ出しています（${lost}人）。米を運び込まないと日に日に減ります`);
+    if (lost > 0 && s.starve === 1) for (const p of Object.values(w.players)) if (p.clan === s.owner) SIM.say(p.id, `${s.name}の兵糧が尽きました！ 守備兵が逃げ出しています（${lost}人）。食料（米・麦など）を運び込まないと日に日に減ります`);
   }
   // 2.59.0 後から足した食べ物（麦・大豆・大根・卵・肉・毛皮）を村でも少し作る（古いセーブにも足す）
   const hashN = (id, n) => { let h = n * 7919; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return (h % 1000) / 1000; };

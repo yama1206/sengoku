@@ -2,7 +2,7 @@
 (function () {
   SGK.DATA.items = {
     // 1.6.0 wt＝1つの重さ(kg)。1つの量を「持ち運びやすい小分け」にそろえ、中身の重さ（密度）で決める。鉄は重く、木綿・茶は軽い
-    rice: { name: '米', ic: 'rice', unit: '俵', base: 12, cons: 2, wt: 6 },       // 小俵（米 約4升）
+    rice: { name: '米', ic: 'rice', unit: '俵', base: 12, cons: 2, wt: 6, food: 40 }, // 2.60.0 food＝食料として何人日ぶんか（米1俵で40人が1日）       // 小俵（米 約4升）
     salt: { name: '塩', ic: 'salt', unit: '袋', base: 400, cons: 1, wt: 2 },      // 小袋（塩 約1升）
     cotton: { name: '木綿', ic: 'cotton', unit: '反', base: 300, cons: 1, wt: 0.7 }, // 1反は本物も約0.7kg
     sake: { name: '酒', ic: 'sake', unit: '樽', base: 500, cons: 1, wt: 4 },      // 小樽（酒 約2升）
@@ -15,14 +15,14 @@
     jade: { name: '翡翠', ic: 'star', unit: '粒', base: 1500, cons: 0, mine: true, wt: 0.3, use: { town: 0.015 } },
     garnet: { name: '柘榴石', ic: 'star', unit: '粒', base: 720, cons: 0, mine: true, wt: 0.3, use: { town: 0.03 } },
     // 2.36.0 狩猟で手に入る物（市場で売れる）
-    meat: { name: '肉', ic: 'star', unit: '塊', base: 160, cons: 0, mine: true, wt: 2, use: { town: 0.1, castle: 0.03 } },
+    meat: { name: '肉', ic: 'star', unit: '塊', base: 160, cons: 0, mine: true, wt: 2, food: 8, use: { town: 0.1, castle: 0.03 } },
     hide: { name: '毛皮', ic: 'star', unit: '枚', base: 380, cons: 0, mine: true, wt: 2, use: { town: 0.02, castle: 0.02 } },
     tea: { name: '茶', ic: 'tea2', /* 2.13.1 茶の葉の絵 */ unit: '斤', base: 350, cons: 0.5, wt: 0.6 },   // 1斤は本物も約0.6kg
     // 2.56.0 畑と家畜で取れる物（市場で売れる。どこの市場も作らない）
-    mugi: { name: '麦', ic: 'mugi', unit: '俵', base: 10, cons: 0, mine: true, wt: 6, use: { town: 1, castle: 0.6 } },
-    daizu: { name: '大豆', ic: 'daizu', unit: '俵', base: 30, cons: 0, mine: true, wt: 6, use: { town: 0.6, castle: 0.2 } },
-    daikon: { name: '大根', ic: 'daikon', unit: '束', base: 25, cons: 0, mine: true, wt: 4, use: { town: 0.8, castle: 0.3 } },
-    egg: { name: '卵', ic: 'egg', unit: '個', base: 20, cons: 0, mine: true, wt: 0.06, use: { town: 1.5, castle: 0.2 } },
+    mugi: { name: '麦', ic: 'mugi', unit: '俵', base: 10, cons: 0, mine: true, wt: 6, food: 40, use: { town: 1, castle: 0.6 } },
+    daizu: { name: '大豆', ic: 'daizu', unit: '俵', base: 30, cons: 0, mine: true, wt: 6, food: 32, use: { town: 0.6, castle: 0.2 } },
+    daikon: { name: '大根', ic: 'daikon', unit: '束', base: 25, cons: 0, mine: true, wt: 4, food: 10, use: { town: 0.8, castle: 0.3 } },
+    egg: { name: '卵', ic: 'egg', unit: '個', base: 20, cons: 0, mine: true, wt: 0.06, food: 0.3, use: { town: 1.5, castle: 0.2 } },
   };
   const prod = {
     inabayama: { rice: 3, tea: 1 }, ogaki: { rice: 4 }, inuyama: { firewood: 4, sake: 1 },

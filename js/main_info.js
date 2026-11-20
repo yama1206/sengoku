@@ -18,7 +18,7 @@ function selectSettlement(s) {
     const cs = castleStat(s), m = G.priv && G.priv.me, W = m && m.war, R = m && m.rank, at = G.view.wars || [];
     const lordN = cs.lordName;
     $('infoBody').innerHTML += `<br>${{ yama: '山城（守りが堅い）', mizu: '水城（水堀が広い）' }[SIM.castleKind(s)] || '平城'}　守備兵 約${cs.gar}人${lordN && cs.loyal != null ? `　${lordN}の忠誠 ${cs.loyal}` : ''}`;
-    if (cs.rice != null && cs.gar > 0) { const dd = Math.floor(cs.rice / (cs.gar / 40)); $('infoBody').innerHTML += `<br>兵糧：米${cs.rice}俵（守備兵の${dd}日分）${dd < 5 ? '　<b style="color:#e06050">兵糧が少ない</b>' : ''}`; } // 2.59.0
+    if (cs.rice != null && cs.gar > 0) { const dd = Math.floor(cs.rice / (cs.gar / 40)); $('infoBody').innerHTML += `<br>兵糧：食料 米に直して${cs.rice}俵（守備兵の${dd}日分）${dd < 5 ? '　<b style="color:#e06050">兵糧が少ない</b>' : ''}`; } // 2.59.0
     { const V = m && m.vass && m.vass[s.id], fmt = ([nm]) => nm; // 0.34.0 城の武将
       if (V) $('infoBody').innerHTML += `${V.lord ? `<br>城主：${fmt(V.lord)}` : ''}<br>家臣：${V.vass.length ? V.vass.map(fmt).join('・') : 'なし'}`;
       else $('infoBody').innerHTML += '<br><span class="muted">（40km以内に近づくと家臣の武将が分かります）</span>'; }
@@ -40,7 +40,7 @@ function selectSettlement(s) {
 }
 // 城の守備兵・城主・忠誠（ホストは直接、参加者は送られてきた値）
 function castleStat(s) {
-  if (G.mode === 'host') { const pr = s.lord && G.world.people[s.lord]; return { gar: SIM.garrison(s), lord: s.lord, loyal: pr ? pr.loyal : null, lordName: pr ? pr.name : null, bs: SIM.siegeInfo(G.world, s.id), rice: Math.round((s.stock && s.stock.rice) || 0) }; }
+  if (G.mode === 'host') { const pr = s.lord && G.world.people[s.lord]; return { gar: SIM.garrison(s), lord: s.lord, loyal: pr ? pr.loyal : null, lordName: pr ? pr.name : null, bs: SIM.siegeInfo(G.world, s.id), rice: Math.round(SIM.foodMD(s.stock, SIM.GAR_FOOD) / 40) }; }
   const c = G.dyn && G.dyn.cs && G.dyn.cs[s.id], bs = (G.dyn && G.dyn.bs && G.dyn.bs[s.id]) || null;
   return c ? { gar: c[0], lord: c[1], loyal: c[2], lordName: c[3] || (G.view.people[c[1]] || {}).name || null, bs, rice: c[4] } : { gar: '?', lord: s.lord, loyal: null, lordName: s.lord ? (G.view.people[s.lord] || {}).name : null, bs };
 }

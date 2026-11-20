@@ -1,4 +1,4 @@
-// 兵糧と士気：兵を連れていると毎日米が減る。米が尽きると士気が下がり、低いと格の低い兵から抜けていく
+// 兵糧と士気：兵を連れていると毎日食料（米・麦・大豆・大根・肉・卵。2.60.0）が減る。尽きると士気が下がり、低いと格の低い兵から抜けていく
 (function () {
   const SIM = SGK.SIM;
   const RICE_PER_MAN = 1 / 40;   // 1人1日あたりの米（俵）。40人で1日1俵
@@ -15,13 +15,13 @@
       const n = SIM.troopCount(p.troops || {});
       if (!n) { p.riceDebt = 0; p.morale = Math.min(MOR_FED, p.morale + MOR_UP); p.hungry = false; continue; }
       p.riceDebt += n * RICE_PER_MAN * (SIM.riceRate ? SIM.riceRate(p) : 1);
-      const eat = Math.min(Math.floor(p.riceDebt), (p.inv && p.inv.rice) || 0);
-      if (eat) { p.inv.rice -= eat; p.riceDebt -= eat; if (!p.inv.rice) { delete p.inv.rice; if (p.cost) delete p.cost.rice; } }
+      // 2.60.0 米だけでなく食料（麦・大豆・大根・肉・卵）も食べる。安いものから、1つ単位で（riceDebt は米に直した俵）
+      if (p.inv) { const r = SIM.eatFood(p.inv, p.riceDebt * 40, true); p.riceDebt = r.left / 40; for (const k in r.ate) if (!p.inv[k]) { delete p.inv[k]; if (p.cost) delete p.cost[k]; } }
       p.hungry = p.riceDebt >= 1; // 食べる分が足りなかった
       if (p.hungry) {
         p.riceDebt = Math.min(p.riceDebt, 1); // 足りない分は持ち越さない（飢えた分は士気で払う）
         p.morale = Math.max(0, p.morale - MOR_DOWN);
-        SIM.say(p.id, `兵糧の米が足りません！ 兵の士気が下がっています（士気${Math.round(p.morale)}）`);
+        SIM.say(p.id, `兵糧（食料）が足りません！ 兵の士気が下がっています（士気${Math.round(p.morale)}）。米・麦・大豆・大根・肉・卵を荷に入れておきましょう`);
       } else p.morale = p.morale < MOR_FED ? Math.min(MOR_FED, p.morale + MOR_UP) : Math.max(MOR_FED, p.morale - 2);
       if (p.morale < DESERT_AT) desert(w, p, n, p.morale < DESERT_HARD ? 0.2 : 0.1);
     }
@@ -55,8 +55,9 @@
   SIM.privateState = function (w, pid) {
     const r = basePriv(w, pid); if (!r) return r;
     const p = w.players[pid]; ensure(p);
-    const need = SIM.riceNeed(p), rice = (p.inv && p.inv.rice) || 0;
-    Object.assign(r.me, { morale: Math.round(p.morale), hungry: !!p.hungry, riceNeed: Math.round(need * 10) / 10, riceDays: need ? Math.floor(rice / need) : null });
+    const need = SIM.riceNeed(p), md = SIM.foodMD(p.inv); // 2.60.0 食料ぜんぶ（米に直して何日もつか）
+    const I = SGK.DATA.items, list = SIM.FOODS().filter((k) => p.inv && p.inv[k] > 0).map((k) => `${I[k].name}${p.inv[k]}`).join('・');
+    Object.assign(r.me, { morale: Math.round(p.morale), hungry: !!p.hungry, riceNeed: Math.round(need * 10) / 10, riceDays: need ? Math.floor(md / 40 / need) : null, foodList: list, foodRice: Math.floor(md / 40) });
     return r;
   };
 })();
