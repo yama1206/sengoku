@@ -56,7 +56,7 @@
   const focusMem = {};
   function activeMenuNotBattle() { const m = activeMenu(); return m && m !== $('battle'); }
   function activeMenu() {
-    if (G.mode === 'title') return $('mSet').parentNode === $('title') && !$('mSet').classList.contains('hidden') ? $('mSet') : !$('mapPanel').classList.contains('hidden') ? $('mapPanel') : !$('createPanel').classList.contains('hidden') ? $('createPanel') : !$('slotPanel').classList.contains('hidden') ? $('slotPanel') : !$('friendPanel').classList.contains('hidden') ? $('friendPanel') : !$('namePanel').classList.contains('hidden') ? $('namePanel') : $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
+    if (G.mode === 'title') return $('mSet').parentNode === $('title') && !$('mSet').classList.contains('hidden') ? $('mSet') : !$('mapPanel').classList.contains('hidden') ? $('mapPanel') : !$('createPanel').classList.contains('hidden') ? $('createPanel') : !$('carryPanel').classList.contains('hidden') ? $('carryPanel') : !$('slotPanel').classList.contains('hidden') ? $('slotPanel') : !$('friendPanel').classList.contains('hidden') ? $('friendPanel') : !$('namePanel').classList.contains('hidden') ? $('namePanel') : $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
     if (!$('gameMenu').classList.contains('hidden')) return $('gameMenu');
     if (!$('char').classList.contains('hidden')) return $('char');
     if (!$('town').classList.contains('hidden')) return $('town');
@@ -168,7 +168,7 @@
     ci.value = b.dataset.ck === 'del' ? ci.value.slice(0, -1) : (ci.value + b.dataset.ck).slice(0, CL);
     if (ci.value.length === CL && b.dataset.ck !== 'del') setFocus($('joinPanel'), $('btnJoinGo'));
   });
-  function titleBack() { probe = null; if ($('mSet').parentNode === $('title')) { $('mSet').classList.add('hidden'); $('gameMenu').insertBefore($('mSet'), $('mMain')); } $('slotPanel').classList.add('hidden'); $('friendPanel').classList.add('hidden'); $('joinPanel').classList.add('hidden'); $('namePanel').classList.add('hidden'); $('createPanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); setFocus($('titleMenu'), currentFocus($('titleMenu'))); }
+  function titleBack() { probe = null; if ($('mSet').parentNode === $('title')) { $('mSet').classList.add('hidden'); $('gameMenu').insertBefore($('mSet'), $('mMain')); } $('slotPanel').classList.add('hidden'); $('friendPanel').classList.add('hidden'); $('joinPanel').classList.add('hidden'); $('namePanel').classList.add('hidden'); $('createPanel').classList.add('hidden'); $('carryPanel').classList.add('hidden'); $('titleMenu').classList.remove('hidden'); setFocus($('titleMenu'), currentFocus($('titleMenu'))); }
   $('btnJoinBack').onclick = titleBack;
   // ---------- 2.3.0 世界の一覧（入ったことのある世界。ホストがいるか・いつまで進んだか） ----------
   let probe = null; const fstat = {};
@@ -236,7 +236,7 @@
     if (!START.some((t) => t.id === p.start)) p.start = SGK.DATA.startSettlement;
     return p;
   }
-  const myProf = () => { const p = loadProf(); SGK.NET.prof = p; return p; };
+  const myProf = () => { const p = loadProf(); p.carry = SGK.CARRY.load(); /* 2.50.0 引き継ぎ（新しい世界に入る最初の1回だけホストが使う） */ SGK.NET.prof = p; return p; };
   let prof = loadProf(), crNames = [];
   const crLeft = () => SIM.CREATE.base * ATK.length + SIM.CREATE.points - ATK.reduce((a, k) => a + prof.attrs[k], 0);
   function renderCreate() {
@@ -318,6 +318,17 @@
   window.addEventListener('resize', () => { if (!$('mapPanel').classList.contains('hidden')) { smSize(); smClamp(); smDraw(); } });
   function pickNames() { const SEI = SGK.SIM.SEI, MEI = ['藤吉郎', '小平太', '与一', '新左衛門', '源太', '又四郎', '弥助', '勘兵衛', '十兵衛', '孫六']; const pk = (a) => a[Math.floor(Math.random() * a.length)], set = new Set(); while (set.size < 6) set.add(pk(SEI) + pk(MEI)); crNames = [...set]; } // 1.6.1 名前の候補（army.js から MEI を消したので、ここに持つ）
   $('btnName').onclick = () => { prof = loadProf(); pickNames(); $('createPanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); renderCreate(); setFocus($('createPanel'), $('cr-ok')); };
+  // 2.50.0 引き継ぎ画面（タイトル）。押したボタンの位置にカーソルを残す（先頭に戻さない）
+  const renderCarry = (fid) => { $('carryBody').innerHTML = SGK.CARRYUI.html(); setFocus($('carryPanel'), (fid && $(fid)) || $('cy-back')); };
+  $('btnCarry').onclick = () => { $('carryPanel').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); renderCarry('cy-heir-p'); };
+  $('carryBody').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return; const CY = SGK.CARRY, k = b.dataset.cy;
+    if (k === 'back') { titleBack(); return; }
+    if (k === 'heir') CY.setHeir(+b.dataset.md || 1);
+    else if (k === 'exp') { try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([CY.exportText()], { type: 'application/json' })); a.download = 'tenkaourai-carry.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); titleMsg('引き継ぎデータを書き出しました'); } catch (er) { titleMsg('書き出せませんでした'); } }
+    else if (k === 'imp') { const f = document.createElement('input'); f.type = 'file'; f.accept = '.json,application/json'; f.onchange = () => { const fl = f.files && f.files[0]; if (!fl) return; fl.text().then((t) => { titleMsg(CY.importText(t) ? '引き継ぎデータを読み込みました' : '引き継ぎデータではありません'); renderCarry('cy-imp'); }); }; f.click(); return; }
+    renderCarry(b.id);
+  });
   $('createBody').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     const C = SIM.CREATE, dir = +b.dataset.md || 0;
@@ -564,6 +575,9 @@
       $('roomInfo').innerHTML = (G.roomCode ? `世界コード <b>${G.roomCode}</b>` : 'この端末だけの世界') + `<br><span class="muted">${SGK.ICON.html('crown', 16)}ホスト　${online.length + 1}/${CFG.MAX_PLAYERS}人（${names.replace(/[<&]/g, '')}）</span>`;
     } else if (G.mode === 'client') $('roomInfo').innerHTML = `世界コード <b>${G.roomCode || ''}</b><br><span class="muted">${(G.hostName || '').replace(/[<&]/g, '')}がホスト</span>${G.ping ? `<br><span class="muted">通信の遅れ ${Math.round(G.ping)}ms</span>` : ''}`;
   }
+  // 2.50.0 遊んでいる人物から引き継ぎの記録を取る（20秒ごと・タブを隠す時）。参加者は、ホストから届く「自分の分」から取る
+  const carryNow = () => { try { if (G.mode === 'title') return; const p = G.mode === 'client' ? G.mine && G.mine.p : G.world && G.myPid && G.world.players && G.world.players[G.myPid]; if (p) SGK.CARRY.absorb(p); } catch (e) { /* 記録できなくても遊びは続ける */ } };
+  setInterval(carryNow, 20000); document.addEventListener('visibilitychange', () => { if (document.hidden) carryNow(); });
   setInterval(() => { try { if (G.mode === 'client' && G.net && G.net.ping) { G.net.ping(); updateRoom(); } else if (G.mode !== 'client') G.ping = 0; } catch (e) {} }, 2000); // 2.49.0
   function hostUI(on) { document.querySelectorAll('.hostOnly').forEach((e) => e.classList.toggle('hidden', !on)); }
   document.querySelectorAll('[data-speed]').forEach((b) => (b.onclick = () => { G.speed = +b.dataset.speed; G.autoPause = 0; }));
