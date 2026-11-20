@@ -11,6 +11,7 @@
     race: { name: '馬の障害レース', max: 10, team: true, desc: '柵や堀を跳び越えて走り、ゴールの順位を競う。ジャンプ＝A／Space、ダッシュ＝↑／B（スタミナを使う）' },
     archery: { name: '弓の的当て大会', max: 10, team: true, desc: '動く的を10本で射抜いて点を競う。風で矢が流れる。狙う＝マウス／矢印／スティック、射つ＝クリック／A／Space。金の的は2倍' },
     fish: { name: '釣り大会', max: 10, team: true, mode: true, desc: '朝・昼・夕の3日間（1日40秒）で釣りくらべ。釣り方はいつもの釣りと同じ（浮きを投げる→アタリ→タイミング）。勝ち方は「いちばん大きい魚」か「釣った数」を選べます' },
+    kemari: { name: '蹴鞠', max: 10, team: false, desc: '輪になって鞠を蹴り回す。鞠が自分に飛んできたら、足もとの輪に重なった瞬間に「蹴る」（クリック／タップ／A／Space）。続けるほど鞠は速くなる。毎月5日は大きな町で蹴鞠大会' },
     cart: { name: '荷運び競争（協力）', max: 10, team: false, desc: '全員で荷車を引いてゴールまで運ぶ。←→で進む道を選ぶ（みんなの平均で進む）、A／Spaceを押している間引く。岩にぶつかると荷が崩れる' },
   };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -114,11 +115,11 @@
     const touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches), hold = (el, k) => { const on = (e) => { e.preventDefault(); if (!IN[k]) { if (k === 'a') IN.aT = 1; if (k === 'l') IN.lT = 1; if (k === 'r') IN.rT = 1; } IN[k] = 1; }, off = (e) => { e.preventDefault(); IN[k] = 0; }; el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointerleave', off); el.addEventListener('pointercancel', off); };
     const mkBtn = (host, txt, k) => { const b = document.createElement('button'); b.textContent = txt; host.appendChild(b); hold(b, k); };
     const pl = root.querySelector('.pl'), pr = root.querySelector('.pr');
-    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { mkBtn(pl, 'ダッシュ', 'b'); mkBtn(pr, 'ジャンプ', 'a'); } else if (cfg.g === 'fish') mkBtn(pr, '釣る', 'a'); else mkBtn(pr, '射つ', 'a'); }
+    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { mkBtn(pl, 'ダッシュ', 'b'); mkBtn(pr, 'ジャンプ', 'a'); } else if (cfg.g === 'fish') mkBtn(pr, '釣る', 'a'); else if (cfg.g === 'kemari') mkBtn(pr, '蹴る', 'a'); else mkBtn(pr, '射つ', 'a'); }
     const ptr = (e) => { const r = cv.getBoundingClientRect(); IN.mx = (e.clientX - r.left) * cv.width / r.width; IN.my = (e.clientY - r.top) * cv.height / r.height; };
-    cv.addEventListener('pointermove', ptr); cv.addEventListener('pointerdown', (e) => { ptr(e); if (cfg.g === 'archery') IN.click = 1; else if (cfg.g === 'fish') IN.aT = 1; });
+    cv.addEventListener('pointermove', ptr); cv.addEventListener('pointerdown', (e) => { ptr(e); if (cfg.g === 'archery') IN.click = 1; else if (cfg.g === 'fish' || cfg.g === 'kemari') IN.aT = 1; });
     const env = { cfg, me, ids: cfg.mem.map((x) => x.id), names: Object.fromEntries(cfg.mem.map((x) => [x.id, x.name])), tm: Object.fromEntries(cfg.mem.map((x) => [x.id, x.tm])), others: cfg.mem.map((x) => x.id).filter((id) => id !== me), cv, g2, finished: false, gone: {} };
-    const game = { race: raceGame, archery: archeryGame, cart: cartGame, fish: fishGame }[cfg.g](env);
+    const game = { race: raceGame, archery: archeryGame, cart: cartGame, fish: fishGame, kemari: kemariGame }[cfg.g](env);
     let raf = 0, last = performance.now(); const stop = () => { cancelAnimationFrame(raf); removeEventListener('resize', onR); root.remove(); RUN = null; for (const k of ['l', 'r', 'u', 'd', 'a', 'b']) IN[k] = 0; };
     RUN = { on: (from, m) => { if (m.k === 'quit') { env.gone[from] = 1; } if (game.msg) game.msg(from, m); } };
     env.end = (res) => { if (env.finished) return; env.finished = true; showResult(env, res, () => stop()); };
@@ -370,5 +371,116 @@
       },
     };
     function snap() { const ps = {}; for (const id of env.ids) ps[id] = [PS[id].lane, PS[id].pull, r2(PS[id].stam)]; send(env.others, { k: 'snap', d: r1(C.d), v: r1(C.v), load: r2(C.load), t: r1(C.t), st: C.stun > 0 ? r2(C.stun) : 0, lane: r2(C.lane), hits: C.hits, ps, end: C.end }); }
+  }
+
+  // =====================================================================
+  // 2.62.0 蹴鞠（見下ろし）：輪になって立ち、募った人（リーダー）から蹴り出す。リーダーの端末が鞠の行き先と速さを決めて配る。
+  //  受ける人は、鞠が届いた瞬間（自分の端末で鞠が足もとに来た時）に「蹴る」。判定は受ける人の端末でして、結果をリーダーへ送る
+  // =====================================================================
+  function kemariGame(env) {
+    const { cfg, me, g2: g, cv } = env, lead = cfg.lead === me, rng = mulberry((cfg.seed ^ 0x5bd1e995) >>> 0), ids = env.ids, N = ids.length;
+    const WIN = 220, GREAT = 70, CALLS = ['アリ', 'ヤア', 'オウ'];
+    const S = { seq: 0, from: cfg.lead, to: cfg.lead, dur: 0, v: 0, cnt: 0, kicks: {}, great: {}, phase: 'ready', over: null, call: null };
+    ids.forEach((id) => { S.kicks[id] = 0; S.great[id] = 0; });
+    let t0 = performance.now(), judged = 0, fb = null, rx = performance.now(), hb = 0, endT = 0, callT = 0, ph = 0;
+    const swing = {}, myI = Math.max(0, ids.indexOf(me));
+    const kickSnd = () => { try { SGK.AUDIO.sfx('kmrKick'); } catch (e) {} };
+    const ang = (id) => Math.PI / 2 + ((ids.indexOf(id) - myI) * 2 * Math.PI) / N; // 自分がいちばん手前
+    const unit = (id) => (N === 1 ? [0, 1] : [Math.cos(ang(id)), Math.sin(ang(id))]);
+    const range = (c) => [Math.min(4, 0.9 + c * 0.035), Math.min(6, 1.5 + c * 0.06)]; // 鞠の速さの下限・上限（輪の半径／秒）。続けるほど上がる
+    const alive = () => ids.filter((id) => !env.gone[id]);
+    const pack = () => ({ k: 'km', seq: S.seq, from: S.from, to: S.to, dur: S.dur, v: S.v, cnt: S.cnt, kicks: S.kicks, great: S.great, phase: S.phase, over: S.over, call: S.call });
+    const cast = () => { hb = 1; send(env.others, pack()); };
+    function fly(from) { // リーダー：次の行き先と速さ
+      const pool = alive().filter((id) => id !== from), to = pool.length ? pool[Math.floor(rng() * pool.length)] : from;
+      const [lo, hi] = range(S.cnt), v = lo + rng() * (hi - lo), a = unit(from), b = unit(to), dist = to === from ? 0.9 : Math.hypot(a[0] - b[0], a[1] - b[1]);
+      S.seq++; S.from = from; S.to = to; S.v = r2(v); S.dur = Math.round(Math.max(380, (dist / v) * 1000 + 220)); S.phase = 'fly'; t0 = performance.now(); cast();
+    }
+    function apply(id, ok, gr) { // リーダー：受けた人の結果
+      if (S.phase !== 'fly' || id !== S.to) return;
+      if (ok) { S.cnt++; S.kicks[id]++; if (gr) S.great[id]++; S.call = [id, S.cnt % 3]; swing[id] = callT = performance.now(); if (id !== me) kickSnd(); fly(id); }
+      else { S.phase = 'over'; S.over = { id }; cast(); finish(); }
+    }
+    function judge(ok, gr, txt) { judged = S.seq; fb = { txt, t: performance.now(), ok }; if (ok) { swing[me] = performance.now(); kickSnd(); } if (lead) apply(me, ok, gr); else send([cfg.lead], { k: 'kick', seq: S.seq, ok: ok ? 1 : 0, gr: gr ? 1 : 0 }); }
+    function finish() {
+      if (endT) return; endT = performance.now();
+      setTimeout(() => {
+        const rows = [`<b>続けた回数 ${S.cnt}回</b>${S.over && S.over.id ? `　（${esc(nameOf(env, S.over.id))}が落とした）` : ''}`].concat(ids.map((id) => `${esc(nameOf(env, id))}：蹴った ${S.kicks[id] || 0}回${S.great[id] ? `（見事 ${S.great[id]}）` : ''}`));
+        env.end({ title: S.cnt >= 50 ? 'お見事！ 鞠はなかなか落ちなかった' : '鞠が落ちた', rows, cmd: { type: 'partyResult', game: 'kemari', n: N, cnt: S.cnt, kicks: S.kicks[me] || 0 } });
+      }, 1600);
+    }
+    return {
+      msg(from, m) {
+        if (lead) { if (m.k === 'kick' && m.seq === S.seq) apply(from, !!m.ok, !!m.gr); return; }
+        if (from !== cfg.lead || m.k !== 'km') return; rx = performance.now();
+        if (m.seq !== S.seq) { t0 = performance.now(); if (m.call) { callT = performance.now(); if (m.call[0] !== me) { swing[m.call[0]] = callT; kickSnd(); } } }
+        Object.assign(S, { seq: m.seq, from: m.from, to: m.to, dur: m.dur, v: m.v, cnt: m.cnt, kicks: m.kicks, great: m.great, phase: m.phase, over: m.over, call: m.call });
+        if (S.phase === 'over') finish();
+      },
+      update(dt) {
+        ph += dt; const now = performance.now();
+        if (S.phase === 'ready') { if (lead && IN.aT) { S.kicks[me]++; S.call = [me, 0]; swing[me] = callT = now; kickSnd(); fly(me); } }
+        else if (S.phase === 'fly' && S.to === me && judged !== S.seq) {
+          const err = now - (t0 + S.dur);
+          if (IN.aT) { if (Math.abs(err) <= WIN) judge(true, Math.abs(err) <= GREAT, Math.abs(err) <= GREAT ? '見事！' : err < 0 ? 'よし（少し早い）' : 'よし（少し遅い）'); else judge(false, false, err < 0 ? '早すぎた…' : '遅れた…'); }
+          else if (err > WIN) judge(false, false, '取りこぼした…');
+        }
+        if (lead) {
+          if (S.phase === 'fly' && (env.gone[S.to] || now > t0 + S.dur + 4000)) { if (env.gone[S.to]) fly(S.from); else apply(S.to, false, false); }
+          hb -= dt; if (hb <= 0) cast();
+        } else if (S.phase !== 'over' && now - rx > 10000) env.end({ title: 'リーダーとの通信が切れました', rows: [], cmd: null });
+      },
+      draw() {
+        const W0 = cv.width, H0 = cv.height, cx = W0 / 2, cy = H0 * 0.53, R = Math.min(W0, H0) * 0.32, pr = Math.max(14, R * 0.12), now = performance.now();
+        // 鞠庭：白砂と四隅の懸（かかり）の木（桜・柳・楓・松）
+        g.fillStyle = '#5d7a46'; g.fillRect(0, 0, W0, H0);
+        const sq = R * 1.55; g.fillStyle = '#ddd0ac'; g.fillRect(cx - sq, cy - sq, sq * 2, sq * 2);
+        g.strokeStyle = 'rgba(160,140,100,.35)'; g.lineWidth = 1; for (let y = cy - sq + 8; y < cy + sq; y += 10) { g.beginPath(); g.moveTo(cx - sq, y); g.lineTo(cx + sq, y); g.stroke(); }
+        [['#f4b8c8', '#e898ae', -1, -1], ['#9cc46a', '#7aa84e', 1, -1], ['#d8502e', '#b8381e', -1, 1], ['#2f5a34', '#234528', 1, 1]].forEach(([c1, c2, sx, sy]) => {
+          const tx = cx + sx * sq * 0.86, ty = cy + sy * sq * 0.86; g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.arc(tx + 6, ty + 8, R * 0.26, 0, 7); g.fill();
+          for (let k = 0; k < 6; k++) { g.fillStyle = k % 2 ? c1 : c2; g.beginPath(); g.arc(tx + Math.cos(k * 1.05) * R * 0.1, ty + Math.sin(k * 1.05) * R * 0.1, R * 0.15, 0, 7); g.fill(); }
+        });
+        g.strokeStyle = 'rgba(120,90,50,.25)'; g.lineWidth = 2; g.setLineDash([6, 8]); g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke(); g.setLineDash([]);
+        const P = (id) => { const u = unit(id); return [cx + u[0] * R, cy + u[1] * R]; };
+        // 人（上から：肩・頭・烏帽子）
+        ids.forEach((id, i) => {
+          const [x, y] = P(id), a = Math.atan2(cy - y, cx - x), col = PAL[i % PAL.length], sw = swing[id] && now - swing[id] < 250 ? (now - swing[id]) / 250 : 0;
+          g.save(); g.translate(x, y); g.rotate(a);
+          if (sw) { g.strokeStyle = '#222'; g.lineWidth = pr * 0.28; g.lineCap = 'round'; g.beginPath(); g.moveTo(0, pr * 0.3); g.lineTo(pr * (0.6 + Math.sin(sw * Math.PI) * 0.9), pr * 0.35); g.stroke(); }
+          g.fillStyle = env.gone[id] ? '#777' : col; g.beginPath(); g.ellipse(0, 0, pr * 0.7, pr, 0, 0, 7); g.fill(); g.strokeStyle = '#0006'; g.lineWidth = 2; g.stroke();
+          g.fillStyle = '#e8c9a0'; g.beginPath(); g.arc(pr * 0.05, 0, pr * 0.42, 0, 7); g.fill(); g.fillStyle = '#1a1a1a'; g.beginPath(); g.ellipse(-pr * 0.1, 0, pr * 0.36, pr * 0.26, 0, 0, 7); g.fill();
+          g.restore();
+          const lx = cx + (x - cx) * 1.28, ly = cy + (y - cy) * 1.28 + 5; drawText(g, nameOf(env, id) + (id === me ? '（自分）' : ''), lx, ly, { sz: 13, al: 'center', c: col, b: id === me });
+          if (S.call && S.call[0] === id && now - callT < 900 && S.phase !== 'ready') {
+            const bw = 46, bx = x - bw / 2, by = y - pr - 34; g.fillStyle = '#fffaf0'; g.strokeStyle = '#3a2a1a'; g.lineWidth = 2; g.beginPath(); if (g.roundRect) g.roundRect(bx, by, bw, 24, 10); else g.rect(bx, by, bw, 24); g.fill(); g.stroke();
+            drawText(g, CALLS[S.call[1]], x, by + 18, { sz: 16, b: 1, al: 'center', c: '#2a1a10' });
+          }
+        });
+        // 受ける人の足もとに縮んでいく輪（足もとの細い輪と重なった時が蹴る時）
+        const frac = S.phase === 'fly' ? clamp((now - t0) / S.dur, 0, 1.25) : 0;
+        if (S.phase === 'fly' && frac < 1.2) { const [tx, ty] = P(S.to), rr = pr * (1.05 + 2.4 * Math.max(0, 1 - frac)); g.strokeStyle = S.to === me ? '#f2c14e' : 'rgba(255,255,255,.7)'; g.lineWidth = S.to === me ? 4 : 2; g.beginPath(); g.arc(tx, ty, rr, 0, 7); g.stroke(); g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 1; g.beginPath(); g.arc(tx, ty, pr * 1.05, 0, 7); g.stroke(); }
+        // 鞠（影は地面、鞠は高さぶん上に大きく）
+        let bx, by, h = 0;
+        if (S.phase === 'ready') { [bx, by] = P(S.from); bx += (cx - bx) * 0.12; by += (cy - by) * 0.12; h = Math.abs(Math.sin(ph * 3)) * 6; }
+        else if (S.phase === 'over') { const [x, y] = P((S.over && S.over.id) || S.to); bx = x + (cx - x) * 0.18; by = y + (cy - y) * 0.18; }
+        else {
+          const [ax, ay] = P(S.from), [tx, ty] = P(S.to), f = Math.min(1, frac), self = S.from === S.to, bow = self ? 0.25 * Math.sin(f * Math.PI) : 0;
+          bx = ax + (tx - ax) * f + (cx - ax) * bow; by = ay + (ty - ay) * f + (cy - ay) * bow; h = 4 * f * (1 - f) * R * (0.35 + 0.25 / Math.max(1, S.v));
+          if (frac > 1) { const k = frac - 1; bx += (cx - tx) * k * 0.6; by += (cy - ty) * k * 0.6; }
+        }
+        const br = pr * 0.42 * (1 + (h / R) * 0.9), gy = by - h;
+        g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(bx, by, pr * 0.42, pr * 0.28, 0, 0, 7); g.fill();
+        g.fillStyle = '#fbf8ef'; g.beginPath(); g.arc(bx, gy, br, 0, 7); g.fill(); g.strokeStyle = '#b8a888'; g.lineWidth = 1.5; g.stroke();
+        g.strokeStyle = '#8a3a5a'; g.lineWidth = 1.2; g.beginPath(); g.arc(bx, gy, br * 0.55, ph * 6, ph * 6 + 2.2); g.stroke(); g.beginPath(); g.arc(bx, gy, br * 0.55, ph * 6 + 3.14, ph * 6 + 5.3); g.stroke();
+        // 上の表示
+        const [lo, hi] = range(S.cnt);
+        drawText(g, `続けた回数 ${S.cnt}`, cx, 40, { sz: 28, b: 1, al: 'center', c: '#fff2cc' });
+        drawText(g, `鞠の速さ ${lo.toFixed(1)}〜${hi.toFixed(1)}${S.phase === 'fly' ? `（いま ${S.v.toFixed(1)}）` : ''}`, cx, 64, { sz: 14, al: 'center' });
+        if (S.phase === 'ready') drawText(g, lead ? '「蹴る」で蹴り出す' : `${nameOf(env, cfg.lead)}が蹴り出すのを待っています`, cx, cy, { sz: 22, b: 1, al: 'center' });
+        if (S.phase === 'fly' && S.to === me && judged !== S.seq) drawText(g, '蹴る！', cx, cy + R * 0.45, { sz: Math.round(30 + 10 * Math.max(0, frac - 0.6)), b: 1, al: 'center', c: frac > 0.8 ? '#ffd76a' : '#fff' });
+        if (fb && now - fb.t < 1000) drawText(g, fb.txt, cx, cy - R * 0.3, { sz: 30, b: 1, al: 'center', c: fb.ok ? '#ffd76a' : '#ff8a7a' });
+        if (S.phase === 'over') drawText(g, '鞠が落ちた！', cx, cy, { sz: 40, b: 1, al: 'center', c: '#ff8a7a' });
+      },
+    };
   }
 })();

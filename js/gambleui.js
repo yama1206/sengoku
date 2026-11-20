@@ -109,30 +109,37 @@
     el.addEventListener('click', onClick);
     sfx('zawa'); render(true);
   };
-  UI.close = () => { if (el) el.remove(); el = null; P = null; };
+  UI.close = () => { if (el) el.remove(); el = null; P = null; if (SGK.ASOBIUI) SGK.ASOBIUI.closeCraft(); };
+  UI.die = die; UI.roll = roll; // 2.62.0 双六の賽（asobiui.js）
   UI.isOpen = () => !!el;
   UI.update = (priv) => { if (!el) return; P = priv; const gb = P && P.here && P.here.gamble; if (!gb) return UI.close(); render(false); };
 
   function onClick(e) {
+    if (SGK.ASOBIUI && SGK.ASOBIUI.has(tab) && !e.target.closest('button[data-tab],button[data-sel],button[data-x]')) { if (SGK.ASOBIUI.click(e, P, sel, el.querySelector('#gbStage'))) return; } // 2.62.0 独楽・貝・双六
     const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
     if (d.x) return UI.close();
     if (d.tab) { tab = d.tab; lastHtml = {}; render(true); return; }
     if (d.sel) { sel = +d.sel; render(false); return; }
     if (d.cmd) { const c = { type: d.cmd, id: d.id }; if (d.kind != null) c.kind = d.kind; if (d.cmd === 'gbBet') c.qty = sel; SGK.cmd(c); sfx(d.cmd === 'gbBet' ? 'coin' : 'click'); }
   }
-  const NAMES = { chouhan: '丁半', memashi: '目増', shigoro: '四五六', uma: '馬くらべ', karuta: '天正かるた' };
+  const NAMES = { chouhan: '丁半', memashi: '目増', shigoro: '四五六', uma: '馬くらべ', karuta: '天正かるた', koma: '独楽回し', kai: '貝合わせ', sugoroku: '絵双六' }; // 2.62.0 独楽・貝・双六（asobiui.js）
   function render(full) {
     const gb = P.here.gamble, me = P.me;
     el.querySelector('#gbMoney').innerHTML = `${SGK.ICON ? SGK.ICON.html('coins', 20) : ''} ${money(me.money)}`;
     el.querySelector('#gbBets').innerHTML = G.BETS.map((v) => `<button data-sel="${v}" class="${v === sel ? 'on' : ''}">${money(v)}</button>`).join('');
     el.querySelector('#gbTabs').innerHTML = Object.entries(NAMES).map(([k, n]) => `<button data-tab="${k}" class="${k === tab ? 'on' : ''}">${n}</button>`).join('');
     const st = el.querySelector('#gbStage');
+    if (SGK.ASOBIUI && SGK.ASOBIUI.has(tab)) { // 2.62.0
+      if (full || st.dataset.g !== tab) { st.dataset.g = tab; SGK.ASOBIUI.mount(st, tab); }
+      SGK.ASOBIUI.update(st, tab, P, myId, sel, (html) => setPanel(st.querySelector('.panel'), tab, html));
+      return;
+    }
     if (full || !st.dataset.g || st.dataset.g !== tab) { st.dataset.g = tab; st.innerHTML = SCENE[tab](); }
     if (!busy[tab] && (mine(gb[tab]) || gb[tab].phase === 'play')) clear(st); // 2.31.1 次の勝負に賭けたら（札が配られたら）前の勝負の結果の文字を消す
     PANEL[tab](st.querySelector('.panel'), gb[tab], me);
     const L = gb[tab].last;
     if (L && L.id != null && L.id !== seen[tab] && !busy[tab]) { seen[tab] = L.id; busy[tab] = 1; PLAY[tab](st, L, gb[tab]).catch(() => {}).then(() => { busy[tab] = 0; if (el) render(false); }); }
-    for (const g of Object.keys(NAMES)) if (g !== tab && gb[g].last && gb[g].last.id !== seen[g]) seen[g] = gb[g].last.id; // 見ていない卓の結果は流さない
+    for (const g of Object.keys(NAMES)) if (g !== tab && gb[g] && gb[g].last && gb[g].last.id !== seen[g]) seen[g] = gb[g].last.id; // 見ていない卓の結果は流さない
   }
   const setPanel = (pn, key, html) => { if (lastHtml[key] !== html) { lastHtml[key] = html; pn.innerHTML = html; } if (pn.parentElement) pn.parentElement.style.setProperty('--pb', pn.offsetHeight + 18 + 'px'); }; // --pb：上の絵や賽を欄に重ねないため
   const logHtml = (L) => (L ? `<div class="log">前の勝負：${esc(L.head)}${L.by ? `（${esc(L.by)}）` : ''}<br>${(L.lines || []).map(esc).join('<br>')}</div>` : '');

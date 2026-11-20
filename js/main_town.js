@@ -49,6 +49,13 @@ function townStage(P, hs) {
   if (townTab === 'home') { const wf = me.wife; return isHome ? ['', 'home.jpg', wf ? `<img class="who" src="${TA}${wf.img}.png">` + say(wf.name, wf.line) : say('自宅', '落ち着ける我が家。金庫と物置があり、ゆっくり休める')] : ['none', '', '']; }
   return ['none', '', ''];
 }
+function kemariHtml(h) { // 2.62.0 蹴鞠大会（毎月5日・大きな町）の知らせと番付
+  const k = h && h.kemari; if (!k) return '';
+  const nm = (x) => String(x).replace(/[&<>"]/g, '');
+  if (k.dom < 5) return '<div class="muted" style="margin-top:4px">明日5日は、この町で蹴鞠大会（2人以上で蹴鞠を続けた回数を競う）</div>';
+  const bd = k.board.length ? k.board.map((x, i) => `${i + 1}. ${nm(x.name)} ${x.cnt}回（${x.kicks}）`).join('　') : 'まだ記録はありません';
+  return `<div style="margin-top:4px"><b style="color:#f2c14e">${k.on ? '本日、蹴鞠大会！' : k.dom >= 8 ? '今月の蹴鞠大会の結果' : '蹴鞠大会の番付（8日に順位が決まります）'}</b> <span class="muted">${k.on ? '2人以上で蹴鞠を始めると記録が残ります。3位まで賞金（10回以上）' : ''}</span><br><span class="muted">${bd}</span></div>`;
+}
 const dayLeft = (dl) => { const d = (dl - G.view.t) / 1440; return d >= 1 ? `あと${Math.floor(d)}日` : 'まもなく期限'; };
 const sName = (id) => (G.view.settlements.find((x) => x.id === id) || {}).name || '?';
 function openTown(open, keep) {
@@ -82,7 +89,7 @@ function renderTown() {
   else if (NJ && NJ.def && NJ.def.pvp) html += `<div class="card" style="display:block;border-color:#c33"><b>急報：城の守り（人の忍び）</b><br><span class="muted">${njDefTxt(NJ.def)}。${NJ.def.toName}へ駆けつけて待ち構えてください（${dayLeft(NJ.def.deadline)}）。間に合わなければ相手は見張りだけを相手にします</span><div class="row" style="margin-top:4px"><button id="nj-deflook" data-look="${NJ.def.to}">地図で見る</button></div></div>`;
   else if (NJ && NJ.def && NJ.def.at) html += `<div class="card" style="display:block;border-color:#c33"><b>城の守り</b>（${NJ.def.toName}）<br><span class="muted">${njDefTxt(NJ.def)}。城の中で曲者を探し、追って当て身で捕らえる（生け捕りにすると敵の動きが分かる）。${NJ.def.d ? `${NJ.def.d.ck === 'yama' ? '山城' : NJ.def.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.def.d.night ? '夜（曲者が見えにくい）' : '昼'}・` : ''}${dayLeft(NJ.def.deadline)}・報酬${SIM.money(NJ.def.reward)}</span><div class="row" style="margin-top:4px"><button id="nj-def" data-njdef="go">曲者を探す</button></div></div>`;
   else if (NJ && NJ.def) html += `<div class="card" style="display:block;border-color:#c33"><b>急報：城の守り</b><br><span class="muted">${njDefTxt(NJ.def)}。期限までに${NJ.def.toName}へ駆けつけてください（${dayLeft(NJ.def.deadline)}）。間に合わないと工作を果たされます</span><div class="row" style="margin-top:4px"><button id="nj-deflook" data-look="${NJ.def.to}">地図で見る</button></div></div>`;
-  if (townTab === 'street' && SGK.PARTY) html += '<div class="card" style="display:block"><b>みんなで遊ぶ</b>（同じ町にいる人を誘えます。2人から）<div class="row" style="margin-top:4px"><button data-party="race">馬の障害レース</button><button data-party="archery">弓の的当て</button><button data-party="fish">釣り大会</button><button data-party="cart">荷運び（協力）</button></div></div>';
+  if (townTab === 'street' && SGK.PARTY) html += '<div class="card" style="display:block"><b>みんなで遊ぶ</b>（同じ町にいる人を誘えます。2人から）<div class="row" style="margin-top:4px"><button data-party="race">馬の障害レース</button><button data-party="archery">弓の的当て</button><button data-party="fish">釣り大会</button><button data-party="cart">荷運び（協力）</button><button data-party="kemari">蹴鞠</button></div>' + kemariHtml(h) + '</div>';
   if (townTab === 'street') html += `<div class="muted">${hs && hs.type === 'village' ? '村' : '町'}の通りです。上のボタンから行き先を選んでください</div>`;
   if (townTab === 'renpei' && h.otoko) { const m = h.otoko, gifts = Object.keys(me.inv || {}).filter((k) => me.inv[k] > 0 && IT[k]); // 2.61.0 練兵所の男（看板娘と同じ。命令は data-id="man"）
     html += `<div class="card" style="display:block"><b>${m.name}</b>（${m.role}・${m.age}歳くらい）　仲 ${m.a}/100・${m.stName}${m.like ? `　好きな品：${IT[m.like].name}` : '　好きな品：？（顔なじみになると分かる）'}`
@@ -258,7 +265,7 @@ function renderTown() {
       }
     }
   } else if (sec === 'gamble') {
-    if (P.here && P.here.gamble && SGK.GAMBLEUI) html += `<div class="card"><div><b>賭場に入る</b><br><span class="muted">行灯の灯る部屋で、壺振りの丁半・賽の目増と四五六・馬くらべ・天正かるた</span></div><button id="gb-open" data-act="gbOpen">入る</button></div><details style="margin-top:6px"><summary class="muted">文字だけで遊ぶ</summary>${SGK.GAMBLE.html(P, G.gbSel, G.myPid)}</details>`; // 2.12.4
+    if (P.here && P.here.gamble && SGK.GAMBLEUI) html += `<div class="card"><div><b>賭場に入る</b><br><span class="muted">行灯の灯る部屋で、壺振りの丁半・賽の目増と四五六・馬くらべ・天正かるた・独楽回し（自分で削った独楽）・貝合わせ・絵双六</span></div><button id="gb-open" data-act="gbOpen">入る</button></div><details style="margin-top:6px"><summary class="muted">文字だけで遊ぶ</summary>${SGK.GAMBLE.html(P, G.gbSel, G.myPid)}</details>`; // 2.12.4
     else html += SGK.GAMBLE.html(P, G.gbSel, G.myPid);
   } else {
     html += `<div class="card"><div>ここの人に話を聞く<br><span class="muted">相場の噂などが聞けます</span></div><button id="tk" data-act="talk">話しかける</button></div>`;

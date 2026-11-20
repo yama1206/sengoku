@@ -104,7 +104,7 @@
   L.CAT = {
     world: '移動・その他', economy: '市場・依頼', quest: '依頼（村・城）', military: '合戦', army: '合戦', siege: '合戦', castle: '城', daimyo: '大名', bushou: '武将',
     growth: '成長', rank: '身分・俸禄', supply: '兵糧', house: '屋敷', fushin: '普請', invest: '投資', equip: '武具', chiho: '地方の兵', kuni: '国', torihiki: '取引',
-    gamble: '賭場', title: '称号', creatures: '釣り・虫取り', mining: '採掘', seisaku: '政策', skill: '技能', shinobi: '忍び', testmode: 'テスト', cloth: '服',
+    gamble: '賭場', asobi: '賭場', title: '称号', creatures: '釣り・虫取り', mining: '採掘', seisaku: '政策', skill: '技能', shinobi: '忍び', testmode: 'テスト', cloth: '服',
     home: '自宅', smith: '鍛冶', farm: '畑・家畜・狩り', gosho: '豪商', kaigai: '南蛮貿易', shoka: '商家', nomin: '村長・百姓', carry: '引き継ぎ', weather: '天気',
     party: 'みんなで遊ぶ', musume: '看板娘', nawa: '縄張り', nawagen: '縄張り', castlemap: '城', ledger: '帳簿', route: '移動・その他',
   };

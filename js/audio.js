@@ -250,6 +250,11 @@
     zawa: (t) => { for (let i = 0; i < 3; i++) rustle(t + i * 0.25, 0.08, 0.9, 350 + Math.random() * 250); },
     gbWin: (t) => { [1568, 2093, 2637].forEach((f, i) => bell(t + i * 0.09, f, 0.16, 0.8)); taiko(t + 0.3, 0.4, true, sfxBus); },
     gbLose: (t) => { koto(t, 50, 0.25, sfxBus); koto(t + 0.18, 45, 0.22, sfxBus); },
+    carve: (t) => rustle(t, 0.12, 0.07, 4200 + Math.random() * 1500), // 2.62.0 独楽を削る・回す・当たる、貝をめくる、鞠を蹴る
+    kmSpin: (t) => { rustle(t, 0.22, 0.7, 700); woodTap(t + 0.05, 0.35, 1400); },
+    kmHit: (t) => { woodTap(t, 0.7, 2600); woodTap(t + 0.018, 0.45, 1500); },
+    kaiFlip: (t) => { woodTap(t, 0.3, 3400); rustle(t + 0.02, 0.06, 0.08, 5000); },
+    kmrKick: (t) => { woodTap(t, 0.55, 520); woodTap(t + 0.01, 0.25, 1300); },
   };
   let lastSfx = {};
   A.sfx = (name) => {
