@@ -112,6 +112,7 @@
   UI.close = () => { if (el) el.remove(); el = null; P = null; if (SGK.ASOBIUI) SGK.ASOBIUI.closeCraft(); };
   UI.die = die; UI.roll = roll; // 2.62.0 双六の賽（asobiui.js）
   UI.isOpen = () => !!el;
+  UI.tab = () => tab; // 2.62.2 遊びのタブ（独楽・貝絵合わせ・双六）では遊びの曲
   UI.update = (priv) => { if (!el) return; P = priv; const gb = P && P.here && P.here.gamble; if (!gb) return UI.close(); render(false); };
 
   function onClick(e) {

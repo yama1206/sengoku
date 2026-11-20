@@ -37,7 +37,7 @@
 #gbHall .sq b{display:block;font-size:12px}#gbHall .sq small{color:#8a2a1a;font-size:10px}
 #gbHall .sq.ev{background:#f6dcc0}#gbHall .sq.goal{background:#f2c14e}#gbHall .sq.start{background:#d8e6c8}
 #gbHall .tok{position:absolute;width:18px;height:18px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 4px #000a;bottom:2px;transition:all .22s}
-#gbHall .tok.me{background:#c8281e;right:3px}#gbHall .tok.oya{background:#1e1e1e;right:23px}
+#gbHall .tok.t0{background:#c8281e;right:3px}#gbHall .tok.t1{background:#1e1e1e;right:23px}
 #kmCraft{position:fixed;inset:0;z-index:8900;background:#1a120a;color:#f3ead2;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;display:flex;flex-direction:column;overflow:auto}
 #kmCraft button{font:inherit;color:#f3ead2;background:linear-gradient(#5a3e22,#2e2012);border:1px solid #a07c42;border-radius:6px;padding:6px 11px;cursor:pointer}
 #kmCraft button.on{background:linear-gradient(#a0702e,#5a3e18);border-color:#f2c14e}#kmCraft button:disabled{opacity:.45}
@@ -160,6 +160,21 @@
   }
   function shade(hex, f) { const n = parseInt(hex.slice(1), 16), r = n >> 16, g2 = (n >> 8) & 255, b = n & 255, m = (v) => Math.max(0, Math.min(255, Math.round(f < 0 ? v * (1 + f) : v + (255 - v) * f))); return `rgb(${m(r)},${m(g2)},${m(b)})`; }
 
+  // ================= 2.63.0 人と人の勝負：挑む・受ける =================
+  const GN = { koma: '独楽回し', kai: '貝絵合わせ', sugoroku: '絵双六' };
+  let pickTo = ''; // 挑む相手（選んだまま残す）
+  document.addEventListener('change', (e) => { if (e.target && e.target.id === 'asTo') pickTo = e.target.value; });
+  function vsHtml(P, tab, sel, busy) {
+    const gb = P.here.gamble, inv = (gb.inv || []).filter((v) => v.game === tab), ppl = gb.people || [];
+    let h = '';
+    for (const v of inv) h += v.mine ? `<div class="row"><span>${esc(v.who)}に${money(v.bet)}で挑んでいる（返事待ち）</span><button data-vd="${v.id}">取り下げる</button></div>`
+      : `<div class="row" style="color:#ffd76a"><b>${esc(v.who)}から${GN[tab]}の挑戦（${money(v.bet)}${v.koma ? `・独楽「${esc(v.koma)}」` : ''}）</b><button data-va="${v.id}" data-vb="${v.bet}" ${P.me.money < v.bet || busy ? 'disabled' : ''}>受ける</button><button data-vd="${v.id}">断る</button></div>`;
+    if (!ppl.some((x) => x.id === pickTo)) pickTo = ppl.length ? ppl[0].id : '';
+    if (ppl.length && !inv.some((v) => v.mine)) h += `<div class="row"><span class="rule">人と勝負：</span><select id="asTo" style="font:inherit">${ppl.map((x) => `<option value="${x.id}" ${x.id === pickTo ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select><button data-vc="1" ${P.me.money < sel || busy ? 'disabled' : ''}>${money(sel)}で挑む</button></div>`;
+    else if (!ppl.length && !inv.length) h += '<div class="rule">この町にほかの人がいれば、人とも勝負できます</div>';
+    return h;
+  }
+
   // ================= 独楽回し（タブ） =================
   const ST = {}; // 場面ごとの状態
   function komaMount(st) {
@@ -180,6 +195,7 @@
     h += `<button data-as="craft" ${ks.length >= K.MAX_OWN ? 'disabled' : ''}>独楽を作る</button>`;
     if (use) h += `<button data-as="spin" ${me.money < sel || S.busy ? 'disabled' : ''}>${money(sel)} 賭けて回す</button>`;
     h += `</div><div class="row kmList">${ks.map((k) => `<div class="kmCard ${use && k.id === use.id ? 'on' : ''}" data-use="${k.id}"><b>${esc(k.name)}</b>${sideSvg(k, 40)}<small>${K.WOODS[k.wood].name}${k.ring ? '・鉄輪' : ''}　${k.win || 0}勝${k.lose || 0}敗</small><br><button data-brk="${k.id}" style="font-size:11px;padding:1px 6px">割る</button></div>`).join('')}</div>`;
+    h += vsHtml(P, 'koma', sel, S.busy || !use);
     if (gb.last) h += `<div class="log">前の勝負：${esc(gb.last.head)}<br>${(gb.last.lines || []).map(esc).join('<br>')}</div>`;
     setPanel(h);
     const L = gb.last; if (L && L.id !== S.seen && !S.busy) { S.seen = L.id; S.busy = true; playKoma(st, L, myId).catch(() => {}).then(() => { S.busy = false; S.mkH = S.oh = null; S.drawn = 0; }); }
@@ -194,7 +210,7 @@
   async function playKoma(st, L, myId) {
     const top = st.querySelector('.big'), res = st.querySelector('.res'); top.classList.remove('show'); res.classList.remove('show');
     const a = L.me, b = L.oya, sim = K.battle({ k: a, pow: a.pow }, { k: b, pow: b.pow }, L.seed), F = sim.frames, ai = topImg(a, 96), bi = topImg(b, 96);
-    st.querySelector('#kmMe').innerHTML = `<b>${esc(L.by)}の「${esc(a.name)}」</b>${sideSvg(a, 70)}`; st.querySelector('#kmOya').innerHTML = `<b>胴元の「${esc(b.name)}」</b>${sideSvg(b, 70)}`;
+    st.querySelector('#kmMe').innerHTML = `<b>${esc(L.by)}の「${esc(a.name)}」</b>${sideSvg(a, 70)}`; st.querySelector('#kmOya').innerHTML = `<b>${L.pvp ? esc(L.bName) + 'の' : '胴元の'}「${esc(b.name)}」</b>${sideSvg(b, 70)}`;
     sfx('kmSpin'); let ar = 0, br = 0;
     for (let i = 0; i < F.length; i++) {
       const f = F[i]; ar += f[2] * 1.4; br += f[6] * 1.4; if (f[8]) sfx('kmHit');
@@ -203,16 +219,17 @@
     }
     const HOW = { out: '場外！', down: '倒れた！', both: '相打ち', time: '判定' };
     top.textContent = L.r > 0 ? `${a.name}の勝ち` : L.r < 0 ? `${b.name}の勝ち` : '引き分け'; top.classList.add('show');
-    if (L.pid === myId) { res.innerHTML = L.gain > 0 ? `<span style="color:#ffd76a">勝ち　＋${money(L.gain)}</span>` : L.gain < 0 ? `<span style="color:#ff8a7a">負け　－${money(-L.gain)}</span>` : '引き分け（返却）'; res.classList.add('show'); sfx(L.gain > 0 ? 'gbWin' : L.gain < 0 ? 'gbLose' : 'click'); }
+    const gn = L.pid === myId ? L.gain : L.pidB === myId ? L.gainB : null;
+    if (gn != null) { res.innerHTML = gn > 0 ? `<span style="color:#ffd76a">勝ち　＋${money(gn)}</span>` : gn < 0 ? `<span style="color:#ff8a7a">負け　－${money(-gn)}</span>` : '引き分け（返却）'; res.classList.add('show'); sfx(gn > 0 ? 'gbWin' : gn < 0 ? 'gbLose' : 'click'); }
     else { res.textContent = HOW[L.how] || ''; res.classList.add('show'); }
     await wait(2600); top.classList.remove('show'); res.classList.remove('show');
   }
   // 力の目盛り：左右に動く針を止める（0.85〜0.92 がいちばん強い。行き過ぎると力みすぎ）
-  function gauge(st, sel) {
+  function gauge(st, sel, send) {
     const S = ST.koma; if (S.gauge) return; const box = st.querySelector('#kmGauge'); box.innerHTML = '<div class="rule" style="text-align:center">針が金色の所で止める（クリック／タップ）</div><div class="gauge"><b></b></div>';
     const gEl = box.querySelector('.gauge'), n = gEl.querySelector('b'), t0 = performance.now(); let raf = 0, v = 0;
     const step = () => { const t = (performance.now() - t0) / 1000; v = (1 - Math.cos(t * 3.4)) / 2; n.style.left = `calc(${(v * 100).toFixed(1)}% - 2px)`; raf = requestAnimationFrame(step); }; step();
-    S.gauge = () => { cancelAnimationFrame(raf); const pow = v <= 0.88 ? v / 0.88 : v <= 0.93 ? 1 : 0.6; box.innerHTML = `<div class="rule" style="text-align:center">${v > 0.93 ? '力みすぎた！' : pow > 0.95 ? '会心の投げ！' : pow > 0.75 ? 'よい投げ' : '弱い投げ…'}</div>`; S.gauge = null; cmd({ type: 'kmPlay', qty: sel, pow: Math.round(pow * 100) / 100 }); setTimeout(() => { if (box.isConnected) box.innerHTML = ''; }, 2500); };
+    S.gauge = () => { cancelAnimationFrame(raf); const pow = v <= 0.88 ? v / 0.88 : v <= 0.93 ? 1 : 0.6; box.innerHTML = `<div class="rule" style="text-align:center">${v > 0.93 ? '力みすぎた！' : pow > 0.95 ? '会心の投げ！' : pow > 0.75 ? 'よい投げ' : '弱い投げ…'}</div>`; S.gauge = null; const pw = Math.round(pow * 100) / 100; if (send) send(pw); else cmd({ type: 'kmPlay', qty: sel, pow: pw }); setTimeout(() => { if (box.isConnected) box.innerHTML = ''; }, 2500); };
     gEl.onclick = () => S.gauge && S.gauge();
   }
 
@@ -222,7 +239,7 @@
   function kaiBoard(st, n) { const b = st.querySelector('#kaiB'); b.innerHTML = Array.from({ length: n }, (_, i) => `<div class="shell" data-kai="${i}"><div class="in"><div class="bk"></div><div class="fc"></div></div></div>`).join(''); }
   const shellEl = (st, i) => st.querySelector(`[data-kai="${i}"]`);
   function shellShow(st, i, f, cls) { const e = shellEl(st, i); if (!e) return; const fc = e.querySelector('.fc'); if (f != null) { fc.textContent = A.KAI[f]; fc.style.color = KAICOL[f]; } e.className = 'shell' + (f != null ? ' open' : '') + (cls ? ' ' + cls : ''); }
-  function kaiSync(st, g) { g.own.forEach((o, i) => { if (o >= 0) shellShow(st, i, g.face[i], 'gone ' + (o === 0 ? 'mine' : 'oya')); else if (i === g.pick) shellShow(st, i, g.pf, ''); else shellShow(st, i, null, ''); }); }
+  function kaiSync(st, g) { g.own.forEach((o, i) => { if (o >= 0) shellShow(st, i, g.face[i], 'gone ' + (o === g.me ? 'mine' : 'oya')); else if (i === g.pick) shellShow(st, i, g.pf, ''); else shellShow(st, i, null, ''); }); }
   function kaiUpdate(st, P, myId, sel, setPanel) {
     const S = ST.kai, T = P.here.gamble.kai, g = T.g, me = P.me;
     if (!g) { if (S.board) { st.querySelector('#kaiB').innerHTML = ''; S.board = 0; } S.seen = null; }
@@ -232,11 +249,12 @@
       if (nev.length) { S.busy = true; S.seen = g.seq; playKai(st, nev, g).catch(() => {}).then(() => { S.busy = false; }); }
       else kaiSync(st, g);
     }
-    st.querySelector('#kaiTtl').textContent = g ? `あなた ${g.me} ― 胴元 ${g.oya}${S.busy ? '' : g.done ? '' : '　（あなたの番）'}` : '貝絵合わせ';
+    st.querySelector('#kaiTtl').textContent = g ? `あなた ${g.sc[g.me]} ― ${g.nm[1 - g.me]} ${g.sc[1 - g.me]}${S.busy || g.done ? '' : g.turn === g.me ? '　（あなたの番）' : `　（${g.nm[1 - g.me]}の番）`}` : '貝絵合わせ';
     let h = `<div class="rule">${esc(A.GAMES.kai.rule)}</div><div class="row">`;
     if (!g || g.done) h += `<button data-as="kaiStart" ${me.money < sel ? 'disabled' : ''}>${money(sel)} 賭けて始める</button>${g ? '<button data-as="kaiQuit">片づける</button>' : ''}`;
-    else h += `<span>${money(g.bet)} 賭けている</span><button data-as="kaiQuit">降りる（負け）</button>`;
+    else h += `<span>${money(g.bet)} 賭けている${g.pvp ? `（対 ${esc(g.nm[1 - g.me])}）` : ''}</span><button data-as="kaiQuit">降りる（負け）</button>${g.stale ? '<button data-as="kaiClaim">相手が戻らないので勝ちにする</button>' : ''}`;
     h += `<span class="rule">${T.players.length ? '勝負中：' + T.players.map(esc).join('、') : ''}</span></div>`;
+    if (!g || g.done) h += vsHtml(P, 'kai', sel, false);
     if (T.last) h += `<div class="log">前の勝負：${esc(T.last.head)}<br>${(T.last.lines || []).map(esc).join('<br>')}</div>`;
     setPanel(h);
     if (g && g.done && !S.busy && S.doneShown !== g.bet + ':' + g.seq) { S.doneShown = g.bet + ':' + g.seq; const top = st.querySelector('.big'), res = st.querySelector('.res'); top.textContent = g.done.r > 0 ? '勝ち！' : g.done.r < 0 ? '負け' : '引き分け'; top.classList.add('show'); res.innerHTML = g.done.gain > 0 ? `<span style="color:#ffd76a">＋${money(g.done.gain)}</span>` : g.done.gain < 0 ? `<span style="color:#ff8a7a">－${money(-g.done.gain)}</span>` : '賭け金が戻った'; res.classList.add('show'); sfx(g.done.r > 0 ? 'gbWin' : g.done.r < 0 ? 'gbLose' : 'click'); setTimeout(() => { top.classList.remove('show'); res.classList.remove('show'); }, 2600); }
@@ -244,11 +262,11 @@
   async function playKai(st, evs, g) {
     for (const e of evs) {
       if (!st.isConnected) return;
-      const ttl = st.querySelector('#kaiTtl'); if (e.who === 'oya') { ttl.textContent = '胴元の番…'; await wait(450); }
+      const ttl = st.querySelector('#kaiTtl'), opp = e.who !== g.me; if (opp) { ttl.textContent = `${g.nm[e.who]}の番…`; await wait(450); }
       shellShow(st, e.a, e.fa, ''); sfx('kaiFlip');
       if (e.b == null) continue;
-      await wait(e.who === 'oya' ? 550 : 250); shellShow(st, e.b, e.fb, ''); sfx('kaiFlip'); await wait(850);
-      if (e.hit) { const c = e.who === 'me' ? 'gone mine' : 'gone oya'; shellShow(st, e.a, e.fa, c); shellShow(st, e.b, e.fb, c); sfx(e.who === 'me' ? 'coin' : 'click'); await wait(300); }
+      await wait(opp ? 550 : 250); shellShow(st, e.b, e.fb, ''); sfx('kaiFlip'); await wait(850);
+      if (e.hit) { const c = opp ? 'gone oya' : 'gone mine'; shellShow(st, e.a, e.fa, c); shellShow(st, e.b, e.fb, c); sfx(opp ? 'click' : 'coin'); await wait(300); }
       else { shellShow(st, e.a, null, ''); shellShow(st, e.b, null, ''); await wait(250); }
     }
     kaiSync(st, g);
@@ -259,31 +277,33 @@
     const N = A.SG.length, order = []; for (let r = 0; r < Math.ceil(N / 6); r++) { const row = []; for (let c = 0; c < 6; c++) { const i = r * 6 + c; if (i < N) row.push(i); } order.push(...(r % 2 ? row.reverse() : row)); }
     st.innerHTML = `<div class="asb"><div class="ttl" id="sgTtl">上洛双六</div><div id="sgDice" style="display:flex;gap:10px;justify-content:center;margin:2px 0"></div><div class="sgB">${order.map((i) => { const q = A.SG[i]; return `<div class="sq ${i === 0 ? 'start' : i === N - 1 ? 'goal' : q[2] ? 'ev' : ''}" data-sq="${i}"><b>${i ? i + ' ' : ''}${q[0]}</b>${q[1] ? `<small>${q[1]}</small>` : ''}</div>`; }).join('')}</div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`;
     st.querySelector('#sgDice').innerHTML = SGK.GAMBLEUI.die(1, 'sgD');
-    ST.sugoroku = { seen: null, busy: false, pos: { me: 0, oya: 0 } };
+    ST.sugoroku = { seen: null, busy: false, pos: [0, 0] };
   }
-  function sgPut(st, who, i) { let t = st.querySelector('.tok.' + who); if (!t) { t = document.createElement('div'); t.className = 'tok ' + who; } const sq = st.querySelector(`[data-sq="${i}"]`); if (sq && t.parentNode !== sq) sq.appendChild(t); ST.sugoroku.pos[who] = i; }
+  function sgPut(st, who, i) { let t = st.querySelector('.tok.t' + who); if (!t) { t = document.createElement('div'); t.className = 'tok t' + who; } const sq = st.querySelector(`[data-sq="${i}"]`); if (sq && t.parentNode !== sq) sq.appendChild(t); ST.sugoroku.pos[who] = i; }
   function sgUpdate(st, P, myId, sel, setPanel) {
     const S = ST.sugoroku, T = P.here.gamble.sugoroku, g = T.g, me = P.me;
-    if (g && S.seen == null) { S.seen = g.seq; sgPut(st, 'me', g.pos.me); sgPut(st, 'oya', g.pos.oya); }
+    if (g && S.seen == null) { S.seen = g.seq; sgPut(st, 0, g.pos[0]); sgPut(st, 1, g.pos[1]); }
     if (!g) { S.seen = null; st.querySelectorAll('.tok').forEach((t) => t.remove()); }
     if (g && !S.busy) {
-      if (g.seq < S.seen) { S.seen = g.seq; sgPut(st, 'me', g.pos.me); sgPut(st, 'oya', g.pos.oya); }
+      if (g.seq < S.seen) { S.seen = g.seq; sgPut(st, 0, g.pos[0]); sgPut(st, 1, g.pos[1]); }
       const nev = g.ev.filter((e) => e.s > S.seen);
       if (nev.length) { S.busy = true; S.seen = g.seq; playSg(st, nev, g).catch(() => {}).then(() => { S.busy = false; }); }
-      else { sgPut(st, 'me', g.pos.me); sgPut(st, 'oya', g.pos.oya); }
+      else { sgPut(st, 0, g.pos[0]); sgPut(st, 1, g.pos[1]); }
     }
-    let h = `<div class="rule">${esc(A.GAMES.sugoroku.rule)}　<span style="color:#ff8a7a">●</span>あなた　<span style="color:#888">●</span>胴元</div><div class="row">`;
+    const nm = (i) => (g ? (i === g.me ? 'あなた' : esc(g.nm[i])) : i ? '胴元' : 'あなた');
+    let h = `<div class="rule">${esc(A.GAMES.sugoroku.rule)}　<span style="color:#ff8a7a">●</span>${nm(0)}　<span style="color:#888">●</span>${nm(1)}</div><div class="row">`;
     if (!g || g.done) h += `<button data-as="sgStart" ${me.money < sel ? 'disabled' : ''}>${money(sel)} 賭けて始める</button>${g ? '<button data-as="sgQuit">片づける</button>' : ''}`;
-    else h += `<button data-as="sgRoll" ${S.busy ? 'disabled' : ''}>賽を振る</button><span>${money(g.bet)} 賭けている${g.rest.me ? '（次は一回休み）' : ''}</span><button data-as="sgQuit">降りる（負け）</button>`;
+    else h += `<button data-as="sgRoll" ${S.busy || g.turn !== g.me ? 'disabled' : ''}>${g.turn === g.me ? '賽を振る' : `${esc(g.nm[g.turn])}の番`}</button><span>${money(g.bet)} 賭けている${g.pvp ? `（対 ${esc(g.nm[1 - g.me])}）` : ''}${g.rest[g.me] ? '（次は一回休み）' : ''}</span><button data-as="sgQuit">降りる（負け）</button>${g.stale ? '<button data-as="sgClaim">相手が戻らないので勝ちにする</button>' : ''}`;
     h += `<span class="rule">${T.players.length ? '勝負中：' + T.players.map(esc).join('、') : ''}</span></div>`;
+    if (!g || g.done) h += vsHtml(P, 'sugoroku', sel, false);
     if (T.last) h += `<div class="log">前の勝負：${esc(T.last.head)}<br>${(T.last.lines || []).map(esc).join('<br>')}</div>`;
     setPanel(h);
-    if (g && g.done && !S.busy && S.doneShown !== g.seq) { S.doneShown = g.seq; const top = st.querySelector('.big'), res = st.querySelector('.res'); top.textContent = g.done.r > 0 ? '上がり！' : '胴元の上がり'; top.classList.add('show'); res.innerHTML = g.done.gain > 0 ? `<span style="color:#ffd76a">勝ち　＋${money(g.done.gain)}</span>` : `<span style="color:#ff8a7a">負け　－${money(-g.done.gain)}</span>`; res.classList.add('show'); sfx(g.done.r > 0 ? 'gbWin' : 'gbLose'); setTimeout(() => { top.classList.remove('show'); res.classList.remove('show'); }, 2600); }
+    if (g && g.done && !S.busy && S.doneShown !== g.seq) { S.doneShown = g.seq; const top = st.querySelector('.big'), res = st.querySelector('.res'); top.textContent = g.done.r > 0 ? '上がり！' : `${g.nm[1 - g.me]}の上がり`; top.classList.add('show'); res.innerHTML = g.done.gain > 0 ? `<span style="color:#ffd76a">勝ち　＋${money(g.done.gain)}</span>` : `<span style="color:#ff8a7a">負け　－${money(-g.done.gain)}</span>`; res.classList.add('show'); sfx(g.done.r > 0 ? 'gbWin' : 'gbLose'); setTimeout(() => { top.classList.remove('show'); res.classList.remove('show'); }, 2600); }
   }
   async function playSg(st, evs, g) {
     const ttl = st.querySelector('#sgTtl'), GOAL = A.SG.length - 1;
     for (const e of evs) {
-      if (!st.isConnected) return; const who = e.who === 'me' ? 'あなた' : '胴元';
+      if (!st.isConnected) return; const who = e.who === g.me ? 'あなた' : g.nm[e.who];
       if (e.rest) { ttl.textContent = `${who}は一回休み`; await wait(900); continue; }
       ttl.textContent = `${who}が振る…`; sfx('diceShake'); await wait(300);
       const d = st.querySelector('#sgD'); if (d) { SGK.GAMBLEUI.roll(d, e.d, 800); sfx('diceRoll'); } await wait(900);
@@ -295,17 +315,20 @@
       if (e.to2 != null) { ttl.textContent = `${who}：${sq[0]}　${sq[1]}`; await wait(900); sgPut(st, e.who, e.to2); await wait(400); }
       else if (sq[2] === 'rest' || sq[2] === 'again') { ttl.textContent = `${who}：${sq[0]}　${sq[1]}`; await wait(900); }
     }
-    sgPut(st, 'me', g.pos.me); sgPut(st, 'oya', g.pos.oya); ttl.textContent = '上洛双六';
+    sgPut(st, 0, g.pos[0]); sgPut(st, 1, g.pos[1]); ttl.textContent = '上洛双六';
   }
 
   // ================= 入口 =================
   UI.mount = (st, tab) => { if (!document.getElementById('asbCss')) document.head.insertAdjacentHTML('beforeend', CSS); ({ koma: komaMount, kai: kaiMount, sugoroku: sgMount })[tab](st); };
   UI.update = (st, tab, P, myId, sel, setPanel) => { const gb = P.here.gamble; if (!gb || !gb[tab]) return; ({ koma: komaUpdate, kai: kaiUpdate, sugoroku: sgUpdate })[tab](st, P, myId, sel, setPanel); };
   UI.click = (e, P, sel, st) => { // 賭場の画面のクリックのうち、ここの分
-    const b = e.target.closest('[data-as],[data-use],[data-brk],[data-kai]'); if (!b) return false; const d = b.dataset;
+    const b = e.target.closest('[data-as],[data-use],[data-brk],[data-kai],[data-va],[data-vd],[data-vc]'); if (!b) return false; const d = b.dataset, tab = SGK.GAMBLEUI.tab();
+    if (d.vd) { cmd({ type: 'asDecline', id: d.vd }); sfx('click'); return true; }
+    if (d.va) { if (tab === 'koma') gauge(st, +d.vb, (pow) => cmd({ type: 'asAccept', id: d.va, pow })); else { cmd({ type: 'asAccept', id: d.va }); sfx('coin'); } return true; }
+    if (d.vc) { const to = (st.querySelector('#asTo') || {}).value || pickTo; if (!to) return true; pickTo = to; if (tab === 'koma') gauge(st, sel, (pow) => cmd({ type: 'asChallenge', game: 'koma', to, qty: sel, pow })); else { cmd({ type: 'asChallenge', game: tab, to, qty: sel }); sfx('coin'); } return true; }
     if (d.brk) { if (confirm('この独楽を割りますか？（元に戻せません）')) cmd({ type: 'kmBreak', id: d.brk }); return true; }
     if (d.use) { cmd({ type: 'kmUse', id: d.use }); sfx('click'); return true; }
-    if (d.kai != null) { const S = ST.kai, g = P.here.gamble.kai.g; if (!g || g.done || S.busy || g.own[+d.kai] >= 0 || +d.kai === g.pick) return true; sfx('kaiFlip'); cmd({ type: 'kaiFlip', i: +d.kai }); return true; }
+    if (d.kai != null) { const S = ST.kai, g = P.here.gamble.kai.g; if (!g || g.done || S.busy || g.turn !== g.me || g.own[+d.kai] >= 0 || +d.kai === g.pick) return true; sfx('kaiFlip'); cmd({ type: 'kaiFlip', i: +d.kai }); return true; }
     const a = d.as;
     if (a === 'craft') openCraft(P);
     else if (a === 'spin') gauge(st, sel);
@@ -314,6 +337,7 @@
     else if (a === 'sgStart') { cmd({ type: 'sgStart', qty: sel }); sfx('coin'); ST.sugoroku.seen = null; }
     else if (a === 'sgRoll') cmd({ type: 'sgRoll' });
     else if (a === 'sgQuit') cmd({ type: 'sgQuit' });
+    else if (a === 'kaiClaim' || a === 'sgClaim') cmd({ type: a });
     return true;
   };
 })();

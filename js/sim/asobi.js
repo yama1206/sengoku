@@ -124,11 +124,15 @@
   // ================= 卓 =================
   const A = (SGK.ASOBI = {});
   A.GAMES = {
-    koma: { name: '独楽回し', rule: '自分で削った独楽と胴元の独楽を盥（たらい）で回し、先に倒れるか盥から飛び出した方の負け。勝てば2倍。掛け金が大きいほど胴元は強い独楽を出します。投げる時は力の目盛りを「ここ」で止めると強く回せます。' },
-    kai: { name: '貝絵合わせ', rule: '伏せた24の貝から2つずつめくり、絵の合う対（つい）を取ります。合えば続けてめくれます。胴元と交互にめくり、多く取った方の勝ち（2倍）。同じ数なら賭け金が戻ります。' },
-    sugoroku: { name: '絵双六', rule: '岡崎から京をめざす上洛双六。胴元と交互に賽を振り、先に「上がり」に着いた方の勝ち（2倍）。ちょうどで上がれないと、余った分だけ戻ります。' },
+    koma: { name: '独楽回し', rule: '自分で削った独楽と、胴元か挑んだ人の独楽を盥（たらい）で回し、先に倒れるか盥から飛び出した方の負け。勝てば2倍。掛け金が大きいほど胴元は強い独楽を出します。投げる時は力の目盛りを「ここ」で止めると強く回せます。' },
+    kai: { name: '貝絵合わせ', rule: '伏せた24の貝から2つずつめくり、絵の合う対（つい）を取ります。合えば続けてめくれます。相手（胴元か、挑んだ人）と交互にめくり、多く取った方の勝ち（2倍）。同じ数なら賭け金が戻ります。' },
+    sugoroku: { name: '絵双六', rule: '岡崎から京をめざす上洛双六。相手（胴元か、挑んだ人）と交互に賽を振り、先に「上がり」に着いた方の勝ち（2倍）。ちょうどで上がれないと、余った分だけ戻ります。' },
   };
-  const tableOf = (w, sid) => { w.asobi = w.asobi || {}; const t = (w.asobi[sid] = w.asobi[sid] || {}); t.koma = t.koma || { n: 0, last: null, oya: {} }; t.kai = t.kai || { n: 0, last: null, g: {} }; t.sugoroku = t.sugoroku || { n: 0, last: null, g: {} }; return t; };
+  const tableOf = (w, sid) => {
+    w.asobi = w.asobi || {}; const t = (w.asobi[sid] = w.asobi[sid] || {}); t.koma = t.koma || { n: 0, last: null, oya: {} }; t.inv = t.inv || {};
+    for (const k of ['kai', 'sugoroku']) { t[k] = t[k] || { n: 0, last: null, g: {} }; if (!t[k].by) { t[k].g = {}; t[k].by = {}; } } // 2.63.0 勝負は id ごと（人と人でも遊べるように）。前の形の勝負は消す
+    return t;
+  };
   function ok(w, p) {
     const s = here(w, p);
     if (!s || !DATA.isBig(s)) { SAY(p.id, '賭場があるのは大きな町だけです'); return null; }
@@ -176,16 +180,93 @@
     if (res.r > 0) delete T.oya[tier]; // 負けた胴元は独楽を替える
   };
 
+  // ---- 2.63.0 人と人の勝負：挑戦状（賭け金は挑んだ時に預かり、断られたり3分たったら返す）。勝った方が両方の賭け金をもらう ----
+  const SAMEAT = (w, q, sid) => q && !q.off && q.at === sid && q.tx == null;
+  const NAMEG = { koma: '独楽回し', kai: '貝絵合わせ', sugoroku: '絵双六' };
+  const playing = (T, pid) => { const gid = T.by[pid], g = gid && T.g[gid]; return g && !g.done ? g : null; };
+  function dropInv(w, t, id, why) { const v = t.inv[id]; if (!v) return; delete t.inv[id]; const q = w.players[v.from]; if (q) { q.money += v.bet; if (why) SAY(q.id, why); } }
+  SIM.commands.asChallenge = (w, p, c) => {
+    const o = ok(w, p); if (!o) return; const t = o.t, game = c.game; if (!NAMEG[game]) return;
+    const q = w.players[c.to]; if (!q || q === p || !SAMEAT(w, q, o.s.id)) return SAY(p.id, '相手が同じ町にいません');
+    if (game === 'koma' && !(p.koma || []).length) return SAY(p.id, 'まず独楽を作ってください');
+    if (game !== 'koma' && (playing(t[game], p.id) || playing(t[game], q.id))) return SAY(p.id, 'どちらかが、まだ別の勝負の最中です');
+    for (const id in t.inv) if (t.inv[id].from === p.id) dropInv(w, t, id); // 前の挑戦は取り下げる
+    const bet = betOk(w, p, c.qty); if (!bet) return;
+    p.money -= bet; t.invN = (t.invN || 0) + 1; const id = 'v' + t.invN;
+    const inv = { id, game, from: p.id, to: q.id, bet, t: Date.now() };
+    if (game === 'koma') { const k = (p.koma || []).find((x) => x.id === p.komaUse) || p.koma[0]; inv.koma = { id: k.id, name: k.name, wood: k.wood, prof: k.prof, col: k.col, ring: k.ring }; inv.pow = Math.max(0, Math.min(1, +c.pow || 0)); }
+    t.inv[id] = inv;
+    SAY(p.id, `${q.name}に${NAMEG[game]}の勝負を挑んだ（${money(bet)}）。返事を待っています`);
+    SAY(q.id, `${p.name}が賭場で${NAMEG[game]}の勝負を挑んできた（${money(bet)}）。この町の賭場の「${NAMEG[game]}」で受けられます`);
+  };
+  SIM.commands.asDecline = (w, p, c) => {
+    const o = ok(w, p); if (!o) return; const v = o.t.inv[c.id]; if (!v || (v.to !== p.id && v.from !== p.id)) return;
+    const other = w.players[v.from === p.id ? v.to : v.from];
+    dropInv(w, o.t, c.id, v.to === p.id ? `${p.name}は${NAMEG[v.game]}の勝負を断った（賭け金は戻った）` : null);
+    if (v.from === p.id && other) SAY(other.id, `${p.name}は${NAMEG[v.game]}の挑戦を取り下げた`);
+  };
+  SIM.commands.asAccept = (w, p, c) => {
+    const o = ok(w, p); if (!o) return; const t = o.t, v = t.inv[c.id]; if (!v || v.to !== p.id) return;
+    const a = w.players[v.from]; if (!SAMEAT(w, a, o.s.id)) return dropInv(w, t, v.id, '相手が町を離れたので、挑戦は取りやめになった（賭け金は戻った）');
+    if (p.money < v.bet) return SAY(p.id, '持ち金が足りません');
+    if (v.game === 'koma' && !(p.koma || []).length) return SAY(p.id, 'まず独楽を作ってください');
+    if (v.game !== 'koma' && (playing(t[v.game], p.id) || playing(t[v.game], a.id))) return SAY(p.id, 'どちらかが、まだ別の勝負の最中です');
+    delete t.inv[v.id]; p.money -= v.bet; p.gbPlay = (p.gbPlay || 0) + 1; a.gbPlay = (a.gbPlay || 0) + 1;
+    if (v.game === 'koma') return komaPvp(w, t.koma, a, p, v, Math.max(0, Math.min(1, +c.pow || 0)));
+    const g = v.game === 'kai' ? kaiNew(w, t.kai, [a.id, p.id], v.bet) : sgNew(w, t.sugoroku, [a.id, p.id], v.bet);
+    g.nm = [a.name, p.name];
+    SAY(a.id, `${p.name}が${NAMEG[v.game]}の勝負を受けた！ 賭場で始まります（先手はあなた）`); SAY(p.id, `${NAMEG[v.game]}の勝負が始まった（先手は${a.name}）`);
+  };
+  SIM.systems.push(function asobiInv(w) { // 3分たった挑戦状は取りやめ
+    if (!w.asobi) return; const now = Date.now();
+    for (const sid in w.asobi) { const t = w.asobi[sid]; if (!t.inv) continue; for (const id in t.inv) if (now - t.inv[id].t > 180000) dropInv(w, t, id, `${NAMEG[t.inv[id].game]}の挑戦に返事がなかった（賭け金は戻った）`); }
+  });
+  function komaPvp(w, T, a, b, v, powB) {
+    const kb = (b.koma || []).find((x) => x.id === b.komaUse) || b.koma[0], ka = v.koma, bet = v.bet, seed = seedOf(w);
+    const res = K.battle({ k: ka, pow: v.pow }, { k: kb, pow: powB }, seed);
+    const retA = res.r > 0 ? bet * 2 : res.r === 0 ? bet : 0, retB = res.r < 0 ? bet * 2 : res.r === 0 ? bet : 0; a.money += retA; b.money += retB;
+    const kA = (a.koma || []).find((x) => x.id === ka.id);
+    if (res.r > 0) { if (kA) kA.win = (kA.win || 0) + 1; kb.lose = (kb.lose || 0) + 1; a.kmWin = (a.kmWin || 0) + 1; } else if (res.r < 0) { kb.win = (kb.win || 0) + 1; if (kA) kA.lose = (kA.lose || 0) + 1; b.kmWin = (b.kmWin || 0) + 1; }
+    const HOW = { out: '盥から飛び出した', down: '回り止んで倒れた', both: '両方倒れた', time: '勝負がつかず回りの強さで判定' };
+    const loser = res.how === 'both' || res.how === 'time' ? '' : res.r > 0 ? `${kb.name}が` : `${ka.name}が`;
+    T.n++;
+    T.last = { id: T.n, t: Date.now(), pvp: 1, by: a.name, pid: a.id, bName: b.name, pidB: b.id, bet, seed, me: Object.assign({}, ka, { pow: v.pow }), oya: { name: kb.name, wood: kb.wood, prof: kb.prof, col: kb.col, ring: kb.ring, pow: powB }, r: res.r, how: res.how, sec: res.t, hits: res.hits, gain: retA - bet, gainB: retB - bet,
+      head: `${a.name}の「${ka.name}」 対 ${b.name}の「${kb.name}」→ ${loser}${HOW[res.how]}（${res.t}秒・当たり${res.hits}回）`, lines: [`${a.name}（${money(bet)}）→ ${res.r > 0 ? '勝ち ' + sign(bet) : res.r < 0 ? '負け ' + sign(-bet) : '引き分け（返却）'}`, `${b.name}（${money(bet)}）→ ${res.r < 0 ? '勝ち ' + sign(bet) : res.r > 0 ? '負け ' + sign(-bet) : '引き分け（返却）'}`] };
+    for (const [q, r] of [[a, res.r], [b, -res.r]]) SAY(q.id, `独楽回し（対${q === a ? b.name : a.name}）：${r > 0 ? '勝ち' : r < 0 ? '負け' : '引き分け'}`);
+  }
+
+  // ---- 遊びの勝負の決着（貝絵合わせ・双六で共通）：r0＝先手から見た勝ち負け ----
+  function settle(w, T, g, r0, head, gameName) {
+    g.done = true; g.res = {}; g.end = Date.now();
+    const lines = [];
+    g.pl.forEach((pid, i) => {
+      if (pid === 'oya') return; const r = i === 0 ? r0 : -r0, q = w.players[pid], ret = r > 0 ? g.bet * 2 : r === 0 ? g.bet : 0;
+      if (q) q.money += ret; g.res[pid] = { r, gain: ret - g.bet };
+      lines.push(`${g.nm[i]}（${money(g.bet)}）→ ${r > 0 ? '勝ち ' + sign(g.bet) : r < 0 ? '負け ' + sign(-g.bet) : '引き分け（返却）'}`);
+      SAY(pid, `${gameName}：${r > 0 ? '勝ち' : r < 0 ? '負け' : '引き分け'}`);
+    });
+    T.n++; T.last = { id: T.n, t: Date.now(), by: g.nm[0], pid: g.pl[0], head, lines };
+  }
+  const gid = (T) => { T.gn = (T.gn || 0) + 1; return 'g' + T.gn; };
+  function cleanup(T, pid) { const id = T.by[pid]; if (!id) return; delete T.by[pid]; if (!Object.values(T.by).includes(id)) delete T.g[id]; }
+  const idxOf = (g, pid) => g.pl.indexOf(pid);
+  const STALE = 120000; // 相手の番のまま2分動かなければ、勝ちにできる
+
   // ---- 貝絵合わせ ----
   A.KAI = ['松', '梅', '桜', '菊', '紅葉', '竹', '鶴', '月', '波', '富士', '扇', '藤'];
   const shuffle = (w, a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(SIM.rand(w) * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  function kaiNew(w, T, pl, bet) {
+    for (const pid of pl) if (pid !== 'oya') cleanup(T, pid);
+    const deck = shuffle(w, [...A.KAI.keys(), ...A.KAI.keys()]), id = gid(T);
+    const g = (T.g[id] = { id, pl, nm: pl.map((x) => (x === 'oya' ? '胴元' : nameOf(w, x))), bet, deck, own: Array(deck.length).fill(-1), pick: -1, sc: [0, 0], turn: 0, mem: {}, ev: [], seq: 0, t: Date.now(), lastT: Date.now(), done: false, res: null });
+    for (const pid of pl) if (pid !== 'oya') T.by[pid] = id;
+    return g;
+  }
   SIM.commands.kaiStart = (w, p, c) => {
     const o = ok(w, p); if (!o) return; const T = o.t.kai;
-    if (T.g[p.id] && !T.g[p.id].done) return SAY(p.id, 'もう勝負の最中です');
+    if (playing(T, p.id)) return SAY(p.id, 'もう勝負の最中です');
     const bet = betOk(w, p, c.qty); if (!bet) return;
-    p.money -= bet; p.gbPlay = (p.gbPlay || 0) + 1;
-    const deck = shuffle(w, [...A.KAI.keys(), ...A.KAI.keys()]);
-    T.g[p.id] = { bet, deck, own: Array(deck.length).fill(-1), pick: -1, me: 0, oya: 0, mem: {}, ev: [], seq: 0, t: Date.now() };
+    p.money -= bet; p.gbPlay = (p.gbPlay || 0) + 1; kaiNew(w, T, [p.id, 'oya'], bet);
   };
   const kaiEv = (g, e) => { g.seq++; e.s = g.seq; g.ev.push(e); if (g.ev.length > 30) g.ev.shift(); };
   function kaiOya(w, g) { // 胴元の番：覚えている貝は（たまに忘れつつ）当てにいく
@@ -201,27 +282,34 @@
         if (mate != null) b = mate; else { const rest = left.filter((x) => x !== a && g.mem[x] == null), pool = rest.length ? rest : left.filter((x) => x !== a); b = pool[Math.floor(SIM.rand(w) * pool.length)]; }
       }
       g.mem[a] = 1; g.mem[b] = 1;
-      const hit = g.deck[a] === g.deck[b]; kaiEv(g, { who: 'oya', a, b, fa: g.deck[a], fb: g.deck[b], hit });
-      if (!hit) return;
-      g.own[a] = g.own[b] = 1; g.oya++; delete g.mem[a]; delete g.mem[b];
+      const hit = g.deck[a] === g.deck[b]; kaiEv(g, { who: 1, a, b, fa: g.deck[a], fb: g.deck[b], hit });
+      if (!hit) { g.turn = 0; return; }
+      g.own[a] = g.own[b] = 1; g.sc[1]++; delete g.mem[a]; delete g.mem[b];
     }
   }
-  function kaiEnd(w, p, T, g, quit) {
-    const r = quit ? -1 : g.me > g.oya ? 1 : g.me < g.oya ? -1 : 0, ret = r > 0 ? g.bet * 2 : r === 0 ? g.bet : 0; p.money += ret;
-    T.n++; T.last = { id: T.n, t: Date.now(), by: p.name, pid: p.id, r, gain: ret - g.bet, head: quit ? `${p.name}が勝負を降りた（${g.me}対${g.oya}）` : `${p.name} ${g.me}対 胴元 ${g.oya}`, lines: [`${p.name}（${money(g.bet)}）→ ${r > 0 ? '勝ち ' + sign(g.bet) : r < 0 ? '負け ' + sign(-g.bet) : '引き分け（返却）'}`] };
-    g.done = { r, gain: ret - g.bet }; g.end = Date.now();
-    SAY(p.id, `貝絵合わせ：${quit ? '降りた' : r > 0 ? '勝ち' : r < 0 ? '負け' : '引き分け'}（${g.me}対${g.oya}）`);
-  }
+  const kaiHead = (g, quitIdx) => (quitIdx != null ? `${g.nm[quitIdx]}が勝負を降りた（${g.sc[0]}対${g.sc[1]}）` : `${g.nm[0]} ${g.sc[0]}対 ${g.nm[1]} ${g.sc[1]}`);
   SIM.commands.kaiFlip = (w, p, c) => {
-    const o = ok(w, p); if (!o) return; const T = o.t.kai, g = T.g[p.id]; if (!g || g.done) return;
+    const o = ok(w, p); if (!o) return; const T = o.t.kai, g = playing(T, p.id); if (!g) return;
+    const me = idxOf(g, p.id); if (g.turn !== me) return SAY(p.id, '相手の番です');
     const i = +c.i; if (!(i >= 0 && i < g.deck.length) || g.own[i] >= 0 || i === g.pick) return;
-    if (g.pick < 0) { g.pick = i; g.mem[i] = 1; kaiEv(g, { who: 'me', a: i, fa: g.deck[i] }); return; }
+    g.lastT = Date.now();
+    if (g.pick < 0) { g.pick = i; g.mem[i] = 1; kaiEv(g, { who: me, a: i, fa: g.deck[i] }); return; }
     const a = g.pick, hit = g.deck[a] === g.deck[i]; g.pick = -1; g.mem[i] = 1;
-    kaiEv(g, { who: 'me', a, b: i, fa: g.deck[a], fb: g.deck[i], hit });
-    if (hit) { g.own[a] = g.own[i] = 0; g.me++; delete g.mem[a]; delete g.mem[i]; } else kaiOya(w, g);
-    if (g.own.every((x) => x >= 0)) kaiEnd(w, p, T, g);
+    kaiEv(g, { who: me, a, b: i, fa: g.deck[a], fb: g.deck[i], hit });
+    if (hit) { g.own[a] = g.own[i] = me; g.sc[me]++; delete g.mem[a]; delete g.mem[i]; }
+    else { g.turn = 1 - me; if (g.pl[g.turn] === 'oya') kaiOya(w, g); }
+    if (g.own.every((x) => x >= 0)) settle(w, T, g, g.sc[0] > g.sc[1] ? 1 : g.sc[0] < g.sc[1] ? -1 : 0, kaiHead(g), '貝絵合わせ');
   };
-  SIM.commands.kaiQuit = (w, p) => { const o = ok(w, p); if (!o) return; const T = o.t.kai, g = T.g[p.id]; if (!g) return; if (g.done) { delete T.g[p.id]; return; } kaiEnd(w, p, T, g, true); };
+  SIM.commands.kaiQuit = (w, p) => { // 終わった勝負を片づける／途中なら降りる（負け）
+    const o = ok(w, p); if (!o) return; const T = o.t.kai, id = T.by[p.id], g = id && T.g[id]; if (!g) return;
+    if (!g.done) { const me = idxOf(g, p.id); settle(w, T, g, me === 0 ? -1 : 1, kaiHead(g, me), '貝絵合わせ'); }
+    cleanup(T, p.id);
+  };
+  SIM.commands.kaiClaim = (w, p) => { // 相手が来ない
+    const o = ok(w, p); if (!o) return; const T = o.t.kai, g = playing(T, p.id); if (!g) return; const me = idxOf(g, p.id);
+    if (g.turn === me || g.pl[1 - me] === 'oya' || Date.now() - g.lastT < STALE) return;
+    settle(w, T, g, me === 0 ? 1 : -1, `${g.nm[1 - me]}が戻らず、${g.nm[me]}の勝ち（${g.sc[0]}対${g.sc[1]}）`, '貝絵合わせ');
+  };
 
   // ---- 絵双六（上洛双六） ----
   A.SG = [
@@ -232,11 +320,10 @@
     ['蹴上', '都の手前で道に迷う（4つ戻る）', 'mv', -4], ['粟田口'], ['三条大橋', '人込みにもまれる（もう一度）', 'again'], ['四条', '火の手が上がる（5つ戻る）', 'mv', -5], ['二条'], ['京', '上がり'],
   ];
   const GOAL = A.SG.length - 1;
-  function sgMove(w, g, who, evs) { // 1回分（もう一度なら続けて）。上がったら true
+  function sgMove(w, g, who, evs) { // who＝0（先手）か1。1回分（もう一度なら続けて）。上がったら true
     let again = 0;
     do {
       again = 0;
-      if (g.rest[who]) { g.rest[who] = 0; evs.push({ who, rest: 1 }); return false; }
       const d = 1 + Math.floor(SIM.rand(w) * 6), from = g.pos[who]; let to = from + d; if (to > GOAL) to = GOAL - (to - GOAL);
       const sq = A.SG[to], e = { who, d, from, to };
       if (to !== GOAL && sq[2] === 'mv') { e.to2 = Math.max(0, Math.min(GOAL, to + sq[3])); g.pos[who] = e.to2; }
@@ -246,25 +333,45 @@
     } while (again);
     return false;
   }
+  function sgNext(w, g, evs) { // 番を回す（休みは飛ばし、胴元はその場で振る）。上がった人の番号か -1
+    for (let k = 0; k < 6; k++) {
+      g.turn = 1 - g.turn; const who = g.turn;
+      if (g.rest[who]) { g.rest[who] = 0; evs.push({ who, rest: 1 }); continue; }
+      if (g.pl[who] === 'oya') { if (sgMove(w, g, who, evs)) return who; continue; }
+      return -1;
+    }
+    return -1;
+  }
+  function sgNew(w, T, pl, bet) {
+    for (const pid of pl) if (pid !== 'oya') cleanup(T, pid);
+    const id = gid(T), g = (T.g[id] = { id, pl, nm: pl.map((x) => (x === 'oya' ? '胴元' : nameOf(w, x))), bet, pos: [0, 0], rest: [0, 0], turn: 0, ev: [], seq: 0, t: Date.now(), lastT: Date.now(), done: false, res: null });
+    for (const pid of pl) if (pid !== 'oya') T.by[pid] = id;
+    return g;
+  }
   SIM.commands.sgStart = (w, p, c) => {
     const o = ok(w, p); if (!o) return; const T = o.t.sugoroku;
-    if (T.g[p.id] && !T.g[p.id].done) return SAY(p.id, 'もう勝負の最中です');
+    if (playing(T, p.id)) return SAY(p.id, 'もう勝負の最中です');
     const bet = betOk(w, p, c.qty); if (!bet) return;
-    p.money -= bet; p.gbPlay = (p.gbPlay || 0) + 1;
-    T.g[p.id] = { bet, pos: { me: 0, oya: 0 }, rest: { me: 0, oya: 0 }, ev: [], seq: 0, t: Date.now() };
+    p.money -= bet; p.gbPlay = (p.gbPlay || 0) + 1; sgNew(w, T, [p.id, 'oya'], bet);
   };
   SIM.commands.sgRoll = (w, p) => {
-    const o = ok(w, p); if (!o) return; const T = o.t.sugoroku, g = T.g[p.id]; if (!g || g.done) return;
-    const evs = []; let win = 0;
-    if (sgMove(w, g, 'me', evs)) win = 1; else if (sgMove(w, g, 'oya', evs)) win = -1;
+    const o = ok(w, p); if (!o) return; const T = o.t.sugoroku, g = playing(T, p.id); if (!g) return;
+    const me = idxOf(g, p.id); if (g.turn !== me) return SAY(p.id, '相手の番です');
+    g.lastT = Date.now(); const evs = [];
+    const win = sgMove(w, g, me, evs) ? me : sgNext(w, g, evs);
     for (const e of evs) { g.seq++; e.s = g.seq; g.ev.push(e); } while (g.ev.length > 30) g.ev.shift();
-    if (win) {
-      const ret = win > 0 ? g.bet * 2 : 0; p.money += ret; g.done = { r: win, gain: ret - g.bet }; g.end = Date.now();
-      T.n++; T.last = { id: T.n, t: Date.now(), by: p.name, pid: p.id, r: win, gain: ret - g.bet, head: `${win > 0 ? p.name : '胴元'}が先に京へ上がった`, lines: [`${p.name}（${money(g.bet)}）→ ${win > 0 ? '勝ち ' + sign(g.bet) : '負け ' + sign(-g.bet)}`] };
-      SAY(p.id, `絵双六：${win > 0 ? '勝ち' : '負け'}`);
-    }
+    if (win >= 0) settle(w, T, g, win === 0 ? 1 : -1, `${g.nm[win]}が先に京へ上がった`, '絵双六');
   };
-  SIM.commands.sgQuit = (w, p) => { const o = ok(w, p); if (!o) return; const T = o.t.sugoroku, g = T.g[p.id]; if (!g) return; if (!g.done) { g.done = { r: -1, gain: -g.bet }; T.n++; T.last = { id: T.n, t: Date.now(), by: p.name, pid: p.id, r: -1, gain: -g.bet, head: `${p.name}が勝負を降りた`, lines: [] }; } delete T.g[p.id]; };
+  SIM.commands.sgQuit = (w, p) => {
+    const o = ok(w, p); if (!o) return; const T = o.t.sugoroku, id = T.by[p.id], g = id && T.g[id]; if (!g) return;
+    if (!g.done) { const me = idxOf(g, p.id); settle(w, T, g, me === 0 ? -1 : 1, `${g.nm[me]}が勝負を降りた`, '絵双六'); }
+    cleanup(T, p.id);
+  };
+  SIM.commands.sgClaim = (w, p) => {
+    const o = ok(w, p); if (!o) return; const T = o.t.sugoroku, g = playing(T, p.id); if (!g) return; const me = idxOf(g, p.id);
+    if (g.turn === me || g.pl[1 - me] === 'oya' || Date.now() - g.lastT < STALE) return;
+    settle(w, T, g, me === 0 ? 1 : -1, `${g.nm[1 - me]}が戻らず、${g.nm[me]}の勝ち`, '絵双六');
+  };
 
   // ---- 見せる情報 ----
   const basePriv = SIM.privateState;
@@ -272,14 +379,14 @@
     const r = basePriv(w, pid), p = w.players[pid]; if (!r || !p) return r;
     r.me.koma = p.koma || []; r.me.komaUse = p.komaUse || null;
     if (!r.here || !r.here.gamble) return r;
-    const t = tableOf(w, r.here.id), gb = r.here.gamble;
+    const t = tableOf(w, r.here.id), gb = r.here.gamble, now = Date.now();
+    gb.people = Object.values(w.players).filter((q) => q !== p && SAMEAT(w, q, r.here.id)).map((q) => ({ id: q.id, name: q.name }));
+    gb.inv = Object.values(t.inv).filter((v) => v.to === pid || v.from === pid).map((v) => ({ id: v.id, game: v.game, bet: v.bet, mine: v.from === pid, who: nameOf(w, v.from === pid ? v.to : v.from), koma: v.koma ? v.koma.name : null }));
     gb.koma = { last: t.koma.last, oya: [0, 1, 2].map((i) => oyaFor(t.koma, i)) };
-    const kg = t.kai.g[pid];
-    gb.kai = { last: t.kai.last, players: Object.keys(t.kai.g).filter((id) => !t.kai.g[id].done).map((id) => nameOf(w, id)),
-      g: kg ? { bet: kg.bet, own: kg.own, face: kg.own.map((x, i) => (x >= 0 ? kg.deck[i] : null)), pick: kg.pick, pf: kg.pick >= 0 ? kg.deck[kg.pick] : null, me: kg.me, oya: kg.oya, ev: kg.ev, seq: kg.seq, done: kg.done || null } : null };
-    const sg = t.sugoroku.g[pid];
-    gb.sugoroku = { last: t.sugoroku.last, players: Object.keys(t.sugoroku.g).filter((id) => !t.sugoroku.g[id].done).map((id) => nameOf(w, id)),
-      g: sg ? { bet: sg.bet, pos: sg.pos, rest: sg.rest, ev: sg.ev, seq: sg.seq, done: sg.done || null } : null };
+    const view = (T, extra) => { const id = T.by[pid], g = id && T.g[id]; if (!g) return null; const me = idxOf(g, pid); return Object.assign({ bet: g.bet, me, nm: g.nm, pvp: g.pl[1] !== 'oya', turn: g.turn, ev: g.ev, seq: g.seq, done: g.done ? g.res[pid] || { r: 0, gain: 0 } : null, stale: !g.done && g.turn !== me && g.pl[1 - me] !== 'oya' && now - g.lastT > STALE }, extra(g)); };
+    const act = (T) => Object.values(T.g).filter((g) => !g.done).map((g) => g.nm.join('対'));
+    gb.kai = { last: t.kai.last, players: act(t.kai), g: view(t.kai, (g) => ({ own: g.own, face: g.own.map((x, i) => (x >= 0 ? g.deck[i] : null)), pick: g.pick, pf: g.pick >= 0 ? g.deck[g.pick] : null, sc: g.sc })) };
+    gb.sugoroku = { last: t.sugoroku.last, players: act(t.sugoroku), g: view(t.sugoroku, (g) => ({ pos: g.pos, rest: g.rest })) };
     return r;
   };
 
