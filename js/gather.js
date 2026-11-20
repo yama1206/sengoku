@@ -264,6 +264,9 @@
     const aim = { x: BX, y: 130 }, rip = []; let bob = null, msg = '', end = null, last = performance.now(), prevPad = {};
     const say = (t) => { const m = $('gcm'); if (m) m.textContent = t; };
     const spd0 = Math.abs(F.vx);
+    // 2.45.0 釣り大会では、魚影が時間差で何匹か出てくる（本命のほかは、近づいて食いつくふりをするだけの別の影）
+    const party = !!run.party; F.delay = party ? 0.8 + Math.random() * 6 : 0;
+    const DK = party ? [0, 1, 2].map((i) => { const l = Math.random() < 0.5, ln = 30 + Math.random() * 40; return { x: l ? -ln : W + ln, y: 60 + Math.random() * 130, vx: (l ? 1 : -1) * (20 + Math.random() * 18), ph: Math.random() * 6, len: ln, delay: 0.3 + i * 2.4 + Math.random() * 2.5, mode: 'swim', t: 0 }; }) : [];
     function cast() {
       if (end || bob) return;
       bob = { x: aim.x, y: Math.min(aim.y, BY - 30), t: 0, land: false, rest: 0 }; say('えいっ！');
@@ -277,7 +280,11 @@
       const d = Math.hypot(F.x - bob.x, F.y - bob.y);
       if (d < len * 0.3) { F.mode = 'flee'; F.vx = (F.x < bob.x ? -1 : 1) * 130; say('しぶきで魚影が逃げてしまった…'); end = { t: 1.4, q: 0 }; }
       else if (d < len * 1.7 + 24) { F.mode = 'look'; say('魚影が近づいてくる…'); }
-      else { say('気づかなかったようだ…'); bob.rest = 1.1; }
+      else {
+        const dk = DK.find((o) => o.delay <= 0 && o.mode === 'swim' && Math.hypot(o.x - bob.x, o.y - bob.y) < o.len * 1.7 + 24);
+        if (dk) { if (Math.hypot(dk.x - bob.x, dk.y - bob.y) < dk.len * 0.3) { dk.mode = 'flee'; dk.vx = (dk.x < bob.x ? -1 : 1) * 130; say('しぶきで魚影が逃げてしまった…'); bob.rest = 1; } else { dk.mode = 'look'; say('別の魚影が近づいてくる…'); } }
+        else { say('気づかなかったようだ…'); bob.rest = 1.1; }
+      }
     }
     function frame(now) {
       raf = requestAnimationFrame(frame); const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -288,7 +295,8 @@
       aim.x = Math.max(10, Math.min(W - 10, aim.x + dx * 150 * dt)); aim.y = Math.max(20, Math.min(BY - 30, aim.y + dy * 150 * dt));
       // 魚影
       F.ph += dt * 2;
-      if (F.mode === 'swim' || F.mode === 'flee') { F.x += F.vx * dt; F.y += Math.sin(F.ph) * 10 * dt; }
+      if (F.delay > 0) F.delay -= dt;
+      else if (F.mode === 'swim' || F.mode === 'flee') { F.x += F.vx * dt; F.y += Math.sin(F.ph) * 10 * dt; }
       else if (bob && bob.land) {
         const d = Math.hypot(bob.x - F.x, bob.y - F.y);
         if (F.mode === 'look') { if (d > 6) { const k = Math.min(1, (70 * dt) / d); F.x += (bob.x - F.x) * k; F.y += (bob.y - F.y) * k; } else { F.mode = 'nibble'; F.t = 0.9 + Math.random() * 1.6 + ri * 0.2; F.n = 0; } }
@@ -297,7 +305,13 @@
           if (F.t <= 0) { F.mode = 'bite'; rip.push({ x: bob.x, y: bob.y, r: 2, a: 1 }, { x: bob.x, y: bob.y, r: -6, a: 1 }); say('アタリ！'); end = { t: 0.35, bite: true }; }
         }
       }
-      if (!end && (F.x < -len - 20 || F.x > W + len + 20)) { say('魚影は去っていった…'); end = { t: 1.2, q: 0 }; }
+      for (const o of DK) { // 別の魚影
+        if (o.delay > 0) { o.delay -= dt; continue; } o.ph += dt * 2;
+        if (o.mode === 'swim' || o.mode === 'flee') { o.x += o.vx * dt; o.y += Math.sin(o.ph) * 10 * dt; }
+        else if (o.mode === 'look') { if (!bob || !bob.land) o.mode = 'swim'; else { const d = Math.hypot(bob.x - o.x, bob.y - o.y); if (d > 6) { const k = Math.min(1, (60 * dt) / d); o.x += (bob.x - o.x) * k; o.y += (bob.y - o.y) * k; } else { o.mode = 'nibble'; o.t = 0.8 + Math.random() * 1.2; } } }
+        else if (o.mode === 'nibble') { o.t -= dt; if (o.t <= 0) { o.mode = 'flee'; o.vx = (o.x < BX ? -1 : 1) * 60; if (bob && bob.land && !end && F.mode !== 'look' && F.mode !== 'nibble') { rip.push({ x: bob.x, y: bob.y, r: 2, a: 1 }); say('ただの別の魚だったようだ…'); bob.rest = 0.7; } } }
+      }
+      if (!end && F.delay <= 0 && (F.x < -len - 20 || F.x > W + len + 20)) { say('魚影は去っていった…'); end = { t: 1.2, q: 0 }; }
       if (bob) { bob.t += dt; if (!bob.land && bob.t >= 0.45) landed(); if (bob.land && bob.rest > 0) { bob.rest -= dt; if (bob.rest <= 0) bob = null; } }
       for (const r of rip) { r.r += 38 * dt; r.a -= dt * 0.9; } while (rip.length && rip[0].a <= 0) rip.shift();
       if (end) { end.t -= dt; if (end.t <= 0) { cancelAnimationFrame(raf); if (end.bite) hit(); else finishFish(0); return; } }
@@ -309,6 +323,7 @@
       // 魚影（向きに合わせて）
       const dirx = F.mode === 'look' && bob ? Math.sign(bob.x - F.x) || 1 : Math.sign(F.vx) || 1; c.save(); c.translate(F.x, F.y); c.scale(dirx, 1); c.fillStyle = F.mode === 'flee' ? 'rgba(0,10,20,.25)' : 'rgba(0,12,24,.42)';
       c.beginPath(); c.ellipse(0, 0, len / 2, len * 0.17, 0, 0, 7); c.fill(); const sw = Math.sin(F.ph * 3) * len * 0.07; c.beginPath(); c.moveTo(-len * 0.4, 0); c.lineTo(-len * 0.72, -len * 0.18 + sw); c.lineTo(-len * 0.72, len * 0.18 + sw); c.fill(); c.restore();
+      for (const o of DK) { if (o.delay > 0) continue; const dx0 = o.mode === 'look' && bob ? Math.sign(bob.x - o.x) || 1 : Math.sign(o.vx) || 1; c.save(); c.translate(o.x, o.y); c.scale(dx0, 1); c.fillStyle = o.mode === 'flee' ? 'rgba(0,10,20,.2)' : 'rgba(0,12,24,.34)'; c.beginPath(); c.ellipse(0, 0, o.len / 2, o.len * 0.17, 0, 0, 7); c.fill(); const w2 = Math.sin(o.ph * 3) * o.len * 0.07; c.beginPath(); c.moveTo(-o.len * 0.4, 0); c.lineTo(-o.len * 0.72, -o.len * 0.18 + w2); c.lineTo(-o.len * 0.72, o.len * 0.18 + w2); c.fill(); c.restore(); }
       // 珍しい魚以上はキラキラ（稀少・幻はより強く金色に）
       if (ri >= 2) { const n = ri >= 3 ? 9 : 5; c.save(); for (let k = 0; k < n; k++) { const a = now / (500 + k * 90) + k * 2.1, px = F.x + Math.cos(a) * len * (0.3 + 0.25 * ((k * 37) % 5) / 5), py = F.y + Math.sin(a * 1.3) * len * 0.25, tw = 0.5 + 0.5 * Math.sin(now / 160 + k * 1.7), sz = (ri >= 3 ? 5 : 3.5) * (0.5 + tw); c.globalAlpha = 0.3 + 0.7 * tw; c.fillStyle = ri >= 3 ? '#ffe9a0' : '#e8f6ff'; c.beginPath(); c.moveTo(px, py - sz); c.lineTo(px + sz * 0.3, py - sz * 0.3); c.lineTo(px + sz, py); c.lineTo(px + sz * 0.3, py + sz * 0.3); c.lineTo(px, py + sz); c.lineTo(px - sz * 0.3, py + sz * 0.3); c.lineTo(px - sz, py); c.lineTo(px - sz * 0.3, py - sz * 0.3); c.closePath(); c.fill(); } c.restore(); }
       // 狙い・浮き
