@@ -18,6 +18,11 @@
     meat: { name: '肉', ic: 'star', unit: '塊', base: 160, cons: 0, mine: true, wt: 2 },
     hide: { name: '毛皮', ic: 'star', unit: '枚', base: 380, cons: 0, mine: true, wt: 2 },
     tea: { name: '茶', ic: 'tea2', /* 2.13.1 茶の葉の絵 */ unit: '斤', base: 350, cons: 0.5, wt: 0.6 },   // 1斤は本物も約0.6kg
+    // 2.56.0 畑と家畜で取れる物（市場で売れる。どこの市場も作らない）
+    mugi: { name: '麦', ic: 'mugi', unit: '俵', base: 10, cons: 0, mine: true, wt: 6 },
+    daizu: { name: '大豆', ic: 'daizu', unit: '俵', base: 30, cons: 0, mine: true, wt: 6 },
+    daikon: { name: '大根', ic: 'daikon', unit: '束', base: 25, cons: 0, mine: true, wt: 4 },
+    egg: { name: '卵', ic: 'egg', unit: '個', base: 20, cons: 0, mine: true, wt: 0.06 },
   };
   const prod = {
     inabayama: { rice: 3, tea: 1 }, ogaki: { rice: 4 }, inuyama: { firewood: 4, sake: 1 },

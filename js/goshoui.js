@@ -19,7 +19,7 @@
   // ---- 豪商 ----
   UI.gosho = (P) => {
     const me = P.me, G = P.here.gosho; if (!G) return '';
-    const S = me.sho; let h = `<div class="muted" style="margin-bottom:6px">所持金 ${M(me.money)}${S ? `　あなたは${S.houseName}の<b>${S.name}</b>（家宝は${Math.round(S.off * 100)}%引き）` : ''}</div>`;
+    const S = me.sho; let h = `<div class="muted" style="margin-bottom:6px">所持金 ${M(me.money)}${S ? `　あなたは${S.houseName}の<b>${S.name}</b>` : ''}${G.off ? `（家宝は${G.off}%引き）` : ''}${G.en ? `　${G.name}との縁 ${G.en}` : ''}</div>`;
     h += `<div class="secH">家宝の蔵</div><div class="muted">ここでしか買えない名品（あと${G.left}日で品が入れ替わる）</div>`;
     for (const K of G.items) {
       h += `<div class="card"><div><b>${K.name}</b>　<span class="muted">${M(K.price)}<br>${K.desc}${K.kind === 'takara' ? `<br>初めて手に入れると名声+${K.fame}・主家の城で献上すると功績+${K.kenjo}` : ''}</span></div>`
@@ -36,7 +36,8 @@
         + `<button id="gt-${t.id}" data-act="goshoTask" data-id="${t.id}" ${t.done || have < t.qty ? 'disabled' : ''}>${t.done ? '納めた' : '納める'}</button></div>`;
     }
     h += '<div class="secH">奉公（商人になる）</div>';
-    if (S) {
+    if (S && S.own) h += `<div class="card" style="display:block"><b>${S.houseName}　店主</b><br><span class="muted">独立して自分の店を持っています。持てる荷×${S.carry}・荷が重くても遅くなりにくい。店のことは町の「店」の画面で（支店を出す・品を並べる・茶会）</span></div>`; // 2.56.0
+    else if (S) {
       h += `<div class="card" style="display:block"><b>${S.houseName}　${S.name}</b>　功績 ${S.merit}${S.next ? `/${S.next.merit}（次は${S.next.name}・名声${S.next.fame}以上）` : '（最高位）'}<br><span class="muted">給金 月${M(S.pay)}・持てる荷×${S.carry}・荷が重くても遅くなりにくい。功績は頼まれごと・市場での儲け・海外との商いで積む</span>`
         + `<div class="row" style="margin-top:4px">${G.mine && S.next ? `<button id="sh-up" data-act="shoPromote" ${S.merit >= S.next.merit && me.fame >= S.next.fame ? '' : 'disabled'}>${S.next.name}への取り立てを願い出る</button>` : ''}<button id="sh-quit" data-act="shoQuit">暇をもらう</button></div></div>`;
     } else {

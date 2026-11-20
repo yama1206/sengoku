@@ -56,6 +56,17 @@ KINDS = {
     "prey_bear": ("a single asian black bear in side view standing on four legs, black fur with white crescent on chest" + ICON, 1024, 1024),
     # 2.54.0 鍛冶の槌が当たった印
     "smith_fire": ("a single bold red-orange flame with a bright yellow core and a few sparks" + WXI, 1024, 1024),
+    # 2.56.0 畑と家畜
+    "mugi": ("a small bundle of golden ripe barley ears with long awns tied with straw" + ICON, 1024, 1024),
+    "daizu": ("a small heap of round pale yellow soybeans with two green soybean pods" + ICON, 1024, 1024),
+    "daikon": ("a single big white japanese daikon radish with green leaves on top" + ICON, 1024, 1024),
+    "egg": ("three brown and white chicken eggs in a small straw nest" + ICON, 1024, 1024),
+    "hen": ("a single japanese chicken hen standing in side view, brown and white feathers, red comb" + ICON, 1024, 1024),
+    "cow": ("a single black japanese wagyu ox cow standing in side view, short horns, rope halter" + ICON, 1024, 1024),
+    "sprout": ("a single small green seedling sprout with two round leaves growing from a little mound of dark soil" + WXI, 1024, 1024),
+    "weed": ("a single clump of wild green weeds with spiky leaves and roots" + WXI, 1024, 1024),
+    "drop": ("a single big clear blue water drop" + WXI, 1024, 1024),
+    "koe": ("a woven straw basket full of dark brown compost manure with straw bits" + ICON, 1024, 1024),
     # 賭場
     "bg_den": ("interior of an edo period gambling den at night, tatami room lit by paper andon lanterns, a long white cloth gambling mat on the floor in the center, wooden pillars, shoji screens, warm orange light, dark corners" + BG, 1344, 768),
     "ch_dealer": ("a tsubofuri dice dealer man kneeling in seiza with one shoulder bare and a sarashi cloth around his belly, holding a bamboo dice cup, tattoo on his arm, serious face" + CHAR, 1024, 1024),

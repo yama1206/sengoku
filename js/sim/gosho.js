@@ -18,7 +18,8 @@
     { name: '丁稚', pay: 200, carry: 1.3, pow: 0.6, min: 0.35, off: 0.05, desc: '奉公したばかり。荷を多く持て、荷が重くても遅くなりにくい。湊で船員を雇える' },
     { name: '手代', pay: 600, carry: 1.5, pow: 0.5, min: 0.4, off: 0.1, desc: '商いを任される。荷をさらに多く持てる。弁才船で海外と商いができる' },
     { name: '番頭', pay: 1400, carry: 1.7, pow: 0.4, min: 0.45, off: 0.15, desc: '店を切り盛りする。唐船を持てる' },
-    { name: '大番頭', pay: 2800, carry: 2.0, pow: 0.3, min: 0.5, off: 0.2, desc: '豪商の右腕。大船を持てる。商人はここが最高位' },
+    { name: '大番頭', pay: 2800, carry: 2.0, pow: 0.3, min: 0.5, off: 0.2, desc: '豪商の右腕。大船を持てる。元手があれば独立して店を持てる' },
+    { name: '店主', pay: 0, carry: 2.2, pow: 0.25, min: 0.55, off: 0.2, desc: '独立して自分の店を持つ（2.56.0）。給金はなく、店の売上で稼ぐ' },
   ];
   // 家宝：名品の武具（equip.js の castle:true）と、茶器・南蛮渡来の品。fame＝初めて手に入れたときの名声、kenjo＝主家に献上したときの功績
   GS.TAKARA = {
@@ -44,7 +45,7 @@
   GS.houseName = houseName;
   const sho = (p) => (p.sho && p.sho.rank ? p.sho : null);
   SIM.isMerchant = (p) => !!sho(p);
-  const setSt = (p) => { const S = sho(p); if (S) p.status = `${GS.HOUSES[S.house] ? GS.HOUSES[S.house].ya : ''} ${GS.RANKS[S.rank].name}`; };
+  const setSt = (p) => { const S = sho(p); if (S) p.status = S.own ? `${S.ya} 店主` : `${GS.HOUSES[S.house] ? GS.HOUSES[S.house].ya : ''} ${GS.RANKS[S.rank].name}`; };
   const hash = (s) => { let h = 2166136261; for (const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
 
   // ---- 家宝の品ぞろえ（町ごと・30日ごとに入れ替わる。売れた品はその間は品切れ） ----
@@ -95,7 +96,7 @@
     const s = here(w, p); if (!isBig(s) || p.battle) return;
     const G = stock(w, s), k = c.id; if (!G.items.includes(k) || G.sold.includes(k)) return say(p.id, 'その品はもうありません');
     const K = kahoInfo(k); if (!K) return;
-    const price = Math.round(K.price * (1 - off(p)));
+    const price = Math.round(K.price * (1 - GS.off(p, s.id)));
     if (p.money < price) return say(p.id, `お金が足りません（${SIM.money(price)}）`);
     p.money -= price; G.sold.push(k);
     if (K.kind === 'gear') { p.gear = p.gear || {}; p.gear[K.id] = (p.gear[K.id] || 0) + 1; say(p.id, `${houseName(s.id)}から家宝「${K.name}」を${SIM.money(price)}で買いました（人物の装備タブで付けられます）`); }
@@ -196,7 +197,7 @@
     for (const p of Object.values(w.players)) {
       const S = sho(p); if (!S) continue;
       if (S.pd == null) S.pd = d;
-      while (d - S.pd >= 30) { S.pd += 30; const pay = GS.RANKS[S.rank].pay; p.money += pay; say(p.id, `${houseName(S.house)}から給金${SIM.money(pay)}が届きました`); }
+      while (d - S.pd >= 30) { S.pd += 30; const pay = GS.RANKS[S.rank].pay; if (!pay) continue; p.money += pay; say(p.id, `${houseName(S.house)}から給金${SIM.money(pay)}が届きました`); }
     }
   });
   const baseEnsure = SIM.ensure;
@@ -207,17 +208,17 @@
   SIM.privateState = (w, pid) => {
     const r = basePriv(w, pid), p = w.players[pid]; if (!r || !p || !r.me) return r;
     const S = sho(p);
-    r.me.sho = S ? { house: S.house, houseName: houseName(S.house), rank: S.rank, name: GS.RANKS[S.rank].name, merit: S.merit, next: S.rank < 4 ? { name: GS.RANKS[S.rank + 1].name, merit: RK()[S.rank + 1].merit, fame: RK()[S.rank + 1].fame } : null, pay: GS.RANKS[S.rank].pay, carry: GS.RANKS[S.rank].carry, off: GS.RANKS[S.rank].off } : null;
+    r.me.sho = S ? { own: !!S.own, house: S.house, houseName: S.own ? S.ya : houseName(S.house), rank: S.rank, name: GS.RANKS[S.rank].name, merit: S.merit, next: S.rank < 4 ? { name: GS.RANKS[S.rank + 1].name, merit: RK()[S.rank + 1].merit, fame: RK()[S.rank + 1].fame } : null, pay: GS.RANKS[S.rank].pay, carry: GS.RANKS[S.rank].carry, off: GS.RANKS[S.rank].off } : null;
     r.me.takara = Object.entries(p.takara || {}).filter(([k, n]) => n > 0 && GS.TAKARA[k]).map(([k, n]) => ({ id: k, n, name: GS.TAKARA[k].name, kenjo: GS.TAKARA[k].kenjo, sell: Math.round(GS.TAKARA[k].price * GS.sellBack) }));
     const s = here(w, p);
     if (r.here && isBig(s)) {
-      const G = stock(w, s), o = off(p);
+      const G = stock(w, s), o = GS.off(p, s.id);
       r.here.gosho = {
         name: houseName(s.id), ya: GS.HOUSES[s.id].ya, left: GS.stockDays - (day(w) % GS.stockDays),
         items: G.items.map((k) => { const K = kahoInfo(k); return K && Object.assign({}, K, { price: Math.round(K.price * (1 - o)), sold: G.sold.includes(k) }); }).filter(Boolean),
         tasks: tasks(w, s).map((t) => ({ id: t.id, item: t.item, qty: t.qty, reward: t.reward, merit: t.merit, done: t.done })),
-        canJoin: !S && !(p.clan && p.rank >= 5), mine: !!(S && S.house === s.id),
-        ranks: GS.RANKS.slice(1).map((R, i) => ({ name: R.name, pay: R.pay, carry: R.carry, desc: R.desc, merit: RK()[i + 1].merit, fame: RK()[i + 1].fame })),
+        canJoin: !S && !(p.clan && p.rank >= 5), mine: !!(S && !S.own && S.house === s.id), off: Math.round(o * 100),
+        ranks: GS.RANKS.slice(1, 5).map((R, i) => ({ name: R.name, pay: R.pay, carry: R.carry, desc: R.desc, merit: RK()[i + 1].merit, fame: RK()[i + 1].fame })),
       };
     }
     return r;
