@@ -124,7 +124,7 @@ function startHost(world, msg, ent) {
 // 2.41.0 忍びの協力任務のやりとりを、宛先の人へそのまま届ける（ホストが中継役）
 function ninRelay(from, cmd) {
   const m = cmd.m, to = cmd.to; if (!m || !Array.isArray(to)) return;
-  for (const t of to.slice(0, 4)) { if (t === G.myPid) { { const Rv = m.ch === 'party' ? SGK.PARTY : SGK.NINJA3D; if (Rv && Rv.recv) Rv.recv(from, m); } } else if (G.net && G.net.sendTo) G.net.sendTo(t, { t: 'nin', from, m }); }
+  for (const t of to.slice(0, CFG.MAX_PLAYERS || 10)) { /* 2.60.4 前は4人までしか中継しなかった（みんなで遊ぶは10人まで） */ if (t === G.myPid) { { const Rv = m.ch === 'party' ? SGK.PARTY : SGK.NINJA3D; if (Rv && Rv.recv) Rv.recv(from, m); } } else if (G.net && G.net.sendTo) G.net.sendTo(t, { t: 'nin', from, m }); }
 }
 SGK.ninSend = (to, m) => { if (G.mode === 'host') ninRelay(G.myPid, { m, to }); else if (G.mode === 'client' && G.net) G.net.send({ type: 'ninRelay', to, m }); };
 SIM.online = () => [G.myPid, ...(G.mode === 'host' && G.net && G.net.pids ? G.net.pids() : [])]; // 2.57.1 いまつながっている人（人と人の忍びの対戦の相手を選ぶ）
