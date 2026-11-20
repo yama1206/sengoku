@@ -94,7 +94,7 @@
       const d = (cur[k] || 0) - (L.reconStock[k] || 0) - (L.pend[k] || 0);
       if (Math.abs(d) > 1e-6) { addTo((L.stock[k] = L.stock[k] || {}), '不明（記録漏れ）', d); bad = true; }
     }
-    L.reconT = w.time.min; L.reconStock = cur; L.pend = {}; if (bad) L.learn = Math.max(L.learn, 12);
+    L.reconT = w.time.min; L.reconStock = cur; L.pend = {}; if (bad) L.learn = Math.max(L.learn, 150); // 1日あまり全部の処理で数えて、どの処理か覚える
   };
   sysCheck.__led = true; sysCheck.__src = 'ledger';
   Array.prototype.unshift.call(SIM.systems, sysCheck);

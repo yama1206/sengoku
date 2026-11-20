@@ -9,20 +9,20 @@
     firewood: { name: '薪', ic: 'firewood', unit: '束', base: 40, cons: 3, wt: 3 },
     // 2.32.0 鉄（品物）は市場からなくした。鉄鉱石（採掘・鍛冶）は残す
     // 2.28.0 採掘で取れる物資（品質は個数に換算して入る）。後で加工できるようにする予定。金山・銀山の近くの町・城だけで少し産する（mine:true）
-    ironore: { name: '鉄鉱石', ic: 'iron', unit: '塊', base: 120, cons: 0, mine: true, wt: 4 },
-    quartz: { name: '水晶', ic: 'star', unit: '粒', base: 540, cons: 0, mine: true, wt: 0.3 },
-    agate: { name: '瑪瑙', ic: 'star', unit: '粒', base: 360, cons: 0, mine: true, wt: 0.3 },
-    jade: { name: '翡翠', ic: 'star', unit: '粒', base: 1500, cons: 0, mine: true, wt: 0.3 },
-    garnet: { name: '柘榴石', ic: 'star', unit: '粒', base: 720, cons: 0, mine: true, wt: 0.3 },
+    ironore: { name: '鉄鉱石', ic: 'iron', unit: '塊', base: 120, cons: 0, mine: true, wt: 4, use: { castle: 0.15, town: 0.08 } }, // 2.59.0 use＝拠点の種類ごとの1日の使う量（城は武具、町は道具）
+    quartz: { name: '水晶', ic: 'star', unit: '粒', base: 540, cons: 0, mine: true, wt: 0.3, use: { town: 0.04 } }, // 町で細工物に
+    agate: { name: '瑪瑙', ic: 'star', unit: '粒', base: 360, cons: 0, mine: true, wt: 0.3, use: { town: 0.04 } },
+    jade: { name: '翡翠', ic: 'star', unit: '粒', base: 1500, cons: 0, mine: true, wt: 0.3, use: { town: 0.015 } },
+    garnet: { name: '柘榴石', ic: 'star', unit: '粒', base: 720, cons: 0, mine: true, wt: 0.3, use: { town: 0.03 } },
     // 2.36.0 狩猟で手に入る物（市場で売れる）
-    meat: { name: '肉', ic: 'star', unit: '塊', base: 160, cons: 0, mine: true, wt: 2 },
-    hide: { name: '毛皮', ic: 'star', unit: '枚', base: 380, cons: 0, mine: true, wt: 2 },
+    meat: { name: '肉', ic: 'star', unit: '塊', base: 160, cons: 0, mine: true, wt: 2, use: { town: 0.1, castle: 0.03 } },
+    hide: { name: '毛皮', ic: 'star', unit: '枚', base: 380, cons: 0, mine: true, wt: 2, use: { town: 0.02, castle: 0.02 } },
     tea: { name: '茶', ic: 'tea2', /* 2.13.1 茶の葉の絵 */ unit: '斤', base: 350, cons: 0.5, wt: 0.6 },   // 1斤は本物も約0.6kg
     // 2.56.0 畑と家畜で取れる物（市場で売れる。どこの市場も作らない）
-    mugi: { name: '麦', ic: 'mugi', unit: '俵', base: 10, cons: 0, mine: true, wt: 6 },
-    daizu: { name: '大豆', ic: 'daizu', unit: '俵', base: 30, cons: 0, mine: true, wt: 6 },
-    daikon: { name: '大根', ic: 'daikon', unit: '束', base: 25, cons: 0, mine: true, wt: 4 },
-    egg: { name: '卵', ic: 'egg', unit: '個', base: 20, cons: 0, mine: true, wt: 0.06 },
+    mugi: { name: '麦', ic: 'mugi', unit: '俵', base: 10, cons: 0, mine: true, wt: 6, use: { town: 1, castle: 0.6 } },
+    daizu: { name: '大豆', ic: 'daizu', unit: '俵', base: 30, cons: 0, mine: true, wt: 6, use: { town: 0.6, castle: 0.2 } },
+    daikon: { name: '大根', ic: 'daikon', unit: '束', base: 25, cons: 0, mine: true, wt: 4, use: { town: 0.8, castle: 0.3 } },
+    egg: { name: '卵', ic: 'egg', unit: '個', base: 20, cons: 0, mine: true, wt: 0.06, use: { town: 1.5, castle: 0.2 } },
   };
   const prod = {
     inabayama: { rice: 3, tea: 1 }, ogaki: { rice: 4 }, inuyama: { firewood: 4, sake: 1 },

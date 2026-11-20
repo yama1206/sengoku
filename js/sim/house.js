@@ -55,7 +55,21 @@
     const far = o.to ? Math.hypot(o.to.x - o.from.x, o.to.y - o.from.y) : 30;
     n.rice = Math.ceil(far / Math.max(1, n.speed || 20)) * 2 + (SIM.ARMY ? SIM.ARMY.siegeDays : 5) + HS.armyRiceExtra;
     n.riceDay = day(w); n.starve = 0;
+    // 2.59.0 持っていく米は出る城の蔵から出す（1日ぶん＝兵40人で1俵）。足りなければ持てる日数が減る
+    const per = n.size / 40, st = o.from && o.from.stock;
+    if (st && per > 0) {
+      const need = n.rice * per, take = Math.min(need, st.rice || 0);
+      st.rice = (st.rice || 0) - take; if (SIM.LEDGER) SIM.LEDGER.note('stock', 'rice', '軍勢の兵糧（出陣で持ち出す）', -take);
+      n.rice = Math.floor(take / per); n.riceBag = take - n.rice * per; // 1日ぶんに満たない端数
+      if (take < need * 0.5) for (const p of Object.values(w.players)) if (p.clan === n.faction) SIM.say(p.id, `${o.from.name}の米が足りず、軍勢${n.size}人は兵糧を${n.rice}日ぶんしか持てませんでした`);
+    }
     return n;
+  };
+  // 2.59.0 城へ戻った・城を落とした：残った兵糧（日数×人数）を城の蔵へ返す
+  SIM.armyRiceBack = (w, n, s) => {
+    if (!s || !s.stock || !(n.rice > 0 || n.riceBag > 0)) return;
+    const q = Math.max(0, n.rice || 0) * (n.size / 40) + (n.riceBag || 0);
+    s.stock.rice = (s.stock.rice || 0) + q; if (SIM.LEDGER) SIM.LEDGER.note('stock', 'rice', '軍勢の兵糧（持ち帰る）', q); n.rice = 0; n.riceBag = 0;
   };
   SIM.systems.push(function armyRice(w) {
     const d = day(w);

@@ -359,7 +359,7 @@
       n.speed = SIM.armySpeed(n); // 戦で減ると速くなる（古いセーブの軍勢もここで直る）
       if (n.mode === 'siege') {
         const s = SIM.settlement(w, n.to);
-        if (s && s.owner === n.faction) { s.gar = addTr(s.gar, n.army); delete w.npcs[n.id]; continue; } // 落とした城に入る
+        if (s && s.owner === n.faction) { s.gar = addTr(s.gar, n.army); if (SIM.armyRiceBack) SIM.armyRiceBack(w, n, s); delete w.npcs[n.id]; continue; } // 落とした城に入る（2.59.0 残った兵糧も）
         if (!s || !SIM.atWar(w, n.faction, s.owner)) { goHome(w, n); continue; }
         if (n.until == null) {
           if (dist(n, s) < 1) beginSiege(w, n, s);
@@ -373,7 +373,7 @@
         if (n.tx == null || Math.hypot(n.tx - t.x, n.ty - t.y) > 1) setGoal(n, t.x, t.y, null);
         SIM.moveEntity(n, dt);
       } else {
-        if (SIM.moveEntity(n, dt) || n.tx == null) { const h = SIM.settlement(w, n.home); if (h && h.owner === n.faction) h.gar = addTr(h.gar, n.army); delete w.npcs[n.id]; }
+        if (SIM.moveEntity(n, dt) || n.tx == null) { const h = SIM.settlement(w, n.home); if (h && h.owner === n.faction) { h.gar = addTr(h.gar, n.army); if (SIM.armyRiceBack) SIM.armyRiceBack(w, n, h); } delete w.npcs[n.id]; }
       }
     }
     for (const p of Object.values(w.players)) {

@@ -37,6 +37,7 @@
       s.prod = s.prod || d.prod || {};
       if (!Object.keys(s.prod).length) s.prod = JSON.parse(JSON.stringify(d.prod && Object.keys(d.prod).length ? d.prod : SGK.DATA.defProd(s))); // 古いセーブで生産のない拠点に付ける
       { const tk = SGK.DATA.toku(s); if (s.type === 'village') for (const k in s.prod) if (k !== 'rice' && k !== 'firewood' && k !== tk && s.prod[k] > 3) s.prod[k] = 3; const want = I()[tk] && I()[tk].mine ? 1.5 : 7; if (tk && !((s.prod[tk] || 0) >= want)) s.prod[tk] = want; } // 2.32.1 鉄鉱石の特産は掘り出す量なので少なめ // 1.6.77 特産は多く作る（古いセーブも）。1.6.87 特産でなくなった品は3まで
+      SIM.villageFood(s);
       s.size = s.size || SIZE[s.type]; if (SGK.DATA.isBig(s)) s.size = Math.max(s.size, 3); // 1.6.78 大きな町は品物が多い
       s.stock = s.stock || {};
       for (const k in I()) if (s.stock[k] == null) s.stock[k] = Math.max(6, Math.round(target(s, k))); // 1.6.88 開始時はどこも目安どおりの在庫（相場どおりの値段から始まる）
@@ -69,7 +70,11 @@
   const pm = (s, k) => (s.prod[k] || 0) * (s.type === 'village' ? 0.6 : 1) * /* 1.6.24 村が増えたので村1つの生産は0.6倍 */ (SIM.prodMul ? SIM.prodMul(s) : 1) * (SIM.prodItemMul ? SIM.prodItemMul(s, k) : 1); // 0.71.0 政策・豊作凶作 // 0.41.0 投資で生産が増える
   // 0.70.0 人が多い拠点ほどよく使う（人口の比の平方根で増える）
   const sz = (s) => s.size * Math.sqrt(SIM.popF ? SIM.popF(s) : 1);
-  function target(s, k) { return (I()[k].cons * sz(s) + pm(s, k)) * 12 + 4; }
+  // 2.59.0 拠点の種類ごとの使う量（use があればそれ、なければ cons）と、城の守備兵が食べる米（40人で1日1俵）
+  const consOf = (s, k) => { const it = I()[k]; return it.use ? it.use[s.type] || 0 : it.cons; };
+  SIM.consOf = consOf;
+  SIM.garRice = (s) => (s.type === 'castle' && SIM.garrison ? SIM.garrison(s) / 40 : 0);
+  function target(s, k) { return (consOf(s, k) * sz(s) + pm(s, k) + (k === 'rice' ? SIM.garRice(s) : 0)) * 12 + 4; }
   SIM.stockTarget = target;
   // 0.70.0 物資のそろい具合（0〜1.3）。品ごとに 在庫÷目安 を1.3までで平均。米は2倍に数える
   SIM.supplyF = (s) => { if (!s || !s.stock) return 1; let a = 0, n = 0; for (const k in I()) { const wt = k === 'rice' ? 2 : 1; a += Math.min(1.3, s.stock[k] / target(s, k)) * wt; n += wt; } return n ? a / n : 1; };
@@ -99,12 +104,33 @@
     w.jobs[id] = job;
   }
 
+  // ---- 2.59.0 城の守備兵が城の米を食べる。囲まれていて米が尽きると、守備兵が逃げ出す ----
+  function garEat(w, s, LG) {
+    const need = SIM.garRice(s); if (!need) return;
+    const eat = Math.min(need, s.stock.rice || 0);
+    s.stock.rice -= eat; if (SIM.LEDGER) SIM.LEDGER.note('stock', 'rice', '守備兵の兵糧', -eat);
+    if (eat >= need * 0.999 || !SIM.inWar(w, s) || !s.gar) { s.starve = 0; return; }
+    const lack = 1 - eat / need, before = SIM.garrison(s); s.starve = (s.starve || 0) + 1;
+    for (const k in s.gar) { s.gar[k] = Math.floor(s.gar[k] * (1 - 0.12 * lack)); if (s.gar[k] <= 0) delete s.gar[k]; }
+    const lost = before - SIM.garrison(s);
+    if (lost > 0 && s.starve === 1) for (const p of Object.values(w.players)) if (p.clan === s.owner) SIM.say(p.id, `${s.name}の兵糧が尽きました！ 守備兵が逃げ出しています（${lost}人）。米を運び込まないと日に日に減ります`);
+  }
+  // 2.59.0 後から足した食べ物（麦・大豆・大根・卵・肉・毛皮）を村でも少し作る（古いセーブにも足す）
+  const hashN = (id, n) => { let h = n * 7919; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return (h % 1000) / 1000; };
+  SIM.villageFood = (s) => {
+    if (s.type !== 'village' || s.food2) return; s.food2 = 1;
+    const add = (k, v, rate, n) => { if (hashN(s.id, n) < rate && !(s.prod[k] > 0)) s.prod[k] = v; };
+    add('mugi', 2, 0.5, 11); add('daizu', 1, 0.4, 12); add('daikon', 1.5, 0.5, 13); add('egg', 2, 0.4, 14);
+    const yama = SGK.DATA.toku(s) === 'ironore' || hashN(s.id, 15) < 0.2; if (yama) { add('meat', 0.3, 1, 16); add('hide', 0.15, 1, 17); }
+  };
+
   // ---- 1日ごとの処理 ----
   function daily(w) {
     const now = w.time.min;
     const LG = SIM.LEDGER && SIM.LEDGER.active(w) ? {} : null; /* 2.58.0 帳簿：生産・消費・あふれを分けて数える */
-    for (const s of w.settlements) { const wr = SIM.inWar(w, s); for (const k in I()) { const t = target(s, k), s0 = s.stock[k], add = wr ? 0 : pm(s, k); s.stock[k] = Math.max(0, s.stock[k] + add - I()[k].cons * sz(s)); const s1 = s.stock[k]; if (s.stock[k] > t * 1.3) s.stock[k] -= (s.stock[k] - t * 1.3) * 0.25;
+    for (const s of w.settlements) { const wr = SIM.inWar(w, s); for (const k in I()) { const t = target(s, k), s0 = s.stock[k], add = wr ? 0 : pm(s, k); s.stock[k] = Math.max(0, s.stock[k] + add - consOf(s, k) * sz(s)); const s1 = s.stock[k]; if (s.stock[k] > t * 1.3) s.stock[k] -= (s.stock[k] - t * 1.3) * 0.25;
       if (LG) { const g = (LG[k] = LG[k] || [0, 0, 0]); g[0] += add; g[1] += s0 + add - s1; g[2] += s1 - s.stock[k]; } } }
+    for (const s of w.settlements) if (s.type === 'castle') garEat(w, s, LG);
     if (LG) for (const k in LG) { SIM.LEDGER.note('stock', k, '拠点の生産', LG[k][0]); SIM.LEDGER.note('stock', k, '拠点の消費', -LG[k][1]); SIM.LEDGER.note('stock', k, '在庫のあふれ（消える）', -LG[k][2]); } // 1.6.90 攻城戦の準備をされている城は作らない（使うだけ）。目安の1.3倍を超えた分は傷んだり蔵からよそへ流れたりして減る
     share(w);
     for (const j of Object.values(w.jobs)) if (j.expires < now) delete w.jobs[j.id];

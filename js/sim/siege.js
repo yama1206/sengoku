@@ -407,7 +407,7 @@
   const baseDyn = SIM.dynamicState;
   SIM.dynamicState = function (w, pid) {
     const d = baseDyn(w, pid);
-    d.cs = Object.fromEntries(w.settlements.filter((s) => s.type === 'castle').map((s) => { const pr = s.lord && w.people[s.lord]; return [s.id, [SIM.garrison(s), s.lord || null, pr ? pr.loyal : null, pr ? pr.name : null]]; }));
+    d.cs = Object.fromEntries(w.settlements.filter((s) => s.type === 'castle').map((s) => { const pr = s.lord && w.people[s.lord]; return [s.id, [SIM.garrison(s), s.lord || null, pr ? pr.loyal : null, pr ? pr.name : null, Math.round((s.stock && s.stock.rice) || 0)]]; /* 2.59.0 城の米 */ }));
     d.wars = Object.keys(w.wars);
     d.fd = Object.keys(w.factions).filter((k) => w.factions[k].dead);
     return d;
