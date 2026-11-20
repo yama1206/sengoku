@@ -13,6 +13,9 @@
       const nm = c.game === 'race' ? '馬の障害レース' : c.game === 'fish' ? '釣り大会' : c.game === 'cart' ? '荷運び競争' : '弓の的当て大会';
       if (c.team) { const k = c.team === 'win' ? 0 : c.team === 'draw' ? 1 : 2; money = [1200, 700, 400][k]; fame = k === 0 ? 1 : 0; msg = `${nm}（チーム戦）${['勝ち', '引き分け', '負け'][k]}`; }
       else { const r = Math.max(1, Math.min(10, c.rank | 0)); money = TBL[r - 1]; fame = r === 1 ? 2 : r === 2 ? 1 : 0; msg = `${nm}で${r}位`; }
+    } else if (c.game === 'hayashi') { // 2.68.0 囃子合わせ：みんなの合わせぐあいと難しさ
+      const acc = Math.max(0, Math.min(1, +c.acc || 0)), df = Math.max(0, Math.min(2, c.diff | 0));
+      money = Math.round((200 + acc * acc * 1300) * [0.7, 1, 1.4][df]); fame = acc >= 0.95 && df >= 1 ? 1 : 0; msg = `囃子合わせ（合わせぐあい${Math.round(acc * 100)}%）`;
     } else if (c.game === 'kemari') { // 2.62.0 蹴鞠：続けた回数（みんなの）と自分が蹴った数
       const cnt = Math.max(0, Math.min(999, c.cnt | 0)), mine = Math.max(0, Math.min(cnt + 1, c.kicks | 0));
       money = Math.min(2000, cnt * 25 + mine * 15); fame = cnt >= 40 ? 1 : 0; msg = `蹴鞠で${cnt}回続けた（自分は${mine}回蹴った）`;

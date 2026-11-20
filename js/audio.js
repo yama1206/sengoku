@@ -263,6 +263,21 @@
     SFX[name](now + 0.01);
   };
 
+  // 2.68.0 囃子合わせ（party.js）：楽器の音を、時刻を決めて鳴らす（効果音の音量で鳴る）
+  A.music = {
+    now: () => (ctx ? ctx.currentTime : 0),
+    ok: () => !!(init() && ctx.state === 'running'),
+    play(inst, t, k, m, dur, vol = 0.5) {
+      if (!ctx || ctx.state !== 'running') return; const b = sfxBus; t = Math.max(t, ctx.currentTime);
+      if (inst === 'taiko') { if (k === 'b') { woodTap(t, vol * 0.8, 1500, b); woodTap(t + 0.004, vol * 0.45, 700, b); } else taiko(t, vol * 1.4, true, b); }
+      else if (inst === 'tsuzumi') { if (k === 'b') taiko(t, vol * 0.6, false, b); else tsuzumi(t, vol * 1.2, b); }
+      else if (inst === 'fue') flute(t, m || 74, dur || 0.3, vol * 0.75, b);
+      else if (inst === 'shami') shami(t, m || 62, vol * 0.9, b);
+      else if (inst === 'kane') { if (k === 'b') bell(t, 1900, vol * 0.35, 0.07, b); else { bell(t, 1900, vol * 0.4, 0.4, b); bell(t, 2870, vol * 0.2, 0.3, b); } }
+      else if (inst === 'hyoshi') hyoshigi(t, vol, b);
+    },
+  };
+
   // ---------- BGM（場面ごとに自動で作曲し続ける） ----------
   const YO = [0, 2, 5, 7, 9], IN = [0, 1, 5, 7, 8]; // 陽音階・陰音階（都節）
   const R = Math.random, pick = (a) => a[Math.floor(R() * a.length)];

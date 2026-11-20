@@ -11,6 +11,7 @@
     race: { name: '馬の障害レース', max: 10, team: true, desc: '鬼の難しさの障害コース。ジャンプ＝A／Space（長押しで高く・すぐ離すと小さく）、ダッシュ＝↑／B（スタミナを使う）。高い柵は長押しで跳ぶ、枝の下は跳ばずにくぐる、大穴はダッシュで跳ばないと落ちて戻される、ぬかるみでは遅くなる' },
     archery: { name: '弓の的当て大会', max: 10, team: true, desc: '動く的を10本で射抜いて点を競う。風で矢が流れる。狙う＝マウス／矢印／スティック、射つ＝クリック／A／Space。金の的は2倍' },
     fish: { name: '釣り大会', max: 10, team: true, mode: true, desc: '朝・昼・夕の3日間（1日40秒）で釣りくらべ。釣り方はいつもの釣りと同じ（浮きを投げる→アタリ→タイミング）。勝ち方は「いちばん大きい魚」か「釣った数」を選べます' },
+    hayashi: { name: '囃子合わせ', max: 5, team: false, desc: '和楽器のリズム遊び。太鼓・鼓・篠笛・三味線・鉦から楽器を選び、みんなで一つの曲を合わせる。流れてくる譜を下の線で打つ（打＝A／Space／Z／F、縁＝B／X／J）。自分のパートは叩いた音で鳴る' },
     kemari: { name: '蹴鞠', max: 10, team: false, desc: '輪になって鞠を蹴り回す。鞠が自分に飛んできたら、足もとの輪に重なった瞬間に「蹴る」（クリック／タップ／A／Space）。続けるほど鞠は速くなる。毎月5日は大きな町で蹴鞠大会' },
     cart: { name: '荷運び競争', max: 10, team: true, desc: '荷車を引いてゴールまで運ぶ。←→で5本の道を選ぶ（みんなの平均で進む）、A／Spaceを押している間引く。岩にぶつかると荷が崩れる。「？」の箱で道具（加速・修理・守り、チーム戦では相手に岩落とし）が手に入り、B／X／クリックで使う。チーム戦は赤と白の荷車で競走' },
   };
@@ -42,6 +43,7 @@
   // =====================================================================
   let LB = null, RUN = null, invT = null; // LB＝部屋 { g, rid, lead, leader, mem:[{id,name}], team }
   const memIds = () => (LB ? LB.mem.map((x) => x.id).filter((id) => id !== ENV.me()) : []);
+  PT.current = () => (RUN ? RUN.g : null); // 2.68.0 いま遊んでいる遊び（囃子合わせの間は BGM を止める）
   PT.openLobby = (g) => {
     if (!ENV || RUN) return; addCss();
     LB = { g, rid: ENV.me() + '-' + Date.now(), lead: true, leader: ENV.me(), mem: [{ id: ENV.me(), name: ENV.name() }], team: false, mode: 'big' };
@@ -94,8 +96,8 @@
   let keysBound = false;
   function bindKeys() {
     if (keysBound) return; keysBound = true;
-    const map = { ArrowLeft: 'l', a: 'l', A: 'l', ArrowRight: 'r', d: 'r', D: 'r', ArrowUp: 'u', w: 'u', W: 'u', ArrowDown: 'd', s: 'd', S: 'd', ' ': 'a', z: 'a', Z: 'a', Enter: 'a', x: 'b', X: 'b', Shift: 'b' };
-    addEventListener('keydown', (e) => { if (!RUN) return; const k = map[e.key]; if (!k) return; e.preventDefault(); if (!IN[k] && !e.repeat) { if (k === 'a') IN.aT = 1; if (k === 'b') IN.bT = 1; if (k === 'l') IN.lT = 1; if (k === 'r') IN.rT = 1; } IN[k] = 1; });
+    const map = { ArrowLeft: 'l', a: 'l', A: 'l', ArrowRight: 'r', d: 'r', D: 'r', ArrowUp: 'u', w: 'u', W: 'u', ArrowDown: 'd', s: 'd', S: 'd', ' ': 'a', z: 'a', Z: 'a', Enter: 'a', x: 'b', X: 'b', Shift: 'b', f: 'a', F: 'a', j: 'b', J: 'b' };
+    addEventListener('keydown', (e) => { if (!RUN) return; const k = map[e.key]; if (!k) return; e.preventDefault(); if (!IN[k] && !e.repeat) { if (k === 'a') { IN.aT = 1; IN.aAt = performance.now(); } if (k === 'b') { IN.bT = 1; IN.bAt = performance.now(); } if (k === 'l') IN.lT = 1; if (k === 'r') IN.rT = 1; } IN[k] = 1; });
     addEventListener('keyup', (e) => { if (!RUN) return; const k = map[e.key]; if (k) { e.preventDefault(); IN[k] = 0; } });
   }
   let padA = false, padB = false, padL = false, padR = false;
@@ -112,16 +114,16 @@
     const cv = root.querySelector('canvas'), g2 = cv.getContext('2d'), me = ENV.me();
     const fit = () => { cv.width = innerWidth; cv.height = innerHeight; }; fit(); const onR = () => fit(); addEventListener('resize', onR);
     // 画面の操作ボタン（タッチのときだけ）
-    const touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches), hold = (el, k) => { const on = (e) => { e.preventDefault(); if (!IN[k]) { if (k === 'a') IN.aT = 1; if (k === 'b') IN.bT = 1; if (k === 'l') IN.lT = 1; if (k === 'r') IN.rT = 1; } IN[k] = 1; }, off = (e) => { e.preventDefault(); IN[k] = 0; }; el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointerleave', off); el.addEventListener('pointercancel', off); };
+    const touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches), hold = (el, k) => { const on = (e) => { e.preventDefault(); if (!IN[k]) { if (k === 'a') { IN.aT = 1; IN.aAt = performance.now(); } if (k === 'b') { IN.bT = 1; IN.bAt = performance.now(); } if (k === 'l') IN.lT = 1; if (k === 'r') IN.rT = 1; } IN[k] = 1; }, off = (e) => { e.preventDefault(); IN[k] = 0; }; el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointerleave', off); el.addEventListener('pointercancel', off); };
     const mkBtn = (host, txt, k) => { const b = document.createElement('button'); b.textContent = txt; host.appendChild(b); hold(b, k); };
     const pl = root.querySelector('.pl'), pr = root.querySelector('.pr');
-    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '使う', 'b'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { mkBtn(pl, 'ダッシュ', 'b'); mkBtn(pr, 'ジャンプ', 'a'); } else if (cfg.g === 'fish') mkBtn(pr, '釣る', 'a'); else if (cfg.g === 'kemari') mkBtn(pr, '蹴る', 'a'); else mkBtn(pr, '射つ', 'a'); }
+    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '使う', 'b'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { mkBtn(pl, 'ダッシュ', 'b'); mkBtn(pr, 'ジャンプ', 'a'); } else if (cfg.g === 'fish') mkBtn(pr, '釣る', 'a'); else if (cfg.g === 'kemari') mkBtn(pr, '蹴る', 'a'); else if (cfg.g === 'hayashi') { mkBtn(pl, '縁', 'b'); mkBtn(pr, '打', 'a'); } else mkBtn(pr, '射つ', 'a'); }
     const ptr = (e) => { const r = cv.getBoundingClientRect(); IN.mx = (e.clientX - r.left) * cv.width / r.width; IN.my = (e.clientY - r.top) * cv.height / r.height; };
-    cv.addEventListener('pointermove', ptr); cv.addEventListener('pointerdown', (e) => { ptr(e); if (cfg.g === 'archery' || cfg.g === 'cart') IN.click = 1; else if (cfg.g === 'fish' || cfg.g === 'kemari') IN.aT = 1; });
+    cv.addEventListener('pointermove', ptr); cv.addEventListener('pointerdown', (e) => { ptr(e); if (cfg.g === 'archery' || cfg.g === 'cart') IN.click = 1; else if (cfg.g === 'fish' || cfg.g === 'kemari') IN.aT = 1; else if (cfg.g === 'hayashi') { const r = cv.getBoundingClientRect(); if (e.clientX - r.left < r.width / 2) { IN.bT = 1; IN.bAt = performance.now(); } else { IN.aT = 1; IN.aAt = performance.now(); } } });
     const env = { cfg, me, ids: cfg.mem.map((x) => x.id), names: Object.fromEntries(cfg.mem.map((x) => [x.id, x.name])), tm: Object.fromEntries(cfg.mem.map((x) => [x.id, x.tm])), others: cfg.mem.map((x) => x.id).filter((id) => id !== me), cv, g2, finished: false, gone: {} };
-    const game = { race: raceGame, archery: archeryGame, cart: cartGame, fish: fishGame, kemari: kemariGame }[cfg.g](env);
+    const game = { race: raceGame, archery: archeryGame, cart: cartGame, fish: fishGame, kemari: kemariGame, hayashi: hayashiGame }[cfg.g](env);
     let raf = 0, last = performance.now(); const stop = () => { cancelAnimationFrame(raf); removeEventListener('resize', onR); root.remove(); RUN = null; for (const k of ['l', 'r', 'u', 'd', 'a', 'b']) IN[k] = 0; };
-    RUN = { on: (from, m) => { if (m.k === 'quit') { env.gone[from] = 1; } if (game.msg) game.msg(from, m); } };
+    RUN = { g: cfg.g, on: (from, m) => { if (m.k === 'quit') { env.gone[from] = 1; } if (game.msg) game.msg(from, m); } };
     env.end = (res) => { if (env.finished) return; env.finished = true; showResult(env, res, () => stop()); };
     root.querySelector('button[data-a="quit"]').onclick = () => { send(env.others, { k: 'quit' }); stop(); };
     const loop = (t) => {
@@ -589,6 +591,125 @@
         if (S.phase === 'fly' && S.to === me && judged !== S.seq) drawText(g, '蹴る！', cx, cy + R * 0.45, { sz: Math.round(30 + 10 * Math.max(0, frac - 0.6)), b: 1, al: 'center', c: frac > 0.8 ? '#ffd76a' : '#fff' });
         if (fb && now - fb.t < 1000) drawText(g, fb.txt, cx, cy - R * 0.3, { sz: 30, b: 1, al: 'center', c: fb.ok ? '#ffd76a' : '#ff8a7a' });
         if (S.phase === 'over') drawText(g, '鞠が落ちた！', cx, cy, { sz: 40, b: 1, al: 'center', c: '#ff8a7a' });
+      },
+    };
+  }
+
+  // =====================================================================
+  // 2.68.0 囃子合わせ：和楽器のリズム遊び。曲は js/hayashi.js（楽器ごとのパート＝譜面）
+  //  始める前に各自が楽器を選び、リーダーが曲と難しさを決める。自分のパートは叩いた時だけ鳴り、ほかの人・空いた楽器のパートは自動で鳴る
+  //  譜面は上から流れて、下の拍子木の線に重なった時に打つ（A＝打：Space／Z／F、B＝縁：X／J）。判定は各自の端末
+  // =====================================================================
+  function hayashiGame(env) {
+    const { cfg, me, g2: g, cv } = env, lead = cfg.lead === me, HY = SGK.HAYASHI, M = () => SGK.AUDIO && SGK.AUDIO.music;
+    const GOOD = 0.05, OK = 0.11, WIN = 0.15;
+    const st = { phase: 'pick', song: 0, diff: 1, picks: {} }; // picks[pid]＝楽器の id
+    let chart = null, t0 = 0, a0 = 0, schedI = {}, mine = null, myInst = null, fx = [], combo = 0, maxCombo = 0, score = 0, cnt = { good: 0, ok: 0, miss: 0 }, sendT = 0, rx = performance.now(), endT = 0, startAt = 0;
+    const others = {}; for (const id of env.ids) others[id] = { s: 0, good: 0, ok: 0, miss: 0, combo: 0 };
+    const root = document.getElementById('ptGame'), box = document.createElement('div');
+    box.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#2a2118ee;color:#f3ead2;border:2px solid #a07c42;border-radius:10px;padding:12px 16px;max-width:92vw;max-height:86vh;overflow:auto;font-size:14px;z-index:2';
+    root.appendChild(box);
+    const instOf = (id) => HY.INST.find((x) => x.id === st.picks[id]);
+    function drawPick() {
+      if (st.phase !== 'pick') { box.style.display = 'none'; return; } box.style.display = '';
+      const used = Object.values(st.picks);
+      box.innerHTML = `<div style="font-size:18px;color:#f2c14e;font-weight:bold;margin-bottom:6px">囃子合わせ</div>
+<div>楽器を選ぶ（同じ楽器を何人で選んでもよい）</div><div>${HY.INST.map((x) => `<button data-hi="${x.id}" style="border-color:${x.c};${st.picks[me] === x.id ? 'background:#a0702e' : ''}">${x.n}${used.filter((u) => u === x.id).length ? `（${used.filter((u) => u === x.id).length}）` : ''}</button>`).join('')}</div>
+<div style="margin-top:6px">${env.ids.map((id) => `${esc(nameOf(env, id))}：${instOf(id) ? instOf(id).n : '…'}`).join('　')}</div>
+<div style="margin-top:8px">曲：${lead ? HY.SONGS.map((s, i) => `<button data-hs="${i}" ${st.song === i ? 'style="background:#a0702e"' : ''}>${s.name}</button>`).join('') : `<b>${HY.SONGS[st.song].name}</b>`}</div>
+<div>難しさ：${lead ? HY.DIFF.map((d, i) => `<button data-hd="${i}" ${st.diff === i ? 'style="background:#a0702e"' : ''}>${d}</button>`).join('') : `<b>${HY.DIFF[st.diff]}</b>`}</div>
+<div style="margin-top:8px">${lead ? `<button data-hgo="1" ${env.ids.every((id) => st.picks[id] || env.gone[id]) ? '' : 'disabled'}>始める</button>` : 'リーダーが始めるのを待っています'}</div>
+<div style="font-size:12px;color:#cdbf9a;margin-top:6px">打（朱の丸）＝A／Space／Z／F・右側をタップ　縁（墨の輪）＝B／X／J・左側をタップ。下の線に重なった時に打つ</div>`;
+    }
+    box.onclick = (e) => {
+      const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
+      if (d.hi) { st.picks[me] = d.hi; if (lead) cast(); else send([cfg.lead], { k: 'hpick', inst: d.hi }); }
+      if (lead && d.hs) { st.song = +d.hs; cast(); } if (lead && d.hd) { st.diff = +d.hd; cast(); }
+      if (lead && d.hgo) { st.phase = 'play'; startAt = Date.now() + 2500; cast(); begin(2500); }
+      drawPick();
+    };
+    function cast() { send(env.others, { k: 'hst', song: st.song, diff: st.diff, picks: st.picks, phase: st.phase }); }
+    function begin(ms) {
+      chart = HY.build(HY.SONGS[st.song], st.diff); myInst = st.picks[me] || null;
+      mine = myInst ? chart.notes[myInst].map((n) => Object.assign({ j: null }, n)) : [];
+      const mu = M(); if (mu) mu.ok();
+      t0 = performance.now() + ms; a0 = (mu ? mu.now() : 0) + ms / 1000; schedI = {}; drawPick();
+    }
+    const songT = () => (performance.now() - t0) / 1000;
+    const players = () => env.ids.filter((id) => st.picks[id]);
+    function judge(k, at) { // at＝押した時刻（performance.now）
+      if (!mine || !mine.length) return; const t = (at - t0) / 1000; let best = null, bd = 9;
+      for (const n of mine) { if (n.j) continue; const d = t - n.t; if (d < -WIN) break; if (Math.abs(d) < bd) { bd = Math.abs(d); best = n; } }
+      if (!best || bd > WIN) return; // 遠すぎる空打ちは数えない
+      const mu = M();
+      if (best.k !== k || bd > OK) { best.j = 'miss'; cnt.miss++; combo = 0; fx.push({ t: 'ずれ', c: '#ff8a7a', at: performance.now() }); return; }
+      best.j = bd <= GOOD ? 'good' : 'ok'; cnt[best.j]++; combo++; maxCombo = Math.max(maxCombo, combo);
+      score += (best.j === 'good' ? 100 : 50) * (1 + Math.min(combo, 100) / 100);
+      fx.push({ t: best.j === 'good' ? '良' : '可', c: best.j === 'good' ? '#ffd76a' : '#e0e0e0', at: performance.now(), hit: 1 });
+      if (mu) mu.play(myInst, mu.now(), best.k, best.m, best.d, 0.55);
+    }
+    function finish() {
+      if (endT) return; endT = performance.now();
+      const me0 = { s: Math.round(score), good: cnt.good, ok: cnt.ok, miss: cnt.miss }; others[me] = Object.assign(others[me], me0);
+      const ps = players(), tot = ps.reduce((a, id) => { const o = others[id]; return [a[0] + o.good + o.ok * 0.5, a[1] + o.good + o.ok + o.miss]; }, [0, 0]), acc = tot[1] ? tot[0] / tot[1] : 0;
+      const rank = acc >= 0.95 ? '雅' : acc >= 0.85 ? '秀' : acc >= 0.7 ? '良' : '可';
+      env.end({ title: `${HY.SONGS[st.song].name}（${HY.DIFF[st.diff]}）　出来ばえ「${rank}」`, rows: [`みんなの合わせぐあい ${Math.round(acc * 100)}%`].concat(ps.map((id) => { const o = others[id]; return `${esc(nameOf(env, id))}（${instOf(id).n}）：${o.s}点　良${o.good}・可${o.ok}・不可${o.miss}`; })), cmd: myInst ? { type: 'partyResult', game: 'hayashi', n: ps.length, acc: r2(acc), diff: st.diff } : null });
+    }
+    return {
+      msg(from, m) {
+        if (m.k === 'hsc') { others[from] = Object.assign(others[from] || {}, m.v); return; }
+        if (lead) { if (m.k === 'hpick' && st.phase === 'pick' && HY.INST.some((x) => x.id === m.inst)) { st.picks[from] = m.inst; cast(); drawPick(); } return; }
+        if (from !== cfg.lead) return; rx = performance.now();
+        if (m.k === 'hst') { const was = st.phase; st.song = m.song; st.diff = m.diff; st.picks = m.picks; st.phase = m.phase; if (was === 'pick' && st.phase === 'play') begin(2400); drawPick(); }
+      },
+      update() {
+        if (st.phase === 'pick') { if (!box.innerHTML) drawPick(); if (lead) { sendT -= 0.016; if (sendT <= 0) { sendT = 1; cast(); } } else if (performance.now() - rx > 10000) env.end({ title: 'リーダーとの通信が切れました', rows: [], cmd: null }); return; }
+        if (!chart) return; const t = songT(), mu = M();
+        // 自動で鳴らすパート（自分以外の人の楽器・空いた楽器）と数えの拍子木を、少し先まで予約する
+        if (mu) {
+          const ahead = t + 0.25;
+          if (schedI.cnt == null) schedI.cnt = 0; while (schedI.cnt < 4 && schedI.cnt * chart.beat < ahead) { mu.play('hyoshi', a0 + schedI.cnt * chart.beat, 'a', 0, 0, 0.6); schedI.cnt++; }
+          for (const inst in chart.notes) {
+            if (inst === myInst) continue; const L = chart.notes[inst]; let i = schedI[inst] || 0;
+            while (i < L.length && L[i].t < ahead) { if (L[i].t >= t - 0.05) mu.play(inst, a0 + L[i].t, L[i].k, L[i].m, L[i].d, 0.45); i++; } schedI[inst] = i;
+          }
+        }
+        if (IN.aT) judge('a', IN.aAt || performance.now()); if (IN.bT) judge('b', IN.bAt || performance.now());
+        for (const n of mine) { if (n.j) continue; if (t - n.t > OK) { n.j = 'miss'; cnt.miss++; combo = 0; fx.push({ t: '不可', c: '#ff8a7a', at: performance.now() }); } else break; }
+        sendT -= 0.016; if (sendT <= 0) { sendT = 0.5; send(env.others, { k: 'hsc', v: { s: Math.round(score), good: cnt.good, ok: cnt.ok, miss: cnt.miss, combo } }); }
+        if (t > chart.len && !endT) { send(env.others, { k: 'hsc', v: { s: Math.round(score), good: cnt.good, ok: cnt.ok, miss: cnt.miss, combo } }); setTimeout(finish, 1200); endT = -1; }
+      },
+      draw() {
+        const W0 = cv.width, H0 = cv.height, now = performance.now();
+        const bg = g.createLinearGradient(0, 0, 0, H0); bg.addColorStop(0, '#141a33'); bg.addColorStop(1, '#2a1a10'); g.fillStyle = bg; g.fillRect(0, 0, W0, H0);
+        for (let i = 0; i < 8; i++) { const x = ((i + 0.5) * W0) / 8, y = 26 + (i % 2) * 8; g.strokeStyle = '#0006'; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, y - 10); g.stroke(); g.fillStyle = i % 2 ? '#e0462c' : '#f0a030'; g.beginPath(); g.ellipse(x, y, 9, 12, 0, 0, 7); g.fill(); g.fillStyle = '#ffd76a55'; g.beginPath(); g.arc(x, y, 18, 0, 7); g.fill(); } // 提灯
+        if (st.phase === 'pick' || !chart) return;
+        const t = songT(), ps = players().length ? players() : [me], lw = Math.min(150, (W0 * 0.9) / Math.max(ps.length, 1)), totalW = lw * ps.length, x0 = (W0 - totalW) / 2, hitY = H0 * 0.8, pxs = H0 * (0.55 + st.diff * 0.15); // 1秒あたりの点
+        ps.forEach((id, li) => {
+          const ins = instOf(id) || HY.INST[0], lx = x0 + li * lw, isMe = id === me, cx = lx + lw / 2;
+          g.fillStyle = isMe ? '#ffffff14' : '#00000033'; g.fillRect(lx + 3, 50, lw - 6, H0 - 50); g.strokeStyle = ins.c + '88'; g.lineWidth = 2; g.strokeRect(lx + 3, 50, lw - 6, H0 - 50);
+          drawText(g, ins.n, cx, 70, { sz: 16, b: 1, al: 'center', c: ins.c }); drawText(g, nameOf(env, id) + (isMe ? '（自分）' : ''), cx, 88, { sz: 11, al: 'center' });
+          g.fillStyle = '#8a5a2a'; g.fillRect(lx + 6, hitY - 4, lw - 12, 8); g.strokeStyle = '#f2c14e'; g.lineWidth = 2; g.beginPath(); g.arc(cx, hitY, 20, 0, 7); g.stroke(); // 拍子木の線と打つ所
+          const L = isMe ? mine : chart.notes[ins.id];
+          for (const n of L) {
+            const y = hitY - (n.t - t) * pxs; if (y < 40) break; if (y > H0 + 30) continue; if (isMe && n.j && n.j !== 'miss') continue; if (!isMe && n.t < t - 0.05) continue;
+            const tail = n.d > 0.3 ? n.d * pxs : 0; if (tail) { g.fillStyle = ins.c + '55'; g.fillRect(cx - 6, y - tail, 12, tail); }
+            const r = n.orn ? 9 : 15, miss = isMe && n.j === 'miss';
+            if (n.k === 'a') { g.fillStyle = miss ? '#666' : '#d8401e'; g.beginPath(); g.arc(cx, y, r, 0, 7); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke(); }
+            else { g.fillStyle = '#f3ead2'; g.beginPath(); g.arc(cx, y, r, 0, 7); g.fill(); g.strokeStyle = miss ? '#666' : '#1a1a1a'; g.lineWidth = 4; g.stroke(); }
+          }
+          if (!isMe) { const o = others[id] || {}; drawText(g, `${o.s || 0}点 ${o.combo ? o.combo + '連' : ''}`, cx, H0 - 12, { sz: 12, al: 'center' }); }
+        });
+        // 自分の判定と連打
+        const meI = ps.indexOf(me); if (meI >= 0) {
+          const cx = x0 + meI * lw + lw / 2;
+          fx = fx.filter((f) => now - f.at < 600); for (const f of fx) { const k = (now - f.at) / 600; drawText(g, f.t, cx, hitY - 40 - k * 30, { sz: 26, b: 1, al: 'center', c: f.c }); if (f.hit) { g.strokeStyle = `rgba(255,215,106,${1 - k})`; g.lineWidth = 3; g.beginPath(); g.arc(cx, hitY, 20 + k * 30, 0, 7); g.stroke(); } }
+          if (combo >= 5) drawText(g, `${combo} 連`, cx, hitY + 46, { sz: 22, b: 1, al: 'center', c: '#ffd76a' });
+          drawText(g, `${Math.round(score)}点`, cx, H0 - 12, { sz: 16, b: 1, al: 'center' });
+        }
+        drawText(g, `${HY.SONGS[st.song].name}（${HY.DIFF[st.diff]}）`, 14, 66, { sz: 14 }); bar(g, 14, 74, 140, 6, t / chart.len, '#f2c14e');
+        if (t < 0) drawText(g, String(Math.ceil(-t)), W0 / 2, H0 / 2, { sz: 80, b: 1, al: 'center' });
+        if (!myInst) drawText(g, '見物中（楽器を選ばなかった）', W0 / 2, H0 * 0.45, { sz: 18, al: 'center' });
       },
     };
   }
