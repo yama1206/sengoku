@@ -59,7 +59,7 @@
   let raf = 0;
   function onKeyUp(e) { delete keys[e.key]; e.stopPropagation(); }
   function onKey(e) { if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D'].includes(e.key) && run) { keys[e.key] = 1; e.preventDefault(); e.stopPropagation(); return; } if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); if (run && run.tap) run.tap(); } if (e.key === 'Escape') { e.stopPropagation(); cancel(); } }
-  function cancel() { if (run) { SGK.cmd({ type: 'gatherEnd', n: run.g.n, q: -1 }); doneN = shownN = run.g.n; } close(); }
+  function cancel() { if (run && run.party) { const cb = run.party; close(); return cb(-1); } if (run) { SGK.cmd({ type: 'gatherEnd', n: run.g.n, q: -1 }); doneN = shownN = run.g.n; } close(); }
   // 2.27.0 釣りは「釣り場」の場面から：水面を泳ぐ魚影の近くへ浮きを投げる（どうぶつの森ふう）。近づけば食いつき、アタリ→棒のタイミング遊び。
   // 大物・珍しい魚は、棒のタイミングを何回か続けて成功させる必要がある（珍しさ：ありふれた1・見かける1・珍しい2・稀少3・幻4回、大物でさらに+1）
   const RN = { ありふれた: 1, 見かける: 1, 珍しい: 2, 稀少: 3, '幻のような': 4 }, RI = { ありふれた: 0, 見かける: 1, 珍しい: 2, 稀少: 3, '幻のような': 4 };
@@ -345,7 +345,15 @@
     };
     run.tap = tap; $('gtap').onclick = tap;
   }
-  function finishFish(q) { const g = run.g; open('<div class="big">…</div>'); doneN = g.n; SGK.cmd({ type: 'gatherEnd', n: g.n, q }); run.phase = 'wait'; }
+  function finishFish(q) { if (run.party) { const cb = run.party; close(); return cb(q); } const g = run.g; open('<div class="big">…</div>'); doneN = g.n; SGK.cmd({ type: 'gatherEnd', n: g.n, q }); run.phase = 'wait'; }
+  // 2.44.0 みんなで遊ぶ「釣り大会」から、いつもの釣り（釣り場の浮き投げ→アタリ→棒のタイミング）をそのまま使う。結果は命令にせず cb(q) で返す（q<0＝やめた）
+  SGK.GATHERUI.party = (g, cb) => {
+    if (ov || run) return cb(-1);
+    run = { g, phase: 'wait', tap: null, rd: 0, qs: [], rounds: Math.min(5, (RN[g.r] || 1) + (g.fr >= 0.85 ? 1 : 0)), party: cb }; keys = {};
+    window.addEventListener('keydown', onKey, true); window.addEventListener('keyup', onKeyUp, true); castScene(); if (ov) ov.style.zIndex = 9500;
+    const z = setInterval(() => { if (!run || !run.party) return clearInterval(z); if (ov && ov.style.zIndex !== '9500') ov.style.zIndex = 9500; }, 100);
+  };
+  SGK.GATHERUI.stop = () => { if (run && run.party) { const cb = run.party; close(); cb(-1); } };
   function showResult(L) {
     shownN = L.n; const ok = L.ok, c = L.id && D.creatures.find((x) => x.id === L.id);
     window.removeEventListener('keydown', onKey, true); cancelAnimationFrame(raf); run = null;

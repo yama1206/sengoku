@@ -10,7 +10,7 @@
   const GAMES = {
     race: { name: '馬の障害レース', max: 5, team: true, desc: '柵や堀を跳び越えて走り、ゴールの順位を競う。ジャンプ＝A／Space、ダッシュ＝↑／B（スタミナを使う）' },
     archery: { name: '弓の的当て大会', max: 5, team: true, desc: '動く的を10本で射抜いて点を競う。風で矢が流れる。狙う＝マウス／矢印／スティック、射つ＝クリック／A／Space。金の的は2倍' },
-    fish: { name: '釣り大会', max: 5, team: true, mode: true, desc: '朝・昼・夕の3日間で釣りくらべ。投げる→アタリが来たら素早く合わせる（A／Space／タップ）。勝ち方は「いちばん大きい魚」か「釣った数」を選べます' },
+    fish: { name: '釣り大会', max: 5, team: true, mode: true, desc: '朝・昼・夕の3日間（1日40秒）で釣りくらべ。釣り方はいつもの釣りと同じ（浮きを投げる→アタリ→タイミング）。勝ち方は「いちばん大きい魚」か「釣った数」を選べます' },
     cart: { name: '荷運び競争（協力）', max: 5, team: false, desc: '全員で荷車を引いてゴールまで運ぶ。←→で進む道を選ぶ（みんなの平均で進む）、A／Spaceを押している間引く。岩にぶつかると荷が崩れる' },
   };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -268,14 +268,24 @@
   // =====================================================================
   // 釣り大会：朝・昼・夕の3日間（1日40秒）。勝ち方は mode='big'（いちばん大きい魚）か 'num'（釣った数）
   // =====================================================================
-  const FISH = [ // 名前, 最小cm, 最大cm, 出やすさ
-    ['メダカ', 3, 6, 5], ['フナ', 12, 30, 9], ['ハゼ', 8, 20, 9], ['アユ', 12, 28, 7], ['ニジマス', 25, 55, 6], ['コイ', 35, 80, 5], ['ナマズ', 40, 90, 3], ['イワナ', 20, 45, 4], ['ウナギ', 40, 100, 2], ['イトウ', 70, 140, 1], ['主（ぬし）', 120, 200, 0.4]];
+  // いつもの釣り（gather.js の釣り場の場面）をそのまま使い、結果だけここで数える。魚は生き物図鑑（SGK.DATA.creatures）の魚から出る
   function fishGame(env) {
-    const { cfg, me, g2: g, cv } = env, DAY = 40, DN = ['朝', '昼', '夕'], big = cfg.mode !== 'num', tot = FISH.reduce((a, f) => a + f[3], 0);
+    const { cfg, me, g2: g, cv } = env, DAY = 40, DN = ['朝', '昼', '夕'], big = cfg.mode !== 'num';
+    const RW = { ありふれた: 10, 見かける: 6, 珍しい: 3, 稀少: 1.2, '幻のような': 0.4 }, LIST = ((SGK.DATA && SGK.DATA.creatures) || []).filter((c) => c.k === 'f'), TW = LIST.reduce((a, c) => a + (RW[c.r] || 1), 0);
     const S = {}; for (const id of env.ids) S[id] = { n: 0, best: 0, bn: '', done: false }; const m0 = S[me];
-    let t = -2, st = 'idle', wait = 0, win = 0, msg = '', msgT = 0, last = null, tm = 0, bob = 0, doneAt = null, dayShown = -1;
-    const pick = () => { let r = Math.random() * tot; for (const f of FISH) { r -= f[3]; if (r <= 0) return f; } return FISH[1]; };
+    let t = -2, busy = false, msg = '', msgT = 0, doneAt = null, dayShown = -1, over = false;
+    const pick = () => { let r = Math.random() * TW; for (const c of LIST) { r -= RW[c.r] || 1; if (r <= 0) return c; } return LIST[0]; };
+    function cast() {
+      if (busy || !LIST.length || !SGK.GATHERUI || !SGK.GATHERUI.party) return; const sp = pick(), frac = (Math.random() + Math.random()) / 2; busy = true;
+      SGK.GATHERUI.party({ n: -1, k: 'f', id: sp.id, d: sp.d, r: sp.r, fr: frac }, (q) => {
+        busy = false; if (q < 0) { msg = 'やめた'; msgT = 1.5; return; }
+        const thr = ((SGK.DATA.gatherDiff || {})[sp.d] || { thr: 0.6 }).thr; if (q < thr) { msg = '逃げられた…'; msgT = 2; return; }
+        const sz = Math.round((sp.sz[0] + (sp.sz[1] - sp.sz[0]) * frac) * 10) / 10; m0.n++; const rec = sz > m0.best; if (rec) { m0.best = sz; m0.bn = sp.n; }
+        msg = `${sp.n}（${sz}cm）を釣った！${rec && m0.n > 1 ? ' 自己ベスト！' : ''}`; msgT = 3; send(env.others, { k: 'f', n: m0.n, b: m0.best, bn: m0.bn });
+      });
+    }
     function finishAll() {
+      if (over) return; over = true; if (SGK.GATHERUI && SGK.GATHERUI.stop) SGK.GATHERUI.stop();
       const key = (x) => (big ? x.best : x.n), rk = env.ids.slice().sort((a, b) => key(S[b]) - key(S[a]) || S[b].n - S[a].n), n = rk.length, myRank = rk.indexOf(me) + 1; let team = null, rows = [];
       const lab = (x) => (big ? (x.best ? `${x.bn} ${x.best}cm` : '釣れず') : `${x.n}匹`) + (big ? `（${x.n}匹）` : x.best ? `（最大 ${x.best}cm）` : '');
       if (cfg.team) { const pts = [0, 0]; for (const id of env.ids) { const o = S[id], tt = env.tm[id]; pts[tt] = big ? Math.max(pts[tt], o.best) : pts[tt] + o.n; } const u = big ? 'cm' : '匹';
@@ -286,32 +296,23 @@
     return {
       msg(from, m) { const o = S[from]; if (!o) return; if (m.k === 'f') { o.n = m.n; o.best = m.b; o.bn = m.bn; } else if (m.k === 'done') { o.n = m.n; o.best = m.b; o.bn = m.bn; o.done = true; } },
       update(dt) {
-        t += dt; if (t < 0) return; msgT -= dt; bob += dt;
-        const day = Math.min(2, Math.floor(t / DAY)); if (day !== dayShown) { dayShown = day; msg = `${day + 1}日目（${DN[day]}）`; msgT = 2; }
-        if (t >= DAY * 3) { if (!m0.done) { m0.done = true; doneAt = t; send(env.others, { k: 'done', n: m0.n, b: m0.best, bn: m0.bn }); } }
-        else if (st === 'idle') { if (IN.aT) { st = 'wait'; wait = 1.2 + Math.random() * 3.2; msg = '投げた…'; msgT = 3; } }
-        else if (st === 'wait') { if (IN.aT) { st = 'idle'; msg = '早すぎた！'; msgT = 1.5; } else { wait -= dt; if (wait <= 0) { st = 'bite'; win = 0.85; msg = 'アタリ！！'; msgT = 1; } } }
-        else if (st === 'bite') { win -= dt; if (IN.aT) { const f = pick(), q = 0.75 + 0.25 * (win / 0.85), sz = Math.round((f[1] + (f[2] - f[1]) * Math.pow(Math.random(), 1.7)) * q); m0.n++; last = { nm: f[0], sz }; if (sz > m0.best) { m0.best = sz; m0.bn = f[0]; } msg = `${f[0]} ${sz}cm！${sz >= m0.best && m0.n > 1 ? '（自己ベスト）' : ''}`; msgT = 2.5; st = 'idle'; send(env.others, { k: 'f', n: m0.n, b: m0.best, bn: m0.bn }); }
-          else if (win <= 0) { st = 'idle'; msg = '逃げられた…'; msgT = 1.5; } }
+        t += dt; if (t < 0) return; msgT -= dt;
+        const day = Math.min(2, Math.floor(t / DAY)); if (day !== dayShown) { dayShown = day; if (!busy) { msg = `${day + 1}日目（${DN[day]}）`; msgT = 2; } }
+        if (t >= DAY * 3) { if (!m0.done && !busy) { m0.done = true; doneAt = t; send(env.others, { k: 'done', n: m0.n, b: m0.best, bn: m0.bn }); } if (busy && t > DAY * 3 + 25 && SGK.GATHERUI.stop) SGK.GATHERUI.stop(); }
+        else if (!busy && IN.aT) cast();
         const alive = env.ids.filter((id) => !env.gone[id]);
-        if (alive.every((id) => S[id].done) || (doneAt != null && t > doneAt + 15) || t > DAY * 3 + 30) finishAll();
-        void tm;
+        if (alive.every((id) => S[id].done) || (doneAt != null && t > doneAt + 15) || t > DAY * 3 + 45) finishAll();
       },
       draw() {
         const W0 = cv.width, H0 = cv.height, day = clamp(Math.floor(Math.max(0, t) / DAY), 0, 2), sky = ['#bfe3f5', '#8fcdf2', '#f4b27a'][day];
         g.fillStyle = sky; g.fillRect(0, 0, W0, H0 * 0.45); g.fillStyle = '#6fae56'; g.fillRect(0, H0 * 0.38, W0, H0 * 0.1); g.fillStyle = '#3d7fb0'; g.fillRect(0, H0 * 0.48, W0, H0);
-        g.strokeStyle = '#ffffff44'; g.lineWidth = 2; for (let i = 0; i < 8; i++) { const y = H0 * (0.55 + i * 0.06) + Math.sin(bob * 2 + i) * 3; g.beginPath(); g.moveTo(0, y); g.lineTo(W0, y); g.stroke(); }
         g.fillStyle = day === 2 ? '#ff9a3c' : '#fff6a0'; g.beginPath(); g.arc(W0 * (0.2 + day * 0.3), H0 * 0.14, 30, 0, 7); g.fill();
-        const fx = W0 * 0.5, fy = H0 * 0.66 + (st === 'bite' ? Math.sin(bob * 40) * 6 + 8 : Math.sin(bob * 3) * 2);
-        drawMan(g, W0 * 0.2, H0 * 0.5, 1.8, tcol(env, me), 0, st !== 'idle'); g.strokeStyle = '#3a2410'; g.lineWidth = 2; g.beginPath(); g.moveTo(W0 * 0.2 - 20, H0 * 0.5 - 50); g.lineTo(fx, H0 * 0.55); g.stroke();
-        if (st !== 'idle') { g.fillStyle = '#e03030'; g.beginPath(); g.arc(fx, fy, 8, 0, 7); g.fill(); g.fillStyle = '#fff'; g.fillRect(fx - 8, fy, 16, 4); if (st === 'bite') drawText(g, '！', fx, fy - 20, { sz: 40, b: 1, al: 'center', c: '#ff4' }); }
         const rem = Math.max(0, DAY - (Math.max(0, t) - day * DAY)); drawText(g, `${day + 1}日目（${DN[day]}）　残り ${Math.ceil(rem)}秒`, 16, 30, { sz: 20, b: 1 }); bar(g, 16, 40, 160, 8, rem / DAY, '#f2c14e');
         drawText(g, `${m0.n}匹　最大 ${m0.best ? m0.bn + ' ' + m0.best + 'cm' : '―'}`, 16, 74, { sz: 17 }); drawText(g, big ? '勝ち方：大物' : '勝ち方：数', 16, 98, { sz: 14, c: '#f2c14e' });
         env.ids.forEach((id, i) => drawText(g, `${nameOf(env, id)}　${big ? (S[id].best ? S[id].best + 'cm' : '―') : S[id].n + '匹'}${S[id].done ? '（終了）' : ''}`, W0 - 16, 30 + i * 20, { sz: 15, al: 'right', c: tcol(env, id) }));
-        if (msgT > 0) drawText(g, msg, W0 / 2, H0 * 0.3, { sz: 34, b: 1, al: 'center' });
-        else if (st === 'idle' && t >= 0 && t < DAY * 3) drawText(g, 'A／Space／タップで投げる', W0 / 2, H0 * 0.92, { sz: 18, al: 'center' });
+        if (msgT > 0) drawText(g, msg, W0 / 2, H0 * 0.34, { sz: 30, b: 1, al: 'center' });
+        else if (!busy && t >= 0 && t < DAY * 3) drawText(g, 'A／Space／タップで釣りを始める', W0 / 2, H0 * 0.6, { sz: 20, al: 'center' });
         if (t < 0) drawText(g, String(Math.ceil(-t)), W0 / 2, H0 / 2, { sz: 90, b: 1, al: 'center' });
-        void last;
       },
     };
   }
