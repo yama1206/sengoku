@@ -7,6 +7,8 @@
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const cmd = (c) => SGK.cmd(c);
+  let ruleOpen = false; document.addEventListener('toggle', (e) => { if (e.target && e.target.classList && e.target.classList.contains('asRule')) ruleOpen = e.target.open; }, true);
+  const ruleHtml = (txt, extra) => `<details class="rule asRule" ${ruleOpen ? 'open' : ''}><summary>遊び方</summary>${esc(txt)}</details>${extra || ''}`; // 2.67.1 スマホで場所をとらないよう、遊び方はたたむ
   UI.has = (tab) => tab === 'koma' || tab === 'kai' || tab === 'sugoroku';
 
   const CSS = `<style id="asbCss">
@@ -35,7 +37,10 @@
 #gbHall .sgB{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;width:min(620px,96vw)}
 #gbHall .sq{position:relative;background:#f3ead2;color:#3a2a1a;border:2px solid #8a6a3a;border-radius:6px;min-height:50px;padding:2px 3px;font-size:11px;line-height:1.2;box-sizing:border-box}
 #gbHall .sq b{display:block;font-size:12px}#gbHall .sq small{color:#8a2a1a;font-size:10px}
-#gbHall .sq.ev{background:#f6dcc0}#gbHall .sq.goal{background:#f2c14e}#gbHall .sq.start{background:#d8e6c8}
+#gbHall .sq.ev{background:#f6dcc0}#gbHall .sq.sgoal{background:#f2c14e}#gbHall .sq.start{background:#d8e6c8}
+#gbHall .sq .sh{display:none;color:#8a2a1a;font-weight:bold;font-size:11px}
+#gbHall details.rule summary{cursor:pointer;color:#f2c14e}
+@media (max-width:600px){#gbHall .sq{min-height:34px;font-size:10px;padding:1px 2px}#gbHall .sq b{font-size:10px}#gbHall .sq small{display:none}#gbHall .sq .sh{display:block}#gbHall .tok{width:13px;height:13px}#gbHall .tok.t1{right:17px}#gbHall .asb{padding-left:4px;padding-right:4px}}
 #gbHall .tok{position:absolute;width:18px;height:18px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 4px #000a;bottom:2px;transition:all .22s}
 #gbHall .tok.t0{background:#c8281e;right:3px}#gbHall .tok.t1{background:#1e1e1e;right:23px}
 #kmCraft{position:fixed;inset:0;z-index:8900;background:#1a120a;color:#f3ead2;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;display:flex;flex-direction:column;overflow:auto}
@@ -203,7 +208,7 @@
       if (M.role < 0) h += `<div class="row">${M.my ? `<span>${esc(M.my.side ? M.bName : M.aName)}に${money(M.my.amt)}賭けている</span>` : ''}<button data-ms="0" ${me.money < sel ? 'disabled' : ''}>${esc(M.aName)}に${money(sel)}</button><button data-ms="1" ${me.money < sel ? 'disabled' : ''}>${esc(M.bName)}に${money(sel)}</button></div>`;
       else h += '<div class="row rule">見物人の賭けを待っています</div>';
     }
-    h += `<div class="rule">${esc(A.GAMES.koma.rule)}</div><div class="row">`;
+    h += ruleHtml(A.GAMES.koma.rule) + '<div class="row">';
     h += `<button data-as="craft" ${ks.length >= K.MAX_OWN ? 'disabled' : ''}>独楽を作る</button>`;
     if (use) h += `<button data-as="spin" ${me.money < sel || S.busy ? 'disabled' : ''}>${money(sel)} 賭けて回す</button>`;
     h += `</div><div class="row kmList">${ks.map((k) => `<div class="kmCard ${use && k.id === use.id ? 'on' : ''}" data-use="${k.id}"><b>${esc(k.name)}</b>${sideSvg(k, 40)}<small>${K.WOODS[k.wood].name}${k.ring ? '・鉄輪' : ''}　${k.win || 0}勝${k.lose || 0}敗</small><br><button data-brk="${k.id}" style="font-size:11px;padding:1px 6px">割る</button></div>`).join('')}</div>`;
@@ -262,7 +267,7 @@
       else kaiSync(st, g);
     }
     st.querySelector('#kaiTtl').textContent = g ? `あなた ${g.sc[g.me]} ― ${g.nm[1 - g.me]} ${g.sc[1 - g.me]}${S.busy || g.done ? '' : g.turn === g.me ? '　（あなたの番）' : `　（${g.nm[1 - g.me]}の番）`}` : '貝絵合わせ';
-    let h = `<div class="rule">${esc(A.GAMES.kai.rule)}</div><div class="row">`;
+    let h = ruleHtml(A.GAMES.kai.rule) + '<div class="row">';
     if (!g || g.done) h += `<button data-as="kaiStart" ${me.money < sel ? 'disabled' : ''}>${money(sel)} 賭けて始める</button>${g ? '<button data-as="kaiQuit">片づける</button>' : ''}`;
     else h += `<span>${money(g.bet)} 賭けている${g.pvp ? `（対 ${esc(g.nm[1 - g.me])}）` : ''}</span><button data-as="kaiQuit">降りる（負け）</button>${g.stale ? '<button data-as="kaiClaim">相手が戻らないので勝ちにする</button>' : ''}`;
     h += `<span class="rule">${T.players.length ? '勝負中：' + T.players.map(esc).join('、') : ''}</span></div>`;
@@ -285,9 +290,10 @@
   }
 
   // ================= 絵双六 =================
+  const sgShort = (q, i, N) => (i === 0 ? '振り出し' : i === N - 1 ? '上がり' : q[2] === 'mv' ? (q[3] > 0 ? `${q[3]}進む` : `${-q[3]}戻る`) : q[2] === 'rest' ? '一回休み' : q[2] === 'again' ? 'もう一度' : ''); // スマホでは短い言葉
   function sgMount(st) {
     const N = A.SG.length, order = []; for (let r = 0; r < Math.ceil(N / 6); r++) { const row = []; for (let c = 0; c < 6; c++) { const i = r * 6 + c; if (i < N) row.push(i); } order.push(...(r % 2 ? row.reverse() : row)); }
-    st.innerHTML = `<div class="asb"><div class="ttl" id="sgTtl">上洛双六</div><div id="sgDice" style="display:flex;gap:10px;justify-content:center;margin:2px 0"></div><div class="sgB">${order.map((i) => { const q = A.SG[i]; return `<div class="sq ${i === 0 ? 'start' : i === N - 1 ? 'goal' : q[2] ? 'ev' : ''}" data-sq="${i}"><b>${i ? i + ' ' : ''}${q[0]}</b>${q[1] ? `<small>${q[1]}</small>` : ''}</div>`; }).join('')}</div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`;
+    st.innerHTML = `<div class="asb"><div class="ttl" id="sgTtl">上洛双六</div><div id="sgDice" style="display:flex;gap:10px;justify-content:center;margin:2px 0"></div><div class="sgB">${order.map((i) => { const q = A.SG[i]; return `<div class="sq ${i === 0 ? 'start' : i === N - 1 ? 'sgoal' : q[2] ? 'ev' : ''}" data-sq="${i}"><b>${i ? i + ' ' : ''}${q[0]}</b>${q[1] ? `<small>${q[1]}</small><i class="sh">${sgShort(q, i, N)}</i>` : ''}</div>`; }).join('')}</div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`;
     st.querySelector('#sgDice').innerHTML = SGK.GAMBLEUI.die(1, 'sgD');
     ST.sugoroku = { seen: null, busy: false, pos: [0, 0] };
   }
@@ -303,7 +309,7 @@
       else { sgPut(st, 0, g.pos[0]); sgPut(st, 1, g.pos[1]); }
     }
     const nm = (i) => (g ? (i === g.me ? 'あなた' : esc(g.nm[i])) : i ? '胴元' : 'あなた');
-    let h = `<div class="rule">${esc(A.GAMES.sugoroku.rule)}　<span style="color:#ff8a7a">●</span>${nm(0)}　<span style="color:#888">●</span>${nm(1)}</div><div class="row">`;
+    let h = ruleHtml(A.GAMES.sugoroku.rule, `<div class="rule"><span style="color:#ff8a7a">●</span>${nm(0)}　<span style="color:#888">●</span>${nm(1)}</div>`) + '<div class="row">';
     if (!g || g.done) h += `<button data-as="sgStart" ${me.money < sel ? 'disabled' : ''}>${money(sel)} 賭けて始める</button>${g ? '<button data-as="sgQuit">片づける</button>' : ''}`;
     else h += `<button data-as="sgRoll" ${S.busy || g.turn !== g.me ? 'disabled' : ''}>${g.turn === g.me ? '賽を振る' : `${esc(g.nm[g.turn])}の番`}</button><span>${money(g.bet)} 賭けている${g.pvp ? `（対 ${esc(g.nm[1 - g.me])}）` : ''}${g.rest[g.me] ? '（次は一回休み）' : ''}</span><button data-as="sgQuit">降りる（負け）</button>${g.stale ? '<button data-as="sgClaim">相手が戻らないので勝ちにする</button>' : ''}`;
     h += `<span class="rule">${T.players.length ? '勝負中：' + T.players.map(esc).join('、') : ''}</span></div>`;

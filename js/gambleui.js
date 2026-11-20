@@ -95,7 +95,7 @@
 #gbHall .dcol>.dice{position:static;transform:none}
 /* 胴元：盆の右に床に座らせ、盆の方を向かせる（絵は右を向いているので左右反転） */
 #gbHall .who.oya{right:max(2%,calc(50% - 560px));bottom:calc(var(--pb,190px) - 10px);height:min(62%,520px);max-height:none;transform:scaleX(-1)}
-@media (max-width:600px){#gbHall .mat .half{font-size:44px}#gbHall .big{font-size:60px}#gbHall .who{height:34%}#gbHall .who.oya{right:0;height:30%;bottom:calc(var(--pb,190px) + 4px);opacity:.9}}
+@media (max-width:600px){#gbHall .top,#gbHall .tabs{gap:3px;padding:4px 6px}#gbHall .top button,#gbHall .tabs button{padding:3px 7px;font-size:13px}#gbHall .top .t{font-size:16px;margin-right:2px}#gbHall .lbl{min-width:0}#gbHall .panel{padding:6px;font-size:13px}#gbHall .panel button{padding:4px 8px}#gbHall .log{max-height:40px}#gbHall .mat .half{font-size:44px}#gbHall .big{font-size:60px}#gbHall .who{height:34%}#gbHall .who.oya{right:0;height:30%;bottom:calc(var(--pb,190px) + 4px);opacity:.9}}
 </style>`;
 
   UI.open = (priv, id) => {
@@ -142,6 +142,8 @@
     if (L && L.id != null && L.id !== seen[tab] && !busy[tab]) { seen[tab] = L.id; busy[tab] = 1; PLAY[tab](st, L, gb[tab]).catch(() => {}).then(() => { busy[tab] = 0; if (el) render(false); }); }
     for (const g of Object.keys(NAMES)) if (g !== tab && gb[g] && gb[g].last && gb[g].last.id !== seen[g]) seen[g] = gb[g].last.id; // 見ていない卓の結果は流さない
   }
+  let ruleOpen = false; document.addEventListener('toggle', (e) => { if (e.target && e.target.classList && e.target.classList.contains('gbRule')) ruleOpen = e.target.open; }, true);
+  const ruleBox = (t) => `<details class="rule gbRule" ${ruleOpen ? 'open' : ''}><summary style="cursor:pointer;color:#f2c14e">遊び方</summary>${esc(t)}</details>`; // 2.67.1 スマホで場所をとらないよう、遊び方はたたむ
   const setPanel = (pn, key, html) => { if (lastHtml[key] !== html) { lastHtml[key] = html; pn.innerHTML = html; } if (pn.parentElement) pn.parentElement.style.setProperty('--pb', pn.offsetHeight + 18 + 'px'); }; // --pb：上の絵や賽を欄に重ねないため
   const logHtml = (L) => (L ? `<div class="log">前の勝負：${esc(L.head)}${L.by ? `（${esc(L.by)}）` : ''}<br>${(L.lines || []).map(esc).join('<br>')}</div>` : '');
   const coin = () => (SGK.ICON ? SGK.ICON.html('coins', 18) : '');
@@ -172,13 +174,13 @@
       const m = mine(T);
       const e = el.querySelector('#gbE'), o = el.querySelector('#gbO');
       if (e) { const h1 = T.bets.filter((x) => x.pick === 'even').map((x) => chip(x)).join(''), h2 = T.bets.filter((x) => x.pick === 'odd').map((x) => chip(x)).join(''); if (e.innerHTML !== h1) e.innerHTML = h1; if (o.innerHTML !== h2) o.innerHTML = h2; }
-      setPanel(pn, 'ch', `<div class="rule">${esc(G.GAMES.chouhan.rule)}</div><div class="row">${m ? `<span>${m.pick === 'even' ? '丁' : '半'}に${money(m.bet)} 張った</span><button data-cmd="gbRoll" data-id="chouhan">勝負！（壺を開ける）</button><button data-cmd="gbCancel" data-id="chouhan">取り消す</button>` : `<button data-cmd="gbBet" data-id="chouhan" data-kind="even" ${me.money < sel ? 'disabled' : ''}>丁に張る（${money(sel)}）</button><button data-cmd="gbBet" data-id="chouhan" data-kind="odd" ${me.money < sel ? 'disabled' : ''}>半に張る（${money(sel)}）</button>`}</div>${logHtml(T.last)}`);
+      setPanel(pn, 'ch', `${ruleBox(G.GAMES.chouhan.rule)}<div class="row">${m ? `<span>${m.pick === 'even' ? '丁' : '半'}に${money(m.bet)} 張った</span><button data-cmd="gbRoll" data-id="chouhan">勝負！（壺を開ける）</button><button data-cmd="gbCancel" data-id="chouhan">取り消す</button>` : `<button data-cmd="gbBet" data-id="chouhan" data-kind="even" ${me.money < sel ? 'disabled' : ''}>丁に張る（${money(sel)}）</button><button data-cmd="gbBet" data-id="chouhan" data-kind="odd" ${me.money < sel ? 'disabled' : ''}>半に張る（${money(sel)}）</button>`}</div>${logHtml(T.last)}`);
     },
     memashi(pn, T, me) { dicePanel(pn, T, me, 'memashi'); },
     shigoro(pn, T, me) { dicePanel(pn, T, me, 'shigoro'); },
     uma(pn, T, me) {
       const m = mine(T);
-      setPanel(pn, 'um', `<div class="rule">${esc(G.GAMES.uma.rule)}</div><div class="row">${T.horses.map((x, i) => `<button data-cmd="gbBet" data-id="uma" data-kind="${i}" ${m || me.money < sel ? 'disabled' : ''} class="${m && m.pick === i ? 'on' : ''}" style="font-size:12px">${i + 1} ${esc(x.name)}<br>${x.odds}倍・${x.form}</button>`).join('')}</div><div class="row">${m ? `<button data-cmd="gbRoll" data-id="uma">走らせる</button><button data-cmd="gbCancel" data-id="uma">取り消す</button>` : `<span class="rule">賭ける馬を選んでください（${money(sel)}）</span>`}<span class="rule">${T.bets.map((x) => `${esc(x.name)}［${x.pick + 1}］${money(x.bet)}`).join('、')}</span></div>${logHtml(T.last)}`);
+      setPanel(pn, 'um', `${ruleBox(G.GAMES.uma.rule)}<div class="row">${T.horses.map((x, i) => `<button data-cmd="gbBet" data-id="uma" data-kind="${i}" ${m || me.money < sel ? 'disabled' : ''} class="${m && m.pick === i ? 'on' : ''}" style="font-size:12px">${i + 1} ${esc(x.name)}<br>${x.odds}倍・${x.form}</button>`).join('')}</div><div class="row">${m ? `<button data-cmd="gbRoll" data-id="uma">走らせる</button><button data-cmd="gbCancel" data-id="uma">取り消す</button>` : `<span class="rule">賭ける馬を選んでください（${money(sel)}）</span>`}<span class="rule">${T.bets.map((x) => `${esc(x.name)}［${x.pick + 1}］${money(x.bet)}`).join('、')}</span></div>${logHtml(T.last)}`);
     },
     karuta(pn, T, me) {
       const mb = mine(T), myH = T.hands.find((x) => x.id === myId);
@@ -187,7 +189,7 @@
         if (par && T.phase === 'play') { const h1 = T.parent.map((c) => cardHtml(c)).join(''), h2 = myH ? myH.cards.map((c) => cardHtml(c)).join('') : '<span class="rule">（見物中）</span>'; if (par.dataset.h !== h1) { par.dataset.h = h1; par.innerHTML = h1; } if (my.dataset.h !== h2) { const nn = my.querySelectorAll('.kc').length; my.dataset.h = h2; my.innerHTML = h2; [...my.querySelectorAll('.kc')].slice(nn).forEach((c) => { c.classList.add('deal'); sfx('card'); }); } }
         else if (par && T.phase === 'bet' && (!T.last || mb) && par.dataset.h !== 'new') { par.dataset.h = 'new'; my.dataset.h = ''; par.innerHTML = cardHtml(null) + cardHtml(null); my.innerHTML = ''; } // 2.31.1 次の勝負に賭けたら前の札も片づける
       }
-      let h = `<div class="rule">${esc(G.GAMES.karuta.rule)}</div><div class="row">`;
+      let h = `${ruleBox(G.GAMES.karuta.rule)}<div class="row">`;
       if (T.phase === 'bet') h += mb ? `<span>${money(mb.bet)} 賭けた</span><button data-cmd="gbDeal" data-id="karuta">札を配る</button><button data-cmd="gbCancel" data-id="karuta">取り消す</button>` : `<button data-cmd="gbBet" data-id="karuta" ${me.money < sel ? 'disabled' : ''}>${money(sel)} 賭ける</button>`;
       else { if (myH && !myH.done) h += `<button data-cmd="gbHit" data-id="karuta">もう1枚引く</button><button data-cmd="gbStand" data-id="karuta">勝負する</button>`; if (myH) h += `<button data-cmd="gbClose" data-id="karuta">みんな勝負にして締める</button>`; h += `<span class="rule">${T.hands.map((x) => `${esc(x.name)}${x.done ? '（勝負）' : '（考え中）'}`).join('、')}</span>`; }
       setPanel(pn, 'ka', h + `</div><div class="rule">${T.phase === 'bet' ? T.bets.map((x) => `${esc(x.name)} ${money(x.bet)}`).join('、') : ''}</div>${logHtml(T.last)}`);
@@ -195,7 +197,7 @@
   };
   function dicePanel(pn, T, me, g) {
     const m = mine(T);
-    setPanel(pn, g, `<div class="rule">${esc(G.GAMES[g].rule)}</div><div class="row">${m ? `<span>${money(m.bet)} 賭けた</span><button data-cmd="gbRoll" data-id="${g}">振る</button><button data-cmd="gbCancel" data-id="${g}">取り消す</button>` : `<button data-cmd="gbBet" data-id="${g}" ${me.money < sel ? 'disabled' : ''}>${money(sel)} 賭ける</button>`}<span class="rule">${T.bets.map((x) => `${esc(x.name)} ${money(x.bet)}`).join('、')}</span></div>${logHtml(T.last)}`);
+    setPanel(pn, g, `${ruleBox(G.GAMES[g].rule)}<div class="row">${m ? `<span>${money(m.bet)} 賭けた</span><button data-cmd="gbRoll" data-id="${g}">振る</button><button data-cmd="gbCancel" data-id="${g}">取り消す</button>` : `<button data-cmd="gbBet" data-id="${g}" ${me.money < sel ? 'disabled' : ''}>${money(sel)} 賭ける</button>`}<span class="rule">${T.bets.map((x) => `${esc(x.name)} ${money(x.bet)}`).join('、')}</span></div>${logHtml(T.last)}`);
   }
   const SUIT = ['sword', 'cup', 'club', 'coin'], KAN = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
   function cardHtml(c, back) {
