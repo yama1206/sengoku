@@ -78,7 +78,7 @@
   };
 
   SIM.GATHER_PAY = 0.5; // 2.61.3 魚・虫を捕ったときにもらえるお金の倍率（半分に）
-  SIM.GATHER_HP = 0.1; // 釣り・虫取りの1回で使う体力（2.60.9 3%→10%。捕れたときに使う分はなくした）
+  SIM.GATHER_HP = 10; // 釣り・虫取りの1回で使う体力（2.61.4 割合ではなく体力の値で10。最大の体力が多い人ほど多くできる）
   // ---- 命令 ----
   C.gatherStart = (w, p, c) => {
     const kind = c.kind === 'bug' ? 'b' : 'f';
@@ -86,8 +86,8 @@
     if (p.tx != null) return say(p.id, '歩いている最中は始められません。立ち止まってください');
     if (SIM.isSea(p.x, p.y)) return;
     // 2.37.0 挑戦した時点で体力を使う（釣り・虫取り）。体力が足りないときは始められない
-    const hp0 = p.hpFrac == null ? 1 : p.hpFrac, cost = SIM.GATHER_HP;
-    if (hp0 < Math.max(0.1, cost)) return say(p.id, '体力が足りません。少し休んでから（自宅で休めば早く戻ります）');
+    const mx = Math.max(1, Math.round(SIM.TROOPS.hero.hp * ((SIM.unitMods(w, p.id, 'hero') || {}).hm || 1))), hp0 = p.hpFrac == null ? 1 : p.hpFrac, cost = SIM.GATHER_HP / mx; // 体力の値（地図の「体力 35/35」と同じ）で10
+    if (hp0 * mx < SIM.GATHER_HP - 0.01) return say(p.id, '体力が足りません。少し休んでから（自宅で休めば早く戻ります）');
     p.hpFrac = hp0 - cost;
     const list = SIM.spotCreatures(w, p.x, p.y, kind), n = (p.gatN = (p.gatN || 0) + 1);
     p.gatLast = null;
