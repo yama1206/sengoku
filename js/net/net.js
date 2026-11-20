@@ -72,7 +72,7 @@
             if (!pid) { conn.send({ t: 'bye', reason: '満員です' }); setTimeout(() => conn.close(), 500); return; }
             for (const [c, p] of conns) if (p === pid && c !== conn) { conns.delete(c); try { c.close(); } catch (e) {} } // 同じ人がつなぎ直したら古い方を切る
             conns.set(conn, pid);
-          } else if (m.t === 'cmd' && conns.has(conn)) h.onCmd(conns.get(conn), m.cmd);
+          } else if (m.t === 'ping') { try { conn.send(JSON.stringify({ t: 'pong', ts: m.ts })); } catch (e) {} } else if (m.t === 'cmd' && conns.has(conn)) h.onCmd(conns.get(conn), m.cmd);
         });
         conn.on('close', () => { const pid = conns.get(conn); if (!pid) return; conns.delete(conn); if (![...conns.values()].includes(pid)) h.onLeave(pid); });
       });
@@ -109,6 +109,7 @@
       if (typeof m === 'string') { try { m = JSON.parse(m); } catch (e) { if (h.onErr) h.onErr({ text: 'エラー(受信): ' + e.message }); return; } } // ホストからは文字列(JSON)で届く
       if (!m || !m.t) { if (h.onErr) h.onErr({ text: 'エラー(受信): 読めないデータ ' + typeof m }); return; }
       if (m.t === 'welcome') { ok = true; clearTimeout(tm); h.onWelcome(m); }
+      else if (m.t === 'pong') { if (h.onPing) h.onPing(Date.now() - m.ts); }
       else if (m.t === 'state') h.onState(m);
       else if (m.t === 'act') { if (h.onAct) h.onAct(m); }
       else if (m.t === 'mine') { if (h.onMine) h.onMine(m); }
@@ -120,6 +121,7 @@
     peer.on('error', (e) => { if (e.type === 'peer-unavailable') end('ホストが見つかりませんでした（抜けたばかりかもしれません）。20秒ほど待ってから、もう一度入ってください'); else if (!ok) end('通信エラー: ' + e.type); else end('通信エラー: ' + e.type, true); });
     return {
       send(cmd) { if (conn && conn.open) conn.send({ t: 'cmd', cmd }); },
+      ping() { if (conn && conn.open) conn.send({ t: 'ping', ts: Date.now() }); },
       close() { done = true; clearTimeout(tm); clearInterval(wd); try { peer.destroy(); } catch (e) {} },
     };
   };

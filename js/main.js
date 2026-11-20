@@ -562,8 +562,9 @@
       const online = G.net ? G.net.pids() : [];
       const names = [G.world.players[G.myPid].name, ...online.map((p) => (G.world.players[p] || {}).name)].join('・');
       $('roomInfo').innerHTML = (G.roomCode ? `世界コード <b>${G.roomCode}</b>` : 'この端末だけの世界') + `<br><span class="muted">${SGK.ICON.html('crown', 16)}ホスト　${online.length + 1}/${CFG.MAX_PLAYERS}人（${names.replace(/[<&]/g, '')}）</span>`;
-    } else if (G.mode === 'client') $('roomInfo').innerHTML = `世界コード <b>${G.roomCode || ''}</b><br><span class="muted">${(G.hostName || '').replace(/[<&]/g, '')}がホスト</span>`;
+    } else if (G.mode === 'client') $('roomInfo').innerHTML = `世界コード <b>${G.roomCode || ''}</b><br><span class="muted">${(G.hostName || '').replace(/[<&]/g, '')}がホスト</span>${G.ping ? `<br><span class="muted">通信の遅れ ${Math.round(G.ping)}ms</span>` : ''}`;
   }
+  setInterval(() => { try { if (G.mode === 'client' && G.net && G.net.ping) { G.net.ping(); updateRoom(); } else if (G.mode !== 'client') G.ping = 0; } catch (e) {} }, 2000); // 2.49.0
   function hostUI(on) { document.querySelectorAll('.hostOnly').forEach((e) => e.classList.toggle('hidden', !on)); }
   document.querySelectorAll('[data-speed]').forEach((b) => (b.onclick = () => { G.speed = +b.dataset.speed; G.autoPause = 0; }));
 
@@ -579,6 +580,7 @@
       onState: (m) => { try { onState0(m); } catch (e) { const t = 'エラー: ' + (e && e.message); if (G.lastErr !== t) { G.lastErr = t; errToast(t); } } },
       onBye: (why) => { if (again && G.mode === 'client') { G.mode = 'client'; } backToTitle(); titleMsg(why); },
       onLost: (why) => rejoin(why),
+      onPing: (ms) => { G.ping = G.ping ? G.ping * 0.6 + ms * 0.4 : ms; }, // 2.49.0 通信の遅れ（往復）
       onMine: (m) => { if (m.p && m.p.id === G.myPid) G.mine = { p: m.p, ma: SGK.CLOUD.now() }; },
       onNin: (m) => { const Rv = m.m && m.m.ch === 'party' ? SGK.PARTY : SGK.NINJA3D; if (Rv && Rv.recv) Rv.recv(m.from, m.m); },
     });
@@ -2021,7 +2023,7 @@
       const m = me(); dirSendAcc += dt;
       if (BT) { mx = my = 0; }
       if (m && (mx || my)) {
-        if (dirSendAcc > 0.2) { dirSendAcc = 0; const l = Math.hypot(mx, my); command({ type: 'move', x: m.x + (mx / l) * 2, y: m.y + (my / l) * 2 }); R.cam.follow = true; }
+        if (dirSendAcc > 0.1) { dirSendAcc = 0; const l = Math.hypot(mx, my); command({ type: 'move', x: m.x + (mx / l) * 2, y: m.y + (my / l) * 2 }); R.cam.follow = true; }
         wasDirMoving = true;
       } else if (wasDirMoving) { wasDirMoving = false; command({ type: 'stop' }); }
       // なめらか表示
@@ -2031,8 +2033,10 @@
         if (G.mode === 'client') { // 2.40.1 参加者：届いた位置へ、届く間隔ぶんの時間をかけて等速で動かす（0.2秒ごとの位置を追いかけるとカクつくため）
           if (!d || d.bx == null || Math.hypot(d.bx - e.x, d.by - e.y) > 40) G.disp[e.id] = d = { x: e.x, y: e.y, ax: e.x, ay: e.y, bx: e.x, by: e.y, t: now, dur: 200 };
           else {
-            if (e.x !== d.bx || e.y !== d.by) { d.ax = d.x; d.ay = d.y; d.bx = e.x; d.by = e.y; d.t = now; d.dur = Math.min(400, Math.max(100, G.stIv || 200)); }
-            const f = Math.min(1, (now - d.t) / d.dur); d.x = d.ax + (d.bx - d.ax) * f; d.y = d.ay + (d.by - d.ay) * f;
+            if (e.x !== d.bx || e.y !== d.by) { // 2.49.0 先読み：動いている向きへ、次の知らせが届くころの位置まで先に進めて表示の遅れを減らす（止まる時は少し行き過ぎて戻る）
+              const iv = Math.min(400, Math.max(40, G.stIv || 100)), vx = e.x - d.bx, vy = e.y - d.by, L = Math.hypot(vx, vy), cap = L > 0 ? Math.min(1, 1.5 / L) : 0;
+              d.ax = d.x; d.ay = d.y; d.bx = e.x; d.by = e.y; d.px = e.x + vx * 0.9 * cap; d.py = e.y + vy * 0.9 * cap; d.t = now; d.dur = iv; }
+            const f = Math.min(1, (now - d.t) / d.dur), tx = d.px != null ? d.px : d.bx, ty = d.py != null ? d.py : d.by; d.x = d.ax + (tx - d.ax) * f; d.y = d.ay + (ty - d.ay) * f;
           }
         } else if (!d || Math.hypot(d.x - e.x, d.y - e.y) > 5) G.disp[e.id] = { x: e.x, y: e.y };
         else { d.x += (e.x - d.x) * k; d.y += (e.y - d.y) * k; }
