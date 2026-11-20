@@ -690,7 +690,7 @@
     tod = TODS[k]; tod.v = new T.Vector3(...tod.dir).normalize();
     sun.color.set(tod.sun); sun.intensity = tod.si; hemi.color.set(tod.hs); hemi.groundColor.set(tod.hg); hemi.intensity = tod.hi;
     const U = sky.material.uniforms; U.top.value.set(tod.top); U.hor.value.set(tod.hor); U.sunC.value.set(tod.sun); U.sunD.value.copy(tod.v);
-    scene.background = new T.Color(tod.haze); scene.fog = new T.Fog(tod.haze, 170, 850); rd.toneMappingExposure = tod.ex;
+    scene.background = new T.Color(tod.haze); { const wk = SGK.SIM.wxSight ? SGK.SIM.wxSight() : 1; scene.fog = new T.Fog(tod.haze, 170 * wk, 850 * wk); } /* 2.53.0 霧・嵐の日は遠くがかすむ */ rd.toneMappingExposure = tod.ex;
   }
 
   // ---- 戦場ごとの地面と木 ----

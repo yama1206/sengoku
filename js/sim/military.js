@@ -254,7 +254,7 @@
     const t = terAt(b, u), T = TR[u.type];
     let r = T.cav ? VIS.cav : u.type === 'hero' ? VIS.hero : VIS.base;
     if (t.h) r += VIS.hill; if (t.f) r *= 0.7;
-    return r;
+    return r * (SIM.wxSight ? SIM.wxSight() : 1); // 2.53.0 霧・嵐の日は視界が狭い
   }
   function sees(b, o, e, hide) { // o から e が見えるか（扇形の視界）
     const d = dist(o, e), vr = visRange(b, o);
@@ -370,6 +370,7 @@
       if (t.cav && !t.ranged && T2.cls === 'spear' && dir === 'front') mul *= 0.7; // 槍衾への正面突撃
       const melee = ed < rad(u) + rad(e) + 3.5;
       if (t.ranged && melee) mul *= t.meleeOk ? 0.7 : 0.45; // 弓・鉄砲は接近戦に弱い
+      if (/^teppo/.test(u.type) && SIM.wxGun) mul *= SIM.wxGun(); // 2.53.0 雨・嵐の日は鉄砲が弱い
       if (t.ranged && !melee && T2.shield) mul *= 0.5; /* 1.6.40 竹束は矢・弾を半分にする */
       if (t.ranged && te.f) mul *= 0.6; // 林の中の敵は射ちにくい
       if (t.cav && tu.f && !t.noForest) mul *= 0.7;

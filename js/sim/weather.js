@@ -22,6 +22,19 @@
     const mon = Math.floor((((di % 360) + 360) % 360) / 30) + 1, r = hash(Math.floor(total / 840)); let acc = 0, id = 'sunny';
     for (const [k, p] of WX_TABLE[mon]) { acc += p; if (r < acc) { id = k; break; } }
     const w = WX[id], night = SIM.daylight && SIM.daylight(min || 0) < 0.3;
-    return { id, name: w.name, mark: night && w.night ? w.night : w.mark };
+    return { id, name: w.name, mark: night && w.night ? w.night : w.mark, fx: FX[id] ? FX[id].txt : '' };
   };
+
+  // 2.53.0 天気の影響（数値はすべて仮・ここで調整）。gun＝鉄砲の威力　move＝地図の移動の速さ　sight＝視界
+  const FX = {
+    rain: { gun: 0.6, txt: '鉄砲が弱くなる' }, storm: { gun: 0.5, sight: 0.8, txt: '鉄砲がかなり弱く、視界も狭い' },
+    snow: { move: 0.8, txt: '移動が遅くなる' }, fog: { sight: 0.6, txt: '視界が狭くなる' },
+  };
+  SIM.wxId = 'sunny'; // いまの天気。画面の更新（main.js）が時刻から毎回入れる
+  SIM.wxSet = (min) => { SIM.wxId = SIM.weatherAt(min).id; };
+  const fx = (k) => (FX[SIM.wxId] && FX[SIM.wxId][k]) || 1;
+  SIM.wxGun = () => fx('gun'); SIM.wxMove = () => fx('move'); SIM.wxSight = () => fx('sight');
+  const sp0 = SIM.speedAt; if (sp0) SIM.speedAt = (x, y) => sp0(x, y) * SIM.wxMove(); // 雪：地図の移動が遅い
+  const sr0 = SIM.sightRadius; // 霧・嵐：地図で見える範囲も狭い（時刻はワールドから直接）
+  if (sr0) SIM.sightRadius = (w, p) => sr0(w, p) * ((FX[SIM.weatherAt(w.time.min).id] || {}).sight || 1);
 })();
