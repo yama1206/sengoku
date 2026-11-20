@@ -1,4 +1,4 @@
-// 2.56.1 村長と農民の身分：どの村にも村長がいて、浪人は村長に雇ってもらうと農民になれる（人物づくりで「農民として始める」も選べる）。
+// 2.56.1 村長と農民の身分：どの村にも村長がいて、浪人は村長に雇ってもらうと農民になれる（2.56.2 始めるときはいつも浪人）。
 //  身分：作男（雇われ農民）・小作人・本百姓・名主（足軽〜部将と同じ格）。名主が村の信頼を集めると、年老いた村長のあとを継いで村長になれる。
 //  ・作男：村長の田畑で野良仕事をして日銭をもらう
 //  ・小作人から：村長から田畑を借りられる（自宅の畑の数が増える）。毎月、村長から米が届く
@@ -150,18 +150,7 @@
     }
   });
 
-  // ---- 人物づくりで「農民として始める」 ----
-  const baseAdd = SIM.addPlayer;
-  SIM.addPlayer = function (w, token, name, prof) {
-    const known = !!w.tokens[token], pid = baseAdd.apply(this, arguments), p = pid && w.players[pid];
-    if (!p || known || !prof || prof.mibun !== 'nomin' || p.clan) return pid;
-    const st = SIM.settlement(w, p.home) || SIM.settlement(w, SGK.DATA.startSettlement) || { x: p.x, y: p.y };
-    let v = null, best = Infinity; for (const s of w.settlements) if (isVil(s)) { const dd = Math.hypot(s.x - st.x, s.y - st.y); if (dd < best) { best = dd; v = s; } }
-    if (!v) return pid;
-    p.at = v.id; p.x = v.x; p.y = v.y; p.tx = null; p.ty = null; p.dest = null; p.home = v.id;
-    becomeNomin(w, p, v, `${v.name}の村長・${NM.headName(w, v.id)}に雇われた作男として暮らしを始めます。村長の家で野良仕事をすれば日銭がもらえ、自宅のまわりの荒れ地を開墾すれば自分の畑も持てます`);
-    return pid;
-  };
+  // 2.56.2 始めるときはいつも浪人（農民には村長に雇ってもらってなる）
   const baseEnsure = SIM.ensure;
   SIM.ensure = function (w) { baseEnsure(w); for (const p of Object.values(w.players)) if (nmn(p)) { if (p.clan) p.nomin = null; else setSt(w, p); } return w; };
 

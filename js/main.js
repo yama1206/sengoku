@@ -248,7 +248,6 @@
     h += `<div style="margin-top:8px"><b>成長の型</b></div><div class="row" style="align-items:center;gap:6px"><button id="cg-m" data-cr="gr" data-md="-1">◀</button><span style="display:inline-block;width:8.5em;white-space:nowrap;text-align:center">${g.name}</span><button id="cg-p" data-cr="gr" data-md="1">▶</button></div><div class="muted" style="min-height:4.2em">${g.desc}</div>`; // 0.83.1 型を変えてもボタンの位置が動かないよう幅・高さを固定
     const si = Math.max(0, START.findIndex((t) => t.id === prof.start)), st = START[si], nl = nearLord(st);
     h += `<div style="margin-top:8px"><b>開始地点</b>　<span class="muted">${si + 1}/${START.length}（東から西の順）</span></div><div class="row" style="align-items:center;gap:6px"><button id="cs-mm" data-cr="st" data-md="-5">◀◀</button><button id="cs-m" data-cr="st" data-md="-1">◀</button><span style="display:inline-block;width:6em;white-space:nowrap;text-align:center">${st.name}</span><button id="cs-p" data-cr="st" data-md="1">▶</button><button id="cs-pp" data-cr="st" data-md="5">▶▶</button><button id="cs-r" data-cr="sr">おまかせ</button></div><div class="row"><button id="cs-map" data-cr="map">地図から選ぶ</button></div><div class="muted">${nl ? `近くの大名：${nl}` : ''}</div>`;
-    h += `<div style="margin-top:8px"><b>始め方</b></div><div class="row" style="gap:6px"><button id="cm-ronin" data-cr="mb" data-v="ronin" class="${prof.mibun !== 'nomin' ? 'on' : ''}">浪人として</button><button id="cm-nomin" data-cr="mb" data-v="nomin" class="${prof.mibun === 'nomin' ? 'on' : ''}">農民として</button></div><div class="muted">${prof.mibun === 'nomin' ? '開始地点にいちばん近い村で、村長に雇われた作男（雇われ農民）から始めます。自宅はその村' : '開始地点の町で、どこにも仕えていない浪人から始めます'}</div>`; // 2.56.1
     h += `<div style="margin-top:8px"><b>家紋</b></div>` + monEditorHtml(prof.mon, 'crMon');
     h += `<div class="row" style="margin-top:8px"><button id="cr-back" data-cr="back">戻る</button><button id="cr-ok" data-cr="ok">この人物で決める</button></div>`;
     $('createBody').innerHTML = h; drawMonPrev('crMon', prof.mon);
@@ -342,7 +341,6 @@
     else if (b.dataset.cr === 'map') { smOpen(); return; }
     else if (b.dataset.cr === 'sr') prof.start = START[Math.floor(Math.random() * START.length)].id;
     else if (b.dataset.cr === 'gr') prof.grow = GK[(GK.indexOf(prof.grow) + dir + GK.length) % GK.length];
-    else if (b.dataset.cr === 'mb') prof.mibun = b.dataset.v; // 2.56.1 浪人／農民として始める
     else if (b.dataset.cr === 'back') { $('createPanel').classList.add('hidden'); titleBack(); return; }
     else if (b.dataset.cr === 'ok') { localStorage.setItem('sgk_prof', JSON.stringify(prof)); myName(); $('createPanel').classList.add('hidden'); titleBack(); titleMsg(`${myName()}（${SIM.GROW[prof.grow].name}）で${(START.find((t) => t.id === prof.start) || {}).name || ''}から始めます${crLeft() ? `（能力値の残り${crLeft()}点は使われません）` : ''}`); return; }
     renderCreate();
