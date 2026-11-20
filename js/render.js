@@ -23,6 +23,23 @@
     if (close) ctx.closePath();
   }
 
+  // 2.51.0 季節：1年（30日×12か月）の日にちから、陸・山・森の色と、雪・桜の量をなめらかに変える。数値はここで調整
+  // 並びは 冬・春・夏・秋（中心は 1月中旬・4月中旬・7月中旬・10月中旬）。land＝陸　ml/ms＝山の明るい面/影の面　mo/fo＝遠くの山/森の下絵　ta/tb＝木の色　snow＝山頂の雪の量　tsn＝木に積もる雪　bl＝桜の花
+  const SPAL = [
+    { land: [226, 232, 224], ml: [196, 204, 198], ms: [150, 162, 162], mo: [196, 202, 196], fo: [150, 168, 150], ta: [92, 108, 92], tb: [110, 124, 108], snow: 1.7, tsn: 0.9, bl: 0 },
+    { land: [190, 214, 152], ml: [140, 172, 108], ms: [96, 128, 70], mo: [128, 152, 98], fo: [112, 154, 86], ta: [96, 150, 70], tb: [120, 168, 84], snow: 0.7, tsn: 0, bl: 0.55 },
+    { land: [172, 206, 138], ml: [120, 158, 92], ms: [84, 118, 62], mo: [116, 142, 88], fo: [80, 128, 62], ta: [52, 104, 44], tb: [66, 120, 52], snow: 0.2, tsn: 0, bl: 0 },
+    { land: [210, 200, 138], ml: [172, 150, 92], ms: [128, 104, 64], mo: [160, 140, 92], fo: [156, 120, 58], ta: [196, 104, 40], tb: [168, 62, 36], snow: 0.6, tsn: 0, bl: 0 },
+  ];
+  R.season = (t) => {
+    const st = SGK.DATA.start; let doy = 105;
+    if (t != null) { const total = st.minute + t, di = Math.floor(total / 1440) + (st.month - 1) * 30 + (st.day - 1); doy = (((di % 360) + 360) % 360) + (((total % 1440) + 1440) % 1440) / 1440; }
+    const x = (((doy - 15) % 360) + 360) % 360 / 90, i = Math.floor(x) % 4, f = x - Math.floor(x), u = f * f * (3 - 2 * f), A = SPAL[i], B = SPAL[(i + 1) % 4], o = { k: Math.floor(doy / 10) };
+    for (const key in A) o[key] = Array.isArray(A[key]) ? A[key].map((v, n) => v + (B[key][n] - v) * u) : A[key] + (B[key] - A[key]) * u;
+    return o;
+  };
+  const rgb = (a) => `rgb(${a[0] | 0},${a[1] | 0},${a[2] | 0})`;
+
   R.draw = function (ctx, view, disp, myPid, selectedId, marks) {
     const T = SGK.DATA.terrain, B = SGK.DATA.bounds;
     // 枠の色：敵対している勢力は赤、自分の家は金、ほかは墨色
@@ -31,7 +48,7 @@
     ctx.fillStyle = '#1a1712'; ctx.fillRect(0, 0, W, H);
     // 陸
     const [x0, y0] = R.toScreen(0, 0), [x1, y1] = R.toScreen(B.w, B.h);
-    const SEA = '#79aecb', LAND = '#b7d39a'; /* 1.6.47 鳥瞰の絵地図風の色 */
+    const SE = R.season(view.t), SEA = '#79aecb', LAND = rgb(SE.land); /* 1.6.47 鳥瞰の絵地図風の色 */
     if (T.lands) { ctx.fillStyle = SEA; ctx.fillRect(x0, y0, x1 - x0, y1 - y0); ctx.fillStyle = LAND; for (const l of T.lands) { path(ctx, l.pts, true); ctx.fill(); } }
     else { ctx.fillStyle = LAND; ctx.fillRect(x0, y0, x1 - x0, y1 - y0); }
     // 海
@@ -40,10 +57,10 @@
     // 1.6.47 山（通れない）と森（遅い）：マス目から1回だけ下絵を作り、引き伸ばして描く
     const TG = SGK.SIM.terrainGrid && SGK.SIM.terrainGrid();
     if (TG) {
-      if (!R.tlay || R.tlay.g !== TG.g) {
+      if (!R.tlay || R.tlay.g !== TG.g || R.tlay.k !== SE.k) {
         const c = document.createElement('canvas'); c.width = TG.gw; c.height = TG.gh; const x = c.getContext('2d'), im = x.createImageData(TG.gw, TG.gh);
-        for (let q = 0; q < TG.g.length; q++) { const t = TG.g[q] % 4, o = q * 4; if (t === 2) { im.data[o] = 128; im.data[o + 1] = 140; im.data[o + 2] = 96; im.data[o + 3] = 235; } else if (t === 3) { im.data[o] = 92; im.data[o + 1] = 138; im.data[o + 2] = 70; im.data[o + 3] = 200; } }
-        x.putImageData(im, 0, 0); R.tlay = { g: TG.g, c };
+        for (let q = 0; q < TG.g.length; q++) { const t = TG.g[q] % 4, o = q * 4; if (t === 2) { im.data[o] = SE.mo[0]; im.data[o + 1] = SE.mo[1]; im.data[o + 2] = SE.mo[2]; im.data[o + 3] = 235; } else if (t === 3) { im.data[o] = SE.fo[0]; im.data[o + 1] = SE.fo[1]; im.data[o + 2] = SE.fo[2]; im.data[o + 3] = 200; } }
+        x.putImageData(im, 0, 0); R.tlay = { g: TG.g, c, k: SE.k };
       }
       ctx.imageSmoothingEnabled = true; ctx.drawImage(R.tlay.c, x0, y0, TG.gw * TG.CELL * cam.scale, TG.gh * TG.CELL * cam.scale);
       // 近づいたら山と木を立体の絵で
@@ -55,14 +72,16 @@
         const t = TG.g[j * TG.gw + i];
         if (t === 2) { // 山：明るい面と影の面、雪の頂
           const [px, py] = R.toScreen((i + 0.5 + (hs(i, j, 1) - 0.5) * 0.6) * C, (j + 0.5 + (hs(i, j, 2) - 0.5) * 0.6) * C), r = Math.max(5, Math.min(26, C * mstep * cam.scale * 0.6)) * (0.8 + hs(i, j, 3) * 0.4);
-          ctx.fillStyle = '#86a364'; ctx.beginPath(); ctx.moveTo(px - r, py + r * 0.5); ctx.lineTo(px, py - r * 1.1); ctx.lineTo(px + r, py + r * 0.5); ctx.closePath(); ctx.fill();
-          ctx.fillStyle = '#5d7744'; ctx.beginPath(); ctx.moveTo(px, py - r * 1.1); ctx.lineTo(px + r, py + r * 0.5); ctx.lineTo(px + r * 0.25, py + r * 0.5); ctx.closePath(); ctx.fill();
-          if (r > 9) { ctx.fillStyle = '#f4f4ee'; ctx.beginPath(); ctx.moveTo(px - r * 0.3, py - r * 0.5); ctx.lineTo(px, py - r * 1.1); ctx.lineTo(px + r * 0.3, py - r * 0.5); ctx.closePath(); ctx.fill(); }
+          ctx.fillStyle = rgb(SE.ml); ctx.beginPath(); ctx.moveTo(px - r, py + r * 0.5); ctx.lineTo(px, py - r * 1.1); ctx.lineTo(px + r, py + r * 0.5); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = rgb(SE.ms); ctx.beginPath(); ctx.moveTo(px, py - r * 1.1); ctx.lineTo(px + r, py + r * 0.5); ctx.lineTo(px + r * 0.25, py + r * 0.5); ctx.closePath(); ctx.fill();
+          if (r > 9 && SE.snow > 0.15) { const sf = SE.snow, sy = py - r * 1.1 + r * 0.6 * sf, sw = Math.min(r * 0.9, r * 0.375 * sf); ctx.fillStyle = '#f4f4ee'; ctx.beginPath(); ctx.moveTo(px - sw, sy); ctx.lineTo(px, py - r * 1.1); ctx.lineTo(px + sw, sy); ctx.closePath(); ctx.fill(); } // 雪の頂：冬は大きく、夏はほとんど無い
         } else if (t === 3 && tOn) { // 森：小さな針葉樹を2〜3本
           for (let k = 0; k < 3; k++) { if (k === 2 && hs(i, j, 9) < 0.5) break;
             const [px, py] = R.toScreen((i + 0.2 + hs(i, j, k * 2 + 4) * 0.6) * C, (j + 0.2 + hs(i, j, k * 2 + 5) * 0.6) * C), r = Math.min(9, 2 + cam.scale * 0.35);
             ctx.fillStyle = '#6b4a2b'; ctx.fillRect(px - r * 0.12, py, r * 0.24, r * 0.45);
-            ctx.fillStyle = k % 2 ? '#3f6b33' : '#4d7c3c'; ctx.beginPath(); ctx.moveTo(px - r * 0.6, py + r * 0.1); ctx.lineTo(px, py - r * 1.4); ctx.lineTo(px + r * 0.6, py + r * 0.1); ctx.closePath(); ctx.fill(); }
+            ctx.fillStyle = rgb(k % 2 ? SE.ta : SE.tb); ctx.beginPath(); ctx.moveTo(px - r * 0.6, py + r * 0.1); ctx.lineTo(px, py - r * 1.4); ctx.lineTo(px + r * 0.6, py + r * 0.1); ctx.closePath(); ctx.fill();
+            if (SE.tsn > 0.05) { ctx.fillStyle = `rgba(250,250,246,${Math.min(0.95, SE.tsn)})`; ctx.beginPath(); ctx.moveTo(px - r * 0.3, py - r * 0.55); ctx.lineTo(px, py - r * 1.4); ctx.lineTo(px + r * 0.3, py - r * 0.55); ctx.closePath(); ctx.fill(); } // 冬：木に雪
+            else if (SE.bl > 0.05 && hs(i, j, k + 20) < SE.bl) { ctx.fillStyle = '#f2b6c6'; ctx.beginPath(); ctx.arc(px + r * 0.1, py - r * 0.5, r * 0.45, 0, 7); ctx.fill(); } /* 春：桜（まばらに） */ }
         }
       }
     }
