@@ -8,9 +8,9 @@
     const now = Date.now(); if ((p.partyT || 0) > now - 20000) return SIM.say(p.id, '少し間をおいてから遊んでください');
     const n = Math.max(1, Math.min(10, c.n | 0)); if (n < 2) return;
     let money = 0, fame = 0, msg = '';
-    if (c.game === 'cart') { if (!c.ok) return SIM.say(p.id, '荷を運びきれませんでした'); const load = Math.max(0, Math.min(1, +c.load || 0)); money = 700 + Math.round(1800 * load); fame = 1; msg = `荷運び競争に成功（荷の残り${Math.round(load * 100)}%）`; }
-    else if (c.game === 'race' || c.game === 'archery' || c.game === 'fish') {
-      const nm = c.game === 'race' ? '馬の障害レース' : c.game === 'fish' ? '釣り大会' : '弓の的当て大会';
+    if (c.game === 'cart' && !c.team) { if (!c.ok) return SIM.say(p.id, '荷を運びきれませんでした'); const load = Math.max(0, Math.min(1, +c.load || 0)); money = 700 + Math.round(1800 * load); fame = 1; msg = `荷運び競争に成功（荷の残り${Math.round(load * 100)}%）`; }
+    else if (c.game === 'race' || c.game === 'archery' || c.game === 'fish' || c.game === 'cart') { // 2.65.0 荷運びのチーム戦
+      const nm = c.game === 'race' ? '馬の障害レース' : c.game === 'fish' ? '釣り大会' : c.game === 'cart' ? '荷運び競争' : '弓の的当て大会';
       if (c.team) { const k = c.team === 'win' ? 0 : c.team === 'draw' ? 1 : 2; money = [1200, 700, 400][k]; fame = k === 0 ? 1 : 0; msg = `${nm}（チーム戦）${['勝ち', '引き分け', '負け'][k]}`; }
       else { const r = Math.max(1, Math.min(10, c.rank | 0)); money = TBL[r - 1]; fame = r === 1 ? 2 : r === 2 ? 1 : 0; msg = `${nm}で${r}位`; }
     } else if (c.game === 'kemari') { // 2.62.0 蹴鞠：続けた回数（みんなの）と自分が蹴った数
