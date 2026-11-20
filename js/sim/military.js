@@ -120,7 +120,7 @@
       if (!n.qid && !n.tgt && !n.fight && SIM.terrainAt(n.hx, n.hy) === '山地') { delete w.npcs[n.id]; continue; } /* 1.6.9 山に根城のある野盗は消す（別の場所に出直す） */
       n.speed = 28 * SIM.sizeSpeed(n.size || 0) * (n.army ? SIM.mixSpeed(n.army) : 1); // 大勢の野盗団ほど遅い
       if (n.fight) { // 巡回兵と交戦中：近づいたプレイヤーは加勢になる
-        for (const p of Object.values(w.players)) if (inField(p) && dist(n, p) < 0.6) { startBattle(w, n, p); break; }
+        for (const p of Object.values(w.players)) if (inField(p) && !(p.nin && p.follow !== n.id) && dist(n, p) < 0.6) { startBattle(w, n, p); break; } /* 2.61.1 忍びはそばを通っても巻き込まれない（追いかけていれば加勢） */
         continue;
       }
       { // 1.6.67 追いかけてきたプレイヤーに追いつかれたら戦になる（野盗が落ち着いている・こちらが身を隠しているときも）

@@ -91,6 +91,8 @@
   // 兵を雇えない（1.6.56 馬には乗れるようにした）
   for (const k of ['recruit']) { const b = C[k]; if (b) C[k] = (w, p, c) => (p.nin ? SIM.say(p.id, '忍びの間は兵を雇えません') : b(w, p, c)); }
   // 身軽さ
+  // 2.61.1 忍びは地図で敵の部隊（野盗・大名の軍勢・武将の隊）に見つからない（自分から追いかけて攻めかかるのはできる）
+  { const baseHid = SIM.hidden; SIM.hidden = (w, p) => !!(p && p.nin) || baseHid(w, p); }
   const baseSpd = SIM.speedBonus; SIM.speedBonus = (p) => baseSpd(p) + (p.nin ? NIN.mapSpd : 0);
   /* 1.6.57 忍びが敵の部隊（野盗以外）との戦から退くと、ときどき逃げそこねて所持金の何割かを落とす */
   NIN.fleeFail = 0.4; NIN.fleeLoss = [0.2, 0.4];
