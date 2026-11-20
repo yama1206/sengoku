@@ -310,7 +310,7 @@
         g.fillStyle = day === 2 ? '#ff9a3c' : '#fff6a0'; g.beginPath(); g.arc(W0 * (0.2 + day * 0.3), H0 * 0.14, 30, 0, 7); g.fill();
         const rem = Math.max(0, DAY - (Math.max(0, t) - day * DAY)); drawText(g, `${day + 1}日目（${DN[day]}）　残り ${Math.ceil(rem)}秒`, 16, 30, { sz: 20, b: 1 }); bar(g, 16, 40, 160, 8, rem / DAY, '#f2c14e');
         drawText(g, `${m0.n}匹　最大 ${m0.best ? m0.bn + ' ' + m0.best + 'cm' : '―'}`, 16, 74, { sz: 17 }); drawText(g, big ? '勝ち方：大物' : '勝ち方：数', 16, 98, { sz: 14, c: '#f2c14e' });
-        env.ids.forEach((id, i) => drawText(g, `${nameOf(env, id)}　${big ? (S[id].best ? S[id].best + 'cm' : '―') : S[id].n + '匹'}${S[id].done ? '（終了）' : ''}`, W0 - 16, 30 + i * 20, { sz: 15, al: 'right', c: tcol(env, id) }));
+        env.ids.forEach((id, i) => drawText(g, `${nameOf(env, id)}${S[id].done ? '（終了）' : ''}`, W0 - 16, 30 + i * 20, { sz: 15, al: 'right', c: tcol(env, id) })); // 2.60.5 ほかの人の釣果は結果発表まで見せない（名前と終わったかだけ）
         if (msgT > 0 && catchImg && catchImg.complete && catchImg.naturalWidth) { // 2.59.2 釣れた魚の絵を、言葉の下に出す
           const sc = Math.min(260 / catchImg.naturalWidth, (H0 * 0.32) / catchImg.naturalHeight), w = catchImg.naturalWidth * sc, h = catchImg.naturalHeight * sc;
           g.save(); g.globalAlpha = Math.min(1, msgT * 2); g.fillStyle = 'rgba(255,248,230,.85)'; g.beginPath(); g.ellipse(W0 / 2, H0 * 0.38 + h / 2 + 10, w / 2 + 26, h / 2 + 18, 0, 0, 7); g.fill();
