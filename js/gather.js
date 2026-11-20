@@ -259,14 +259,17 @@
     const g = run.g, df = DF()[g.d] || DF().普通, ri = RI[g.r] || 0, W = 400, H = 300, BX = W / 2, BY = H - 14;
     open(`<canvas id="gcv" width="${W}" height="${H}" style="width:100%;border-radius:8px;touch-action:none;display:block"></canvas><div id="gcm" style="margin:8px 0;min-height:22px">魚影の近くに浮きを投げよう（クリック／タップ・Space・Aボタン）</div><button id="gcancel">やめる</button>`);
     $('gcancel').onclick = cancel; $('gcancel').classList.add('main'); $('gcancel').classList.remove('main');
-    const cv = $('gcv'), c = cv.getContext('2d'), len = 38 + 62 * (g.fr || 0.5) + ri * 4, left = Math.random() < 0.5;
+    // 2.60.6 魚影の長さは本当の大きさ（cm）で決める（大きい魚ほど大きい影。小さい魚の差も見えるよう対数で）
+    const cm = g.cm || (() => { const sp = (SGK.DATA.creatures || []).find((x) => x.id === g.id); return sp ? sp.sz[0] + (sp.sz[1] - sp.sz[0]) * (g.fr || 0.5) : 20; })();
+    const shadowLen = (x) => Math.max(16, Math.min(150, 20 + 32 * Math.log2(Math.max(1, x) / 5)));
+    const cv = $('gcv'), c = cv.getContext('2d'), len = shadowLen(cm), left = Math.random() < 0.5;
     const F = { x: left ? -len : W + len, y: 70 + Math.random() * 110, vx: (left ? 1 : -1) * (24 + ri * 7), ph: Math.random() * 6, mode: 'swim', t: 0 };
     const aim = { x: BX, y: 130 }, rip = []; let bob = null, msg = '', end = null, last = performance.now(), prevPad = {};
     const say = (t) => { const m = $('gcm'); if (m) m.textContent = t; };
     const spd0 = Math.abs(F.vx);
     // 2.45.0 魚影が時間差で何匹か出てくる（2.46.0 いつもの釣りも同じ）（本命のほかは、近づいて食いつくふりをするだけの別の影）
     const party = true; F.delay = party ? 0.8 + Math.random() * 6 : 0;
-    const DK = party ? [0, 1, 2].map((i) => { const l = Math.random() < 0.5, ln = 30 + Math.random() * 40; return { x: l ? -ln : W + ln, y: 60 + Math.random() * 130, vx: (l ? 1 : -1) * (20 + Math.random() * 18), ph: Math.random() * 6, len: ln, delay: 0.3 + i * 2.4 + Math.random() * 2.5, mode: 'swim', t: 0 }; }) : [];
+    const DK = party ? [0, 1, 2].map((i) => { const l = Math.random() < 0.5, ln = shadowLen(8 + Math.random() * 60); /* 2.60.6 別の影もいろいろな大きさ */ return { x: l ? -ln : W + ln, y: 60 + Math.random() * 130, vx: (l ? 1 : -1) * (20 + Math.random() * 18), ph: Math.random() * 6, len: ln, delay: 0.3 + i * 2.4 + Math.random() * 2.5, mode: 'swim', t: 0 }; }) : [];
     function cast() {
       if (end || bob) return;
       bob = { x: aim.x, y: Math.min(aim.y, BY - 30), t: 0, land: false, rest: 0 }; say('えいっ！');

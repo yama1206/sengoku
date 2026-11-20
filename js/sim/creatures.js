@@ -135,7 +135,7 @@
       if (ch && ch.key === key) sp = ch.v; else { const tg = [...SIM.spotTags(w, p.x, p.y)]; sp = { f: SIM.spotCreatures(w, p.x, p.y, 'f').length, b: SIM.spotCreatures(w, p.x, p.y, 'b').length, tags: tg, rg: SIM.regionOf(p.x, p.y).name, dp: daypart(w) }; cache[pid] = { key, v: sp }; }
     }
     r.me.spot = sp; r.me.zukan = p.zukan || {};
-    r.me.gat = p.gat ? { n: p.gat.n, k: p.gat.k, d: (byId(p.gat.id) || {}).d, r: (byId(p.gat.id) || {}).r, fr: p.gat.frac, bite: 1800 + ((p.gat.n * 7919) % 2600), lk: p.gat.k === 'b' ? BUGLOOK[p.gat.id] || ['fly', 'butterfly', '#e8e0c8'] : null } : null;
+    r.me.gat = p.gat ? { n: p.gat.n, k: p.gat.k, d: (byId(p.gat.id) || {}).d, r: (byId(p.gat.id) || {}).r, fr: p.gat.frac, cm: p.gat.k === 'f' ? p.gat.size : null /* 2.60.6 魚影の大きさ用 */, bite: 1800 + ((p.gat.n * 7919) % 2600), lk: p.gat.k === 'b' ? BUGLOOK[p.gat.id] || ['fly', 'butterfly', '#e8e0c8'] : null } : null;
     r.me.gatLast = p.gatLast || null;
     return r;
   };
