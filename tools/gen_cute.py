@@ -120,6 +120,13 @@ for _k, _pose in {"ru1_utazu": "POSE: she points one finger playfully at the vie
                   "ru2_utazu": "POSE: she leans forward with both hands resting on her knees, smiling up at the viewer"}.items():
     KINDS[_k] = (_pose + ". " + _p + ". " + _pose, 832, 1216)
 
+# 2.54.0 壺振り・胴元（親分）・市場の商人をリアル寄りに描き直す（x_〇〇）。人の顔・肌・布の質感は写実的に、でも絵として描いたもの
+REAL = ", semi-realistic painted portrait, realistic human face and proportions with natural skin texture and real wrinkles, realistic fabric folds, painterly brush strokes, cinematic warm lighting, like a high quality japanese historical drama game character illustration, not anime, not a photo"
+CHAR_REAL = CHAR.replace(ANIME, REAL)
+for _k in ("c_dealer", "c_boss3", "c_merchant"):
+    _p, _w, _h = KINDS[_k]
+    KINDS["x_" + _k[2:]] = (_p.replace(CHAR, CHAR_REAL).replace("handsome cool young", "lean sharp-eyed man in his late twenties, a"), _w, _h)
+
 
 def main():
     a = sys.argv[1:]
