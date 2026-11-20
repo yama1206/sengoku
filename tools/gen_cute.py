@@ -127,7 +127,10 @@ CHAR_REAL = CHAR.replace(ANIME, REAL)
 KINDS["c_gosho"] = ("a wealthy dignified japanese great merchant in his fifties, calm shrewd confident smile, neat grey hair in a small topknot, luxurious dark green silk kimono under a fine black haori, standing upright, one hand holding a closed folding fan" + CHAR, 832, 1216)
 KINDS["bg_gosho"] = ("interior of a wealthy sengoku period japanese great merchant house showroom, polished wooden floor and tatami, lacquered shelves with precious tea jars and tea bowls, hanging ink scrolls, a gold folding screen, thick white plaster storehouse door kura in the back, soft afternoon light" + BG, 1344, 768)
 KINDS["bg_minato"] = ("a busy 16th century japanese harbor town in daytime, wooden piers, in the bay only old wooden sailing ships: a large wooden chinese junk with brown batten sails and a tall wooden 16th century portuguese carrack with a high curved stern and square sails, small wooden japanese rowing boats, porters carrying straw bales and wooden crates, old warehouses with tiled roofs, blue sea and green hills" + BG, 1344, 768)
-for _k in ("c_dealer", "c_boss3", "c_merchant", "c_gosho"):
+# 2.56.1 村長（村）・村長の家の背景
+KINDS["c_soncho"] = ("a sturdy weathered japanese village headman farmer in his late fifties, kind but stern face with deep sun wrinkles, short grey stubble, grey hair tied in a simple topknot, plain indigo and brown hemp work kimono with tucked sleeves, a hand towel tied at the waist, standing upright holding a wooden hoe resting on his shoulder" + CHAR, 832, 1216)
+KINDS["bg_soncho"] = ("interior of a large sengoku period japanese farmhouse of a village headman, earthen floor doma with straw rice bales and farm tools, raised wooden floor with a sunken irori hearth and a hanging iron kettle, thick wooden beams, thatched roof, view through the open door to green rice paddies, soft daylight" + BG, 1344, 768)
+for _k in ("c_dealer", "c_boss3", "c_merchant", "c_gosho", "c_soncho"):
     _p, _w, _h = KINDS[_k]
     KINDS["x_" + _k[2:]] = (_p.replace(CHAR, CHAR_REAL).replace("handsome cool young", "lean sharp-eyed man in his late twenties, a"), _w, _h)
 

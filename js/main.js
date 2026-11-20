@@ -248,6 +248,7 @@
     h += `<div style="margin-top:8px"><b>成長の型</b></div><div class="row" style="align-items:center;gap:6px"><button id="cg-m" data-cr="gr" data-md="-1">◀</button><span style="display:inline-block;width:8.5em;white-space:nowrap;text-align:center">${g.name}</span><button id="cg-p" data-cr="gr" data-md="1">▶</button></div><div class="muted" style="min-height:4.2em">${g.desc}</div>`; // 0.83.1 型を変えてもボタンの位置が動かないよう幅・高さを固定
     const si = Math.max(0, START.findIndex((t) => t.id === prof.start)), st = START[si], nl = nearLord(st);
     h += `<div style="margin-top:8px"><b>開始地点</b>　<span class="muted">${si + 1}/${START.length}（東から西の順）</span></div><div class="row" style="align-items:center;gap:6px"><button id="cs-mm" data-cr="st" data-md="-5">◀◀</button><button id="cs-m" data-cr="st" data-md="-1">◀</button><span style="display:inline-block;width:6em;white-space:nowrap;text-align:center">${st.name}</span><button id="cs-p" data-cr="st" data-md="1">▶</button><button id="cs-pp" data-cr="st" data-md="5">▶▶</button><button id="cs-r" data-cr="sr">おまかせ</button></div><div class="row"><button id="cs-map" data-cr="map">地図から選ぶ</button></div><div class="muted">${nl ? `近くの大名：${nl}` : ''}</div>`;
+    h += `<div style="margin-top:8px"><b>始め方</b></div><div class="row" style="gap:6px"><button id="cm-ronin" data-cr="mb" data-v="ronin" class="${prof.mibun !== 'nomin' ? 'on' : ''}">浪人として</button><button id="cm-nomin" data-cr="mb" data-v="nomin" class="${prof.mibun === 'nomin' ? 'on' : ''}">農民として</button></div><div class="muted">${prof.mibun === 'nomin' ? '開始地点にいちばん近い村で、村長に雇われた作男（雇われ農民）から始めます。自宅はその村' : '開始地点の町で、どこにも仕えていない浪人から始めます'}</div>`; // 2.56.1
     h += `<div style="margin-top:8px"><b>家紋</b></div>` + monEditorHtml(prof.mon, 'crMon');
     h += `<div class="row" style="margin-top:8px"><button id="cr-back" data-cr="back">戻る</button><button id="cr-ok" data-cr="ok">この人物で決める</button></div>`;
     $('createBody').innerHTML = h; drawMonPrev('crMon', prof.mon);
@@ -341,6 +342,7 @@
     else if (b.dataset.cr === 'map') { smOpen(); return; }
     else if (b.dataset.cr === 'sr') prof.start = START[Math.floor(Math.random() * START.length)].id;
     else if (b.dataset.cr === 'gr') prof.grow = GK[(GK.indexOf(prof.grow) + dir + GK.length) % GK.length];
+    else if (b.dataset.cr === 'mb') prof.mibun = b.dataset.v; // 2.56.1 浪人／農民として始める
     else if (b.dataset.cr === 'back') { $('createPanel').classList.add('hidden'); titleBack(); return; }
     else if (b.dataset.cr === 'ok') { localStorage.setItem('sgk_prof', JSON.stringify(prof)); myName(); $('createPanel').classList.add('hidden'); titleBack(); titleMsg(`${myName()}（${SIM.GROW[prof.grow].name}）で${(START.find((t) => t.id === prof.start) || {}).name || ''}から始めます${crLeft() ? `（能力値の残り${crLeft()}点は使われません）` : ''}`); return; }
     renderCreate();
@@ -837,6 +839,7 @@
     }
     if (townTab === 'renpei') return ['', 'renpei.jpg', `<img class="who" src="${TA}drill_p.png">` + say('練兵所の師範', '腕を上げたければ、ここで鍛えていけ。兵も雇えるし、仕事の口も回してやるぞ')];
     if (townTab === 'gosho' && h.gosho) return ['', 'gosho.jpg', `<img class="who" src="${TA}gosho_p.png" onerror="this.src='${TA}merchant_p.png'">` + say(h.gosho.name, me.sho && me.sho.house === h.id ? 'おう、精が出るな。商いは信用が第一だぞ' : '手前どもの蔵には、よそでは手に入らぬ家宝がございます')]; // 2.55.0 豪商
+    if (townTab === 'soncho' && h.soncho) return ['', 'soncho.jpg', `<img class="who" src="${TA}soncho_p.png">` + say(h.soncho.me ? '村の衆' : `村長 ${h.soncho.head}`, h.soncho.me ? '村長様、今日もよろしくお願いいたします' : me.nomin && h.soncho.mine ? 'おう、今日も精を出してくれよ。田んぼは待ってくれんでな' : '見ねえ顔だな。働き手ならいつでも歓迎するぞ')]; // 2.56.1 村長
     if (townTab === 'mise') return ['', 'shop.jpg', `<img class="who" src="${TA}merchant_p.png">` + say('店の番頭', me.shoka && me.shoka.own ? '旦那様、本日も商いに励みます' : '自分の店を持つのは、商人の夢でございます')]; // 2.56.0 自分の店
     if (townTab === 'minato') return ['', 'minato.jpg', say('湊の船問屋', '海の向こうとの商いなら、船と腕のいい船乗りが要りますぜ')]; // 2.55.0 湊
     if (townTab === 'gamble') return ['', '../gamble/den.jpg', `<img class="who" src="${TA}boss4.png">` + say('賭場の胴元', 'おう、遊んでいくかい。運も腕のうちだぜ')];
@@ -863,7 +866,8 @@
     $('tab-gamble').classList.toggle('hidden', !SGK.DATA.isBig(hs)); /* 2.8.0 賭場は大きな町だけ */
     if (townTab === 'gamble' && !SGK.DATA.isBig(hs)) townTab = 'street';
     if (townTab === 'castle' && (!hs || hs.type !== 'castle')) townTab = 'street';
-    $('tab-gosho').classList.toggle('hidden', !h.gosho); $('tab-minato').classList.toggle('hidden', !h.port); $('tab-mise').classList.toggle('hidden', !h.mise); // 2.56.0 店 // 2.55.0 豪商（大きな町）・湊（南蛮貿易の湊）
+    $('tab-gosho').classList.toggle('hidden', !h.gosho); $('tab-minato').classList.toggle('hidden', !h.port); $('tab-mise').classList.toggle('hidden', !h.mise); // 2.56.0 店
+    $('tab-soncho').classList.toggle('hidden', !h.soncho); if (townTab === 'soncho' && !h.soncho) townTab = 'street'; // 2.56.1 村長 // 2.55.0 豪商（大きな町）・湊（南蛮貿易の湊）
     if ((townTab === 'gosho' && !h.gosho) || (townTab === 'minato' && !h.port) || (townTab === 'mise' && !h.mise)) townTab = 'street';
     { const [cls, bg, inner] = townStage(P, hs), key = townTab + '|' + bg + '|' + inner; // 2.13.0 町の絵
       if (key !== stageKey) { stageKey = key; const st = $('townStage'); st.className = cls; st.style.backgroundImage = bg ? `url(${TA}${bg})` : ''; st.innerHTML = inner; } }
@@ -913,6 +917,7 @@
     } else if (sec === 'gosho' || sec === 'minato') { if (SGK.GOSHOUI) html += SGK.GOSHOUI[sec](P); // 2.55.0
       if (sec === 'gosho' && SGK.SHOKAUI) html += SGK.SHOKAUI.kaigo(P); // 2.56.0 堺の会合衆
     } else if (sec === 'mise') { if (SGK.SHOKAUI) html += SGK.SHOKAUI.mise(P); // 2.56.0 自分の店
+    } else if (sec === 'soncho') { if (SGK.NOMINUI) html += SGK.NOMINUI.soncho(P); // 2.56.1 村長
     } else if (sec === 'jobs') {
       html += `<div class="muted">受けている依頼（${me.quests.length}/3）</div>`;
       if (!me.quests.length) html += '<div class="muted" style="margin:4px 0 8px">なし</div>';
@@ -1138,7 +1143,7 @@
   $('joinBtn').onclick = () => command({ type: 'joinBattle' }); // 1.6.12 合戦の途中参加
   $('testBtn').onclick = () => SGK.TESTUI && SGK.TESTUI.open(G.priv && G.priv.me); // 2.12.1 テストモードの戦闘
   $('townStage').addEventListener('click', (e) => { const b = e.target.closest('button[data-tab]'); if (b) setTab(b.dataset.tab); }); // 2.13.0 通りのボタン
-  function cycleTab(d) { const tabs = ['street', 'market', 'renpei', 'gamble', 'gosho', 'minato', 'mise', 'talk', 'castle', 'home'].filter((t) => !$('tab-' + t).classList.contains('hidden')); setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
+  function cycleTab(d) { const tabs = ['street', 'market', 'renpei', 'gamble', 'gosho', 'minato', 'mise', 'soncho', 'talk', 'castle', 'home'].filter((t) => !$('tab-' + t).classList.contains('hidden')); setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
 
   // ---------- 人物（能力・技能・特技・部隊の昇格） ----------
   let charTab = 'eq', charHtml = '';

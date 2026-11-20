@@ -58,7 +58,7 @@
   FM.grassCost = 0.05; FM.grassEsa = 8; // 草刈り：体力5%で餌8
   FM.GRAIN = { mugi: 6, daizu: 6, rice: 4 }; // 物置の穀物1俵で餌いくつ
   FM.breedGap = 30; FM.breedNat = 50; // 子が生まれるのに要る、なつき
-  FM.animalCap = (F) => 2 + F.fields.length;
+  FM.animalCap = (F) => 2 + F.fields.length + (F.lendA || 0); // 2.56.1 lendA＝村長から許された分（農民の身分）
   FM.animalVal = (a) => Math.round((FM.ANIMALS[a.k].sell * (0.7 + 0.1 * (a.care || 0) + (a.nat || 0) / 250)) / 10) * 10;
   // 狩猟：森の中で、現れた獲物を素早くタップして射る。w＝出やすさ、t＝見えている秒数、hp＝必要な命中数
   // t＝見えている秒数、r＝当たりの大きさ(px)、sp＝動く速さ(px/秒)、zig＝向きを変える間隔(秒、0なら直進)、hp＝必要な命中数。難しさは兎＜鹿＜猪＜熊（猪は速い直進、熊は3回当てる）
@@ -78,7 +78,7 @@
   const pickName = (k, F) => { const used = (F.herd || []).map((a) => a.name), L = FM.NAMES[k].filter((n) => !used.includes(n)); return L.length ? L[Math.floor(Math.random() * L.length)] : FM.NAMES[k][0] + ((F.herd || []).length + 1); };
   const kuraOf = (p) => { p.kura = p.kura || { money: 0, inv: {}, cost: {} }; p.kura.inv = p.kura.inv || {}; p.kura.cost = p.kura.cost || {}; return p.kura; };
   const addKura = (K, k, q) => { const hv = K.inv[k] || 0, old = K.cost[k] != null ? K.cost[k] : 0; K.cost[k] = (old * hv) / (hv + q); K.inv[k] = hv + q; };
-  const maxF = (F) => FM.SUIRO[F.suiro].max;
+  const maxF = (F) => FM.SUIRO[F.suiro].max + (F.lend || 0); // 2.56.1 lend＝村長から借りた田畑（農民の身分）
   FM.state = (f, d) => (!f.c ? 'empty' : d - f.d0 >= FM.CROPS[f.c].days ? 'ripe' : 'grow');
   FM.stage = (f, d) => { if (!f.c) return -1; const r = (d - f.d0) / FM.CROPS[f.c].days; return r >= 1 ? 3 : r >= 0.6 ? 2 : r >= 0.25 ? 1 : 0; }; // 芽・若い・育った・実り
   const rainy = (w) => { const id = SIM.weatherAt ? SIM.weatherAt(w.time.min).id : ''; return id === 'rain' || id === 'storm' || id === 'snow'; };
