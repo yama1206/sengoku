@@ -15,10 +15,10 @@
   };
   // 商人の格（武士の足軽〜部将と同じ格。merit・fame は rank.js の RANKS と同じ）
   GS.RANKS = [null,
-    { name: '丁稚', pay: 200, carry: 1.3, pow: 0.6, min: 0.35, off: 0.05, desc: '奉公したばかり。荷を多く持て、荷が重くても遅くなりにくい' },
-    { name: '手代', pay: 600, carry: 1.5, pow: 0.5, min: 0.4, off: 0.1, desc: '商いを任される。荷をさらに多く持てる' },
-    { name: '番頭', pay: 1400, carry: 1.7, pow: 0.4, min: 0.45, off: 0.15, desc: '店を切り盛りする。家宝と船員の求人が安くなる' },
-    { name: '大番頭', pay: 2800, carry: 2.0, pow: 0.3, min: 0.5, off: 0.2, desc: '豪商の右腕。商人はここが最高位' },
+    { name: '丁稚', pay: 200, carry: 1.3, pow: 0.6, min: 0.35, off: 0.05, desc: '奉公したばかり。荷を多く持て、荷が重くても遅くなりにくい。湊で船員を雇える' },
+    { name: '手代', pay: 600, carry: 1.5, pow: 0.5, min: 0.4, off: 0.1, desc: '商いを任される。荷をさらに多く持てる。弁才船で海外と商いができる' },
+    { name: '番頭', pay: 1400, carry: 1.7, pow: 0.4, min: 0.45, off: 0.15, desc: '店を切り盛りする。唐船を持てる' },
+    { name: '大番頭', pay: 2800, carry: 2.0, pow: 0.3, min: 0.5, off: 0.2, desc: '豪商の右腕。大船を持てる。商人はここが最高位' },
   ];
   // 家宝：名品の武具（equip.js の castle:true）と、茶器・南蛮渡来の品。fame＝初めて手に入れたときの名声、kenjo＝主家に献上したときの功績
   GS.TAKARA = {

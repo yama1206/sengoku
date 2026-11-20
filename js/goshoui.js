@@ -57,14 +57,18 @@
   UI.minato = (P) => {
     const me = P.me, H = P.here, KG = SIM.KAIGAI, K = me.kaigai || { crew: [] };
     if (me.gachaRes && me.gachaRes.t !== lastG) { lastG = me.gachaRes.t; const L = me.gachaRes.list; setTimeout(() => showGacha(L), 0); } // 求人の結果が届いたら、めくる画面を出す
+    const sr = H.port.sho, RN = (r) => SIM.GOSHO.RANKS[r].name;
     let h = `<div class="muted" style="margin-bottom:6px">所持金 ${M(me.money)}　海の向こう（天川・呂宋・交趾・暹羅）との商い。船は船員が動かすので、出帆したら待たずに動けます</div>`;
+    if (!sr) return h + `<div class="card" style="display:block"><b>南蛮貿易は商人だけ</b><br><span class="muted">大きな町（京・堺・博多など）の豪商に奉公して商人になると、ここで船員を雇い、船を出せます。求人は丁稚から、船は${RN(2)}（弁才船）・${RN(3)}（唐船）・${RN(4)}（大船）から</span></div>`
+      + (K.ship || (K.crew || []).length ? `<div class="muted">持っている船・船員はそのまま残っています${K.voy ? `（航海中の船は${K.voy.left}日ほどで戻ります）` : ''}</div>` : '');
     // 船
     h += '<div class="secH">船</div>';
     if (K.ship) h += `<div class="card" style="display:block"><b>${K.shipName}</b>　<span class="muted">船員${K.slots}人まで・元手${M(K.cap)}まで　${K.voy ? `航海中：${K.voy.dest}（あと${K.voy.left}日・元手${M(K.voy.money)}）` : `${K.portName}の湊につないである`}</span>${!K.voy && K.port !== H.id ? `<div class="row" style="margin-top:4px"><button id="sp-move" data-act="moveShip">この湊へ回す（${M(2000)}）</button></div>` : ''}</div>`;
     for (const [id, S] of Object.entries(KG.SHIPS)) {
       if (K.ship === id) continue;
       const back = K.ship ? Math.round(KG.SHIPS[K.ship].cost * KG.sellShip) : 0;
-      h += `<div class="card"><div><b>${S.name}</b>　<span class="muted">${M(S.cost)}${back ? `（下取り${M(back)}）` : ''}<br>${S.desc}</span></div><button id="sb-${id}" data-act="buyShip" data-id="${id}" ${K.voy || me.money + back < S.cost ? 'disabled' : ''}>${K.ship ? '買い替える' : '買う'}</button></div>`;
+      const nr = H.port.shipRank[id];
+      h += `<div class="card"><div><b>${S.name}</b>　<span class="muted">${M(S.cost)}${back ? `（下取り${M(back)}）` : ''}<br>${S.desc}・${RN(nr)}から</span></div><button id="sb-${id}" data-act="buyShip" data-id="${id}" ${K.voy || sr < nr || me.money + back < S.cost ? 'disabled' : ''}>${sr < nr ? `${RN(nr)}から` : K.ship ? '買い替える' : '買う'}</button></div>`;
     }
     // 求人
     const g = H.port.gacha;
@@ -85,6 +89,7 @@
     if (!K.ship) h += '<div class="muted">まず船を手に入れてください</div>';
     else if (K.voy) h += `<div class="muted">いまは航海中です（${K.voy.dest}・あと${K.voy.left}日）</div>`;
     else if (K.port !== H.id) h += `<div class="muted">船は${K.portName}の湊にあります</div>`;
+    else if (sr < H.port.shipRank[K.ship]) h += `<div class="muted">${K.shipName}を出せるのは${RN(H.port.shipRank[K.ship])}からです</div>`;
     else if ((K.riders || []).length < KG.minCrew) h += `<div class="muted">船員が${KG.minCrew}人以上いないと出せません</div>`;
     else {
       for (const [d, D] of Object.entries(KG.DEST)) {

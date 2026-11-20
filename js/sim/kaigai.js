@@ -6,6 +6,10 @@
 (function () {
   const SIM = SGK.SIM, C = SIM.commands, say = (pid, t) => SIM.say(pid, t);
   const KG = (SIM.KAIGAI = {});
+  // 2.55.1 南蛮貿易は商人だけ。船は格で決まる（手代：弁才船、番頭：唐船、大番頭：大船）。求人は丁稚から
+  KG.shipRank = { kobune: 2, karabune: 3, ookbune: 4 };
+  const shoRank = (p) => (p.sho && p.sho.rank) || 0;
+  const needSho = (p, r, what) => { const R = SIM.GOSHO && SIM.GOSHO.RANKS; if (shoRank(p) >= r) return true; say(p.id, shoRank(p) ? `${what}は${R[r].name}になってから（いまは${R[shoRank(p)].name}）` : `${what}は商人だけです（大きな町の豪商に奉公すると商人になれます）`); return false; };
   KG.PORTS = ['nagasaki', 'hirado', 'hakata', 'sakai', 'bonotsu', 'usuki']; // 船を出せる湊
   KG.SHIPS = {
     kobune: { name: '小廻りの弁才船', cost: 20000, slots: 4, cap: 30000, desc: '船員4人・元手30貫まで' },
@@ -66,6 +70,7 @@
   // ---- 求人（ガチャ） ----
   C.crewGacha = (w, p, c) => {
     const s = here(w, p); if (!isPort(s) || p.battle) return say(p.id, '船員の求人は湊（長崎・平戸・博多・堺・坊津・臼杵）で出せます');
+    if (!needSho(p, 1, '船員の求人')) return;
     const K = st(p), ten = c.kind === 'ten', n = ten ? 10 : 1, cost = Math.round((ten ? KG.GACHA.ten : KG.GACHA.one) * (1 - off(p)));
     if (p.money < cost) return say(p.id, `お金が足りません（${SIM.money(cost)}）`);
     p.money -= cost;
@@ -92,6 +97,7 @@
   // ---- 船 ----
   C.buyShip = (w, p, c) => {
     const s = here(w, p), S = KG.SHIPS[c.id]; if (!isPort(s) || !S || p.battle) return;
+    if (!needSho(p, KG.shipRank[c.id], S.name)) return;
     const K = st(p); if (K.voy) return say(p.id, '船が航海から戻るまで買い替えられません');
     if (K.ship === c.id) return;
     const back = K.ship ? Math.round(KG.SHIPS[K.ship].cost * KG.sellShip) : 0;
@@ -116,7 +122,9 @@
   };
   C.voyage = (w, p, c) => {
     const s = here(w, p), K = st(p), D = KG.DEST[c.kind]; if (!isPort(s) || !D || p.battle) return;
+    if (!needSho(p, 1, '海外との商い')) return;
     if (!K.ship) return say(p.id, 'まず船を手に入れてください');
+    if (shoRank(p) < KG.shipRank[K.ship]) return say(p.id, `${KG.SHIPS[K.ship].name}を出せるのは${SIM.GOSHO.RANKS[KG.shipRank[K.ship]].name}からです`);
     if (K.port !== s.id) return say(p.id, `船は${(SIM.settlement(w, K.port) || {}).name || '別の湊'}につないであります`);
     if (K.voy) return say(p.id, '船はもう航海に出ています');
     const rs = riders(K); if (rs.length < KG.minCrew) return say(p.id, `船員が${KG.minCrew}人以上いないと船を出せません（求人で雇えます）`);
@@ -172,7 +180,7 @@
     }
     if (p.gachaRes && w.time.min - p.gachaRes.t < 60) r.me.gachaRes = p.gachaRes;
     const s = here(w, p);
-    if (r.here && isPort(s)) r.here.port = { gacha: { one: Math.round(KG.GACHA.one * (1 - off(p))), ten: Math.round(KG.GACHA.ten * (1 - off(p))) } };
+    if (r.here && isPort(s)) r.here.port = { sho: shoRank(p), shipRank: KG.shipRank, gacha: { one: Math.round(KG.GACHA.one * (1 - off(p))), ten: Math.round(KG.GACHA.ten * (1 - off(p))) } };
     return r;
   };
 })();
