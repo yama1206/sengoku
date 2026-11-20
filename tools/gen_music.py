@@ -125,6 +125,12 @@ KINDS = {
                116, "D major", "4",
                "[Intro - shamisen riff]\n\n[Build up - taiko and clappers join]\n\n[Chorus - festival melody on flute]\n\n"
                "[Instrumental - shamisen solo]\n\n[Chorus - festival melody on flute]\n\n[Outro - final shamisen strum]"),
+    # 2.62.2 遊び（独楽・貝絵合わせ・双六・みんなで遊ぶ・蹴鞠）：祭りの遊び場のように楽しく弾む
+    "s_asobi": ("playful japanese festival games, bouncy shamisen, shinobue flute, "
+                "taiko, tsuzumi, kane bell, cheerful, lighthearted, lively, fun",
+                126, "G major", "4",
+                "[Intro - bouncy shamisen riff]\n\n[Verse - playful flute melody]\n\n[Chorus - festive taiko and flute]\n\n"
+                "[Instrumental - shamisen and tsuzumi]\n\n[Chorus - festive taiko and flute]\n\n[Outro - shamisen riff]"),
     "s_gamble": ("smoky japanese gambling den, low shamisen, tsuzumi, shakuhachi, "
                  "sultry, sly, tense, dark jazz feel, night",
                  84, "E minor", "4",

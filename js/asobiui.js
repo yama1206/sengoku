@@ -184,14 +184,26 @@
   function komaUpdate(st, P, myId, sel, setPanel) {
     const S = ST.koma, gb = P.here.gamble.koma, me = P.me, ks = me.koma || [], use = ks.find((k) => k.id === me.komaUse) || ks[0], oy = gb.oya[K.tierOf(sel)];
     if (S.seen == null) S.seen = gb.last ? gb.last.id : 0;
-    if (!S.busy) {
+    const M = gb.match;
+    if (!S.busy && M) { // 2.64.0 独楽対決の前：両方の独楽を見せて、見物人が賭ける
+      const mk = `<b>${esc(M.aName)}の「${esc(M.ka.name)}」</b>${sideSvg(M.ka, 70)}${statHtml(M.ka)}`, oh = `<b>${esc(M.bName)}の「${esc(M.kb.name)}」</b>${sideSvg(M.kb, 70)}${statHtml(M.kb)}`;
+      if (S.mkH !== mk) { S.mkH = mk; S.drawn = 0; st.querySelector('#kmMe').innerHTML = mk; }
+      if (S.oh !== oh) { S.oh = oh; S.drawn = 0; st.querySelector('#kmOya').innerHTML = oh; }
+      if (!S.drawn) { S.drawn = 1; drawTarai(st, M.ka, M.kb, null); }
+    } else if (!S.busy) {
       const mk = use ? `<b>${esc(use.name)}</b>${sideSvg(use, 70)}${statHtml(use)}` : '<span class="rule">独楽がありません</span>';
       if (S.mkH !== mk) { S.mkH = mk; S.drawn = 0; st.querySelector('#kmMe').innerHTML = mk; }
       const oh = `<b>胴元の「${esc(oy.name)}」</b><br><small>${K.WOODS[oy.wood].name}${oy.ring ? '・鉄輪' : ''}・${['並', '上', '名人'][oy.tier]}の独楽</small>${sideSvg(oy, 70)}${statHtml(oy)}`;
       if (S.oh !== oh) { S.oh = oh; S.drawn = 0; st.querySelector('#kmOya').innerHTML = oh; }
       if (!S.drawn) { S.drawn = 1; drawTarai(st, use, oy, null); }
     }
-    let h = `<div class="rule">${esc(A.GAMES.koma.rule)}</div><div class="row">`;
+    let h = '';
+    if (M) {
+      h += `<div class="row" style="color:#ffd76a"><b>独楽対決 ${esc(M.aName)} 対 ${esc(M.bName)}　あと${Math.ceil(M.left / 1000)}秒で回す</b></div><div class="row"><span class="rule">見物の賭け：${esc(M.aName)}に${money(M.pool[0])}・${esc(M.bName)}に${money(M.pool[1])}（当てた人で全部を分ける）</span></div>`;
+      if (M.role < 0) h += `<div class="row">${M.my ? `<span>${esc(M.my.side ? M.bName : M.aName)}に${money(M.my.amt)}賭けている</span>` : ''}<button data-ms="0" ${me.money < sel ? 'disabled' : ''}>${esc(M.aName)}に${money(sel)}</button><button data-ms="1" ${me.money < sel ? 'disabled' : ''}>${esc(M.bName)}に${money(sel)}</button></div>`;
+      else h += '<div class="row rule">見物人の賭けを待っています</div>';
+    }
+    h += `<div class="rule">${esc(A.GAMES.koma.rule)}</div><div class="row">`;
     h += `<button data-as="craft" ${ks.length >= K.MAX_OWN ? 'disabled' : ''}>独楽を作る</button>`;
     if (use) h += `<button data-as="spin" ${me.money < sel || S.busy ? 'disabled' : ''}>${money(sel)} 賭けて回す</button>`;
     h += `</div><div class="row kmList">${ks.map((k) => `<div class="kmCard ${use && k.id === use.id ? 'on' : ''}" data-use="${k.id}"><b>${esc(k.name)}</b>${sideSvg(k, 40)}<small>${K.WOODS[k.wood].name}${k.ring ? '・鉄輪' : ''}　${k.win || 0}勝${k.lose || 0}敗</small><br><button data-brk="${k.id}" style="font-size:11px;padding:1px 6px">割る</button></div>`).join('')}</div>`;
@@ -219,7 +231,7 @@
     }
     const HOW = { out: '場外！', down: '倒れた！', both: '相打ち', time: '判定' };
     top.textContent = L.r > 0 ? `${a.name}の勝ち` : L.r < 0 ? `${b.name}の勝ち` : '引き分け'; top.classList.add('show');
-    const gn = L.pid === myId ? L.gain : L.pidB === myId ? L.gainB : null;
+    const gn = L.pid === myId ? L.gain : L.pidB === myId ? L.gainB : L.side && L.side[myId] != null ? L.side[myId] : null;
     if (gn != null) { res.innerHTML = gn > 0 ? `<span style="color:#ffd76a">勝ち　＋${money(gn)}</span>` : gn < 0 ? `<span style="color:#ff8a7a">負け　－${money(-gn)}</span>` : '引き分け（返却）'; res.classList.add('show'); sfx(gn > 0 ? 'gbWin' : gn < 0 ? 'gbLose' : 'click'); }
     else { res.textContent = HOW[L.how] || ''; res.classList.add('show'); }
     await wait(2600); top.classList.remove('show'); res.classList.remove('show');
@@ -322,7 +334,8 @@
   UI.mount = (st, tab) => { if (!document.getElementById('asbCss')) document.head.insertAdjacentHTML('beforeend', CSS); ({ koma: komaMount, kai: kaiMount, sugoroku: sgMount })[tab](st); };
   UI.update = (st, tab, P, myId, sel, setPanel) => { const gb = P.here.gamble; if (!gb || !gb[tab]) return; ({ koma: komaUpdate, kai: kaiUpdate, sugoroku: sgUpdate })[tab](st, P, myId, sel, setPanel); };
   UI.click = (e, P, sel, st) => { // 賭場の画面のクリックのうち、ここの分
-    const b = e.target.closest('[data-as],[data-use],[data-brk],[data-kai],[data-va],[data-vd],[data-vc]'); if (!b) return false; const d = b.dataset, tab = SGK.GAMBLEUI.tab();
+    const b = e.target.closest('[data-as],[data-use],[data-brk],[data-kai],[data-va],[data-vd],[data-vc],[data-ms]'); if (!b) return false; const d = b.dataset, tab = SGK.GAMBLEUI.tab();
+    if (d.ms != null) { cmd({ type: 'kmSide', side: +d.ms, qty: sel }); sfx('coin'); return true; }
     if (d.vd) { cmd({ type: 'asDecline', id: d.vd }); sfx('click'); return true; }
     if (d.va) { if (tab === 'koma') gauge(st, +d.vb, (pow) => cmd({ type: 'asAccept', id: d.va, pow })); else { cmd({ type: 'asAccept', id: d.va }); sfx('coin'); } return true; }
     if (d.vc) { const to = (st.querySelector('#asTo') || {}).value || pickTo; if (!to) return true; pickTo = to; if (tab === 'koma') gauge(st, sel, (pow) => cmd({ type: 'asChallenge', game: 'koma', to, qty: sel, pow })); else { cmd({ type: 'asChallenge', game: tab, to, qty: sel }); sfx('coin'); } return true; }

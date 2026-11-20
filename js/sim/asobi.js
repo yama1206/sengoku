@@ -211,18 +211,37 @@
     if (p.money < v.bet) return SAY(p.id, '持ち金が足りません');
     if (v.game === 'koma' && !(p.koma || []).length) return SAY(p.id, 'まず独楽を作ってください');
     if (v.game !== 'koma' && (playing(t[v.game], p.id) || playing(t[v.game], a.id))) return SAY(p.id, 'どちらかが、まだ別の勝負の最中です');
+    if (v.game === 'koma' && t.koma.match) return SAY(p.id, 'いま別の独楽対決の最中です。終わってから受けてください');
     delete t.inv[v.id]; p.money -= v.bet; p.gbPlay = (p.gbPlay || 0) + 1; a.gbPlay = (a.gbPlay || 0) + 1;
-    if (v.game === 'koma') return komaPvp(w, t.koma, a, p, v, Math.max(0, Math.min(1, +c.pow || 0)));
+    if (v.game === 'koma') { // 2.64.0 すぐには回さず、見物人が賭ける時間をおく
+      const kb = (p.koma || []).find((x) => x.id === p.komaUse) || p.koma[0];
+      t.koma.match = { a: a.id, b: p.id, aName: a.name, bName: p.name, v, kb: { id: kb.id, name: kb.name, wood: kb.wood, prof: kb.prof, col: kb.col, ring: kb.ring }, powB: Math.max(0, Math.min(1, +c.pow || 0)), until: Date.now() + K.WATCH_MS, side: {} };
+      for (const q of Object.values(w.players)) if (SAMEAT(w, q, o.s.id)) SAY(q.id, q === a || q === p ? `独楽対決が決まった。${K.WATCH_MS / 1000}秒のあいだ見物人が賭けて、それから回します` : `独楽対決：${a.name}の「${v.koma.name}」 対 ${p.name}の「${kb.name}」！ ${K.WATCH_MS / 1000}秒のうちに賭場の「独楽回し」で見物・賭けができます`);
+      return;
+    }
     const g = v.game === 'kai' ? kaiNew(w, t.kai, [a.id, p.id], v.bet) : sgNew(w, t.sugoroku, [a.id, p.id], v.bet);
     g.nm = [a.name, p.name];
     SAY(a.id, `${p.name}が${NAMEG[v.game]}の勝負を受けた！ 賭場で始まります（先手はあなた）`); SAY(p.id, `${NAMEG[v.game]}の勝負が始まった（先手は${a.name}）`);
   };
-  SIM.systems.push(function asobiInv(w) { // 3分たった挑戦状は取りやめ
+  K.WATCH_MS = 30000; // 独楽対決の前に見物人が賭けられる時間
+  SIM.commands.kmSide = (w, p, c) => { // 見物人の賭け（どちらが勝つか）。賭けた人みんなの賭け金を、当てた人で分ける
+    const o = ok(w, p); if (!o) return; const M = o.t.koma.match; if (!M || Date.now() >= M.until) return SAY(p.id, 'いまは賭けられる独楽対決がありません');
+    if (p.id === M.a || p.id === M.b) return SAY(p.id, '勝負する本人は見物の賭けはできません');
+    const side = c.side === 1 || c.side === '1' ? 1 : 0, old = M.side[p.id]; if (old) { p.money += old.amt; delete M.side[p.id]; }
+    const amt = betOk(w, p, c.qty); if (!amt) return; p.money -= amt; M.side[p.id] = { side, amt };
+    SAY(p.id, `${side ? M.bName : M.aName}に${money(amt)}賭けた`);
+  };
+  function matchEnd(w, t) {
+    const M = t.koma.match; t.koma.match = null; const a = w.players[M.a], b = w.players[M.b];
+    if (!a || !b) { for (const pid in M.side) if (w.players[pid]) w.players[pid].money += M.side[pid].amt; if (a) a.money += M.v.bet; if (b) b.money += M.v.bet; return; }
+    komaPvp(w, t.koma, a, b, M.v, M.powB, M.kb, M);
+  }
+  SIM.systems.push(function asobiInv(w) { // 3分たった挑戦状は取りやめ・見物の時間が過ぎた独楽対決を回す
     if (!w.asobi) return; const now = Date.now();
-    for (const sid in w.asobi) { const t = w.asobi[sid]; if (!t.inv) continue; for (const id in t.inv) if (now - t.inv[id].t > 180000) dropInv(w, t, id, `${NAMEG[t.inv[id].game]}の挑戦に返事がなかった（賭け金は戻った）`); }
+    for (const sid in w.asobi) { const t = w.asobi[sid]; if (t.koma && t.koma.match && now >= t.koma.match.until) matchEnd(w, t); if (!t.inv) continue; for (const id in t.inv) if (now - t.inv[id].t > 180000) dropInv(w, t, id, `${NAMEG[t.inv[id].game]}の挑戦に返事がなかった（賭け金は戻った）`); }
   });
-  function komaPvp(w, T, a, b, v, powB) {
-    const kb = (b.koma || []).find((x) => x.id === b.komaUse) || b.koma[0], ka = v.koma, bet = v.bet, seed = seedOf(w);
+  function komaPvp(w, T, a, b, v, powB, kb0, M) {
+    const kb = (b.koma || []).find((x) => x.id === kb0.id) || kb0, ka = v.koma, bet = v.bet, seed = seedOf(w);
     const res = K.battle({ k: ka, pow: v.pow }, { k: kb, pow: powB }, seed);
     const retA = res.r > 0 ? bet * 2 : res.r === 0 ? bet : 0, retB = res.r < 0 ? bet * 2 : res.r === 0 ? bet : 0; a.money += retA; b.money += retB;
     const kA = (a.koma || []).find((x) => x.id === ka.id);
@@ -232,6 +251,14 @@
     T.n++;
     T.last = { id: T.n, t: Date.now(), pvp: 1, by: a.name, pid: a.id, bName: b.name, pidB: b.id, bet, seed, me: Object.assign({}, ka, { pow: v.pow }), oya: { name: kb.name, wood: kb.wood, prof: kb.prof, col: kb.col, ring: kb.ring, pow: powB }, r: res.r, how: res.how, sec: res.t, hits: res.hits, gain: retA - bet, gainB: retB - bet,
       head: `${a.name}の「${ka.name}」 対 ${b.name}の「${kb.name}」→ ${loser}${HOW[res.how]}（${res.t}秒・当たり${res.hits}回）`, lines: [`${a.name}（${money(bet)}）→ ${res.r > 0 ? '勝ち ' + sign(bet) : res.r < 0 ? '負け ' + sign(-bet) : '引き分け（返却）'}`, `${b.name}（${money(bet)}）→ ${res.r < 0 ? '勝ち ' + sign(bet) : res.r > 0 ? '負け ' + sign(-bet) : '引き分け（返却）'}`] };
+    // 見物人の賭け：当てた人で全部を分ける（当てた人がいない・引き分けなら返す）
+    const sd = (M && M.side) || {}, pool = [0, 0]; for (const pid in sd) pool[sd[pid].side] += sd[pid].amt;
+    const win = res.r > 0 ? 0 : res.r < 0 ? 1 : -1, all = pool[0] + pool[1]; T.last.side = {}; T.last.pool = pool;
+    for (const pid in sd) {
+      const x = sd[pid], q = w.players[pid]; if (!q) continue; const ret = win < 0 || !pool[win] ? x.amt : x.side === win ? Math.floor((x.amt * all) / pool[win]) : 0;
+      q.money += ret; T.last.side[pid] = ret - x.amt; SAY(pid, `独楽対決の賭け：${ret > x.amt ? `当たり ${sign(ret - x.amt)}` : ret === x.amt ? '賭け金が戻った' : `はずれ ${sign(-x.amt)}`}`);
+    }
+    if (all) T.last.lines.push(`見物の賭け：${a.name}に${money(pool[0])}・${b.name}に${money(pool[1])}`);
     for (const [q, r] of [[a, res.r], [b, -res.r]]) SAY(q.id, `独楽回し（対${q === a ? b.name : a.name}）：${r > 0 ? '勝ち' : r < 0 ? '負け' : '引き分け'}`);
   }
 
@@ -383,6 +410,7 @@
     gb.people = Object.values(w.players).filter((q) => q !== p && SAMEAT(w, q, r.here.id)).map((q) => ({ id: q.id, name: q.name }));
     gb.inv = Object.values(t.inv).filter((v) => v.to === pid || v.from === pid).map((v) => ({ id: v.id, game: v.game, bet: v.bet, mine: v.from === pid, who: nameOf(w, v.from === pid ? v.to : v.from), koma: v.koma ? v.koma.name : null }));
     gb.koma = { last: t.koma.last, oya: [0, 1, 2].map((i) => oyaFor(t.koma, i)) };
+    const M = t.koma.match; if (M) { const pool = [0, 0]; for (const id in M.side) pool[M.side[id].side] += M.side[id].amt; gb.koma.match = { aName: M.aName, bName: M.bName, ka: M.v.koma, kb: M.kb, left: Math.max(0, M.until - now), pool, my: M.side[pid] || null, role: pid === M.a ? 0 : pid === M.b ? 1 : -1 }; }
     const view = (T, extra) => { const id = T.by[pid], g = id && T.g[id]; if (!g) return null; const me = idxOf(g, pid); return Object.assign({ bet: g.bet, me, nm: g.nm, pvp: g.pl[1] !== 'oya', turn: g.turn, ev: g.ev, seq: g.seq, done: g.done ? g.res[pid] || { r: 0, gain: 0 } : null, stale: !g.done && g.turn !== me && g.pl[1 - me] !== 'oya' && now - g.lastT > STALE }, extra(g)); };
     const act = (T) => Object.values(T.g).filter((g) => !g.done).map((g) => g.nm.join('対'));
     gb.kai = { last: t.kai.last, players: act(t.kai), g: view(t.kai, (g) => ({ own: g.own, face: g.own.map((x, i) => (x >= 0 ? g.deck[i] : null)), pick: g.pick, pf: g.pick >= 0 ? g.deck[g.pick] : null, sc: g.sc })) };
