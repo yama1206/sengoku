@@ -20,7 +20,7 @@ function investHtml(h, me, s) {
   html += `<div class="muted" style="margin-top:10px">投資　所持金 ${SIM.money(me.money)}</div>`;
   html += `<div class="card" style="display:block"><b>規模 ${V.lv}/${V.max}</b>　${V.name}${kind}<br><span class="muted">いま 生産+${V.prod}%・兵の補充+${V.pool}%`
     + (V.mine ? `<br>あなたの出資 ${SIM.money(V.mine)}（毎月の配当 約${SIM.money(V.div)}）` : '') + '</span>'
-    + (V.lv < V.max ? `<div class="bar"><i style="width:${Math.round((1 - V.need / V.next) * 100)}%"></i></div><span class="muted">次の規模まで あと${SIM.money(V.need)}。上がると生産+20%・兵の補充の速さと上限+30%。出した額の1%が毎月配当で戻り、2貫ごとに名声+1</span>` : '<br><span class="muted">これ以上は大きくなりません</span>')
+    + (V.lv < V.max ? `<div class="bar"><i style="width:${Math.round((1 - V.need / V.next) * 100)}%"></i></div><span class="muted">次の規模まで あと${SIM.money(V.need)}。上がると生産+20%・兵の補充の速さと上限+30%。出した額の${Math.round((SIM.INVEST ? SIM.INVEST.divid : 0.05) * 100)}%が毎月配当で戻り、2貫ごとに名声+1</span>` : '<br><span class="muted">これ以上は大きくなりません</span>')
     + '</div>';
   if (V.lv < V.max) html += `<div class="row">${V.steps.map((q) => `<button id="iv-${q}" data-act="invest" data-qty="${q}" ${me.money >= Math.min(q, V.need) ? '' : 'disabled'}>${SIM.money(q)}出す</button>`).join('')}<button id="iv-rest" data-act="invest" data-kind="rest" ${me.money >= 1 ? '' : 'disabled'}>残りを出す（${SIM.money(V.need)}）</button></div>`;
   return html;
