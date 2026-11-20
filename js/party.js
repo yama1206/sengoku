@@ -243,6 +243,8 @@
     tg.find((x) => x.gold).r = 3.6; tg.find((x) => x.gold).v *= 1.6;
     const pos = (o, t) => { const L = VW + o.r * 2 + 10; return ((((o.ph + o.v * t) % L) + L) % L) - o.r - 5; };
     const wind0 = rng() * 6, windAt = (t) => 5 * Math.sin(t * 0.4 + wind0) + 2 * Math.sin(t * 1.1 + wind0 * 2);
+    // 2.67.0 風を目で見せる：流れる木の葉と風の筋、両側の吹き流し、上の大きな風の目盛り
+    const leaves = Array.from({ length: 26 }, (_, i) => ({ x: (i * 37) % VW, y: 4 + ((i * 53) % 56), k: i % 3, sp: 0.7 + ((i * 29) % 10) / 15, ph: i })); let lastDraw = performance.now();
     const S = {}; for (const id of env.ids) S[id] = { sc: 0, n: 0, done: false }; let t = -2, cx = VW / 2, cy = 40, cd = 0, marks = [], doneAt = null, tOver = null;
     const me0 = S[me];
     function finishAll() {
@@ -277,10 +279,32 @@
         for (const o of tg) { const x = pos(o, Math.max(0, t)); g.strokeStyle = '#6b4a2a'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(x, o.y); g.lineTo(x, o.y + o.r + 12); g.stroke();
           g.fillStyle = o.gold ? '#f2c14e' : '#fff'; g.beginPath(); g.arc(x, o.y, o.r, 0, 7); g.fill(); g.fillStyle = o.gold ? '#fff2a0' : '#d33'; g.beginPath(); g.arc(x, o.y, o.r * 0.65, 0, 7); g.fill(); g.fillStyle = o.gold ? '#e08a00' : '#fff'; g.beginPath(); g.arc(x, o.y, o.r * 0.3, 0, 7); g.fill(); }
         for (const m of marks) if (m.shown && t - m.at < 3) { g.fillStyle = m.pts ? '#2a7a2a' : '#555'; g.beginPath(); g.arc(m.x, m.y, 1, 0, 7); g.fill(); g.font = 'bold 6px sans-serif'; g.fillStyle = m.pts ? '#fff' : '#ccc'; g.textAlign = 'center'; g.fillText(m.pts ? '+' + m.pts + (m.gold ? ' 金!' : '') : 'はずれ', m.x, m.y - 3 - (t - m.at) * 2); }
-        const wnd = windAt(Math.max(0, t)); g.strokeStyle = '#fff'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(VW / 2, 6); g.lineTo(VW / 2 + wnd * 3, 6); g.stroke(); g.fillStyle = '#fff'; g.beginPath(); g.arc(VW / 2 + wnd * 3, 6, 1.3, 0, 7); g.fill();
-        g.font = '5px sans-serif'; g.fillStyle = '#fff'; g.textAlign = 'center'; g.fillText('風', VW / 2, 12);
-        const lx = cx + wnd * 0.9; g.strokeStyle = '#1a1a1a'; g.lineWidth = 0.6; g.beginPath(); g.arc(lx, cy, 3, 0, 7); g.moveTo(lx - 5, cy); g.lineTo(lx + 5, cy); g.moveTo(lx, cy - 5); g.lineTo(lx, cy + 5); g.stroke(); g.restore();
+        const wnd = windAt(Math.max(0, t)), nowD = performance.now(), ddt = Math.min(0.05, (nowD - lastDraw) / 1000); lastDraw = nowD;
+        // 木の葉と風の筋：風の向き・強さで流れる
+        for (const L of leaves) {
+          L.x += (wnd * 6 * L.sp + (wnd >= 0 ? 1 : -1) * 2) * ddt; L.y += Math.sin(nowD / 400 + L.ph) * 3 * ddt; L.ph += ddt;
+          if (L.x > VW + 4) L.x = -4; if (L.x < -4) L.x = VW + 4;
+          if (L.k === 2) { g.strokeStyle = `rgba(255,255,255,${Math.min(0.55, Math.abs(wnd) / 8)})`; g.lineWidth = 0.4; g.beginPath(); g.moveTo(L.x, L.y); g.lineTo(L.x - wnd * 2.2, L.y); g.stroke(); }
+          else { g.save(); g.translate(L.x, L.y); g.rotate(nowD / 300 + L.ph); g.fillStyle = L.k ? '#c8601e' : '#6aa040'; g.beginPath(); g.ellipse(0, 0, 1.4, 0.7, 0, 0, 7); g.fill(); g.restore(); }
+        }
+        // 吹き流し（左右の竿）：風が強いほど横になびく
+        for (const px of [6, VW - 6]) {
+          g.strokeStyle = '#5a3a1a'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(px, 62); g.lineTo(px, 14); g.stroke();
+          const a = clamp(wnd / 7, -1, 1), len = 14, dx = a * len, dy = (1 - Math.abs(a)) * len * 0.9;
+          for (let k = 0; k < 4; k++) { const f = k / 4, f2 = (k + 1) / 4, wv = Math.sin(nowD / 120 + k) * Math.abs(a) * 0.8; g.fillStyle = k % 2 ? '#fff' : '#d33'; g.beginPath(); g.moveTo(px + dx * f, 15 + dy * f + wv); g.lineTo(px + dx * f2, 15 + dy * f2 + wv); g.lineTo(px + dx * f2, 18 + dy * f2 + wv); g.lineTo(px + dx * f, 18 + dy * f + wv); g.fill(); }
+        }
+        const lx = cx + wnd * 0.9;
+        if (Math.abs(lx - cx) > 0.5) { g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 0.4; g.setLineDash([1.5, 1.5]); g.beginPath(); g.moveTo(cx, cy); g.lineTo(lx, cy); g.stroke(); g.setLineDash([]); g.fillStyle = 'rgba(255,255,255,.6)'; g.beginPath(); g.arc(cx, cy, 0.7, 0, 7); g.fill(); } // 狙った所から、風で流される先へ g.strokeStyle = '#1a1a1a'; g.lineWidth = 0.6; g.beginPath(); g.arc(lx, cy, 3, 0, 7); g.moveTo(lx - 5, cy); g.lineTo(lx + 5, cy); g.moveTo(lx, cy - 5); g.lineTo(lx, cy + 5); g.stroke(); g.restore();
         drawText(g, `残り ${ARROWS - me0.n} 本　${me0.sc} 点`, 16, 28, { sz: 22, b: 1 });
+        { // 風の目盛り（上のまん中）：向きの矢印・強さの色と言葉
+          const wv = windAt(Math.max(0, t)), aw = Math.abs(wv), gw = Math.min(360, W0 * 0.42), gx = W0 / 2 - gw / 2, gy = 14, col = aw < 0.8 ? '#cfe8ff' : aw < 2.5 ? '#9ad46a' : aw < 4.5 ? '#f2c14e' : '#e0463c';
+          const word = aw < 0.8 ? '無風' : aw < 2.5 ? '弱い' : aw < 4.5 ? 'やや強い' : '強い';
+          g.fillStyle = '#000a'; g.fillRect(gx - 8, gy - 4, gw + 16, 46); g.fillStyle = '#ffffff22'; g.fillRect(gx, gy + 6, gw, 14);
+          const fw = (clamp(wv, -7, 7) / 7) * (gw / 2); g.fillStyle = col; g.fillRect(fw >= 0 ? W0 / 2 : W0 / 2 + fw, gy + 6, Math.abs(fw), 14);
+          g.fillStyle = '#fff'; g.fillRect(W0 / 2 - 1, gy + 2, 2, 22);
+          if (aw >= 0.8) { const ax = W0 / 2 + fw, dir = wv > 0 ? 1 : -1; g.fillStyle = col; g.beginPath(); g.moveTo(ax + dir * 14, gy + 13); g.lineTo(ax, gy + 1); g.lineTo(ax, gy + 25); g.fill(); }
+          drawText(g, `風 ${aw < 0.8 ? '' : wv > 0 ? '→ ' : '← '}${word}（${aw.toFixed(1)}）`, W0 / 2, gy + 40, { sz: 15, b: 1, al: 'center', c: col });
+        }
         env.ids.forEach((id, i) => drawText(g, `${nameOf(env, id)}　${S[id].sc}点${S[id].done ? '（終了）' : ''}`, W0 - 16, 30 + i * 20, { sz: 15, al: 'right', c: tcol(env, id) }));
         if (cfg.team) { const pts = [0, 0]; for (const id of env.ids) pts[env.tm[id]] += S[id].sc; drawText(g, `赤 ${pts[0]} ― 白 ${pts[1]}`, W0 / 2, H0 - 16, { sz: 20, b: 1, al: 'center' }); }
         if (t < 0) drawText(g, String(Math.ceil(-t)), W0 / 2, H0 / 2, { sz: 90, b: 1, al: 'center' });
