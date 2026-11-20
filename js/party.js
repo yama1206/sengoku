@@ -8,7 +8,7 @@
   let ENV = null; // { me(), name(), others(), send(to, m), cmd(c) }
   PT.init = (e) => { ENV = e; };
   const GAMES = {
-    race: { name: '馬の障害レース', max: 10, team: true, desc: '柵や堀を跳び越えて走り、ゴールの順位を競う。ジャンプ＝A／Space、ダッシュ＝↑／B（スタミナを使う）' },
+    race: { name: '馬の障害レース', max: 10, team: true, desc: '鬼の難しさの障害コース。ジャンプ＝A／Space（長押しで高く・すぐ離すと小さく）、ダッシュ＝↑／B（スタミナを使う）。高い柵は長押しで跳ぶ、枝の下は跳ばずにくぐる、大穴はダッシュで跳ばないと落ちて戻される、ぬかるみでは遅くなる' },
     archery: { name: '弓の的当て大会', max: 10, team: true, desc: '動く的を10本で射抜いて点を競う。風で矢が流れる。狙う＝マウス／矢印／スティック、射つ＝クリック／A／Space。金の的は2倍' },
     fish: { name: '釣り大会', max: 10, team: true, mode: true, desc: '朝・昼・夕の3日間（1日40秒）で釣りくらべ。釣り方はいつもの釣りと同じ（浮きを投げる→アタリ→タイミング）。勝ち方は「いちばん大きい魚」か「釣った数」を選べます' },
     kemari: { name: '蹴鞠', max: 10, team: false, desc: '輪になって鞠を蹴り回す。鞠が自分に飛んできたら、足もとの輪に重なった瞬間に「蹴る」（クリック／タップ／A／Space）。続けるほど鞠は速くなる。毎月5日は大きな町で蹴鞠大会' },
@@ -164,8 +164,18 @@
   // =====================================================================
   function raceGame(env) {
     const { cfg, me, g2: g, cv } = env, rng = mulberry(cfg.seed), LEN = 800, obs = [];
-    for (let x = 45; x < LEN - 40; x += 22 + rng() * 22) { const r = rng(); obs.push({ x, type: r < 0.4 ? 'fence' : r < 0.75 ? 'hurdle' : 'ditch', hit: false }); }
-    const W = { fence: 1, hurdle: 1, ditch: 4 }, H = { fence: 1.1, hurdle: 0.6, ditch: 0.5 };
+    // 2.66.0 鬼の難しさ：障害が詰まり、組み合わせで来る。高い柵（長押しで大跳び）・枝（跳ぶと当たる）・大穴（ダッシュで跳ばないと落ちて戻される）・ぬかるみ（遅くなる）
+    const add = (x, type) => obs.push({ x, type, hit: false });
+    for (let x = 35; x < LEN - 40;) {
+      const p = x / LEN, r = rng(), k = Math.floor(rng() * (p < 0.3 ? 6 : 9));
+      if (k === 0) add(x, 'fence'); else if (k === 1) add(x, 'hurdle'); else if (k === 2) add(x, 'ditch'); else if (k === 3) add(x, 'branch'); else if (k === 4) add(x, 'pit');
+      else if (k === 5) { add(x, 'mud'); add(x + 6.2, 'hurdle'); x += 6; } // ぬかるみを出てすぐ柵
+      else if (k === 6) { add(x, 'hurdle'); add(x + 6.5, 'branch'); x += 7; } // 小さく跳んでから、くぐる
+      else if (k === 7) { add(x, 'fence'); add(x + 9, 'fence'); x += 9; } // 柵が続く
+      else { add(x, 'branch'); add(x + 4, 'ditch'); add(x + 13, 'pit'); x += 14; } // くぐって、堀、大穴
+      x += 9 + r * 11 * (1 - p * 0.5);
+    }
+    const W = { fence: 1, hurdle: 1, ditch: 4, pit: 10, branch: 1.5, mud: 6 }, H = { fence: 1.4, hurdle: 0.6, ditch: 0.5, pit: 0.3 };
     const P = {}; for (const id of env.ids) P[id] = { x: 0, y: 0, stun: 0, fin: null, dx: 0, dy: 0 };
     const s = P[me]; let t = -3, vy = 0, v = 0, stam = 1, poseT = 0, firstFin = null, ph = 0;
     const rank = () => { const a = env.ids.slice(); a.sort((p, q) => { const A = P[p], B = P[q]; if (A.fin != null && B.fin != null) return A.fin - B.fin; if (A.fin != null) return -1; if (B.fin != null) return 1; return B.x - A.x; }); return a; };
@@ -182,14 +192,22 @@
       update(dt) {
         t += dt; if (t < 0) return; ph += dt * (6 + v * 0.5);
         const dash = IN.dash && stam > 0.05 && s.stun <= 0; let target = dash ? 17.5 : 13; if (s.stun > 0) { s.stun -= dt; target = 4.5; }
+        if (s.y <= 0.001 && obs.some((o) => o.type === 'mud' && s.x > o.x && s.x < o.x + W.mud)) target = Math.min(target, dash ? 8 : 5.5); // ぬかるみ
         if (s.fin != null) target = 0; v += (target - v) * Math.min(1, dt * 3); stam = clamp(stam + (dash ? -0.38 : 0.18) * dt, 0, 1); s.x += v * dt;
-        if (IN.aT && s.y <= 0.001 && s.fin == null) vy = 9.2; vy -= 24 * dt; s.y += vy * dt; if (s.y <= 0) { s.y = 0; vy = 0; }
-        for (const o of obs) if (!o.hit && s.x > o.x && s.x < o.x + W[o.type]) { if (s.y <= H[o.type]) { o.hit = true; s.stun = 0.9; v *= 0.4; } } else if (s.x >= o.x + W[o.type]) o.hit = true;
+        if (IN.aT && s.y <= 0.001 && s.fin == null) vy = 9.2; if (vy > 3 && !IN.pull) vy = 3; // すぐ離すと小さく跳ぶ
+        vy -= 24 * dt; s.y += vy * dt; if (s.y <= 0) { s.y = 0; vy = 0; }
+        for (const o of obs) {
+          if (o.hit || o.type === 'mud') continue;
+          if (s.x > o.x && s.x < o.x + W[o.type]) {
+            const bad = o.type === 'branch' ? s.y > 0.35 : s.y <= H[o.type];
+            if (bad) { o.hit = true; if (o.type === 'pit') { s.stun = 1.6; v = 0; s.x = o.x - 18; vy = 0; s.y = 0; o.hit = false; /* 落ちたら戻されて、跳び直し */ } else { s.stun = 1.3; v *= 0.3; } }
+          } else if (s.x >= o.x + W[o.type]) o.hit = true;
+        }
         if (s.x >= LEN && s.fin == null) { s.fin = t; send(env.others, { k: 'fin', t: r1(t) }); if (firstFin == null) firstFin = t; }
         poseT -= dt; if (poseT <= 0) { poseT = 0.1; send(env.others, { k: 'p', x: r1(s.x), y: r2(s.y), s: s.stun > 0 ? 1 : 0 }); }
         for (const id of env.ids) if (id !== me) { const o = P[id]; o.dx += (o.x - o.dx) * Math.min(1, dt * 12); o.dy += (o.y - o.dy) * Math.min(1, dt * 12); }
         const alive = env.ids.filter((id) => !env.gone[id]), allFin = alive.every((id) => P[id].fin != null);
-        if (allFin || (firstFin != null && t > firstFin + 12) || t > 100) finishAll();
+        if (allFin || (firstFin != null && t > firstFin + 15) || t > 150) finishAll();
       },
       draw() {
         const W0 = cv.width, H0 = cv.height, ppm = W0 / 34, n = env.ids.length, rowH = Math.min(120, (H0 * 0.78) / n), top = H0 * 0.14, camX = s.x - 7;
@@ -198,7 +216,11 @@
           const y0 = top + i * rowH + rowH * 0.82, me0 = id === me, o = P[id], x = me0 ? s.x : o.dx, yy = me0 ? s.y : o.dy;
           g.fillStyle = i % 2 ? '#7bbd62' : '#6fae56'; g.fillRect(0, y0 - rowH * 0.8, W0, rowH); g.strokeStyle = '#fff6'; g.beginPath(); g.moveTo(0, y0 + 2); g.lineTo(W0, y0 + 2); g.stroke();
           for (const ob of obs) { const px = (ob.x - camX) * ppm; if (px < -80 || px > W0 + 80) continue;
-            if (ob.type === 'ditch') { g.fillStyle = '#4a3320'; g.fillRect(px, y0 - 3, W.ditch * ppm, 7); } else { g.fillStyle = ob.type === 'fence' ? '#8b5a2b' : '#b08040'; const hh = H[ob.type] * ppm * 0.9 + 8; g.fillRect(px, y0 - hh, 6, hh); g.fillRect(px - 6, y0 - hh, 18, 5); } }
+            if (ob.type === 'ditch') { g.fillStyle = '#4a3320'; g.fillRect(px, y0 - 3, W.ditch * ppm, 7); }
+            else if (ob.type === 'pit') { g.fillStyle = '#1a0f08'; g.fillRect(px, y0 - 4, W.pit * ppm, 12); g.fillStyle = '#5a3a20'; g.fillRect(px - 4, y0 - 6, 6, 8); g.fillRect(px + W.pit * ppm - 2, y0 - 6, 6, 8); }
+            else if (ob.type === 'mud') { g.fillStyle = '#6a4a2a'; g.beginPath(); g.ellipse(px + W.mud * ppm / 2, y0, W.mud * ppm / 2, 6, 0, 0, 7); g.fill(); }
+            else if (ob.type === 'branch') { const by = y0 - 0.55 * ppm * 0.9 - 14; g.fillStyle = '#5a3a1a'; g.fillRect(px - 4, by - rowH * 0.5, 8, rowH * 0.5); g.fillRect(px - 4, by, W.branch * ppm + 8, 7); g.fillStyle = '#3f7a2a'; g.beginPath(); g.arc(px + W.branch * ppm, by, 10, 0, 7); g.fill(); }
+            else { g.fillStyle = ob.type === 'fence' ? '#8b5a2b' : '#b08040'; const hh = H[ob.type] * ppm * 0.9 + 8; g.fillRect(px, y0 - hh, 6, hh); g.fillRect(px - 6, y0 - hh, 18, 5); } }
           const gx = (LEN - camX) * ppm; g.fillStyle = '#fff'; g.fillRect(gx, y0 - rowH * 0.8, 6, rowH); // ゴール
           drawHorse(g, (x - camX) * ppm, y0 - yy * ppm * 0.9, Math.min(1.1, rowH / 85), tcol(env, id), me0 ? ph : (x * 0.9), yy > 0.05);
           drawText(g, nameOf(env, id), (x - camX) * ppm, y0 - rowH * 0.62 - yy * ppm * 0.9, { sz: 13, al: 'center', c: tcol(env, id) });
