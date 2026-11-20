@@ -18,6 +18,9 @@
     // 2.24.0 忍びの任務（3D）をすぐ試す（結果は送らない）
     h += `<div class="tm-h2">忍びの任務（3D）</div><div class="tm-row"><span class="tm-m">城：</span><select id="tmNk"><option value="hira">平城</option><option value="yama">山城</option><option value="mizu">水城</option></select><span class="tm-m">改修：</span><select id="tmNl">${[0, 1, 2, 3, 4, 5].map((lv) => `<option value="${lv}" ${lv === 2 ? 'selected' : ''}>${lv}</option>`).join('')}</select><label class="tm-m"><input type="checkbox" id="tmNn" checked>夜</label></div><div class="tm-row">`
       + [['sabo', '破壊工作'], ['raid', '襲撃'], ['gate', '門の破壊'], ['rumor', '流言'], ['hurt', '武将の襲撃'], ['steal', '密書'], ['steal|ezu', '絵図'], ['steal|kin', '軍資金']].map(([k, n]) => b({ nin: k }, n)).join('') + '</div>';
+    // 2.57.0 城の守り（味方の城に入り込んだ曲者を捕らえる）。急報を起こすと、地図で駆けつけるところから試せる
+    h += `<div class="tm-h2">城の守り（3D）</div><div class="tm-m">上の城・改修・夜を使います。曲者の人数：<select id="tmDn"><option>1</option><option selected>2</option><option>3</option></select></div><div class="tm-row">`
+      + [['sabo', '兵糧蔵'], ['raid', '武器蔵'], ['gate', '城門'], ['hurt', '寝所の武将'], ['steal', '密書'], ['steal|ezu', '絵図'], ['steal|kin', '軍資金']].map(([k, n]) => b({ ndef: k }, n)).join('') + b({ nroll: 1 }, '急報を起こす（地図から）') + '</div>';
     h += '</div>';
     el = document.createElement('div'); el.id = 'testUi';
     el.innerHTML = `<style>
@@ -37,6 +40,8 @@
       if (e.target === el) return T.close();
       const bt = e.target.closest('button'); if (!bt) return; const d = bt.dataset;
       if (d.x) return T.close();
+      if (d.ndef) { const [k, sk] = d.ndef.split('|'), ck = el.querySelector('#tmNk').value, kai = +el.querySelector('#tmNl').value, night = el.querySelector('#tmNn').checked, n = +el.querySelector('#tmDn').value; T.close(); if (SGK.NINJA3D) SGK.NINJA3D.testDef(k, ck, night, kai, sk, n); return; }
+      if (d.nroll) { T.close(); SGK.cmd({ type: 'ninDefTest' }); return; }
       if (d.nin) { const [k, sk] = d.nin.split('|'), ck = el.querySelector('#tmNk').value, kai = +el.querySelector('#tmNl').value, night = el.querySelector('#tmNn').checked; T.close(); if (SGK.NINJA3D) SGK.NINJA3D.test(k, ck, night, kai, sk); return; }
       const c = { type: 'testBattle', kind: d.kind };
       if (d.big) c.big = 1; if (d.ck) c.ck = d.ck; if (d.lv != null) c.lv = +d.lv; if (d.fam) { c.fam = d.fam; c.lv = +el.querySelector('#tmLv').value; } if (d.own) c.own = d.own;

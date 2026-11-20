@@ -146,7 +146,7 @@
     p.money -= t.price; p.ninTools[c.kind] = have + 1;
   };
   const useTools = (p, used) => { if (!used || !p.ninTools) return; for (const k in used) if (NIN.tools[k] && k !== 'kaginawa') p.ninTools[k] = Math.max(0, (p.ninTools[k] || 0) - Math.max(0, +used[k] || 0)); };
-  C.ninUse = (w, p, c) => { useTools(p, c.used); leaveRoom(w, p); }; // 退いたときも使った道具は減る
+  C.ninUse = (w, p, c) => { useTools(p, c.used); leaveRoom(w, p); if (p.ninDef) p.ninDef.go = false; }; // 退いたときも使った道具は減る
   C.ninTake = (w, p, c) => {
     const s = here(w, p), o = offers(w, p, s).find((x) => x.id === c.id); if (!o) return;
     if (p.ninQ) return SIM.say(p.id, '工作は一度に一つまでです');
@@ -186,6 +186,91 @@
     r.go = { at: Date.now(), q: { id: q.id, k: q.k, sk: q.sk || null, whoName: q.whoName || null }, d, mem: r.mem.slice(), lead: p.id, names: Object.fromEntries(r.mem.map((id) => [id, nm(w, id)])) };
   };
 
+  // 工作の効き目を城にかける。def＝2.57.0 守りに失敗して、自分の側の城が受けるとき。note＝知らせ、extra＝盗んだ金の分け前
+  function applyJob(w, s, q, def) {
+    const now = w.time.min, deb = (v) => { if (!(s.ninT > now) || (s.ninDeb || 0) < v) s.ninDeb = v; s.ninT = Math.max(s.ninT || 0, now + 30 * 1440); };
+    if (q.k === 'sabo' || q.k === 'rumor') for (const k in s.gar || {}) s.gar[k] = Math.floor(s.gar[k] * (q.k === 'sabo' ? 0.8 : 0.9));
+    if (q.k === 'gate') { s.gate = Math.max(0, SIM.gateF(s) - 0.4); if (s.holder && w.players[s.holder]) SIM.say(s.holder, `${s.name}の門が何者かに壊されました（門の強さ${Math.round(s.gate * 100)}%）。普請で修理できます`); }
+    if (q.k === 'raid' || q.k === 'rumor') deb(q.k === 'raid' ? 0.15 : 0.08);
+    let extra = 0, note = '';
+    if (def) note = { sabo: '兵糧蔵が焼け、守備兵が2割減りました。', raid: '武器蔵が壊され、30日のあいだ城の守りが15%下がります。', gate: '城門に細工をされ、門の強さが4割減りました（普請で直せます）。', rumor: '城下に噂が流れ、守備兵が1割減りました。' }[q.k] || '';
+    if (q.k === 'hurt' && q.who && w.people[q.who]) { // 2.24.0 武将に手傷
+      const g = w.people[q.who]; g.hurt = now + NIN.hurtDays * 1440; note = `${g.name}は手傷を負い、${NIN.hurtDays}日のあいだ出陣できません。`;
+      if (s.holder && w.players[s.holder]) SIM.say(s.holder, `${s.name}で${g.name}が何者かに襲われ、手傷を負いました`);
+    }
+    if (q.k === 'steal') { // 2.24.0 盗み
+      if (q.sk === 'ezu') { deb(0.12); note = def ? `${s.name}の絵図を盗まれました。30日のあいだ、この城を守る戦で不利になります。` : `${s.name}の絵図を手に入れました。30日のあいだ、この城を攻める時の守りが下がります。`; }
+      if (q.sk === 'kin') { for (const k in s.gar || {}) s.gar[k] = Math.floor(s.gar[k] * 0.9); extra = Math.round((q.reward || 0) * 0.5 / 10) * 10; note = def ? '軍資金を盗まれ、守備兵が1割減りました。' : `給金が消えて守備兵が1割減りました。分け前${SIM.money(extra)}。`; }
+      if (q.sk === 'mitsu') note = def ? '密書を盗まれました。' : `密書によると、${intelOf(w, s.owner, s)}`;
+    }
+    return { note, extra };
+  }
+  // 密書・捕らえた曲者から分かること：その家が次に攻めようとしている城と、近くの城の守備兵
+  function intelOf(w, fac, s) {
+    const m = (w.musters || []).find((x) => x.att === fac), a = !m && Object.values(w.npcs).find((n) => n.kind === 'army' && n.faction === fac && n.mode === 'siege' && n.to);
+    const tg = m ? SIM.settlement(w, m.tgt) : a ? SIM.settlement(w, a.to) : null;
+    const near = w.settlements.filter((t) => t.type === 'castle' && t.owner === fac && dist(t, s) <= 120).slice(0, 6).map((t) => `${t.name}${SIM.garrison ? SIM.garrison(t) : '?'}人`);
+    return `${fName(w, fac)}は${tg ? `${tg.name}を攻めようとしています` : 'いまはどこも攻める支度をしていません'}。近くの城の守備兵：${near.join('・') || 'なし'}。`;
+  }
+
+  // ---- 2.57.0 城の守り：主家と戦をしている家が、月に1回くらい主家の城（敵の城から100km以内）へ忍びを送ってくる。
+  // 急報が届いたら期限までにその城へ駆けつけ、「曲者を探す」で3Dの守りの任務（味方の城の中で曲者を見つけ、追って当て身で捕らえる）。
+  // 間に合わない・曲者に工作を果たされると、攻めの工作と同じ効き目を自分の側の城が受ける
+  NIN.def = { every: [24, 36], retry: 4, first: 8, km: 100, kinds: ['sabo', 'raid', 'gate', 'hurt', 'steal'], perCatch: 0.25, pvpWait: 2 };
+  const nextDef = (w, p) => { const [a, b] = NIN.def.every; p.ninDefNext = day(w) + a + Math.floor(SIM.rand(w) * (b - a + 1)); };
+  function rollDef(w, p, force) {
+    const now = day(w);
+    if (!force) { if (p.ninDefNext == null) { p.ninDefNext = now + NIN.def.first; return; } if (now < p.ninDefNext) return; }
+    const cands = [];
+    for (const s of w.settlements) {
+      if (s.type !== 'castle' || s.owner !== p.clan) continue;
+      const foes = w.settlements.filter((t) => t.type === 'castle' && t.owner && SIM.atWar && SIM.atWar(w, p.clan, t.owner) && dist(s, t) <= NIN.def.km);
+      if (foes.length) cands.push([s, foes, Math.hypot(s.x - p.x, s.y - p.y)]);
+    }
+    if (!cands.length) { p.ninDefNext = now + NIN.def.retry; return; }
+    cands.sort((a, b) => a[2] - b[2]); // 本人に近い城ほど選ばれやすい（近い3つから）
+    const [s, foes, km0] = cands[Math.floor(SIM.rand(w) * Math.min(3, cands.length))], t = foes[Math.floor(SIM.rand(w) * foes.length)];
+    let k = NIN.def.kinds[Math.floor(SIM.rand(w) * NIN.def.kinds.length)], who = null;
+    if (k === 'hurt') { who = hurtTarget(w, s); if (!who) k = 'sabo'; }
+    const J = NIN.jobs[k], days = clampI(Math.ceil(km0 / 25) + 3, 3, 12);
+    const n = 1 + (p.rank >= 2 && SIM.rand(w) < 0.5 ? 1 : 0) + (p.rank >= 3 && SIM.rand(w) < 0.35 ? 1 : 0);
+    p.ninDef = { id: `def-${s.id}-${now}`, k, sk: k === 'steal' ? Object.keys(NIN.steal)[Math.floor(SIM.rand(w) * 3)] : null, who, whoName: who ? w.people[who].name : null, to: s.id, toName: s.name, foe: t.owner, foeName: fName(w, t.owner), n,
+      deadline: w.time.min + days * 1440, reward: Math.round(J.reward * (1 + (p.rank - 1) * 0.2) * 0.9 / 10) * 10, merit: J.merit, go: false };
+    nextDef(w, p);
+    SIM.say(p.id, `急報！ ${p.ninDef.foeName}の忍びが${s.name}に入り込んだ気配があります（期限${days}日）。${s.name}へ駆けつけ、「曲者を探す」で捕らえてください`);
+  }
+  const clampI = (v, a, b) => Math.max(a, Math.min(b, v));
+  function defFail(w, p, s, why, caught, killed) {
+    const q = p.ninDef; p.ninDef = null;
+    const { note } = applyJob(w, s, q, true);
+    const got = (caught || 0) + (killed || 0);
+    if (got && SIM.addMerit) SIM.addMerit(w, p, 6 * got, `${s.name}で曲者を捕らえた`);
+    SIM.say(p.id, `${why === 'late' ? `${s.name}へ駆けつけるのが間に合いませんでした。` : `${s.name}を守りきれませんでした。`}${q.foeName}の忍びに${NIN.jobs[q.k].name}${q.k === 'steal' && NIN.steal[q.sk] ? `（${NIN.steal[q.sk].name}）` : ''}を果たされ、${note}`);
+  }
+  SIM.systems.push(function ninDefTick(w) {
+    for (const p of Object.values(w.players)) {
+      if (!p.nin || !p.clan) { if (p.ninDef) p.ninDef = null; continue; }
+      const q = p.ninDef;
+      if (!q) { rollDef(w, p, false); continue; }
+      const s = SIM.settlement(w, q.to);
+      if (!s || s.owner !== p.clan) { SIM.say(p.id, `${q.toName}はもう主家の城ではないので、守りの任務はなくなりました`); p.ninDef = null; continue; }
+      if (!q.go && w.time.min > q.deadline) defFail(w, p, s, 'late');
+    }
+  });
+  C.ninDefGo = (w, p) => { const q = p.ninDef, s = here(w, p); if (q && s && s.id === q.to && !p.battle) q.go = true; }; // 守りの最中は期限で失敗にしない
+  C.ninDefTest = (w, p) => { if (w.test && p.nin && p.clan) { p.ninDef = null; rollDef(w, p, true); if (!p.ninDef) SIM.say(p.id, '主家と戦をしている家の城が近くにないので、曲者は来ません'); } };
+  C.ninDefResult = (w, p, c) => {
+    const q = p.ninDef, s = here(w, p); if (!q || !s || s.id !== q.to) return;
+    useTools(p, c.used);
+    const caught = clampI(Math.floor(+c.caught || 0), 0, q.n), killed = clampI(Math.floor(+c.killed || 0), 0, q.n - caught);
+    if (!c.ok) return defFail(w, p, s, 'lost', caught, killed);
+    p.ninDef = null;
+    const all = caught + killed >= q.n, rew = Math.round(q.reward * (all ? 1 : 0.5) * (1 + NIN.def.perCatch * caught) / 10) * 10;
+    const merit = Math.round(q.merit * (all ? 1 : 0.5)) + 6 * caught, fame = 1 + caught + (all ? 1 : 0);
+    p.money += rew; p.fame += fame; if (SIM.addMerit) SIM.addMerit(w, p, merit, `${s.name}の守り`);
+    SIM.say(p.id, `${s.name}を守りました！ ${all ? (caught ? `曲者${q.n}人のうち${caught}人を生け捕り${killed ? `、${killed}人を討ち取り` : ''}ました。` : `曲者${q.n}人を討ち取りました。`) : `曲者を追い払いました${caught + killed ? `（${caught + killed}人を捕らえた）` : ''}。`}報酬${SIM.money(rew)}・名声+${fame}。${caught ? `捕らえた曲者を問いただすと：${intelOf(w, q.foe, s)}` : ''}`);
+  };
+
   // 成否はミニゲームから届く
   C.ninResult = (w, p, c) => {
     const q = p.ninQ, s = here(w, p); if (!q || !s || s.id !== q.to || p.battle) return;
@@ -194,25 +279,7 @@
     if (c.ok) {
       const dup = s.ninDone === q.id; s.ninDone = q.id; // 2.41.0 仲間が先に果たした工作の効果は、重ねてかけない（報酬は全員に出る）
       const keep = dup ? { gar: s.gar && Object.assign({}, s.gar), gate: s.gate } : null;
-      const now = w.time.min, deb = (v) => { if (!(s.ninT > now) || (s.ninDeb || 0) < v) s.ninDeb = v; s.ninT = Math.max(s.ninT || 0, now + 30 * 1440); };
-      if (q.k === 'sabo' || q.k === 'rumor') for (const k in s.gar || {}) s.gar[k] = Math.floor(s.gar[k] * (q.k === 'sabo' ? 0.8 : 0.9));
-      if (q.k === 'gate') { s.gate = Math.max(0, SIM.gateF(s) - 0.4); if (s.holder && w.players[s.holder]) SIM.say(s.holder, `${s.name}の門が何者かに壊されました（門の強さ${Math.round(s.gate * 100)}%）。普請で修理できます`); }
-      if (q.k === 'raid' || q.k === 'rumor') deb(q.k === 'raid' ? 0.15 : 0.08);
-      let extra = 0, note = '';
-      if (q.k === 'hurt' && q.who && w.people[q.who]) { // 2.24.0 武将に手傷
-        const g = w.people[q.who]; g.hurt = now + NIN.hurtDays * 1440; note = `${g.name}は手傷を負い、${NIN.hurtDays}日のあいだ出陣できません。`;
-        if (s.holder && w.players[s.holder]) SIM.say(s.holder, `${s.name}で${g.name}が何者かに襲われ、手傷を負いました`);
-      }
-      if (q.k === 'steal') { // 2.24.0 盗み
-        if (q.sk === 'ezu') { deb(0.12); note = `${s.name}の絵図を手に入れました。30日のあいだ、この城を攻める時の守りが下がります。`; }
-        if (q.sk === 'kin') { for (const k in s.gar || {}) s.gar[k] = Math.floor(s.gar[k] * 0.9); extra = Math.round(q.reward * 0.5 / 10) * 10; note = `給金が消えて守備兵が1割減りました。分け前${SIM.money(extra)}。`; }
-        if (q.sk === 'mitsu') {
-          const m = (w.musters || []).find((x) => x.att === s.owner), a = !m && Object.values(w.npcs).find((n) => n.kind === 'army' && n.faction === s.owner && n.mode === 'siege' && n.to);
-          const tg = m ? SIM.settlement(w, m.tgt) : a ? SIM.settlement(w, a.to) : null;
-          const near = w.settlements.filter((t) => t.type === 'castle' && t.owner === s.owner && dist(t, s) <= 120).slice(0, 6).map((t) => `${t.name}${SIM.garrison ? SIM.garrison(t) : '?'}人`);
-          note = `密書によると、${fName(w, s.owner)}は${tg ? `${tg.name}を攻めようとしています` : 'いまはどこも攻める支度をしていません'}。近くの城の守備兵：${near.join('・') || 'なし'}。`;
-        }
-      }
+      const { note, extra } = applyJob(w, s, q, false);
       if (keep) { s.gar = keep.gar; s.gate = keep.gate; }
       const b = NIN.bonus, mulB = 1 + (c.unseen ? b.unseen : 0) + (c.kills ? 0 : b.noKill), rew = Math.round(q.reward * mulB / 10) * 10 + extra;
       const fame = 2 + (c.unseen ? 1 : 0) + (c.kills ? 0 : 1);
@@ -239,7 +306,8 @@
   SIM.privateState = (w, pid) => {
     const r = basePriv(w, pid), p = w.players[pid]; if (!r || !p) return r;
     const s = here(w, p);
-    r.me.nin = p.nin ? { rank: NR[p.rank] ? NR[p.rank].name : '', q: p.ninQ || null, tools: Object.assign({}, p.ninTools || {}), offers: offers(w, p, s), atTgt: !!(p.ninQ && s && s.id === p.ninQ.to), d: p.ninQ && s && s.id === p.ninQ.to ? diff(w, s) : null, room: roomInfo(w, p, s) } : null;
+    r.me.nin = p.nin ? { rank: NR[p.rank] ? NR[p.rank].name : '', q: p.ninQ || null, tools: Object.assign({}, p.ninTools || {}), offers: offers(w, p, s), atTgt: !!(p.ninQ && s && s.id === p.ninQ.to), d: p.ninQ && s && s.id === p.ninQ.to ? diff(w, s) : null, room: roomInfo(w, p, s),
+      def: p.ninDef ? Object.assign({}, p.ninDef, { at: !!(s && s.id === p.ninDef.to), d: s && s.id === p.ninDef.to ? diff(w, s) : null }) : null } : null; // 2.57.0 城の守り
     return r;
   };
 })();

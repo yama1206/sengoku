@@ -876,6 +876,9 @@
     const njName = (q) => SIM.NIN.jobs[q.k].name + (q.k === 'steal' && SIM.NIN.steal[q.sk] ? `（${SIM.NIN.steal[q.sk].name}）` : ''); // 2.24.0
     const njDesc = (q) => (q.k === 'steal' && SIM.NIN.steal[q.sk] ? SIM.NIN.steal[q.sk].desc + `（${SIM.NIN.steal[q.sk].where}にある）` : q.k === 'hurt' ? `寝所の${q.whoName || '武将'}に手傷を負わせる（殺しはしない）。成功すると${q.whoName || 'その武将'}は${SIM.NIN.hurtDays}日のあいだ出陣できない` : SIM.NIN.jobs[q.k].desc);
     if (NJ && NJ.atTgt && NJ.q) html += `<div class="card" style="display:block;border-color:#c33"><b>${njName(NJ.q)}</b>（${NJ.q.foe}・${NJ.q.toName}）<br><span class="muted">${njDesc(NJ.q)}。見張り${NJ.d.guards}人・${NJ.d.ck === 'yama' ? '山城' : NJ.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.d.night ? '夜（見張りの目が届きにくい）' : '昼'}・難しさ${SGK.ICON.html('star', 14).repeat(NJ.d.lv)}</span><div class="row" style="margin-top:4px"><button id="nj-go" data-nj="go">忍び込む</button>${!NJ.room ? '<button id="nj-rec" data-act="ninRecruit">仲間を募る</button>' : ''}</div>${njRoomHtml(NJ.room)}</div>`;
+    const njDefTxt = (q) => `${q.foeName}の忍び${q.n > 1 ? q.n + '人' : ''}が${q.toName}に入り込み、${njName(q)}${q.k === 'hurt' ? `（${q.whoName || '武将'}）` : ''}を狙っている`; // 2.57.0 城の守り
+    if (NJ && NJ.def && NJ.def.at) html += `<div class="card" style="display:block;border-color:#c33"><b>城の守り</b>（${NJ.def.toName}）<br><span class="muted">${njDefTxt(NJ.def)}。城の中で曲者を探し、追って当て身で捕らえる（生け捕りにすると敵の動きが分かる）。${NJ.def.d ? `${NJ.def.d.ck === 'yama' ? '山城' : NJ.def.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.def.d.night ? '夜（曲者が見えにくい）' : '昼'}・` : ''}${dayLeft(NJ.def.deadline)}・報酬${SIM.money(NJ.def.reward)}</span><div class="row" style="margin-top:4px"><button id="nj-def" data-njdef="go">曲者を探す</button></div></div>`;
+    else if (NJ && NJ.def) html += `<div class="card" style="display:block;border-color:#c33"><b>急報：城の守り</b><br><span class="muted">${njDefTxt(NJ.def)}。期限までに${NJ.def.toName}へ駆けつけてください（${dayLeft(NJ.def.deadline)}）。間に合わないと工作を果たされます</span><div class="row" style="margin-top:4px"><button id="nj-deflook" data-look="${NJ.def.to}">地図で見る</button></div></div>`;
     if (townTab === 'street' && SGK.PARTY) html += '<div class="card" style="display:block"><b>みんなで遊ぶ</b>（同じ町にいる人を誘えます。2人から）<div class="row" style="margin-top:4px"><button data-party="race">馬の障害レース</button><button data-party="archery">弓の的当て</button><button data-party="fish">釣り大会</button><button data-party="cart">荷運び（協力）</button></div></div>';
     if (townTab === 'street') html += `<div class="muted">${hs && hs.type === 'village' ? '村' : '町'}の通りです。上のボタンから行き先を選んでください</div>`;
     for (const sec of TOWN_SECS[townTab] || [townTab]) { if ((TOWN_SECS[townTab] || []).length > 1) html += `<div class="secH">${SEC_NAME[sec]}</div>`;
@@ -1105,6 +1108,15 @@
     }
     if (SGK.NINJA3D && SGK.NINJA3D.can()) SGK.NINJA3D.start({ q: N.q, d: N.d, tools: N.tools || {}, seed: N.q.id }, fin); else SGK.NINJA.start(N.q.k, N.d, fin);
   }
+  // 2.57.0 城の守り（3D）。3Dが使えないときは、その場で運しだいで決まる
+  function startNinjaDef(N) {
+    const q = N.def, fin = (r) => { r = r && typeof r === 'object' ? r : { ok: r };
+      if (r.ok === null || r.ok === undefined) { command({ type: 'ninUse', used: r.used || null }); toast('いったん退きました（曲者はまだ城の中にいる）', 1500); }
+      else command({ type: 'ninDefResult', ok: !!r.ok, caught: r.caught || 0, killed: r.killed || 0, used: r.used || null }); };
+    command({ type: 'ninDefGo' });
+    if (!(SGK.NINJA3D && SGK.NINJA3D.can())) { const ok = Math.random() < 0.6; fin({ ok, caught: ok ? 1 : 0, killed: 0 }); return; }
+    SGK.NINJA3D.start({ def: { n: q.n }, q: { k: q.k, sk: q.sk, whoName: q.whoName, id: q.id }, d: q.d, tools: N.tools || {}, seed: q.id }, fin);
+  }
   // 部屋の出発の合図が届いたら、入っている全員が始める
   setInterval(() => {
     const P = G.priv, N = P && P.me && P.me.nin, R = N && N.room;
@@ -1117,6 +1129,8 @@
     const pb = e.target.closest('button[data-party]'); if (pb) { openTown(false); SGK.PARTY.openLobby(pb.dataset.party); return; } // 2.42.0
     const nj = e.target.closest('button[data-nj]'); // 0.77.0 忍び込む
     if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; openTown(false); startNinja(N, null); return; }
+    const nd = e.target.closest('button[data-njdef]'); // 2.57.0 城の守り
+    if (nd) { const N = G.priv && G.priv.me.nin; if (!N || !N.def || !N.def.at) return; openTown(false); startNinjaDef(N); return; }
     const gs = e.target.closest('button[data-gbset]'); if (gs) { G.gbSel = +gs.dataset.gbset; townHtml = ''; renderTown(); return; } // 2.8.0 賭場の掛け金
     const b = e.target.closest('button[data-act]'); if (!b) return;
     if (b.dataset.act === 'smithPlay') { if (SGK.SMITHUI) SGK.SMITHUI.open(b.dataset.id, G.priv && G.priv.me); return; } // 2.29.0 鍛冶のミニゲーム
@@ -1812,6 +1826,7 @@
       if (q.pt) marks.pts.push(q.pt);
     }
     if (P.me.nin && P.me.nin.q && P.me.nin.q.to) marks.add(P.me.nin.q.to); /* 忍びの依頼 */
+    if (P.me.nin && P.me.nin.def && P.me.nin.def.to) marks.add(P.me.nin.def.to); /* 2.57.0 城の守り */
     return marks;
   }
   function cycleNear() { /* 1.6.43 □：受けている依頼の場所を先に（近い順）、そのあと近くの拠点 */
@@ -2147,7 +2162,7 @@
           el.classList.toggle('hidden', !h || !!(G.priv && G.priv.battle)); if (el.dataset.h !== h) { el.innerHTML = h; el.dataset.h = h; } }
         renderCaptive(P.me);
         $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　${loadTxt(P.me)}　名声 ${P.me.fame}${P.me.infamy ? `　<span style="color:#e07a6a">悪名 ${P.me.infamy}</span>` : ''}${P.me.rank && P.me.rank.clan ? `　功績 ${P.me.rank.merit}${(() => { const n = SIM.RANKS[P.me.rank.rank + 1]; return n && !n.indep ? '/' + n.merit : ''; })()}` : ''}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.wage ? `<br>兵の給金 ${SIM.money(P.me.wage)}/日${P.me.money < P.me.wage ? '　<b style="color:#e07a6a">払えません</b>' : '（約' + Math.floor(P.me.money / P.me.wage) + '日分）'}` : '') + (P.me.riceNeed ? `<br>士気 <b style="color:${P.me.morale < 35 ? '#e07a6a' : P.me.morale < 60 ? '#e0c060' : '#6fbf73'}">${P.me.morale}</b>　兵糧 米${(P.me.inv && P.me.inv.rice) || 0}俵（1日${P.me.riceNeed}俵・${P.me.hungry ? '<b style="color:#e07a6a">米が足りません</b>' : '約' + P.me.riceDays + '日分'}）` : '') + (P.me.follow ? `<br>追跡中：${P.me.follow}` : '') + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
-          + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.where || (q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品')}・${dayLeft(q.deadline)}）</div>`).join('') + (P.me.nin && P.me.nin.q ? `<div class="q">◆ ${SIM.NIN.jobs[P.me.nin.q.k].name}（${sName(P.me.nin.q.to)}・${dayLeft(P.me.nin.q.deadline)}）</div>` : '');
+          + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.where || (q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品')}・${dayLeft(q.deadline)}）</div>`).join('') + (P.me.nin && P.me.nin.q ? `<div class="q">◆ ${SIM.NIN.jobs[P.me.nin.q.k].name}（${sName(P.me.nin.q.to)}・${dayLeft(P.me.nin.q.deadline)}）</div>` : '') + (P.me.nin && P.me.nin.def ? `<div class="q" style="color:#ff8a6a">◆ 城の守り：曲者を捕らえる（${sName(P.me.nin.def.to)}・${dayLeft(P.me.nin.def.deadline)}）</div>` : '');
       }
       // HUD
       const dEl = $('date'); dEl.textContent = SIM.formatDate(G.view.t) + (G.speed === 0 ? '（停止中）' : G.speed > 1 ? (G.inBattle ? '（戦闘中のため×1）' : `（×${G.speed}）`) : '');
