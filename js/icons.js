@@ -5,6 +5,8 @@
   const I = (SGK.ICON = {}), cache = {};
   I.url = (k) => `assets/icons/${k}.png`;
   I.html = (k, px = 18, alt = '') => `<img class="ico" src="assets/icons/${k}.png" alt="${alt}" draggable="false" style="width:${px}px;height:${px}px;vertical-align:-0.22em;object-fit:contain">`;
+  // 2.54.0 絵が読めなかったときは fb（絵文字など）の文字に置き換える
+  I.fb = (k, px, fb) => I.html(k, px, esc(fb)).replace('<img ', `<img onerror="this.replaceWith(document.createTextNode(this.alt))" `);
   I.img = (k) => { let im = cache[k]; if (!im) { im = cache[k] = new Image(); im.src = I.url(k); } return im.complete && im.naturalWidth ? im : null; };
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   I.tok = (s, px = 18) => esc(s).replace(/\{i:(\w+)\}/g, (_, k) => I.html(k, px));

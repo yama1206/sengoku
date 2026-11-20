@@ -2,10 +2,10 @@
 //  月ごとの出やすさは WX_TABLE（[天気, 確率]。足して1に）。14時間ごとに天気が変わる
 (function () {
   const SIM = SGK.SIM;
-  // 【仮の絵文字】あとで絵に置き換える。置き換える場所はここ（mark）だけ。night は夜の晴れ
+  // 2.54.0 ico は assets/icons の絵（night・nico は夜の晴れ）。mark・night の絵文字は絵が読めないときの代わり
   const WX = {
-    sunny: { name: '晴れ', mark: '☀️', night: '🌙' }, cloudy: { name: '曇り', mark: '☁️' }, rain: { name: '雨', mark: '🌧️' },
-    storm: { name: '嵐（雷雨）', mark: '⛈️' }, snow: { name: '雪', mark: '❄️' }, fog: { name: '霧', mark: '🌫️' },
+    sunny: { name: '晴れ', mark: '☀️', night: '🌙', ico: 'wx_sunny', nico: 'wx_night' }, cloudy: { name: '曇り', mark: '☁️', ico: 'wx_cloudy' }, rain: { name: '雨', mark: '🌧️', ico: 'wx_rain' },
+    storm: { name: '嵐（雷雨）', mark: '⛈️', ico: 'wx_storm' }, snow: { name: '雪', mark: '❄️', ico: 'wx_snow' }, fog: { name: '霧', mark: '🌫️', ico: 'wx_fog' },
   };
   const WINTER = [['sunny', 0.35], ['cloudy', 0.25], ['snow', 0.3], ['fog', 0.05], ['rain', 0.05]];
   const SPRING = [['sunny', 0.5], ['cloudy', 0.2], ['rain', 0.27], ['fog', 0.03]];
@@ -22,7 +22,7 @@
     const mon = Math.floor((((di % 360) + 360) % 360) / 30) + 1, r = hash(Math.floor(total / 840)); let acc = 0, id = 'sunny';
     for (const [k, p] of WX_TABLE[mon]) { acc += p; if (r < acc) { id = k; break; } }
     const w = WX[id], night = SIM.daylight && SIM.daylight(min || 0) < 0.3;
-    return { id, name: w.name, mark: night && w.night ? w.night : w.mark, fx: FX[id] ? FX[id].txt : '' };
+    return { id, name: w.name, mark: night && w.night ? w.night : w.mark, ico: night && w.nico ? w.nico : w.ico, fx: FX[id] ? FX[id].txt : '' };
   };
 
   // 2.53.0 天気の影響（数値はすべて仮・ここで調整）。gun＝鉄砲の威力　move＝地図の移動の速さ　sight＝視界

@@ -10,6 +10,7 @@ from gen_ground import GW, KEY_FILE, req, wait_idle
 STYLE = ", japanese ukiyo-e woodblock print style illustration, edo period, bold clean ink outlines, flat muted traditional colors, subtle washi paper texture"
 ICON = STYLE + ", single object centered, game item icon, isolated on a pure white background, no shadow, no text, the whole object fits inside the frame with white margin"
 CHAR = STYLE + ", full body, isolated on a pure white background, no shadow, no text, the whole figure fits inside the frame with white margin"
+WXI = ICON + ", very simple bold symbol, thick ink outlines, few large flat shapes, minimal detail, clearly readable even when tiny"
 BG = STYLE + ", wide scene, no text, no people in the foreground"
 # 名前: (文, 幅, 高さ)
 KINDS = {
@@ -40,6 +41,21 @@ KINDS = {
     "ico_miss2": ("a small white puff of smoke cloud with a few water splash droplets flying, nothing else" + ICON, 1024, 1024),
     "it_tray2": ("an empty round shallow lacquered wooden tray seen from above, nothing on it, plain smooth wood surface" + ICON, 1024, 1024),
     "ico_miss": ("a small puff of dust and splashing water drops" + ICON, 1024, 1024),
+    # 2.54.0 天気（時間の横の小さな印。小さくても読めるよう、太い線・大きな形・描き込み少なめ）
+    "wx_sunny": ("a simple round red-orange sun disc with short thick rays around it" + WXI, 1024, 1024),
+    "wx_night": ("a simple thick pale yellow crescent moon with one small star" + WXI, 1024, 1024),
+    "wx_cloudy": ("a simple puffy grey-white cloud shape with thick dark outline" + WXI, 1024, 1024),
+    "wx_rain": ("a simple grey cloud with three thick blue slanted rain drops falling below it" + WXI, 1024, 1024),
+    "wx_storm": ("a simple dark grey storm cloud with one big thick yellow zigzag lightning bolt below it" + WXI, 1024, 1024),
+    "wx_snow": ("a single simple bold white and light blue six-armed snowflake crest with thick dark outline" + WXI, 1024, 1024),
+    "wx_fog": ("three thick wavy horizontal pale grey mist bands stacked, simple stylized fog symbol" + WXI, 1024, 1024),
+    # 2.54.0 狩りの獲物（横向き）
+    "prey_rabbit": ("a single japanese hare rabbit in side view sitting, white-brown fur, long ears" + ICON, 1024, 1024),
+    "prey_deer": ("a single sika deer stag with antlers in side view standing, brown with white spots" + ICON, 1024, 1024),
+    "prey_boar": ("a single wild boar in side view standing, dark brown bristly fur, small tusks" + ICON, 1024, 1024),
+    "prey_bear": ("a single asian black bear in side view standing on four legs, black fur with white crescent on chest" + ICON, 1024, 1024),
+    # 2.54.0 鍛冶の槌が当たった印
+    "smith_fire": ("a single bold red-orange flame with a bright yellow core and a few sparks" + WXI, 1024, 1024),
     # 賭場
     "bg_den": ("interior of an edo period gambling den at night, tatami room lit by paper andon lanterns, a long white cloth gambling mat on the floor in the center, wooden pillars, shoji screens, warm orange light, dark corners" + BG, 1344, 768),
     "ch_dealer": ("a tsubofuri dice dealer man kneeling in seiza with one shoulder bare and a sarashi cloth around his belly, holding a bamboo dice cup, tattoo on his arm, serious face" + CHAR, 1024, 1024),

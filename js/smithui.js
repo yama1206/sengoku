@@ -57,7 +57,7 @@
   function strike() {
     if (!st || st.done) return;
     const hit = Math.abs(st.pos - st.zc) <= st.zw / 2; st.res.push(hit); if (hit) st.hits++;
-    st.i++; $('smDots').textContent = Array.from({ length: N() }, (_, k) => (k < st.res.length ? (st.res[k] ? '🔥' : '✕') : '・')).join(' ');
+    st.i++; $('smDots').innerHTML = Array.from({ length: N() }, (_, k) => (k < st.res.length ? (st.res[k] ? (SGK.ICON ? SGK.ICON.fb('smith_fire', 20, '🔥') : '🔥') : '✕') : '・')).join(' '); // 2.54.0 当たりは炎の絵（読めなければ絵文字）
     $('smMsg').textContent = hit ? 'いい音だ！' : 'ずれた……';
     if (st.i >= N()) { st.done = true; const id = st.id, hits = st.hits; $('smGo').disabled = true; $('smMsg').textContent = `成功 ${hits}／${N()}`; setTimeout(() => { close(); SGK.cmd({ type: 'smith', kind: 'craft', id, qty: hits }); }, 700); }
     else newZone();

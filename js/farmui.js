@@ -2,7 +2,7 @@
 (function () {
   const SIM = SGK.SIM, UI = (SGK.FARMUI = {});
   const G = window.SGK_G, $ = (id) => document.getElementById(id);
-  // 【仮の絵文字】狩りの獲物の見た目。あとで絵（assets/ 以下の画像）に置き換える。置き換えるのは PREY_ICON と drawPrey() だけ
+  // 2.54.0 狩りの獲物の絵（assets/icons/prey_〇〇.png）。PREY_ICON の絵文字は絵が読めないときの代わり
   const PREY_ICON = { rabbit: '🐇', deer: '🦌', boar: '🐗', bear: '🐻' };
   const star = (n, max) => '★'.repeat(n) + '☆'.repeat(max - n);
   UI.herdHtml = (me) => {
@@ -48,8 +48,14 @@
   let ov = null, raf = 0, doneN = 0, run = null;
   function close(send) { if (run && send !== false) SGK.cmd({ type: 'huntEnd', n: run.n, res: run.res }); cancelAnimationFrame(raf); if (ov) ov.remove(); ov = null; run = null; }
   // 獲物を描く：ここを絵に置き換える（仮は絵文字）
-  function drawPrey(ctx, k, x, y, hit) { ctx.font = '56px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.globalAlpha = hit ? 0.5 : 1; ctx.fillText(PREY_ICON[k], x, y); ctx.globalAlpha = 1; }
+  function drawPrey(ctx, k, x, y, hit) {
+    const im = SGK.ICON && SGK.ICON.img('prey_' + k); ctx.globalAlpha = hit ? 0.5 : 1;
+    if (im) ctx.drawImage(im, x - 36, y - 36, 72, 72);
+    else { ctx.font = '56px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(PREY_ICON[k], x, y); }
+    ctx.globalAlpha = 1;
+  }
   function startHunt(n) {
+    if (SGK.ICON) for (const k in PREY_ICON) SGK.ICON.img('prey_' + k); // 絵を先に読んでおく
     if (ov) return; const W = 400, H = 300, P = FM().PREY, N = FM().huntN, keys = Object.keys(P), tw = keys.reduce((a, k) => a + P[k].w, 0);
     run = { n, res: {}, i: 0, cur: null, next: performance.now() + 900, hits: 0, arrows: [], left: FM().huntArrows, last: performance.now() };
     ov = document.createElement('div'); ov.id = 'huntOv';
