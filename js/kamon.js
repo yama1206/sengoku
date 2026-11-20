@@ -169,6 +169,15 @@
       ctx.fillStyle = '#3a3f4a'; roof(y - h * 1.72, h * 0.75, h * 0.38);
       return;
     }
+    if (shape === 'dia') { // 2.61.5 大きな町：ひし形（ダイヤ型）。金の縁をもう一重
+      const r = h * 1.4, path = (k) => { ctx.beginPath(); ctx.moveTo(x, y - r * k); ctx.lineTo(x + r * k, y); ctx.lineTo(x, y + r * k); ctx.lineTo(x - r * k, y); ctx.closePath(); };
+      ctx.lineJoin = 'miter';
+      path(1.18); ctx.fillStyle = '#f2c14e'; ctx.fill(); ctx.strokeStyle = '#2a2118'; ctx.lineWidth = 1.2; ctx.stroke();
+      path(1); ctx.fillStyle = PAPER; ctx.fill();
+      if (fid) { ctx.save(); path(1); ctx.clip(); ctx.drawImage(K.image(fid, f), x - r * 0.62, y - r * 0.62, r * 1.24, r * 1.24); ctx.restore(); }
+      path(1); ctx.strokeStyle = frame || '#2a2118'; ctx.lineWidth = lw || 1.5; ctx.stroke();
+      return;
+    }
     ctx.fillStyle = PAPER; ctx.strokeStyle = frame || '#2a2118'; ctx.lineWidth = lw || 1.5;
     ctx.beginPath(); if (shape === 'sq') ctx.rect(x - h, y - h, size, size); else ctx.arc(x, y, h, 0, Math.PI * 2);
     ctx.fill();

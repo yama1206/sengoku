@@ -143,7 +143,7 @@
         ctx.fillStyle = 'rgba(60,220,190,.28)'; ctx.strokeStyle = '#2fd6b4'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, hr, 0, 7); ctx.fill(); ctx.stroke();
       }
       if (s.type === 'castle') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 18 * zk, 'shiro', fr[0], fr[1]); // 0.54.7 城は天守の形・町や村は四角（部隊は丸）
-      else if (s.type === 'town') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, (SGK.DATA.isBig(s) ? 20 : 15) * zk, 'sq', fr[0], fr[1]); // 1.6.78 大きな町は印を大きく
+      else if (s.type === 'town') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, (SGK.DATA.isBig(s) ? 20 : 15) * zk, SGK.DATA.isBig(s) ? 'dia' : 'sq', fr[0], fr[1]); // 1.6.78 大きな町は印を大きく（2.61.5 ひし形に）
       else SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 10, 'sq', fr[0], Math.min(fr[1], 2));
       if (SGK.SIM.minato && SGK.SIM.minato(s) && cam.scale >= 1.5) { // 0.53.0 湊の錨
         const ax = x + 13 * zk, ay = y - 11 * zk, big = SGK.SIM.minato(s) === 2;
