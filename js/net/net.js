@@ -79,7 +79,9 @@
       peer.on('disconnected', () => setTimeout(() => { try { if (!gone && !peer.destroyed) peer.reconnect(); } catch (e) {} }, 2000));
     }
     return {
-      each(fn) { for (const [c, pid] of conns) if (c.open) { const m = fn(pid); try { c.send(JSON.stringify(m)); } catch (e) { console.error(e); try { c.send({ t: 'err', text: 'エラー(送信): ' + (e && e.message) }); } catch (e2) {} } } },
+      // 2.59.4 送り口に前の分がたまっている人には、この回の様子を送らない（道が細い人に送り続けると、たまった分の後ろに並んで遅れが何十秒にも伸びる）。
+      //  様子は毎回いちばん新しいものなので、とばしても困らない。知らせ（msgs）は送れたときにまとめて届く
+      each(fn) { for (const [c, pid] of conns) if (c.open) { const dc = c.dataChannel; if ((dc && dc.bufferedAmount > NET.BUF_MAX) || (c.bufferSize || 0) > 0) { NET.skipped = (NET.skipped || 0) + 1; continue; } const m = fn(pid); try { c.send(JSON.stringify(m)); } catch (e) { console.error(e); try { c.send({ t: 'err', text: 'エラー(送信): ' + (e && e.message) }); } catch (e2) {} } } },
       sendTo(pid, msg) { const j = JSON.stringify(msg); for (const [c, p] of conns) if (p === pid && c.open) c.send(j); },
       broadcast(msg) { const j = JSON.stringify(msg); for (const c of conns.keys()) if (c.open) c.send(j); },
       count: () => conns.size,
@@ -97,6 +99,7 @@
 
   // 参加者：h = { onWelcome(msg), onState(msg), onAct(msg), onMine(msg), onErr(msg), onBye(reason), onLost(reason) }
   // 2.4.0 onLost：ホストが抜けた・届かなくなった（引き継ぎへ）。onBye：入れなかった（タイトルへ）
+  NET.BUF_MAX = 64 * 1024; // 2.59.4 これより多くたまっていたら様子を送らない
   NET.join = function (peer, board, token, name, h) {
     let conn, done = false, ok = false, lastRx = Date.now();
     const end = (why, lost) => { if (done) return; done = true; clearInterval(wd); (lost && ok && h.onLost ? h.onLost : h.onBye)(why); try { peer.destroy(); } catch (e) {} };
