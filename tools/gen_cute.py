@@ -123,7 +123,11 @@ for _k, _pose in {"ru1_utazu": "POSE: she points one finger playfully at the vie
 # 2.54.0 壺振り・胴元（親分）・市場の商人をリアル寄りに描き直す（x_〇〇）。人の顔・肌・布の質感は写実的に、でも絵として描いたもの
 REAL = ", semi-realistic painted portrait, realistic human face and proportions with natural skin texture and real wrinkles, realistic fabric folds, painterly brush strokes, cinematic warm lighting, like a high quality japanese historical drama game character illustration, not anime, not a photo"
 CHAR_REAL = CHAR.replace(ANIME, REAL)
-for _k in ("c_dealer", "c_boss3", "c_merchant"):
+# 2.55.0 豪商（大きな町）・豪商の店・湊の背景
+KINDS["c_gosho"] = ("a wealthy dignified japanese great merchant in his fifties, calm shrewd confident smile, neat grey hair in a small topknot, luxurious dark green silk kimono under a fine black haori, standing upright, one hand holding a closed folding fan" + CHAR, 832, 1216)
+KINDS["bg_gosho"] = ("interior of a wealthy sengoku period japanese great merchant house showroom, polished wooden floor and tatami, lacquered shelves with precious tea jars and tea bowls, hanging ink scrolls, a gold folding screen, thick white plaster storehouse door kura in the back, soft afternoon light" + BG, 1344, 768)
+KINDS["bg_minato"] = ("a busy 16th century japanese harbor town in daytime, wooden piers, in the bay only old wooden sailing ships: a large wooden chinese junk with brown batten sails and a tall wooden 16th century portuguese carrack with a high curved stern and square sails, small wooden japanese rowing boats, porters carrying straw bales and wooden crates, old warehouses with tiled roofs, blue sea and green hills" + BG, 1344, 768)
+for _k in ("c_dealer", "c_boss3", "c_merchant", "c_gosho"):
     _p, _w, _h = KINDS[_k]
     KINDS["x_" + _k[2:]] = (_p.replace(CHAR, CHAR_REAL).replace("handsome cool young", "lean sharp-eyed man in his late twenties, a"), _w, _h)
 

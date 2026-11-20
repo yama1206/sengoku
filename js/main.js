@@ -836,6 +836,8 @@
       return ['', 'shop.jpg', `<img class="who" src="${TA}merchant_p.png" style="transform:scaleX(-1)">` + say('商人', 'いらっしゃい。よい品が入っていますよ')];
     }
     if (townTab === 'renpei') return ['', 'renpei.jpg', `<img class="who" src="${TA}drill_p.png">` + say('練兵所の師範', '腕を上げたければ、ここで鍛えていけ。兵も雇えるし、仕事の口も回してやるぞ')];
+    if (townTab === 'gosho' && h.gosho) return ['', 'gosho.jpg', `<img class="who" src="${TA}gosho_p.png" onerror="this.src='${TA}merchant_p.png'">` + say(h.gosho.name, me.sho && me.sho.house === h.id ? 'おう、精が出るな。商いは信用が第一だぞ' : '手前どもの蔵には、よそでは手に入らぬ家宝がございます')]; // 2.55.0 豪商
+    if (townTab === 'minato') return ['', 'minato.jpg', say('湊の船問屋', '海の向こうとの商いなら、船と腕のいい船乗りが要りますぜ')]; // 2.55.0 湊
     if (townTab === 'gamble') return ['', '../gamble/den.jpg', `<img class="who" src="${TA}boss4.png">` + say('賭場の胴元', 'おう、遊んでいくかい。運も腕のうちだぜ')];
     if (townTab === 'talk') { // 2.13.1 茶屋：大きな町には娘がいる
       if (mu) return ['', 'chaya.jpg', `<img class="who" src="${TA}${mu.img}.png">` + say(`${mu.name}　<span class="heart">${'♥'.repeat(mu.wife ? 5 : mu.st)}${'♡'.repeat(mu.wife ? 0 : 4 - mu.st)}</span>`, (G.muSay && G.muSay[0] === mu.id && performance.now() - G.muSay[2] < 6000) ? G.muSay[1] : mu.line)];
@@ -860,6 +862,8 @@
     $('tab-gamble').classList.toggle('hidden', !SGK.DATA.isBig(hs)); /* 2.8.0 賭場は大きな町だけ */
     if (townTab === 'gamble' && !SGK.DATA.isBig(hs)) townTab = 'street';
     if (townTab === 'castle' && (!hs || hs.type !== 'castle')) townTab = 'street';
+    $('tab-gosho').classList.toggle('hidden', !h.gosho); $('tab-minato').classList.toggle('hidden', !h.port); // 2.55.0 豪商（大きな町）・湊（南蛮貿易の湊）
+    if ((townTab === 'gosho' && !h.gosho) || (townTab === 'minato' && !h.port)) townTab = 'street';
     { const [cls, bg, inner] = townStage(P, hs), key = townTab + '|' + bg + '|' + inner; // 2.13.0 町の絵
       if (key !== stageKey) { stageKey = key; const st = $('townStage'); st.className = cls; st.style.backgroundImage = bg ? `url(${TA}${bg})` : ''; st.innerHTML = inner; } }
     $('townName').textContent = sName(h.id) + (SGK.DATA.isBig(hs) ? '（大きな町）' : '');
@@ -905,6 +909,7 @@
           html += `<div class="card"><div><b>${e.name}</b>　<span class="muted">${EQ.slotName[sl]}　${SIM.money(e.cost)}${e.wt ? `　${e.wt}kg` : e.cw ? `　荷+${e.cw}kg` : ''}<br>${eff}</span></div><div class="row"><button id="eq-${id}" data-act="buyEquip" data-kind="${sl}" data-id="${id}" ${have || own2 || me.money < e.cost ? 'disabled' : ''}>${have ? '装備中' : sl === 'wep' ? '主に買う' : '買う'}</button>${b2}</div></div>`;
         }
       }
+    } else if (sec === 'gosho' || sec === 'minato') { if (SGK.GOSHOUI) html += SGK.GOSHOUI[sec](P); // 2.55.0
     } else if (sec === 'jobs') {
       html += `<div class="muted">受けている依頼（${me.quests.length}/3）</div>`;
       if (!me.quests.length) html += '<div class="muted" style="margin:4px 0 8px">なし</div>';
@@ -965,6 +970,7 @@
       for (const k in me.troops) html += `<div class="card"><div>${TR[k].name}　${me.troops[k]}人</div><button id="dm-${k}" data-act="dismiss" data-kind="${k}" data-qty="1">1人解き放つ</button></div>`;
     } else if (sec === 'castle') {
       const C = (me.castles || []).find((c) => c.id === h.id);
+      if (SGK.GOSHOUI && hs && me.rank && hs.owner === me.rank.clan) html += SGK.GOSHOUI.kenjo(P); // 2.55.0 家宝の献上
       if (NJ) { // 0.77.0 忍びの工作の依頼（主家の城で）
         if (NJ.q) html += `<div class="card"><div><b>請け負っている工作</b>　${njName(NJ.q)}：${NJ.q.foe}の${NJ.q.toName}<br><span class="muted">報酬${SIM.money(NJ.q.reward)}・${dayLeft(NJ.q.deadline)}</span></div><button id="nj-look" data-look="${NJ.q.to}">地図で見る</button><button id="nj-drop" data-act="ninDrop">取りやめる</button></div>`;
         else if (NJ.offers.length) for (const o of NJ.offers) html += `<div class="card"><div><b>${njName(o)}</b>　${o.foe}の${o.toName}（${o.km}km・期限${o.days}日）<br><span class="muted">${njDesc(o)}。報酬${SIM.money(o.reward)}</span></div><button id="nj-${o.k}" data-act="ninTake" data-id="${o.id}">請け負う</button></div>`;
@@ -1128,7 +1134,7 @@
   $('joinBtn').onclick = () => command({ type: 'joinBattle' }); // 1.6.12 合戦の途中参加
   $('testBtn').onclick = () => SGK.TESTUI && SGK.TESTUI.open(G.priv && G.priv.me); // 2.12.1 テストモードの戦闘
   $('townStage').addEventListener('click', (e) => { const b = e.target.closest('button[data-tab]'); if (b) setTab(b.dataset.tab); }); // 2.13.0 通りのボタン
-  function cycleTab(d) { const tabs = ['street', 'market', 'renpei', 'gamble', 'talk', 'castle', 'home'].filter((t) => !$('tab-' + t).classList.contains('hidden')); setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
+  function cycleTab(d) { const tabs = ['street', 'market', 'renpei', 'gamble', 'gosho', 'minato', 'talk', 'castle', 'home'].filter((t) => !$('tab-' + t).classList.contains('hidden')); setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
 
   // ---------- 人物（能力・技能・特技・部隊の昇格） ----------
   let charTab = 'eq', charHtml = '';

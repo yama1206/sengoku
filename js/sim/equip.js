@@ -88,7 +88,7 @@
   function shopList(s) {
     if (!s || s.site || !SGK.DATA.isBig(s)) return []; // 1.6.78 武具は大きな町だけ
     const out = [];
-    for (const slot of ['wep', 'arm', 'horse']) for (const id in EQ[slot]) { const e = EQ[slot][id]; if (e.cost) out.push([slot, id]); }
+    for (const slot of ['wep', 'arm', 'horse']) for (const id in EQ[slot]) { const e = EQ[slot][id]; if (e.cost && !e.castle) out.push([slot, id]); } // 2.55.0 名品（castle:true）は家宝として豪商だけで売る（gosho.js）
     return out;
   }
   SIM.commands.buyEquip = (w, p, c) => {
