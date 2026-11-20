@@ -392,7 +392,7 @@
     let p = $('creatPanel'); if (!p) { p = document.createElement('div'); p.id = 'creatPanel'; document.body.appendChild(p); }
     p.innerHTML = `<div class="cc"><div class="row" style="justify-content:space-between;align-items:center"><b>生き物図鑑</b><button id="cpX">閉じる</button></div>
       <div class="row" style="gap:6px;margin-top:6px"><button id="cpF" class="${ctab === 'f' ? 'on' : ''}">魚</button><button id="cpB" class="${ctab === 'b' ? 'on' : ''}">虫</button><span class="muted" style="align-self:center">${got}/${list.length}種</span></div>
-      <div class="cl">${list.map((c) => { const z = Z[c.id]; return z && z[0] ? `<div class="it"><div class="ci">${cImg(c)}</div><div><b>${c.n}</b>　<span class="muted">${c.r}</span><br>取った数 ${z[0]}　最大 ${z[1]}${unitOf(c)}　（${c.sz[0]}〜${c.sz[1]}${unitOf(c)}）　基本 ${c.p}文<br><span class="muted">${c.pl.join('・')}／${c.rgT}／${c.t.join('・')}</span></div></div>` : `<div class="it no"><div class="ci">${cImg(c)}</div><b>？？？</b></div>`; }).join('')}</div></div>`;
+      <div class="cl">${list.map((c) => { const z = Z[c.id]; return z && z[0] ? `<div class="it"><div class="ci">${cImg(c)}</div><div><b>${c.n}</b>　<span class="muted">${c.r}</span><br>取った数 ${z[0]}　最大 ${z[1]}${unitOf(c)}　（${c.sz[0]}〜${c.sz[1]}${unitOf(c)}）　基本 ${Math.max(1, Math.round(c.p * (SGK.SIM.GATHER_PAY || 1)))}文<br><span class="muted">${c.pl.join('・')}／${c.rgT}／${c.t.join('・')}</span></div></div>` : `<div class="it no"><div class="ci">${cImg(c)}</div><b>？？？</b></div>`; }).join('')}</div></div>`;
     $('cpX').onclick = () => p.remove(); $('cpF').onclick = () => { ctab = 'f'; panel(); }; $('cpB').onclick = () => { ctab = 'b'; panel(); };
   }
   menuBtn.onclick = () => { $('mClose').click(); panel(); };

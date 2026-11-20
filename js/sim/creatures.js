@@ -77,6 +77,7 @@
     return (D.creatures || []).filter((c) => c.k === kind && c.pl.some((p) => tags.has(p)) && (c.rg ? rg.band >= c.rg[0] && rg.band <= c.rg[1] : c.only.includes(rg.name)) && c.t.includes(dp));
   };
 
+  SIM.GATHER_PAY = 0.5; // 2.61.3 魚・虫を捕ったときにもらえるお金の倍率（半分に）
   SIM.GATHER_HP = 0.1; // 釣り・虫取りの1回で使う体力（2.60.9 3%→10%。捕れたときに使う分はなくした）
   // ---- 命令 ----
   C.gatherStart = (w, p, c) => {
@@ -104,7 +105,7 @@
     if (q < dif.thr) return void (p.gatLast = { n: g.n, ok: false, k: g.k, txt: g.k === 'f' ? '逃げられた…' : '逃げられた…', hint: sp.r === '幻のような' || sp.r === '稀少' ? '大物の気配がした' : '' });
     const z = (p.zukan = p.zukan || {}), e = (z[g.id] = z[g.id] || [0, 0]), isNew = e[0] === 0, rec = g.size > e[1];
     e[0]++; if (rec) e[1] = g.size;
-    const gain = Math.max(1, Math.round(sp.p * (0.7 + 0.8 * g.frac))); p.money += gain;
+    const gain = Math.max(1, Math.round(sp.p * (0.7 + 0.8 * g.frac) * SIM.GATHER_PAY)); p.money += gain;
     const mi = monthIdx(w), zm = (p.zmon = p.zmon || {}), mm = (zm[mi] = zm[mi] || { n: 0 }); mm.n++; // 大会のための月ごとの記録（一番大きかった物）
     const key = g.k === 'f' ? 'f' : 'b'; if (!mm[key] || g.frac > mm[key][2]) mm[key] = [g.id, g.size, Math.round(g.frac * 1000) / 1000]; for (const k of Object.keys(zm)) if (+k < mi - 3) delete zm[k];
     const unit = g.k === 'f' ? 'cm' : 'mm';
