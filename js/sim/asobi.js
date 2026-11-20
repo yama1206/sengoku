@@ -1,7 +1,7 @@
-// 2.62.0 賭場の遊びを3つ足す：独楽回し（自分で木から削った「マイ独楽」で胴元の独楽と勝負）・貝合わせ（胴元と札ならぬ貝をめくり合う）・絵双六（上洛双六で胴元と競走）
+// 2.62.0 賭場の遊びを3つ足す：独楽回し（自分で木から削った「マイ独楽」で胴元の独楽と勝負）・貝絵合わせ（胴元と札ならぬ貝をめくり合う）・絵双六（上洛双六で胴元と競走）
 //  独楽：木を選び、轆轤（ろくろ）で回る木を自分のタップ／クリックで削り、色を付けて仕上げる（仕上げた時に木の代金を払う）。
 //   形から重さ・回る力・安定が決まり（SGK.KOMA.phys）、勝負は同じ乱数の種から誰の画面でも同じ動きになる（SGK.KOMA.battle）。勝ち負けはホストが決める
-//  貝合わせ・双六：一人ずつ胴元と勝負する（同じ町の人には、卓の様子と前の勝負の結果が見える）
+//  貝絵合わせ・双六：一人ずつ胴元と勝負する（同じ町の人には、卓の様子と前の勝負の結果が見える）
 (function () {
   const SIM = SGK.SIM, DATA = SGK.DATA;
   const K = (SGK.KOMA = {});
@@ -125,7 +125,7 @@
   const A = (SGK.ASOBI = {});
   A.GAMES = {
     koma: { name: '独楽回し', rule: '自分で削った独楽と胴元の独楽を盥（たらい）で回し、先に倒れるか盥から飛び出した方の負け。勝てば2倍。掛け金が大きいほど胴元は強い独楽を出します。投げる時は力の目盛りを「ここ」で止めると強く回せます。' },
-    kai: { name: '貝合わせ', rule: '伏せた24の貝から2つずつめくり、絵の合う対（つい）を取ります。合えば続けてめくれます。胴元と交互にめくり、多く取った方の勝ち（2倍）。同じ数なら賭け金が戻ります。' },
+    kai: { name: '貝絵合わせ', rule: '伏せた24の貝から2つずつめくり、絵の合う対（つい）を取ります。合えば続けてめくれます。胴元と交互にめくり、多く取った方の勝ち（2倍）。同じ数なら賭け金が戻ります。' },
     sugoroku: { name: '絵双六', rule: '岡崎から京をめざす上洛双六。胴元と交互に賽を振り、先に「上がり」に着いた方の勝ち（2倍）。ちょうどで上がれないと、余った分だけ戻ります。' },
   };
   const tableOf = (w, sid) => { w.asobi = w.asobi || {}; const t = (w.asobi[sid] = w.asobi[sid] || {}); t.koma = t.koma || { n: 0, last: null, oya: {} }; t.kai = t.kai || { n: 0, last: null, g: {} }; t.sugoroku = t.sugoroku || { n: 0, last: null, g: {} }; return t; };
@@ -176,7 +176,7 @@
     if (res.r > 0) delete T.oya[tier]; // 負けた胴元は独楽を替える
   };
 
-  // ---- 貝合わせ ----
+  // ---- 貝絵合わせ ----
   A.KAI = ['松', '梅', '桜', '菊', '紅葉', '竹', '鶴', '月', '波', '富士', '扇', '藤'];
   const shuffle = (w, a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(SIM.rand(w) * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   SIM.commands.kaiStart = (w, p, c) => {
@@ -210,7 +210,7 @@
     const r = quit ? -1 : g.me > g.oya ? 1 : g.me < g.oya ? -1 : 0, ret = r > 0 ? g.bet * 2 : r === 0 ? g.bet : 0; p.money += ret;
     T.n++; T.last = { id: T.n, t: Date.now(), by: p.name, pid: p.id, r, gain: ret - g.bet, head: quit ? `${p.name}が勝負を降りた（${g.me}対${g.oya}）` : `${p.name} ${g.me}対 胴元 ${g.oya}`, lines: [`${p.name}（${money(g.bet)}）→ ${r > 0 ? '勝ち ' + sign(g.bet) : r < 0 ? '負け ' + sign(-g.bet) : '引き分け（返却）'}`] };
     g.done = { r, gain: ret - g.bet }; g.end = Date.now();
-    SAY(p.id, `貝合わせ：${quit ? '降りた' : r > 0 ? '勝ち' : r < 0 ? '負け' : '引き分け'}（${g.me}対${g.oya}）`);
+    SAY(p.id, `貝絵合わせ：${quit ? '降りた' : r > 0 ? '勝ち' : r < 0 ? '負け' : '引き分け'}（${g.me}対${g.oya}）`);
   }
   SIM.commands.kaiFlip = (w, p, c) => {
     const o = ok(w, p); if (!o) return; const T = o.t.kai, g = T.g[p.id]; if (!g || g.done) return;

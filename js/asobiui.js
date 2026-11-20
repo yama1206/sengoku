@@ -1,4 +1,4 @@
-// 2.62.0 賭場の新しい遊びの画面：独楽回し（マイ独楽を削る轆轤・盥の勝負）・貝合わせ・絵双六（仕組みは sim/asobi.js）
+// 2.62.0 賭場の新しい遊びの画面：独楽回し（マイ独楽を削る轆轤・盥の勝負）・貝絵合わせ・絵双六（仕組みは sim/asobi.js）
 //  賭場の画面（gambleui.js）のタブから呼ばれる：mount(st, tab) で場面を作り、update(st, tab, P, myId, sel) で毎回あわせる
 (function () {
   const UI = (SGK.ASOBIUI = {}), K = SGK.KOMA, A = SGK.ASOBI;
@@ -216,9 +216,9 @@
     gEl.onclick = () => S.gauge && S.gauge();
   }
 
-  // ================= 貝合わせ =================
+  // ================= 貝絵合わせ =================
   const KAICOL = ['#2e5a34', '#c8285a', '#e87a9a', '#c89a1e', '#c8401e', '#3a7a3a', '#2a2a5a', '#b8901e', '#1e4a8c', '#4a5a7a', '#8a1e1e', '#7b3fa0'];
-  function kaiMount(st) { st.innerHTML = `<div class="asb"><div class="ttl" id="kaiTtl">貝合わせ</div><div class="kaiB" id="kaiB"></div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`; ST.kai = { seen: null, busy: false, board: 0 }; }
+  function kaiMount(st) { st.innerHTML = `<div class="asb"><div class="ttl" id="kaiTtl">貝絵合わせ</div><div class="kaiB" id="kaiB"></div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`; ST.kai = { seen: null, busy: false, board: 0 }; }
   function kaiBoard(st, n) { const b = st.querySelector('#kaiB'); b.innerHTML = Array.from({ length: n }, (_, i) => `<div class="shell" data-kai="${i}"><div class="in"><div class="bk"></div><div class="fc"></div></div></div>`).join(''); }
   const shellEl = (st, i) => st.querySelector(`[data-kai="${i}"]`);
   function shellShow(st, i, f, cls) { const e = shellEl(st, i); if (!e) return; const fc = e.querySelector('.fc'); if (f != null) { fc.textContent = A.KAI[f]; fc.style.color = KAICOL[f]; } e.className = 'shell' + (f != null ? ' open' : '') + (cls ? ' ' + cls : ''); }
@@ -232,7 +232,7 @@
       if (nev.length) { S.busy = true; S.seen = g.seq; playKai(st, nev, g).catch(() => {}).then(() => { S.busy = false; }); }
       else kaiSync(st, g);
     }
-    st.querySelector('#kaiTtl').textContent = g ? `あなた ${g.me} ― 胴元 ${g.oya}${S.busy ? '' : g.done ? '' : '　（あなたの番）'}` : '貝合わせ';
+    st.querySelector('#kaiTtl').textContent = g ? `あなた ${g.me} ― 胴元 ${g.oya}${S.busy ? '' : g.done ? '' : '　（あなたの番）'}` : '貝絵合わせ';
     let h = `<div class="rule">${esc(A.GAMES.kai.rule)}</div><div class="row">`;
     if (!g || g.done) h += `<button data-as="kaiStart" ${me.money < sel ? 'disabled' : ''}>${money(sel)} 賭けて始める</button>${g ? '<button data-as="kaiQuit">片づける</button>' : ''}`;
     else h += `<span>${money(g.bet)} 賭けている</span><button data-as="kaiQuit">降りる（負け）</button>`;

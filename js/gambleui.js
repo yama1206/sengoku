@@ -122,7 +122,7 @@
     if (d.sel) { sel = +d.sel; render(false); return; }
     if (d.cmd) { const c = { type: d.cmd, id: d.id }; if (d.kind != null) c.kind = d.kind; if (d.cmd === 'gbBet') c.qty = sel; SGK.cmd(c); sfx(d.cmd === 'gbBet' ? 'coin' : 'click'); }
   }
-  const NAMES = { chouhan: '丁半', memashi: '目増', shigoro: '四五六', uma: '馬くらべ', karuta: '天正かるた', koma: '独楽回し', kai: '貝合わせ', sugoroku: '絵双六' }; // 2.62.0 独楽・貝・双六（asobiui.js）
+  const NAMES = { chouhan: '丁半', memashi: '目増', shigoro: '四五六', uma: '馬くらべ', karuta: '天正かるた', koma: '独楽回し', kai: '貝絵合わせ', sugoroku: '絵双六' }; // 2.62.0 独楽・貝・双六（asobiui.js）
   function render(full) {
     const gb = P.here.gamble, me = P.me;
     el.querySelector('#gbMoney').innerHTML = `${SGK.ICON ? SGK.ICON.html('coins', 20) : ''} ${money(me.money)}`;
