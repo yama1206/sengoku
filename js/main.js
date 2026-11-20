@@ -2137,7 +2137,8 @@
           + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.where || (q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品')}・${dayLeft(q.deadline)}）</div>`).join('') + (P.me.nin && P.me.nin.q ? `<div class="q">◆ ${SIM.NIN.jobs[P.me.nin.q.k].name}（${sName(P.me.nin.q.to)}・${dayLeft(P.me.nin.q.deadline)}）</div>` : '');
       }
       // HUD
-      $('date').textContent = SIM.formatDate(G.view.t) + (G.speed === 0 ? '（停止中）' : G.speed > 1 ? (G.inBattle ? '（戦闘中のため×1）' : `（×${G.speed}）`) : '');
+      const dEl = $('date'); dEl.textContent = SIM.formatDate(G.view.t) + (G.speed === 0 ? '（停止中）' : G.speed > 1 ? (G.inBattle ? '（戦闘中のため×1）' : `（×${G.speed}）`) : '');
+      { const wx = SIM.weatherAt && SIM.weatherAt(G.view.t); if (wx) { const sp = document.createElement('span'); sp.className = 'wx'; sp.title = wx.name; sp.textContent = ' ' + wx.mark; dEl.appendChild(sp); } } // 2.52.0 時間の横に天気（絵文字は仮。weather.js の mark を絵にする）
       if (m) {
         const at = m.at && G.view.settlements.find((s) => s.id === m.at);
         $('status').textContent = `${m.name}（${m.status || '浪人'}）　${BT ? '戦闘中' : at ? at.name + 'に滞在中' : m.tx != null ? `移動中（${SIM.placeName(m.x, m.y)}）` : `野外（${SIM.terrainAt(m.x, m.y)}）`}`;
