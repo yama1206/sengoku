@@ -10,7 +10,7 @@ function priceCol(r) {
 let townTab = 'street', townHtml = '', stageKey = '';
 const TOWN_BGM = { renpei: 'renpei', gamble: 'gamble', talk: 'chaya', home: 'home', market: 'market' }; // 2.14.3 行き先ごとの曲（ほかは町の曲）。2.20.0 市場
 // 2.13.0 町の中：通りの絵から市場・練兵所・賭場・話す（・城・自宅）へ。練兵所＝募兵・調練と仕事・依頼
-const TOWN_SECS = { street: [], renpei: ['army', 'work', 'jobs'] }, SEC_NAME = { army: '募兵', work: '調練・仕事', jobs: '依頼' };
+const TOWN_SECS = { street: [], renpei: ['army', 'work', 'jobs'] }, SEC_NAME = { army: '募兵', work: '調練・仕事', jobs: '依頼', castle: '城' };
 const TA = 'assets/town/';
 // 0.41.0 拠点への投資（2.61.2 関数に。村は村長のタブ、町・城は練兵所の仕事の下）
 function investHtml(h, me, s) {
@@ -91,7 +91,9 @@ function renderTown() {
       + `<button id="rp-date" data-act="musume" data-id="man" data-kind="date" ${m.a < SIM.MUSUME.dateNeed || m.dated || me.money < SIM.MUSUME.dateCost ? 'disabled' : ''}>酒を酌み交わす（${SIM.money(SIM.MUSUME.dateCost)}）</button>`
       + (!m.married && m.st >= 4 ? '<button id="rp-pro" data-act="musume" data-id="man" data-kind="propose" style="border-color:#e0607e">想いを伝える</button>' : '')
       + `</div><span class="muted">話す・贈り物は1日1回。${m.a < SIM.MUSUME.dateNeed ? `仲が${SIM.MUSUME.dateNeed}になると酒を酌み交わせます。` : ''}${m.married ? 'あなたには連れ合いがいます' : '仲が100になると想いを伝えられます'}</span></div>`; }
-  for (const sec of TOWN_SECS[townTab] || [townTab]) { if ((TOWN_SECS[townTab] || []).length > 1) html += `<div class="secH">${SEC_NAME[sec]}</div>`;
+  let secs = TOWN_SECS[townTab] || [townTab]; // 2.61.6 城のある拠点では、依頼は城のタブで受ける（練兵所からは外す）
+  if (hs && hs.type === 'castle') { if (townTab === 'renpei') secs = secs.filter((x) => x !== 'jobs'); else if (townTab === 'castle') secs = ['jobs', 'castle']; }
+  for (const sec of secs) { if (secs.length > 1) html += `<div class="secH">${SEC_NAME[sec]}</div>`;
   if (sec === 'talk' && h.musume) { const m = h.musume, gifts = Object.keys(me.inv || {}).filter((k) => me.inv[k] > 0 && IT[k]); // 2.13.0 看板娘
     html += `<div class="card" style="display:block"><b>${m.name}</b>　仲 ${m.a}/100・${m.wife ? '夫婦' : m.stName}${m.like ? `　好きな品：${IT[m.like].name}` : '　好きな品：？（顔なじみになると分かる）'}`
       + `<div class="row" style="flex-wrap:wrap;margin-top:4px"><button id="mu-talk" data-act="musume" data-kind="talk" ${m.talked ? 'disabled' : ''}>${m.talked ? '今日は話した' : '話す'}</button>`
