@@ -264,8 +264,8 @@
     const aim = { x: BX, y: 130 }, rip = []; let bob = null, msg = '', end = null, last = performance.now(), prevPad = {};
     const say = (t) => { const m = $('gcm'); if (m) m.textContent = t; };
     const spd0 = Math.abs(F.vx);
-    // 2.45.0 釣り大会では、魚影が時間差で何匹か出てくる（本命のほかは、近づいて食いつくふりをするだけの別の影）
-    const party = !!run.party; F.delay = party ? 0.8 + Math.random() * 6 : 0;
+    // 2.45.0 魚影が時間差で何匹か出てくる（2.46.0 いつもの釣りも同じ）（本命のほかは、近づいて食いつくふりをするだけの別の影）
+    const party = true; F.delay = party ? 0.8 + Math.random() * 6 : 0;
     const DK = party ? [0, 1, 2].map((i) => { const l = Math.random() < 0.5, ln = 30 + Math.random() * 40; return { x: l ? -ln : W + ln, y: 60 + Math.random() * 130, vx: (l ? 1 : -1) * (20 + Math.random() * 18), ph: Math.random() * 6, len: ln, delay: 0.3 + i * 2.4 + Math.random() * 2.5, mode: 'swim', t: 0 }; }) : [];
     function cast() {
       if (end || bob) return;
