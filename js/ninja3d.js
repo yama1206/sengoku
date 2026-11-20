@@ -217,6 +217,31 @@
     return true;
   }
 
+  // 2.60.10 物にめり込んで動けなくなったら外へ押し出す（塀の上から縁を越えて落ちると、体の半径ぶん塀に重なったまま下りてしまうことがあった）
+  function unstick(P, hh) {
+    if (canStand(P.x, P.z, P.y, hh, STEP)) return false;
+    for (let it = 0; it < 4; it++) {
+      let moved = false;
+      for (const s of near(P.x, P.z)) {
+        const cx = clamp(P.x, s.x0, s.x1), cz = clamp(P.z, s.z0, s.z1), dx = P.x - cx, dz = P.z - cz, d = Math.hypot(dx, dz);
+        if (d >= PR || !(topOf(s, cx, cz) > P.y + STEP && s.y0 < P.y + hh)) continue;
+        if (d < 1e-4) { const e = [[P.x - s.x0, -1, 0], [s.x1 - P.x, 1, 0], [P.z - s.z0, 0, -1], [s.z1 - P.z, 0, 1]].sort((a, b) => a[0] - b[0])[0]; P.x += e[1] * (e[0] + PR + 0.03); P.z += e[2] * (e[0] + PR + 0.03); }
+        else { const k = (PR + 0.03 - d) / d; P.x += dx * k; P.z += dz * k; }
+        moved = true;
+      }
+      if (!moved || canStand(P.x, P.z, P.y, hh, STEP)) break;
+    }
+    if (!canStand(P.x, P.z, P.y, hh, STEP)) { // まだだめなら、近くで立てる所を探す
+      const x0 = P.x, z0 = P.z;
+      search: for (let r = 0.3; r <= 4; r += 0.3) for (let a = 0; a < 16; a++) {
+        const x = x0 + Math.cos(a * Math.PI / 8) * r, z = z0 + Math.sin(a * Math.PI / 8) * r, y = floorAt(x, z, P.y, STEP);
+        if (canStand(x, z, y, hh, STEP)) { P.x = x; P.z = z; P.y = y; break search; }
+      }
+    }
+    { const f2 = floorAt(P.x, P.z, P.y, STEP); if (f2 > P.y) P.y = f2; } // 低くなった所へは次のコマから落ちる
+    return true;
+  }
+
   // ---- 見張りの道（1mの升で A*） ----
   function buildNav(L) {
     const n = W * D; L.navH = new Float32Array(n); L.navOK = new Uint8Array(n);
@@ -799,6 +824,7 @@
       if (fl < P.y - 0.03) { if (!P.air) { P.air = true; P.fallFrom = P.y; } P.vy -= GRAV * dt; P.y += P.vy * dt; if (P.y <= fl) { P.y = fl; P.vy = 0; P.air = false; if (P.fallFrom - fl > 2.6 && !wetAt(P.x, P.z)) { noise(P.x, P.z, 8, 'self'); say('どさっ（物音を立てた）', 1.2); if (has(P.ch, 'hard_landing')) { P.lock = { kind: 'land', t: 0, dur: 0.7 }; play(P.ch, 'hard_landing', { once: true, restart: true, speed: 1.4, fade: 0.05 }); } } } }
       else { P.y = fl; P.vy = 0; P.air = false; }
       P.swim = wetAt(P.x, P.z) && P.y <= SWIM_Y + 0.05; if (P.swim) { P.crouch = false; if (P.carry) dropBody(P, true); }
+      if (!P.air) unstick(P, P.swim ? 0.9 : P.crouch ? 1.1 : 1.7); // 2.60.10 めり込んだら押し出す
       if (P.run && P.moving) { P.noiseT -= dt; if (P.noiseT <= 0) { P.noiseT = 0.45; noise(P.x, P.z, 4.5, 'self'); } }
       // 行動
       if (I.tap('e') && ctx.koP) pvpHit(ctx.koP, false); else if (I.tap('e')) { if (ctx.ko) takedown(ctx.ko, false); else if (!ctx.work && ctx.climb) startClimb(P, ctx.climb); else if (!ctx.work && ctx.noClimb) say('鉤縄がないと登れない', 1.6); }
