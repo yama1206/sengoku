@@ -363,6 +363,7 @@ $('townClose').onclick = () => openTown(false);
 $('townBtn').onclick = () => openTown(true);
 $('joinBtn').onclick = () => command({ type: 'joinBattle' }); // 1.6.12 合戦の途中参加
 $('testBtn').onclick = () => SGK.TESTUI && SGK.TESTUI.open(G.priv && G.priv.me); // 2.12.1 テストモードの戦闘
+$('ledgerBtn').onclick = () => SGK.LEDGERUI && SGK.LEDGERUI.open(); // 2.58.0 帳簿
 $('townStage').addEventListener('click', (e) => { const b = e.target.closest('button[data-tab]'); if (b) setTab(b.dataset.tab); }); // 2.13.0 通りのボタン
 function cycleTab(d) { const tabs = ['street', 'market', 'renpei', 'gamble', 'gosho', 'minato', 'mise', 'soncho', 'talk', 'castle', 'home'].filter((t) => !$('tab-' + t).classList.contains('hidden')); setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
 

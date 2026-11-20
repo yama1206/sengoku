@@ -102,7 +102,10 @@
   // ---- 1日ごとの処理 ----
   function daily(w) {
     const now = w.time.min;
-    for (const s of w.settlements) { const wr = SIM.inWar(w, s); for (const k in I()) { const t = target(s, k); s.stock[k] = Math.max(0, s.stock[k] + (wr ? 0 : pm(s, k)) - I()[k].cons * sz(s)); if (s.stock[k] > t * 1.3) s.stock[k] -= (s.stock[k] - t * 1.3) * 0.25; } } // 1.6.90 攻城戦の準備をされている城は作らない（使うだけ）。目安の1.3倍を超えた分は傷んだり蔵からよそへ流れたりして減る
+    const LG = SIM.LEDGER && SIM.LEDGER.active(w) ? {} : null; /* 2.58.0 帳簿：生産・消費・あふれを分けて数える */
+    for (const s of w.settlements) { const wr = SIM.inWar(w, s); for (const k in I()) { const t = target(s, k), s0 = s.stock[k], add = wr ? 0 : pm(s, k); s.stock[k] = Math.max(0, s.stock[k] + add - I()[k].cons * sz(s)); const s1 = s.stock[k]; if (s.stock[k] > t * 1.3) s.stock[k] -= (s.stock[k] - t * 1.3) * 0.25;
+      if (LG) { const g = (LG[k] = LG[k] || [0, 0, 0]); g[0] += add; g[1] += s0 + add - s1; g[2] += s1 - s.stock[k]; } } }
+    if (LG) for (const k in LG) { SIM.LEDGER.note('stock', k, '拠点の生産', LG[k][0]); SIM.LEDGER.note('stock', k, '拠点の消費', -LG[k][1]); SIM.LEDGER.note('stock', k, '在庫のあふれ（消える）', -LG[k][2]); } // 1.6.90 攻城戦の準備をされている城は作らない（使うだけ）。目安の1.3倍を超えた分は傷んだり蔵からよそへ流れたりして減る
     share(w);
     for (const j of Object.values(w.jobs)) if (j.expires < now) delete w.jobs[j.id];
     const JC = {}; for (const j of Object.values(w.jobs)) JC[j.from] = (JC[j.from] || 0) + 1; /* 1.6.50 数えるのを1回に */
@@ -139,7 +142,7 @@
     if (!from) return;
     let best = null, br = 1.1;
     for (const k in I()) { const r = from.stock[k] / target(from, k); if (r > br) { br = r; best = k; } }
-    if (best) { const q = Math.min(30, Math.floor(from.stock[best] - target(from, best) * 0.8)); if (q > 0) { from.stock[best] -= q; n.cargo = { item: best, qty: q }; } }
+    if (best) { const q = Math.min(30, Math.floor(from.stock[best] - target(from, best) * 0.8)); if (q > 0) { from.stock[best] -= q; n.cargo = { item: best, qty: q }; if (SIM.LEDGER) SIM.LEDGER.note('stock', best, '商人が積む', -q); } }
   };
   // 行き先：積んだ品がいちばん足りない拠点を選びやすい（町を優先）
   SIM.inWar = (w, s) => !!(s && SIM.besieged && SIM.besieged(w, s.id)); // 1.6.90 攻城戦の準備をされている城（囲まれている）
@@ -172,7 +175,7 @@
       }
     }
   }
-  SIM.merchantArrive = (w, n, to) => { if (n.cargo && to && !SIM.inWar(w, to)) { to.stock[n.cargo.item] += n.cargo.qty; n.cargo = null; } };
+  SIM.merchantArrive = (w, n, to) => { if (n.cargo && to && !SIM.inWar(w, to)) { to.stock[n.cargo.item] += n.cargo.qty; if (SIM.LEDGER) SIM.LEDGER.note('stock', n.cargo.item, '商人が下ろす', n.cargo.qty); n.cargo = null; } };
 
   // ---- 到着したとき：届け物の依頼を達成 ----
   SIM.onPlayerArrive = (w, p) => {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="2.57.2">
+<meta name="sgk-ver" content="2.58.0">
 <title>天下往来</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -136,6 +136,7 @@
   button { touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
   body.touch button { min-height:36px; }
   #hudR #testBtn, #testBtn { position:fixed; left:98px; bottom:10px; padding:10px 18px; font-size:15px; z-index:5; } /* 2.12.6 右上の並びは地図の下に隠れていたので、メニューの右に出す */
+  #ledgerBtn { position:fixed; left:180px; bottom:10px; padding:10px 18px; font-size:15px; z-index:5; } /* 2.58.0 テストモードの帳簿 */
   #hudR #menuBtn, #menuBtn { position:fixed; left:10px; bottom:10px; padding:10px 18px; font-size:15px; z-index:5; } /* 0.54.6 PCもメニューは左下に */
   #warBoard { bottom:64px; }
   #battle { bottom:62px; }
@@ -211,7 +212,7 @@
     <div class="row">
       <button id="joinBtn" class="hidden">合戦に加わる</button>
       <button id="townBtn" class="hidden">拠点に入る</button>
-      <button id="testBtn" class="hidden">戦闘</button>
+      <button id="testBtn" class="hidden">戦闘</button><button id="ledgerBtn" class="hidden">帳簿</button>
       <button id="followBtn2" class="mouseOnly" title="自分のいる位置へ地図を合わせます（Fキーでも）">自分へ</button>
       <button id="charBtn">人物</button>
       <button id="menuBtn">メニュー</button>
@@ -312,7 +313,7 @@
 <script>
   // 更新が確実に反映されるよう、毎回最新のファイルを読み込む
   (function () {
-    const files = ['js/config.js', 'js/icons.js', 'js/data/world1560.js', 'js/data/villages.js', 'js/data/geo.js', 'js/data/lakes.js', 'js/data/rivers.js', 'js/data/creatures.js', 'js/data/items.js', 'js/data/bushoart.js', 'js/sim/world.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/sim/castle.js', 'js/sim/daimyo.js', 'js/sim/siege.js', 'js/sim/army.js', 'js/sim/bushou.js', 'js/sim/supply.js', 'js/sim/house.js', 'js/sim/quest.js', 'js/sim/fushin.js', 'js/sim/invest.js', 'js/sim/equip.js', 'js/sim/chiho.js', 'js/sim/castlemap.js', 'js/sim/kuni.js', 'js/sim/nawa.js', 'js/sim/nawagen.js', 'js/sim/torihiki.js', 'js/sim/gamble.js', 'js/sim/title.js', 'js/sim/creatures.js', 'js/sim/mining.js', 'js/sim/seisaku.js', 'js/sim/skill.js', 'js/sim/shinobi.js', 'js/sim/testmode.js', 'js/sim/cloth.js', 'js/sim/home.js', 'js/sim/smith.js', 'js/sim/farm.js', 'js/sim/gosho.js', 'js/sim/kaigai.js', 'js/sim/shoka.js', 'js/sim/nomin.js', 'js/sim/carry.js', 'js/sim/weather.js', 'js/sim/party.js', 'js/sim/musume.js', 'js/save.js', 'js/net/cloud.js', 'js/net/net.js', 'js/kamon.js', 'js/render.js', 'js/audio.js', 'js/action.js', 'js/lib/BufferGeometryUtils.js', 'js/lib/GLTFLoader.js', 'js/soldier3d.js', 'js/action3d.js', 'js/ninja.js', 'js/ninja3d.js', 'js/party.js', 'js/main.js', 'js/main_title.js', 'js/main_net.js', 'js/main_info.js', 'js/main_town.js', 'js/main_person.js', 'js/main_menu.js', 'js/main_input.js', 'js/main_loop.js', 'js/gather.js', 'js/nawaedit.js', 'js/testui.js', 'js/gambleui.js', 'js/clothui.js', 'js/mineui.js', 'js/smithui.js', 'js/farmui.js', 'js/goshoui.js', 'js/shokaui.js', 'js/nominui.js', 'js/carryui.js'];
+    const files = ['js/config.js', 'js/icons.js', 'js/data/world1560.js', 'js/data/villages.js', 'js/data/geo.js', 'js/data/lakes.js', 'js/data/rivers.js', 'js/data/creatures.js', 'js/data/items.js', 'js/data/bushoart.js', 'js/sim/world.js', 'js/sim/ledger.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/sim/castle.js', 'js/sim/daimyo.js', 'js/sim/siege.js', 'js/sim/army.js', 'js/sim/bushou.js', 'js/sim/supply.js', 'js/sim/house.js', 'js/sim/quest.js', 'js/sim/fushin.js', 'js/sim/invest.js', 'js/sim/equip.js', 'js/sim/chiho.js', 'js/sim/castlemap.js', 'js/sim/kuni.js', 'js/sim/nawa.js', 'js/sim/nawagen.js', 'js/sim/torihiki.js', 'js/sim/gamble.js', 'js/sim/title.js', 'js/sim/creatures.js', 'js/sim/mining.js', 'js/sim/seisaku.js', 'js/sim/skill.js', 'js/sim/shinobi.js', 'js/sim/testmode.js', 'js/sim/cloth.js', 'js/sim/home.js', 'js/sim/smith.js', 'js/sim/farm.js', 'js/sim/gosho.js', 'js/sim/kaigai.js', 'js/sim/shoka.js', 'js/sim/nomin.js', 'js/sim/carry.js', 'js/sim/weather.js', 'js/sim/party.js', 'js/sim/musume.js', 'js/save.js', 'js/net/cloud.js', 'js/net/net.js', 'js/kamon.js', 'js/render.js', 'js/audio.js', 'js/action.js', 'js/lib/BufferGeometryUtils.js', 'js/lib/GLTFLoader.js', 'js/soldier3d.js', 'js/action3d.js', 'js/ninja.js', 'js/ninja3d.js', 'js/party.js', 'js/main.js', 'js/main_title.js', 'js/main_net.js', 'js/main_info.js', 'js/main_town.js', 'js/main_person.js', 'js/main_menu.js', 'js/main_input.js', 'js/main_loop.js', 'js/gather.js', 'js/nawaedit.js', 'js/testui.js', 'js/ledgerui.js', 'js/gambleui.js', 'js/clothui.js', 'js/mineui.js', 'js/smithui.js', 'js/farmui.js', 'js/goshoui.js', 'js/shokaui.js', 'js/nominui.js', 'js/carryui.js'];
     /* 1.6.54 一度に並べて読み込む（順番は async=false で守る）。版が同じ間はブラウザに残したものを使う（版が上がると新しく読む） */
     const mv = document.querySelector('meta[name="sgk-ver"]'), v = (mv && mv.content) || Date.now();
     for (const f of files) { const s = document.createElement('script'); s.src = f + '?v=' + v; s.async = false; document.body.appendChild(s); }

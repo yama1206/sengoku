@@ -110,6 +110,7 @@ function frame0(now) {
     if (G.selKind === 'u' && !BT) refreshUnitInfo();
     $('townBtn').classList.toggle('hidden', !(P && P.here) || !!BT);
     $('testBtn').classList.toggle('hidden', !(P && P.me && P.me.test) || !!BT); // 2.12.1
+    $('ledgerBtn').classList.toggle('hidden', !(P && P.me && P.me.test) || !!BT || G.mode !== 'host'); // 2.58.0 帳簿
     if (SGK.RENDER && SGK.RENDER.act3d) SGK.RENDER.act3d.cloth = P && P.battle ? P.battle.cloth || null : null; // 2.12.5 戦場の服の色
     if (SGK.GAMBLEUI && SGK.GAMBLEUI.isOpen()) { const nw = performance.now(); if (!G.gbUiT || nw - G.gbUiT > 250) { G.gbUiT = nw; SGK.GAMBLEUI.update(P); } } // 2.12.4 賭場の画面
     $('joinBtn').classList.toggle('hidden', !(P && P.nearBattle) || !!BT); if (P && P.nearBattle) $('joinBtn').textContent = `合戦に加わる（${P.nearBattle.foe}）${G.padUsed ? ' Ⓐ' : ' [E]'}`;
