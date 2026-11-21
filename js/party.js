@@ -30,7 +30,7 @@
 #ptBox>div,#ptRes>div{background:#2a2118;color:#f3ead2;border:2px solid #a07c42;border-radius:10px;padding:16px 20px;max-width:min(92vw,460px);box-shadow:0 8px 30px #000a}
 #ptBox h2,#ptRes h2{margin:0 0 6px;color:#f2c14e;font-size:20px}#ptBox .d{font-size:13px;color:#cdbf9a;margin-bottom:8px}
 #ptBox button,#ptRes button,#ptInv button,#ptGame .tb button{font:inherit;color:#f3ead2;background:linear-gradient(#5a3e22,#2e2012);border:1px solid #a07c42;border-radius:6px;padding:7px 12px;margin:3px 3px 0 0;cursor:pointer}
-#ptBox .m{padding:3px 0;border-bottom:1px solid #fff2}#ptRes .r{padding:3px 0;border-bottom:1px solid #fff2}
+#ptBox button{display:block;width:100%;text-align:left;box-sizing:border-box}#ptBox .m{padding:3px 0;border-bottom:1px solid #fff2}#ptRes .r{padding:3px 0;border-bottom:1px solid #fff2}
 #ptInv{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:9400;background:#2a2118;color:#f3ead2;border:2px solid #f2c14e;border-radius:10px;padding:10px 14px;box-shadow:0 4px 18px #000a;max-width:92vw}
 #ptGame{position:fixed;inset:0;z-index:9200;background:#000}#ptGame canvas{width:100%;height:100%;display:block;touch-action:none}
 #ptGame .tb{position:absolute;right:8px;top:8px}#ptGame .pad{position:absolute;bottom:14px;display:none;gap:10px}
