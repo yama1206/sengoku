@@ -82,7 +82,7 @@
     const opB = (ks) => SGK.HIDE.OPTS.filter((op) => ks.includes(op.k)).map((op) => `<button data-a="o:${op.k}">${op.n}：${ov(op)}（変える）</button>`).join('');
     let t = '', body = '';
     if (s === 'me') { t = '自分の設定'; body = `<button data-a="ch:h">逃げる時のキャラを選ぶ</button><button data-a="ch:s">鬼の時のキャラを選ぶ</button><button data-a="kc">操作設定（キー・ボタン）</button><button data-a="vw">視点：${({ tp: '三人称（うしろから）', fp: '一人称' })[vwGet()]}（変える）</button>`; }
-    else if (s === 'rule' && LB.lead && LB.o) { t = '遊び方の設定'; body = opB(['wn', 'st', 'mv', 'cau']); }
+    else if (s === 'rule' && LB.lead && LB.o) { t = '遊び方の設定'; body = opB(['wn', 'st', 'sz', 'tm', 'ht', 'mv', 'cau']); }
     else if (s === 'ppl' && LB.lead && LB.o) { t = '人数・CPUの設定'; body = opB(['on', 'hn', 'cpS', 'cpH']) + '<div class="d">人が足りない分はCPUが加わります（CPUありのとき）</div>'; }
     else { LB.sec = null; return ''; }
     return `<div><h2>${t}</h2><div>${body}</div><div style="margin-top:8px"><button data-a="secx">もどる</button></div></div>`;

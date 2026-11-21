@@ -10,6 +10,9 @@
   HD.OPTS = [
     { k: 'wn', n: '勝ち方', v: [['time', '時間まで隠れる'], ['escape', '宝箱の鍵を集めて脱出']] },
     { k: 'st', n: '舞台', v: [['street', '町の通り'], ['castle', '城下'], ['yashiki', '屋敷の庭'], ['rooms', '大きな屋敷（部屋がたくさん）']] },
+    { k: 'sz', n: 'マップの広さ', v: [['auto', '人数に合わせる'], ['s', 'せまい'], ['m', 'ふつう'], ['l', 'ひろい']] }, // 2.101.0
+    { k: 'tm', n: '制限時間', v: [['1', 'ふつう（時間まで3分・脱出10分）'], ['0.5', '半分'], ['0.7', '短め'], ['1.5', '長め'], ['2', '2倍']] }, // 2.101.0
+    { k: 'ht', n: '隠れる準備の時間', v: [['15', '15秒'], ['5', '5秒'], ['10', '10秒'], ['20', '20秒'], ['30', '30秒']] }, // 2.101.0
     { k: 'mv', n: '化けたあとの動き', v: [['slow', 'ゆっくり動ける'], ['none', '動けない']] },
     { k: 'cau', n: '見つかったら', v: [['seek', '探す側に回る'], ['out', 'その回は終わり']] },
     { k: 'on', n: '鬼の人数', v: [['1', '1人'], ['2', '2人']] }, // 2.96.0
@@ -49,7 +52,7 @@
   const DMG = { L: 25, M: 34, S: 60, H: 40 }, SZN = { L: '大きい', M: 'ふつう', S: '小さい', H: 'ふつう' };
   const CARRY_T = 15; // 鬼が1人を担いでいられる時間（秒）。過ぎると逃げる側がふりほどく
   const CAGE_T = 45; // 牢に入れられてから完全に負けるまで（秒）。仲間が近づいて1秒で救助できる
-  const ROUND = 180, HIDE_T = 15, BEACON0 = 30, BEACON_EVERY = 22, R_HIT = 1.3, R_BIG = 3.2, SP_H = 4.2, SP_HS = 2.0, SP_S = 5.4; // 鬼の基本の速さは、逃げる側の基本（子ども5.0が最速）より速い
+  const ROUND = 180, BEACON0 = 30, BEACON_EVERY = 22, R_HIT = 1.3, R_BIG = 3.2, SP_H = 4.2, SP_HS = 2.0, SP_S = 5.4; // 鬼の基本の速さは、逃げる側の基本（子ども5.0が最速）より速い
   const SQ = Math.SQRT1_2, RIGHT = [SQ, -SQ], FWD = [-SQ, -SQ]; // 画面の右・奥（カメラは (+,+,+) の斜め上から）
 
   // ---------------- 部品 ----------------
@@ -243,8 +246,8 @@
   };
   HD.make = function (env) {
     const { cfg, me, ids: hids, cv, g2: g, IN, send } = env;
-    const o = Object.assign({ st: 'street', sk: 1, mv: 'slow', wn: 'time', cau: 'seek', cpS: 'off', cpH: 'off', on: '1', hn: '4' }, cfg.o || {}), stg = STAGES[o.st] || STAGES.street;
-    const LS = +o.cpS || 0, LH = +o.cpH || 0, solo = hids.length < 2 && !(LS > 0 || LH > 0), rng = mulberry((cfg.seed ^ 0x2f6e2b1) >>> 0), HX = stg.HX, HZ = stg.HZ;
+    const o = Object.assign({ st: 'street', sk: 1, mv: 'slow', wn: 'time', cau: 'seek', cpS: 'off', cpH: 'off', on: '1', hn: '4', sz: 'auto', tm: '1', ht: '15' }, cfg.o || {}), stg = STAGES[o.st] || STAGES.street;
+    const LS = +o.cpS || 0, LH = +o.cpH || 0, solo = hids.length < 2 && !(LS > 0 || LH > 0), rng = mulberry((cfg.seed ^ 0x2f6e2b1) >>> 0), nP = (LS > 0 || LH > 0) ? Math.max(hids.length, (+o.on || 1) + (+o.hn || 4)) : hids.length, MF = o.sz === 's' ? 0.6 : o.sz === 'm' ? 0.8 : o.sz === 'l' ? 1 : Math.max(0.6, Math.min(1, 0.6 + 0.08 * (nP - 2))), HX = stg.HX * MF, HZ = stg.HZ * MF, HIDE_T = +o.ht || 15; // 2.101.0 広さは人数に合わせて変わる（2人0.6倍〜7人以上1倍）
     const root = cv.parentNode, T3 = THREE;
     // 3D の画面（絵は下の canvas、文字は上の canvas）
     const rd = new T3.WebGLRenderer({ antialias: true }); rd.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5)); rd.outputEncoding = T3.sRGBEncoding; rd.shadowMap.enabled = true;
@@ -277,7 +280,7 @@
     const setWell = (w, on) => { w.lid.position.set(on ? 1.5 : 0, on ? 0.2 : 0.96, 0); w.lid.rotation.z = on ? -1.0 : 0; w.beam.visible = on; w.inner.material.color.setHex(on ? 0x6ad0ff : 0x1a1a22); };
     // 置物（本物）
     const props = [];
-    for (let i = 0; i < stg.n; i++) {
+    for (let i = 0, nn = Math.round(stg.n * MF * MF); i < nn; i++) {
       let p = null;
       for (let k = 0; k < 40 && !p; k++) { const [x, z] = free(1.2); if (props.every((q) => Math.hypot(q.x - x, q.z - z) > 1.7)) p = { x, z }; }
       if (!p) continue; p.kind = stg.kinds[Math.floor(rng() * stg.kinds.length)]; p.v = Math.floor(rng() * 3); p.rot = rng() * 6.28;
@@ -316,7 +319,7 @@
     const cpu = solo ? { id: '__cpu', x: 0, z: HZ - 6, fx: 0, fz: -1, cd: 1.5, tgt: null, grp: mkYokai('oni'), mv: 0 } : null; if (cpu) scene.add(cpu.grp);
     // 脱出モード：鍵が4つ、3つ集めると鳥居の出口が開く（出口に着いた人は脱出成功）
     // 2.78.0 合図はA/B/X/Y（コントローラーはPS配置：×=A ○=B □=X △=Y）
-    const esc = o.wn === 'escape', RND = esc ? 600 : ROUND, NK = 11, NEED = 7, OPEN_W = 80, EXIT_W = 20, keys = [], exitP = { open: false, list: [] }; let kgot = 0, exM = null, exBeam = null, chInfo = false, chBtn = [12, 80, 118, 28], opening = null, rescuing = null, qte = null, qtT = 0, pdir = null; const QK = ['a', 'b', 'x', 'y'], qq = [], padPrev = [], qrects = []; let padOn = false; const QKB = { a: 'u', b: 'l', x: 'd', y: 'r' }, QL = (c) => (padOn ? HD.pn((HD.keys().pd['q' + c] || [])[0]) : coarse ? c.toUpperCase() : (() => { const ks = HD.keys().kb[QKB[c]]; return HD.kn(ks.find((k) => k.length === 1) || ks[0]); })()); /* 2.100.6 キーボードの合図は移動キー（WASD）。上=W 左=A 下=S 右=D */ const openCh = (q) => { if (q.lid) q.lid.rotation.x = -1.9; if (q.beam) q.beam.visible = false; };
+    const esc = o.wn === 'escape', RND = Math.round((esc ? 600 : ROUND) * (+o.tm || 1)), NK = 11, NEED = 7, OPEN_W = 80, EXIT_W = 20, keys = [], exitP = { open: false, list: [] }; let kgot = 0, exM = null, exBeam = null, chInfo = false, chBtn = [12, 80, 118, 28], opening = null, rescuing = null, qte = null, qtT = 0, pdir = null; const QK = ['a', 'b', 'x', 'y'], qq = [], padPrev = [], qrects = []; let padOn = false; const QKB = { a: 'u', b: 'l', x: 'd', y: 'r' }, QL = (c) => (padOn ? HD.pn((HD.keys().pd['q' + c] || [])[0]) : coarse ? c.toUpperCase() : (() => { const ks = HD.keys().kb[QKB[c]]; return HD.kn(ks.find((k) => k.length === 1) || ks[0]); })()); /* 2.100.6 キーボードの合図は移動キー（WASD）。上=W 左=A 下=S 右=D */ const openCh = (q) => { if (q.lid) q.lid.rotation.x = -1.9; if (q.beam) q.beam.visible = false; };
     if (esc) {
       for (let i = 0; i < NK; i++) { let q = null; for (const th of [16, 11, 7]) for (let k = 0; k < 60 && !q; k++) { const [x, z] = free(1); if (z < HZ - 7 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > th)) q = { x, z }; } if (!q) { const [x, z] = free(1); q = { x, z }; } q.got = false; const gk = new THREE.Group(), GD = new THREE.MeshLambertMaterial({ color: 0xf2c14e, emissive: 0x806010 }); gk.add(part(G('chb', () => new THREE.BoxGeometry(1.2, 0.7, 0.75)), M(0x7a4a22), 0, 0.35, 0)); const lid = new THREE.Group(); lid.position.set(0, 0.7, -0.37); const lm = part(G('chl', () => new THREE.CylinderGeometry(0.375, 0.375, 1.2, 12, 1, false, 0, Math.PI)), M(0x8a5a2a), 0, 0, 0.37); lm.rotation.z = Math.PI / 2; lm.rotation.y = Math.PI / 2; lid.add(lm); gk.add(lid); q.lid = lid; for (const x of [-0.45, 0.45]) gk.add(part(G('chg', () => new THREE.BoxGeometry(0.1, 0.75, 0.8)), GD, x, 0.37, 0)); gk.add(part(G('chk', () => new THREE.BoxGeometry(0.2, 0.22, 0.08)), GD, 0, 0.6, 0.4)); const bm = new THREE.Mesh(G('kyl', () => new THREE.CylinderGeometry(0.1, 0.1, 3, 8)), new THREE.MeshBasicMaterial({ color: 0xffe070, transparent: true, opacity: 0.35, depthWrite: false })); bm.position.y = 1.9; gk.add(bm); q.beam = bm; q.pr = 0; { const ef = new THREE.LineSegments(new THREE.EdgesGeometry(G('chf', () => new THREE.BoxGeometry(1.8, 1.4, 1.4))), new THREE.LineBasicMaterial({ color: 0xff2a2a, depthTest: false, transparent: true })), ff = new THREE.Mesh(G('chf', () => new THREE.BoxGeometry(1.8, 1.4, 1.4)), new THREE.MeshBasicMaterial({ color: 0xff2a2a, depthTest: false, transparent: true, opacity: 0.22 })); const fr = new THREE.Group(); fr.add(ef, ff); fr.position.y = 0.55; fr.renderOrder = 999; ef.renderOrder = ff.renderOrder = 999; fr.visible = false; gk.add(fr); q.frame = fr; } gk.position.set(q.x, 0, q.z); scene.add(gk); q.m = gk; gk.rotation.y = hh(keys.length + 9) * 6.28; keys.push(q); }
       for (const sgn of [-1, 1]) { let e = null; for (let k = 0; k < 120 && !e; k++) { const [x, z] = free(2.5); if (x * sgn > HX * 0.4 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 5) && exitP.list.every((o2) => Math.hypot(o2.x - x, o2.z - z) > HX * 1.1)) e = { x, z }; } if (!e) { const [x, z] = free(2.5); e = { x, z }; } exitP.list.push(e); }
