@@ -694,7 +694,7 @@
         if (!done) {
           const hs = hiders(), ss = seekers(); let over = null;
           const escN = ids.filter((i) => P[i].esc).length, cgt = ids.filter((i) => P[i].caught0).length, nH0 = ids.filter((i) => P[i].role0 === 'h').length, WN = Math.min(nH0 <= 4 ? 3 : Math.ceil(nH0 * 0.75), nH0), ev = () => (cgt >= WN ? 's' : WN >= 2 && cgt === WN - 1 ? 'd' : escN > 0 ? 'h' : 's'); // 鬼が3人以上で勝ち・2人で引き分け
-          if (esc && solo && MY.esc) over = 'h'; else if (esc && !solo && cgt >= WN) over = 's'; else if (esc && !solo && !hs.length) over = ev(); else if (!solo && !hs.length) over = 's'; else if (solo && (!alive(MY) || MY.role !== 'h')) over = 's'; else if (!solo && !ss.length && phase === 'play') over = 'h'; else if (t >= RND) over = esc ? 's' : 'h'; // 脱出モードは10分で、時間切れは鬼の勝ち
+          if (esc && solo && MY.esc) over = 'h'; else if (esc && !solo && cgt >= WN) over = 's'; else if (esc && !solo && !hs.length) over = ev(); else if (!solo && !hs.length) over = 's'; else if (solo && (!alive(MY) || MY.role !== 'h')) over = 's'; else if (!solo && !ss.length && phase === 'play') over = esc ? 'k' : 'h'; else if (t >= RND) over = esc ? 's' : 'h'; // 脱出モードは10分で、時間切れは鬼の勝ち
           if (over) { done = true; this.finish(over); }
         }
         // 絵に反映
@@ -713,7 +713,7 @@
       },
       finish(over) {
         const ini = MY.role0, hs = ids.filter((i) => P[i].role0 === 'h'), surv = (id) => !P[id].caught0 && !env.gone[id];
-        const escN2 = ids.filter((i) => P[i].esc).length, winH = (id) => (esc ? (escN2 * 2 <= hs.length ? !!P[id].esc : over === 'h' || !!P[id].esc) : surv(id)), win = ini === 'h' ? winH(me) : over === 's', ws = hs.filter(winH).length; // 脱出できたのが半分以下なら、脱出できた人だけ勝ち
+        const escN2 = ids.filter((i) => P[i].esc).length, winH = (id) => (esc ? (over === 'k' ? surv(id) : escN2 * 2 <= hs.length ? !!P[id].esc : over === 'h' || !!P[id].esc) : surv(id)), win = ini === 'h' ? winH(me) : over === 's', ws = hs.filter(winH).length; // 脱出できたのが半分以下なら、脱出できた人だけ勝ち
         const rows = ids.map((id) => { const p = P[id]; return `<b style="color:${col(id)}">${nm(id)}</b>（${(HD.CH[p.role0].find((x) => x.k === (p.role0 === 'h' ? p.chh : p.chs)) || {}).n}）　${p.role0 === 'h' ? (esc ? (p.esc ? '脱出成功！' : surv(id) ? '脱出できなかった' : '見つかった') : surv(id) ? '隠れきった！' : '見つかった') : `探す側：${p.caught}人見つけた`}`; });
         env.end({ title: win ? (ini === 'h' ? (esc ? (P[me].esc ? '脱出成功！' : 'みんなの勝ち！') : '隠れきった！') : '全員見つけた！') : over === 'd' ? '引き分け！' : (ini === 'h' ? (P[me].caught0 ? '見つかってしまった…' : '脱出できなかった…') : '見つけきれなかった…'), rows, cmd: { type: 'partyResult', game: 'hide', n: hids.length, win: win ? 1 : 0, ws, ex: esc ? 1 : 0, ne: escN2, nh: hs.length, esc: P[me].esc ? 1 : 0, cnt: P[me].caught, role: ini } });
       },
