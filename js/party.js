@@ -11,7 +11,7 @@
     race: { name: '馬の障害レース', max: 10, team: true, desc: '鬼の難しさの障害コース。ジャンプ＝A／Space（長押しで高く・すぐ離すと小さく）、ダッシュ＝↑／B（スタミナを使う）。高い柵は長押しで跳ぶ、枝の下は跳ばずにくぐる、大穴はダッシュで跳ばないと落ちて戻される、ぬかるみでは遅くなる' },
     archery: { name: '弓の的当て大会', max: 10, team: true, desc: '動く的を10本で射抜いて点を競う。風で矢が流れる。狙う＝マウス／矢印／スティック、射つ＝クリック／A／Space。金の的は2倍' },
     fish: { name: '釣り大会', max: 10, team: true, mode: true, desc: '朝・昼・夕の3日間（1日40秒）で釣りくらべ。釣り方はいつもの釣りと同じ（浮きを投げる→アタリ→タイミング）。勝ち方は「いちばん大きい魚」か「釣った数」を選べます' },
-    hayashi: { name: '囃子合わせ', max: 5, team: false, desc: '和楽器のリズム遊び。太鼓・鼓・篠笛・三味線・鉦から楽器を選び、みんなで一つの曲を合わせる。流れてくる譜を下の線で打つ（赤い丸＝A／Space／Z／F、黒い輪＝B／X／J）。自分のパートは叩いた音で鳴る' },
+    hayashi: { name: '囃子合わせ', max: 5, team: false, desc: '和楽器のリズム遊び。太鼓・鼓・篠笛・三味線・鉦から楽器を選び、みんなで一つの曲を合わせる。流れてくる譜を下の線で打つ（赤＝F・J・Space、白＝D・K。画面では左右に赤と白のボタン）。自分のパートは叩いた音で鳴る' },
     kemari: { name: '蹴鞠', max: 10, team: false, desc: '輪になって鞠を蹴り回す。鞠が自分に飛んできたら、足もとの輪に重なった瞬間に「蹴る」（クリック／タップ／A／Space）。続けるほど鞠は速くなる。毎月5日は大きな町で蹴鞠大会' },
     cart: { name: '荷運び競争', max: 10, team: true, desc: '荷車を引いてゴールまで運ぶ。←→で5本の道を選ぶ（みんなの平均で進む）、A／Spaceを押している間引く。岩にぶつかると荷が崩れる。「？」の箱で道具（加速・修理・守り、チーム戦では相手に岩落とし）が手に入り、B／X／クリックで使う。チーム戦は赤と白の荷車で競走' },
   };
@@ -117,9 +117,9 @@
     const touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches), hold = (el, k) => { const on = (e) => { e.preventDefault(); if (!IN[k]) { if (k === 'a') { IN.aT = 1; IN.aAt = performance.now(); } if (k === 'b') { IN.bT = 1; IN.bAt = performance.now(); } if (k === 'l') IN.lT = 1; if (k === 'r') IN.rT = 1; } IN[k] = 1; }, off = (e) => { e.preventDefault(); IN[k] = 0; }; el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointerleave', off); el.addEventListener('pointercancel', off); };
     const mkBtn = (host, txt, k) => { const b = document.createElement('button'); b.textContent = txt; host.appendChild(b); hold(b, k); };
     const pl = root.querySelector('.pl'), pr = root.querySelector('.pr');
-    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '使う', 'b'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { mkBtn(pl, 'ダッシュ', 'b'); mkBtn(pr, 'ジャンプ', 'a'); } else if (cfg.g === 'fish') mkBtn(pr, '釣る', 'a'); else if (cfg.g === 'kemari') mkBtn(pr, '蹴る', 'a'); else if (cfg.g === 'hayashi') { mkBtn(pl, '黒', 'b'); mkBtn(pr, '赤', 'a'); for (const [b, bg] of [[pl.lastChild, '#1a1a1a'], [pr.lastChild, '#c8401e']]) b.style.cssText = `width:40vw;height:110px;border-radius:18px;font-size:28px;font-weight:bold;opacity:.9;background:${bg};border:3px solid #f3ead2`; } /* 2.68.1 大きな赤・黒のボタン */ else mkBtn(pr, '射つ', 'a'); }
+    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '使う', 'b'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { mkBtn(pl, 'ダッシュ', 'b'); mkBtn(pr, 'ジャンプ', 'a'); } else if (cfg.g === 'fish') mkBtn(pr, '釣る', 'a'); else if (cfg.g === 'kemari') mkBtn(pr, '蹴る', 'a'); else if (cfg.g === 'hayashi') { /* 2.68.2 囃子合わせは自分でボタンを置く */ } else mkBtn(pr, '射つ', 'a'); }
     const ptr = (e) => { const r = cv.getBoundingClientRect(); IN.mx = (e.clientX - r.left) * cv.width / r.width; IN.my = (e.clientY - r.top) * cv.height / r.height; };
-    cv.addEventListener('pointermove', ptr); cv.addEventListener('pointerdown', (e) => { ptr(e); if (cfg.g === 'archery' || cfg.g === 'cart') IN.click = 1; else if (cfg.g === 'fish' || cfg.g === 'kemari') IN.aT = 1; else if (cfg.g === 'hayashi') { const r = cv.getBoundingClientRect(); if (e.clientX - r.left < r.width / 2) { IN.bT = 1; IN.bAt = performance.now(); } else { IN.aT = 1; IN.aAt = performance.now(); } } });
+    cv.addEventListener('pointermove', ptr); cv.addEventListener('pointerdown', (e) => { ptr(e); if (cfg.g === 'archery' || cfg.g === 'cart') IN.click = 1; else if (cfg.g === 'fish' || cfg.g === 'kemari') IN.aT = 1; });
     const env = { cfg, me, ids: cfg.mem.map((x) => x.id), names: Object.fromEntries(cfg.mem.map((x) => [x.id, x.name])), tm: Object.fromEntries(cfg.mem.map((x) => [x.id, x.tm])), others: cfg.mem.map((x) => x.id).filter((id) => id !== me), cv, g2, finished: false, gone: {} };
     const game = { race: raceGame, archery: archeryGame, cart: cartGame, fish: fishGame, kemari: kemariGame, hayashi: hayashiGame }[cfg.g](env);
     let raf = 0, last = performance.now(); const stop = () => { cancelAnimationFrame(raf); removeEventListener('resize', onR); root.remove(); RUN = null; for (const k of ['l', 'r', 'u', 'd', 'a', 'b']) IN[k] = 0; };
@@ -325,6 +325,8 @@
     let t = -2, busy = false, msg = '', msgT = 0, doneAt = null, dayShown = -1, over = false, catchImg = null; // 2.59.2 釣れた魚の絵（assets/creatures/〇〇.webp）
     const IMG = {}; const fishImg = (id) => { if (!IMG[id]) { const im = new Image(); im.src = `assets/creatures/${id}.webp?v=${SGK.VERSION}`; IMG[id] = im; } return IMG[id]; };
     const pick = () => { let r = Math.random() * TW; for (const c of LIST) { r -= RW[c.r] || 1; if (r <= 0) return c; } return LIST[0]; };
+    box.oninput = (e) => { const k = e.target.dataset && e.target.dataset.ho; if (!k) return; OPT[k] = +e.target.value; saveOpt(); const sp = e.target.nextElementSibling; if (sp) sp.textContent = k === 'spd' ? `${OPT.spd.toFixed(1)}倍` : `${Math.round(OPT[k] * 100)}%`; };
+    box.onchange = (e) => { const k = e.target.dataset && e.target.dataset.ho; if (k === 'my' && st.picks[me]) { const mu = M(); if (mu && mu.ok()) mu.play(st.picks[me], mu.now() + 0.02, 'a', 74, 0.3, 0.55 * OPT.my); } };
     function cast() {
       if (busy || !LIST.length || !SGK.GATHERUI || !SGK.GATHERUI.party) return; const sp = pick(), frac = (Math.random() + Math.random()) / 2; busy = true; catchImg = null; fishImg(sp.id); /* 先に読んでおく */
       SGK.GATHERUI.party({ n: -1, k: 'f', id: sp.id, d: sp.d, r: sp.r, fr: frac }, (q) => {
@@ -610,6 +612,22 @@
     box.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#2a2118ee;color:#f3ead2;border:2px solid #a07c42;border-radius:10px;padding:12px 16px;max-width:92vw;max-height:86vh;overflow:auto;font-size:14px;z-index:2';
     root.appendChild(box);
     const instOf = (id) => HY.INST.find((x) => x.id === st.picks[id]);
+    // 2.68.2 各自の設定（音量・譜の速さ）はこの端末に残す
+    const OPT = Object.assign({ my: 1, oth: 0.8, spd: 1 }, (() => { try { return JSON.parse(localStorage.getItem('sgk-hayashi')) || {}; } catch (e) { return {}; } })());
+    const saveOpt = () => { try { localStorage.setItem('sgk-hayashi', JSON.stringify(OPT)); } catch (e) {} };
+    // 2.68.2 打つ操作：赤・白それぞれ2つずつ（キーボード 赤＝F・J・Space、白＝D・K／コントローラー 赤＝A・B・LT・RT、白＝X・Y・LB・RB／画面 左右に赤と白）。押すたびに数える（同じ色を2つで交互に打てる）
+    const Q = [], hit = (k) => Q.push({ k, at: performance.now() });
+    const KEY = { f: 'a', j: 'a', ' ': 'a', Enter: 'a', d: 'b', k: 'b' };
+    const onKey = (e) => { if (!root.isConnected) { removeEventListener('keydown', onKey, true); return; } const k = KEY[e.key.length === 1 ? e.key.toLowerCase() : e.key]; if (!k) return; e.preventDefault(); e.stopPropagation(); if (!e.repeat && st.phase === 'play') hit(k); };
+    addEventListener('keydown', onKey, true);
+    const padPrev = []; const GP = { 0: 'a', 1: 'a', 6: 'a', 7: 'a', 2: 'b', 3: 'b', 4: 'b', 5: 'b' };
+    const pollPad = () => { const gp = (navigator.getGamepads ? navigator.getGamepads() : []).find((x) => x && x.connected); if (!gp) return; for (const i in GP) { const on = !!(gp.buttons[i] && gp.buttons[i].pressed); if (on && !padPrev[i]) hit(GP[i]); padPrev[i] = on; } };
+    const touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+    if (touch) for (const side of ['left', 'right']) {
+      const col = document.createElement('div'); col.style.cssText = `position:absolute;bottom:12px;${side}:10px;display:flex;flex-direction:column;gap:10px;z-index:1`;
+      for (const [k, nm, bg, fg] of [['b', '白', '#f3ead2', '#1a1a1a'], ['a', '赤', '#c8401e', '#fff']]) { const b = document.createElement('button'); b.textContent = nm; b.style.cssText = `width:38vw;height:84px;border-radius:18px;font-size:28px;font-weight:bold;background:${bg};color:${fg};border:3px solid #1a1a1a;opacity:.92;touch-action:none`; b.addEventListener('pointerdown', (e) => { e.preventDefault(); if (st.phase === 'play') hit(k); b.style.filter = 'brightness(1.4)'; setTimeout(() => { b.style.filter = ''; }, 80); }); col.appendChild(b); }
+      root.appendChild(col);
+    }
     function drawPick() {
       if (st.phase !== 'pick') { box.style.display = 'none'; return; } box.style.display = '';
       const used = Object.values(st.picks);
@@ -619,11 +637,15 @@
 <div style="margin-top:8px">曲：${lead ? HY.SONGS.map((s, i) => `<button data-hs="${i}" ${st.song === i ? 'style="background:#a0702e"' : ''}>${s.name}</button>`).join('') : `<b>${HY.SONGS[st.song].name}</b>`}</div>
 <div>難しさ：${lead ? HY.DIFF.map((d, i) => `<button data-hd="${i}" ${st.diff === i ? 'style="background:#a0702e"' : ''}>${d}</button>`).join('') : `<b>${HY.DIFF[st.diff]}</b>`}</div>
 <div style="margin-top:8px">${lead ? `<button data-hgo="1" ${env.ids.every((id) => st.picks[id] || env.gone[id]) ? '' : 'disabled'}>始める</button>` : 'リーダーが始めるのを待っています'}</div>
-<div style="font-size:12px;color:#cdbf9a;margin-top:6px">赤い丸＝赤（A／Space／Z／F・右のボタン）　黒い輪＝黒（B／X／J・左のボタン）。下の線に重なった時に打つ</div>`;
+<div style="margin-top:8px;display:grid;grid-template-columns:auto 1fr auto;gap:4px 8px;align-items:center">
+<span>自分の楽器の音</span><input type="range" min="0" max="1.5" step="0.05" value="${OPT.my}" data-ho="my"><span>${Math.round(OPT.my * 100)}%</span>
+<span>ほかの楽器の音</span><input type="range" min="0" max="1.5" step="0.05" value="${OPT.oth}" data-ho="oth"><span>${Math.round(OPT.oth * 100)}%</span>
+<span>譜の流れる速さ</span><input type="range" min="0.5" max="2.5" step="0.1" value="${OPT.spd}" data-ho="spd"><span>${OPT.spd.toFixed(1)}倍</span></div>
+<div style="font-size:12px;color:#cdbf9a;margin-top:6px">赤い丸＝赤（F・J・Space／コントローラーのA・B）　白い丸＝白（D・K／X・Y）。画面では左右の下に赤、その上に白。下の線に重なった時に打つ</div>`;
     }
     box.onclick = (e) => {
       const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
-      if (d.hi) { st.picks[me] = d.hi; if (lead) cast(); else send([cfg.lead], { k: 'hpick', inst: d.hi }); }
+      if (d.hi) { st.picks[me] = d.hi; if (lead) cast(); else send([cfg.lead], { k: 'hpick', inst: d.hi }); const mu = M(); if (mu && mu.ok()) { const L = HY.build(HY.SONGS[0], 2).notes[d.hi], na = L.find((n) => n.k === 'a') || L[0], nb = L.find((n) => n.k === 'b') || na; mu.play(d.hi, mu.now() + 0.02, 'a', na.m, 0.3, 0.55 * OPT.my); mu.play(d.hi, mu.now() + 0.4, 'b', nb.m, 0.3, 0.55 * OPT.my); } } // 選んだ楽器の音（赤・白）を鳴らす
       if (lead && d.hs) { st.song = +d.hs; cast(); } if (lead && d.hd) { st.diff = +d.hd; cast(); }
       if (lead && d.hgo) { st.phase = 'play'; startAt = Date.now() + 2500; cast(); begin(2500); }
       drawPick();
@@ -646,7 +668,7 @@
       best.j = bd <= GOOD ? 'good' : 'ok'; cnt[best.j]++; combo++; maxCombo = Math.max(maxCombo, combo);
       score += (best.j === 'good' ? 100 : 50) * (1 + Math.min(combo, 100) / 100);
       fx.push({ t: best.j === 'good' ? '良' : '可', c: best.j === 'good' ? '#ffd76a' : '#e0e0e0', at: performance.now(), hit: 1 });
-      if (mu) mu.play(myInst, mu.now(), best.k, best.m, best.d, 0.55);
+      if (mu) mu.play(myInst, mu.now(), best.k, best.m, best.d, 0.55 * OPT.my);
     }
     function finish() {
       if (endT) return; endT = performance.now();
@@ -671,10 +693,10 @@
           if (schedI.cnt == null) schedI.cnt = 0; while (schedI.cnt < 4 && schedI.cnt * chart.beat < ahead) { mu.play('hyoshi', a0 + schedI.cnt * chart.beat, 'a', 0, 0, 0.6); schedI.cnt++; }
           for (const inst in chart.notes) {
             if (inst === myInst) continue; const L = chart.notes[inst]; let i = schedI[inst] || 0;
-            while (i < L.length && L[i].t < ahead) { if (L[i].t >= t - 0.05) mu.play(inst, a0 + L[i].t, L[i].k, L[i].m, L[i].d, 0.45); i++; } schedI[inst] = i;
+            while (i < L.length && L[i].t < ahead) { if (L[i].t >= t - 0.05) mu.play(inst, a0 + L[i].t, L[i].k, L[i].m, L[i].d, 0.45 * OPT.oth); i++; } schedI[inst] = i;
           }
         }
-        if (IN.aT) judge('a', IN.aAt || performance.now()); if (IN.bT) judge('b', IN.bAt || performance.now());
+        pollPad(); while (Q.length) { const h = Q.shift(); judge(h.k, h.at); }
         for (const n of mine) { if (n.j) continue; if (t - n.t > OK) { n.j = 'miss'; cnt.miss++; combo = 0; fx.push({ t: '不可', c: '#ff8a7a', at: performance.now() }); } else break; }
         sendT -= 0.016; if (sendT <= 0) { sendT = 0.5; send(env.others, { k: 'hsc', v: { s: Math.round(score), good: cnt.good, ok: cnt.ok, miss: cnt.miss, combo } }); }
         if (t > chart.len && !doneQ) { doneQ = 1; send(env.others, { k: 'hsc', v: { s: Math.round(score), good: cnt.good, ok: cnt.ok, miss: cnt.miss, combo } }); setTimeout(finish, 1200); } /* 2.68.1 曲が終わったら1.2秒後に結果（前は終わらなかった） */
@@ -684,7 +706,7 @@
         const bg = g.createLinearGradient(0, 0, 0, H0); bg.addColorStop(0, '#141a33'); bg.addColorStop(1, '#2a1a10'); g.fillStyle = bg; g.fillRect(0, 0, W0, H0);
         for (let i = 0; i < 8; i++) { const x = ((i + 0.5) * W0) / 8, y = 26 + (i % 2) * 8; g.strokeStyle = '#0006'; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, y - 10); g.stroke(); g.fillStyle = i % 2 ? '#e0462c' : '#f0a030'; g.beginPath(); g.ellipse(x, y, 9, 12, 0, 0, 7); g.fill(); g.fillStyle = '#ffd76a55'; g.beginPath(); g.arc(x, y, 18, 0, 7); g.fill(); } // 提灯
         if (st.phase === 'pick' || !chart) return;
-        const t = songT(), ps = players().length ? players() : [me], lw = Math.min(150, (W0 * 0.9) / Math.max(ps.length, 1)), totalW = lw * ps.length, x0 = (W0 - totalW) / 2, hitY = H0 * 0.8, pxs = H0 * (0.55 + st.diff * 0.15); // 1秒あたりの点
+        const t = songT(), ps = players().length ? players() : [me], lw = Math.min(150, (W0 * 0.9) / Math.max(ps.length, 1)), totalW = lw * ps.length, x0 = (W0 - totalW) / 2, hitY = touch ? Math.min(H0 * 0.8, H0 - 215) : H0 * 0.8, pxs = H0 * (0.55 + st.diff * 0.15) * OPT.spd; // 1秒あたりの点（譜の速さの設定をかける）
         ps.forEach((id, li) => {
           const ins = instOf(id) || HY.INST[0], lx = x0 + li * lw, isMe = id === me, cx = lx + lw / 2;
           g.fillStyle = isMe ? '#ffffff14' : '#00000033'; g.fillRect(lx + 3, 50, lw - 6, H0 - 50); g.strokeStyle = ins.c + '88'; g.lineWidth = 2; g.strokeRect(lx + 3, 50, lw - 6, H0 - 50);

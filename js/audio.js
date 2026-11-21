@@ -263,13 +263,27 @@
     SFX[name](now + 0.01);
   };
 
+  // 2.68.2 太鼓の「ドン」：胴が鳴る低い響き（打った瞬間に高く、すぐ沈む）と皮の打音
+  function don(t, vol, bus) {
+    const o = osc('sine', 190, t, 0.9), g = env(t, 0.002, vol * 1.5, 0.55); o.frequency.exponentialRampToValueAtTime(78, t + 0.09); o.frequency.exponentialRampToValueAtTime(70, t + 0.5); o.connect(g);
+    const o2 = osc('triangle', 300, t, 0.2), g2 = env(t, 0.001, vol * 0.5, 0.09); o2.frequency.exponentialRampToValueAtTime(120, t + 0.06); o2.connect(g2);
+    const n = noise(t, 0.08), lp = ctx.createBiquadFilter(), ng = env(t, 0.001, vol * 0.9, 0.05); lp.type = 'lowpass'; lp.frequency.value = 900; n.connect(lp); lp.connect(ng);
+    out(g, bus, 0.35); out(g2, bus, 0.15); out(ng, bus, 0.1);
+  }
+  // 太鼓の「カッ」：縁を打つ、乾いて鋭い音
+  function ka(t, vol, bus) {
+    const n = noise(t, 0.06), bp = ctx.createBiquadFilter(), g = env(t, 0.0005, vol * 1.3, 0.035); bp.type = 'bandpass'; bp.frequency.value = 3300; bp.Q.value = 5; n.connect(bp); bp.connect(g);
+    const o = osc('square', 1180, t, 0.06), og = env(t, 0.0005, vol * 0.35, 0.03), hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 900; o.connect(hp); hp.connect(og);
+    const o2 = osc('sine', 2350, t, 0.05), g2 = env(t, 0.0005, vol * 0.4, 0.025); o2.connect(g2);
+    out(g, bus, 0.12); out(og, bus, 0.08); out(g2, bus, 0.05);
+  }
   // 2.68.0 囃子合わせ（party.js）：楽器の音を、時刻を決めて鳴らす（効果音の音量で鳴る）
   A.music = {
     now: () => (ctx ? ctx.currentTime : 0),
     ok: () => !!(init() && ctx.state === 'running'),
     play(inst, t, k, m, dur, vol = 0.5) {
       if (!ctx || ctx.state !== 'running') return; const b = sfxBus; t = Math.max(t, ctx.currentTime);
-      if (inst === 'taiko') { if (k === 'b') { woodTap(t, vol * 0.8, 1500, b); woodTap(t + 0.004, vol * 0.45, 700, b); } else taiko(t, vol * 1.4, true, b); }
+      if (inst === 'taiko') { if (k === 'b') ka(t, vol, b); else don(t, vol, b); } // 2.68.2 ドン（面）とカッ（縁）
       else if (inst === 'tsuzumi') { if (k === 'b') taiko(t, vol * 0.6, false, b); else tsuzumi(t, vol * 1.2, b); }
       else if (inst === 'fue') flute(t, m || 74, dur || 0.3, vol * 0.75, b);
       else if (inst === 'shami') shami(t, m || 62, vol * 0.9, b);
