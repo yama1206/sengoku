@@ -5,13 +5,13 @@
 // 絵は仮：three.js の簡単な形（あとで置き換えやすいよう、置物は mkProp、人は mkHuman に分けてある）
 (function () {
   const SGK = window.SGK, HD = (SGK.HIDE = {});
-  const KIND = { crate: '木箱', barrel: '樽', jar: '壺', lantern: '石灯籠', stone: '石', bucket: '桶', bale: '米俵', stump: '切り株' };
+  const KIND = { sack: '麻袋', basket: '籠', sign: '立て札', bench: '長椅子', cart: '荷車', umbrella: '傘', firewood: '薪の山', haystack: '藁山', pot: '鉢植え', bush: '茂み', drum: '太鼓', cask: '酒樽', tub: '盥', stool: '腰掛け', shrine: '祠', rock: '大岩', crate: '木箱', barrel: '樽', jar: '壺', lantern: '石灯籠', stone: '石', bucket: '桶', bale: '米俵', stump: '切り株' };
   HD.KIND = KIND;
   HD.OPTS = [
     { k: 'st', n: '舞台', v: [['street', '町の通り'], ['castle', '城下'], ['yashiki', '屋敷の庭'], ['rooms', '大きな屋敷（部屋がたくさん）']] },
     { k: 'sk', n: '探す側の人数', v: [[1, '1人'], [2, '2人'], [3, '3人']] },
     { k: 'mv', n: '化けたあとの動き', v: [['slow', 'ゆっくり動ける'], ['none', '動けない']] },
-    { k: 'wn', n: '勝ち方', v: [['time', '時間まで隠れる'], ['escape', '鍵を集めて脱出']] },
+    { k: 'wn', n: '勝ち方', v: [['time', '時間まで隠れる'], ['escape', '宝箱の鍵を集めて脱出']] },
     { k: 'cau', n: '見つかったら', v: [['seek', '探す側に回る'], ['out', 'その回は終わり']] },
   ];
   /* 2.71.0 キャラ（見た目＋パッシブ＋アクティブ）。逃げる側は人間、鬼は日本の妖怪。数値は仮
@@ -73,6 +73,39 @@
     } else if (kind === 'bale') {
       const b = part(G('ab', () => new THREE.CylinderGeometry(0.34, 0.34, 0.9, 12)), M(0xc9a45a), 0, 0.34, 0); b.rotation.z = Math.PI / 2; g.add(b);
       for (const x of [-0.25, 0.25]) { const r = part(G('ar', () => new THREE.CylinderGeometry(0.355, 0.355, 0.05, 12)), M(0x7a5a2a), x, 0.34, 0); r.rotation.z = Math.PI / 2; g.add(r); }
+    } else if (kind === 'sack') {
+      const b = part(G('sk1', () => new THREE.SphereGeometry(0.45, 10, 8)), M([0xc8b080, 0xb89a68, 0xd2bd90][W]), 0, 0.4, 0); b.scale.set(1, 1.05, 0.85); g.add(b); g.add(part(G('sk2', () => new THREE.CylinderGeometry(0.12, 0.2, 0.2, 8)), M(0x8a6a3a), 0, 0.9, 0));
+    } else if (kind === 'basket') {
+      g.add(part(G('bk1', () => new THREE.CylinderGeometry(0.42, 0.3, 0.55, 10)), M([0xb98a4a, 0xa87a3a, 0xc99a5a][W]), 0, 0.28, 0)); g.add(part(G('bk2', () => new THREE.TorusGeometry(0.4, 0.04, 5, 12)), M(0x6a4a22), 0, 0.56, 0)).rotation.x = Math.PI / 2;
+    } else if (kind === 'sign') {
+      g.add(part(G('sg1', () => new THREE.BoxGeometry(0.12, 1.3, 0.12)), M(0x6b4a2a), 0, 0.65, 0)); g.add(part(G('sg2', () => new THREE.BoxGeometry(0.9, 0.5, 0.08)), M([0xd8c08a, 0xc8a870, 0xe0cc9a][W]), 0, 1.2, 0));
+    } else if (kind === 'bench') {
+      g.add(part(G('bn1', () => new THREE.BoxGeometry(1.5, 0.12, 0.5)), M(0x8a6a3a), 0, 0.5, 0)); for (const x of [-0.6, 0.6]) g.add(part(G('bn2', () => new THREE.BoxGeometry(0.12, 0.5, 0.45)), M(0x5a3d1c), x, 0.25, 0));
+    } else if (kind === 'cart') {
+      g.add(part(G('ct1', () => new THREE.BoxGeometry(1.6, 0.4, 0.9)), M(0x8a5a2a), 0, 0.6, 0)); for (const z of [-0.5, 0.5]) { const w = part(G('ct2', () => new THREE.CylinderGeometry(0.4, 0.4, 0.08, 12)), M(0x4a3018), 0, 0.4, z); w.rotation.x = Math.PI / 2; g.add(w); }
+    } else if (kind === 'umbrella') {
+      g.add(part(G('um1', () => new THREE.CylinderGeometry(0.04, 0.04, 1.5, 6)), M(0x5a3d1c), 0, 0.75, 0)); g.add(part(G('um2', () => new THREE.ConeGeometry(0.8, 0.4, 14)), M([0xc8402f, 0xd8a02f, 0x3a6aa8][W]), 0, 1.6, 0));
+    } else if (kind === 'firewood') {
+      for (const [x, y] of [[-0.25, 0.15], [0.25, 0.15], [0, 0.45]]) { const l = part(G('fw', () => new THREE.CylinderGeometry(0.17, 0.17, 1, 7)), M(0x8a6034), x, y, 0); l.rotation.z = Math.PI / 2; g.add(l); }
+    } else if (kind === 'haystack') {
+      g.add(part(G('hs', () => new THREE.ConeGeometry(0.7, 1.3, 10)), M([0xd2b45a, 0xc4a44a][W % 2]), 0, 0.65, 0));
+    } else if (kind === 'pot') {
+      g.add(part(G('pt1', () => new THREE.CylinderGeometry(0.3, 0.22, 0.4, 10)), M(0xa85a3a), 0, 0.2, 0)); const b = part(G('pt2', () => new THREE.SphereGeometry(0.34, 8, 6)), M([0x4a8a3a, 0x5a9a4a, 0x3a7a3a][W]), 0, 0.6, 0); g.add(b);
+    } else if (kind === 'bush') {
+      for (const [x, z, r] of [[0, 0, 0.55], [0.4, 0.2, 0.4], [-0.35, 0.15, 0.4]]) g.add(part(G('bu' + r, () => new THREE.SphereGeometry(r, 8, 6)), M([0x3f7a3a, 0x4a8a44, 0x35692f][W]), x, r * 0.8, z));
+    } else if (kind === 'drum') {
+      g.add(part(G('dr1', () => new THREE.CylinderGeometry(0.5, 0.5, 0.6, 14)), M(0xa8402a), 0, 0.5, 0)); for (const y of [0.2, 0.8]) g.add(part(G('dr2', () => new THREE.CylinderGeometry(0.51, 0.51, 0.04, 14)), M(0xe8dcc0), 0, y, 0));
+      for (const x of [-0.35, 0.35]) g.add(part(G('dr3', () => new THREE.BoxGeometry(0.1, 0.3, 0.5)), M(0x4a3018), x, 0.15, 0));
+    } else if (kind === 'cask') {
+      g.add(part(G('ck1', () => new THREE.CylinderGeometry(0.5, 0.5, 0.7, 14)), M(0xb88a4a), 0, 0.35, 0)); g.add(part(G('ck2', () => new THREE.CylinderGeometry(0.51, 0.51, 0.06, 14)), M(0xe0d4b0), 0, 0.72, 0));
+    } else if (kind === 'tub') {
+      g.add(part(G('tu1', () => new THREE.CylinderGeometry(0.55, 0.45, 0.3, 14)), M(0x9a7a4a), 0, 0.15, 0)); g.add(part(G('tu2', () => new THREE.CylinderGeometry(0.48, 0.48, 0.02, 14)), M(0x4a86a8), 0, 0.28, 0));
+    } else if (kind === 'stool') {
+      g.add(part(G('sl1', () => new THREE.CylinderGeometry(0.3, 0.3, 0.1, 10)), M(0x8a6a3a), 0, 0.5, 0)); g.add(part(G('sl2', () => new THREE.CylinderGeometry(0.22, 0.28, 0.45, 8)), M(0x5a3d1c), 0, 0.25, 0));
+    } else if (kind === 'shrine') {
+      g.add(part(G('sh1', () => new THREE.BoxGeometry(0.8, 0.6, 0.7)), M(0x9a968c), 0, 0.3, 0)); const r = part(G('sh2', () => new THREE.ConeGeometry(0.7, 0.45, 4)), M(0x6a3a2a), 0, 0.85, 0); r.rotation.y = Math.PI / 4; g.add(r);
+    } else if (kind === 'rock') {
+      const r = part(G('rk', () => new THREE.DodecahedronGeometry(0.8)), M([0x7a7a74, 0x6a6a64, 0x8a8a82][W]), 0, 0.55, 0); r.scale.set(1.2, 0.85, 1); g.add(r);
     } else { // stump
       g.add(part(G('tb', () => new THREE.CylinderGeometry(0.42, 0.48, 0.55, 12)), M(0x6b4a2a), 0, 0.27, 0));
       g.add(part(G('tt', () => new THREE.CylinderGeometry(0.38, 0.38, 0.02, 12)), M(0xb99a6a), 0, 0.56, 0));
@@ -129,14 +162,14 @@
   const wall = (S, x0, z0, x1, z1, c) => { const w = Math.max(0.4, x1 - x0), d = Math.max(0.4, z1 - z0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2; S.scene.add(part(new THREE.BoxGeometry(w, 2.8, d), M(c || 0xd9cfb4), cx, 1.4, cz)); S.boxes.push([cx - w / 2, cz - d / 2, cx + w / 2, cz + d / 2]); };
   /* 2.75.0 舞台：端から端まで走って40秒ほどの広さ。置物の数・種類もここで決める */
   const STAGES = {
-    street: { name: '町の通り', HX: 85, HZ: 45, gnd: 0x9b8760, n: 380, kinds: ['crate', 'crate', 'barrel', 'barrel', 'jar', 'bucket', 'bale', 'stone', 'stump', 'lantern'],
+    street: { name: '町の通り', HX: 85, HZ: 45, gnd: 0x9b8760, n: 380, kinds: ['crate', 'barrel', 'jar', 'bucket', 'bale', 'sack', 'basket', 'sign', 'bench', 'cart', 'umbrella', 'firewood', 'cask', 'tub', 'stool', 'drum', 'stone', 'pot', 'lantern'],
       build(S) {
         flat(S, 172, 8, 0, 1, 0xb8a47a); const XR = [-45, 0, 45]; for (const x of XR) flat(S, 6, 92, x, 0, 0xb8a47a);
         const W = [7, 6, 8, 6, 9, 7, 6, 8], C = [0xe6dcc0, 0xd9c8a0, 0xcfbf98], ok = (x) => XR.every((r) => Math.abs(x - r) > 6);
         for (const [z, k0] of [[-42, 0], [42, 3], [-11, 5], [13, 2], [-26, 1], [28, 4]]) { let x = -81, k = k0; while (x < 80) { const w = W[k % W.length]; if (ok(x + w / 2) && hh(x * 3 + z) > 0.12) house(S, x + w / 2, z, w, 4, 3 + (k % 3) * 0.2, C[k % 3], 0x3a3f46); x += w + 1.5 + hh(x + z) * 3; k++; } }
         for (const [x, z] of [[-22, 6], [22, 6], [70, -20], [-70, 20], [0, -34]]) { S.circs.push([x, z, 0.5]); S.scene.add(part(new THREE.CylinderGeometry(0.5, 0.5, 1.2, 8), M(0x6a4a2a), x, 0.6, z)); } // 井戸（仮）
       } },
-    castle: { name: '城下', HX: 80, HZ: 50, gnd: 0x8a8575, n: 340, kinds: ['crate', 'barrel', 'barrel', 'jar', 'stone', 'stone', 'bale', 'stump', 'bucket', 'lantern'],
+    castle: { name: '城下', HX: 80, HZ: 50, gnd: 0x8a8575, n: 340, kinds: ['crate', 'barrel', 'jar', 'stone', 'rock', 'bale', 'sack', 'cart', 'firewood', 'cask', 'drum', 'bench', 'sign', 'lantern', 'shrine', 'bush', 'stump', 'haystack'],
       build(S) {
         flat(S, 7, 100, 0, 0, 0x9d9886); flat(S, 160, 5, 0, 2, 0x9d9886);
         S.scene.add(part(new THREE.BoxGeometry(156, 3.2, 1.6), M(0x7d786c), 0, 1.6, -47.8)); S.boxes.push([-78, -48.6, 78, -47]);
@@ -144,14 +177,14 @@
         let n = 0; for (const x of [-68, -52, -36, -20, 20, 36, 52, 68]) for (const z of [-32, -14, 16, 30, 42]) { if (hh(n++) < 0.25) continue; house(S, x + (hh(n) - 0.5) * 4, z, 6 + Math.floor(hh(n + 7) * 3), 4, 3 + hh(n + 3) * 0.4, 0xd9c8a0, 0x4a4a46); }
         for (let i = 0; i < 40; i++) { const x = (hh(i + 300) * 2 - 1) * 74, z = (hh(i + 400) * 2 - 1) * 44; if (Math.abs(x) < 6 || Math.abs(z - 2) < 4) continue; tree(S, x, z, 1.0 + hh(i) * 0.3, i % 2 === 0); }
       } },
-    yashiki: { name: '屋敷の庭', HX: 80, HZ: 50, gnd: 0x6f8f4a, n: 300, kinds: ['stone', 'stone', 'lantern', 'lantern', 'jar', 'bucket', 'stump', 'crate', 'bale'],
+    yashiki: { name: '屋敷の庭', HX: 80, HZ: 50, gnd: 0x6f8f4a, n: 300, kinds: ['stone', 'rock', 'lantern', 'jar', 'bucket', 'stump', 'bush', 'pot', 'shrine', 'bench', 'basket', 'umbrella', 'stool', 'tub', 'sign', 'haystack', 'bale'],
       build(S) {
         house(S, 0, -45, 60, 6, 3.6, 0xe6dcc0, 0x4a4036); house(S, 60, -28, 8, 6, 3.2, 0xd9c8a0, 0x4a4036); house(S, -60, -28, 8, 6, 3.2, 0xd9c8a0, 0x4a4036); house(S, 66, 30, 7, 6, 3, 0xd9c8a0, 0x4a4036); house(S, -66, 34, 7, 6, 3, 0xd9c8a0, 0x4a4036);
         const ponds = [[-30, 10, 10], [42, 14, 7], [10, 34, 6]]; for (const [x, z, r] of ponds) { const pd = part(new THREE.CylinderGeometry(r, r, 0.05, 36), M(0x4a86a8), x, 0.03, z); pd.castShadow = false; S.scene.add(pd); S.circs.push([x, z, r]); }
         for (let i = 0; i < 46; i++) { const x = (hh(i + 500) * 2 - 1) * 74, z = (hh(i + 600) * 2 - 1) * 44; if (ponds.some(([px, pz, r]) => Math.hypot(x - px, z - pz) < r + 3) || z < -36) continue; tree(S, x, z, 1.0 + hh(i) * 0.4, i % 3 !== 0); }
         for (let i = 0; i < 30; i++) { const s2 = part(new THREE.CylinderGeometry(0.45, 0.45, 0.06, 10), M(0x9a968c), -4 + i * 1.2, 0.03, -36 + i * 1.5); s2.castShadow = false; S.scene.add(s2); }
       } },
-    rooms: { name: '大きな屋敷', HX: 72, HZ: 39, gnd: 0x8a6a48, n: 360, kinds: ['crate', 'barrel', 'jar', 'bucket', 'bale', 'stone', 'stump', 'lantern', 'crate', 'jar'],
+    rooms: { name: '大きな屋敷', HX: 72, HZ: 39, gnd: 0x8a6a48, n: 360, kinds: ['crate', 'barrel', 'jar', 'bucket', 'sack', 'basket', 'bench', 'stool', 'drum', 'cask', 'tub', 'pot', 'lantern', 'firewood', 'sign', 'umbrella', 'cart', 'shrine'],
       build(S) { // 部屋 9×6。部屋の境にはかべと戸口（戸口の位置は少しずつずらす）
         const cw = 16, ch = 13, C = 9, R = 6, FL = [0xb8a47a, 0xa8b58a, 0xc9b28f];
         for (let i = 0; i < C; i++) for (let j = 0; j < R; j++) flat(S, cw - 0.4, ch - 0.4, -72 + cw * (i + 0.5), -39 + ch * (j + 0.5), FL[(i + j * 2) % 3]);
@@ -219,9 +252,9 @@
     const cho = (p) => (p.role === 'h' ? p.chh : p.chs), chN = (p) => (HD.CH[p.role].find((x) => x.k === cho(p)) || HD.CH[p.role][0]).n, marks = {};
     const cpu = solo ? { id: '__cpu', x: 0, z: HZ - 6, fx: 0, fz: -1, cd: 1.5, tgt: null, grp: mkYokai('oni'), mv: 0 } : null; if (cpu) scene.add(cpu.grp);
     // 脱出モード：鍵が4つ、3つ集めると鳥居の出口が開く（出口に着いた人は脱出成功）
-    const esc = o.wn === 'escape', NK = 4, NEED = 3, keys = [], exitP = { x: 0, z: -HZ + 3, open: false }; let kgot = 0, exM = null, exBeam = null;
+    const esc = o.wn === 'escape', NK = 4, NEED = 3, OPEN_T = 5, keys = [], exitP = { x: 0, z: -HZ + 3, open: false }; let kgot = 0, exM = null, exBeam = null, opening = null; const openCh = (q) => { if (q.lid) q.lid.rotation.x = -1.9; if (q.beam) q.beam.visible = false; };
     if (esc) {
-      for (let i = 0; i < NK; i++) { let q = null; for (let k = 0; k < 80 && !q; k++) { const [x, z] = free(1); if (z < HZ - 7 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 8)) q = { x, z }; } if (!q) { const [x, z] = free(1); q = { x, z }; } q.got = false; const gk = new THREE.Group(); gk.add(part(G('kyb', () => new THREE.BoxGeometry(0.5, 0.18, 0.3)), new THREE.MeshLambertMaterial({ color: 0xf2c14e, emissive: 0x806010 }), 0, 0.8, 0)); gk.add(part(G('kyr', () => new THREE.TorusGeometry(0.2, 0.05, 6, 12)), new THREE.MeshLambertMaterial({ color: 0xf2c14e, emissive: 0x806010 }), -0.35, 0.8, 0)); const bm = new THREE.Mesh(G('kyl', () => new THREE.CylinderGeometry(0.1, 0.1, 3, 8)), new THREE.MeshBasicMaterial({ color: 0xffe070, transparent: true, opacity: 0.35, depthWrite: false })); bm.position.y = 1.5; gk.add(bm); gk.position.set(q.x, 0, q.z); scene.add(gk); q.m = gk; keys.push(q); }
+      for (let i = 0; i < NK; i++) { let q = null; for (let k = 0; k < 80 && !q; k++) { const [x, z] = free(1); if (z < HZ - 7 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 8)) q = { x, z }; } if (!q) { const [x, z] = free(1); q = { x, z }; } q.got = false; const gk = new THREE.Group(), GD = new THREE.MeshLambertMaterial({ color: 0xf2c14e, emissive: 0x806010 }); gk.add(part(G('chb', () => new THREE.BoxGeometry(1.2, 0.7, 0.75)), M(0x7a4a22), 0, 0.35, 0)); const lid = new THREE.Group(); lid.position.set(0, 0.7, -0.37); const lm = part(G('chl', () => new THREE.CylinderGeometry(0.375, 0.375, 1.2, 12, 1, false, 0, Math.PI)), M(0x8a5a2a), 0, 0, 0.37); lm.rotation.z = Math.PI / 2; lm.rotation.y = Math.PI / 2; lid.add(lm); gk.add(lid); q.lid = lid; for (const x of [-0.45, 0.45]) gk.add(part(G('chg', () => new THREE.BoxGeometry(0.1, 0.75, 0.8)), GD, x, 0.37, 0)); gk.add(part(G('chk', () => new THREE.BoxGeometry(0.2, 0.22, 0.08)), GD, 0, 0.6, 0.4)); const bm = new THREE.Mesh(G('kyl', () => new THREE.CylinderGeometry(0.1, 0.1, 3, 8)), new THREE.MeshBasicMaterial({ color: 0xffe070, transparent: true, opacity: 0.35, depthWrite: false })); bm.position.y = 1.9; gk.add(bm); q.beam = bm; q.pr = 0; gk.position.set(q.x, 0, q.z); scene.add(gk); q.m = gk; gk.rotation.y = hh(keys.length + 9) * 6.28; keys.push(q); }
       for (let k = 0; k < 80; k++) { const [x, z] = free(2.5); if (z < -HZ * 0.25 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 5)) { exitP.x = x; exitP.z = z; break; } }
       exM = new THREE.Group(); const rm = M(0xc8402f); for (const x of [-1.8, 1.8]) exM.add(part(G('tp', () => new THREE.CylinderGeometry(0.25, 0.3, 3.4, 10)), rm, x, 1.7, 0)); exM.add(part(G('tk', () => new THREE.BoxGeometry(4.8, 0.32, 0.7)), M(0x2a2a2a), 0, 3.5, 0)); exM.add(part(G('tn2', () => new THREE.BoxGeometry(3.8, 0.22, 0.34)), rm, 0, 2.8, 0));
       exBeam = new THREE.Mesh(G('exb', () => new THREE.CylinderGeometry(1.5, 1.5, 6, 16, 1, true)), new THREE.MeshBasicMaterial({ color: 0x7affa0, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide })); exBeam.position.y = 3; exBeam.visible = false; exM.add(exBeam); exM.position.set(exitP.x, 0, exitP.z); scene.add(exM);
@@ -312,7 +345,7 @@
         else if (m.k === 'ns') { nzo = { x: m.x, z: m.z, t: 5 }; SGK.AUDIO.sfx('news'); say('どこかで声がした…'); }
         else if (m.k === 'dc') { addDecoy(m.x, m.z, m.kd, m.v, m.rot); }
         else if (m.k === 'mk') { marks[m.id] = 6; }
-        else if (m.k === 'kp') { const q = keys[m.i]; if (q && !q.got) { q.got = true; q.m.visible = false; kgot++; say(`鍵が見つかった（${kgot}/${NEED}）`); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が開いた！'); } } }
+        else if (m.k === 'kp') { const q = keys[m.i]; if (q && !q.got) { q.got = true; openCh(q); kgot++; say(`宝箱が開けられた（${kgot}/${NEED}）`); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が開いた！'); } } }
         else if (m.k === 'es') { const q = P[m.id]; if (q) { q.esc = true; say(`${nm(m.id)}が脱出した！`); SGK.AUDIO.sfx('gbWin'); } }
         else if (m.k === 'sk') {
           FX.push({ x: m.x + (m.s === 'yuki' || m.s === 'sou' ? 0 : m.fx * 2.5), z: m.z + (m.s === 'yuki' || m.s === 'sou' ? 0 : m.fz * 2.5), t: 0.5, bad: false, big: true });
@@ -350,10 +383,10 @@
         }
         // 鍵・出口
         if (esc && act && MY.role === 'h') {
-          keys.forEach((q, i) => { if (!q.got && Math.hypot(q.x - MY.x, q.z - MY.z) < 1.3) { q.got = true; q.m.visible = false; kgot++; tell({ k: 'kp', i }); say(`鍵を手に入れた（${kgot}/${NEED}）`); SGK.AUDIO.sfx('coin'); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が開いた！'); } } });
+          let op = null; keys.forEach((q, i) => { if (q.got) return; if (!MY.form && MY.stun <= 0 && MY.freeze <= 0 && !MY.mv && Math.hypot(q.x - MY.x, q.z - MY.z) < 1.8) { q.pr += dt; op = q; if (q.pr >= OPEN_T) { q.got = true; openCh(q); kgot++; tell({ k: 'kp', i }); say(`宝箱から鍵を手に入れた（${kgot}/${NEED}）`); SGK.AUDIO.sfx('coin'); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が開いた！'); } } } else q.pr = Math.max(0, q.pr - dt * 0.5); }); opening = op && !op.got ? op : null;
           if (exitP.open && Math.hypot(exitP.x - MY.x, exitP.z - MY.z) < 1.9) { MY.esc = true; tell({ k: 'es', id: me }); say('脱出成功！'); SGK.AUDIO.sfx('gbWin'); }
         }
-        if (esc) { keys.forEach((q) => { if (q.m.visible) q.m.rotation.y += dt * 2; }); if (exBeam) exBeam.visible = exitP.open; }
+        if (esc) { if (exBeam) exBeam.visible = exitP.open; }
         // 送る
         sendT -= dt; if (sendT <= 0 && !solo) { sendT = 0.1; tell({ k: 'hp', x: r2(MY.x), z: r2(MY.z), fx: r2(MY.fx), fz: r2(MY.fz), m: MY.mv, f: MY.role === 'h' && MY.form ? [MY.form.k, MY.form.v] : 0 }); }
         // ほかの人の位置をなめらかに
@@ -424,6 +457,7 @@
           if (cho(MY) === 'neko') for (const q of hiders()) if (q.id !== me && q.mv && Math.hypot(q.x - MY.x, q.z - MY.z) < 8) { const [sx, sy] = pj(q.x, 2.1, q.z); txt('？', sx, sy, { al: 'center', sz: 26, b: 1, c: '#ffe070' }); }
           if (MY.arrowT > 0) { let b = null, bd = 1e9; for (const q of hiders()) { if (q.id === me) continue; const d = Math.hypot(q.x - MY.x, q.z - MY.z); if (d < bd) { bd = d; b = q; } } if (b) { const [ax, ay] = pj(MY.x, 1, MY.z), [bx, by] = pj(b.x, 1, b.z), l = Math.hypot(bx - ax, by - ay) || 1, ux = (bx - ax) / l, uy = (by - ay) / l; txt('➤', ax + ux * 110, ay + uy * 110, { al: 'center', sz: 30, c: '#ffe070' }); txt(`${Math.round(bd)}m`, ax + ux * 140, ay + uy * 140 + 6, { al: 'center', sz: 14, c: '#ffe070' }); } }
         }
+        if (esc && opening) { const k = Math.min(1, opening.pr / OPEN_T); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(W / 2 - 110, H * 0.7, 220, 16); g.fillStyle = '#ffd24a'; g.fillRect(W / 2 - 108, H * 0.7 + 2, 216 * k, 12); txt('宝箱を開けている…（動かない・化けない）', W / 2, H * 0.7 - 8, { al: 'center', sz: 15, c: '#ffe9a0' }); }
         if (esc) { txt(`鍵 ${kgot}/${NEED}　出口：${exitP.open ? '開いた！（鳥居へ）' : 'まだ閉じている'}`, W / 2, 74, { al: 'center', sz: 15, c: exitP.open ? '#9affb0' : '#ffe070' });
           if (exitP.open && MY.role === 'h' && alive(MY)) { const [ax, ay] = pj(MY.x, 1, MY.z), [bx, by] = pj(exitP.x, 1, exitP.z), l = Math.hypot(bx - ax, by - ay) || 1; if (l > 120) txt('出口 ➤', ax + (bx - ax) / l * 120, ay + (by - ay) / l * 120, { al: 'center', sz: 20, b: 1, c: '#9affb0' }); } }
         const qn = MY.role === 'h' && alive(MY) ? near(MY.x, MY.z, 2.4) : null;
