@@ -74,6 +74,7 @@
     }, 60);
   }
   function pickHtml() { // 2.73.0 キャラ一覧（見た目・パッシブ・アクティブを見比べる）
+    SGK.HIDE.onPreview = () => { if (LB && LB.pk) drawLobby(); }; // 2.101.10 3Dモデルを読み終わったら絵を描き直す
     const r = LB.pk, L = SGK.HIDE.CH[r], cur = myCh()[r];
     return `<div><h2>${r === 'h' ? '逃げる時のキャラ' : '鬼の時のキャラ'}</h2><div class="d">選ぶと決まります</div><div style="max-height:62vh;overflow:auto">${L.map((x) => { const im = SGK.HIDE.preview(r, x.k); return `<button data-a="pk:${x.k}" style="display:flex;gap:8px;align-items:center;${x.k === cur ? 'background:#a0702e;' : ''}">${im ? `<img src="${im}" width="60" height="75" style="flex:none">` : ''}<span><b>${x.n}</b>${x.k === cur ? '（いま選んでいる）' : ''}<br><span style="font-size:12px;color:#cdbf9a">パッシブ：${x.pa}<br>スキル：${x.ac}（${x.cd}秒）</span></span></button>`; }).join('')}</div><div><button data-a="pkx">もどる</button></div></div>`;
   }

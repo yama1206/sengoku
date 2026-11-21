@@ -284,10 +284,18 @@
         prevS = new THREE.Scene(); prevS.add(new THREE.HemisphereLight(0xffffff, 0x887766, 1.0)); const dl = new THREE.DirectionalLight(0xffffff, 0.8); dl.position.set(2, 4, 3); prevS.add(dl);
         prevCam = new THREE.PerspectiveCamera(32, 120 / 150, 0.1, 50); prevCam.position.set(0, 1.15, 4.4); prevCam.lookAt(0, 0.8, 0);
       }
-      const o = role === 'h' ? mkHuman(0xc0a060, key) : mkYokai(key); o.rotation.y = 0.5; prevS.add(o); prevR.render(prevS, prevCam); prevS.remove(o);
-      return (prevC[id] = prevR.domElement.toDataURL('image/png'));
+      // 2.101.10 遊びの中と同じ3Dモデルで描く（読み込み中は今までの見た目で描き、読み終わったら描き直す）
+      const L = MDL(), rr = L && L.ready() ? mkRig(role === 'h' ? 'h' : 's', key) : null;
+      if (L && !L.ready() && !prevLd && THREE.GLTFLoader) prevLd = L.load().then(() => { for (const k in prevC) delete prevC[k]; if (HD.onPreview) HD.onPreview(); }).catch(() => {});
+      if (rr) { L.play(rr.ch, 'idle', { fade: 0 }); L.tick(rr.ch, 0.4); }
+      const o = rr ? rr.grp : role === 'h' ? mkHuman(0xc0a060, key) : mkYokai(key); o.rotation.y = 0.5;
+      const sc = rr ? Math.min(1, 1.75 / (HGT[key] || 1.68)) : 1; o.scale.setScalar(sc); // 背の高い妖怪も枠に収める
+      prevS.add(o); o.updateMatrixWorld(true); prevR.render(prevS, prevCam); prevS.remove(o);
+      if (rr) rr.grp.traverse((x) => { if (x.isSkinnedMesh && x.geometry) x.geometry.dispose(); });
+      const url = prevR.domElement.toDataURL('image/png'); if (rr || !L) prevC[id] = url; return url;
     } catch (e) { return ''; }
   };
+  let prevLd = null;
   HD.make = function (env) {
     const { cfg, me, ids: hids, cv, g2: g, IN, send } = env;
     const o = Object.assign({ st: 'street', sk: 1, mv: 'slow', wn: 'time', cau: 'seek', cpS: 'off', cpH: 'off', on: '1', hn: '4', sz: 'auto', tm: '1', ht: '15' }, cfg.o || {}), stg = STAGES[o.st] || STAGES.street;
