@@ -567,14 +567,14 @@
     const kickSnd = () => { try { SGK.AUDIO.sfx('kmrKick'); } catch (e) {} };
     const ang = (id) => Math.PI / 2 + ((ids.indexOf(id) - myI) * 2 * Math.PI) / N; // 自分がいちばん手前
     const unit = (id) => (N === 1 ? [0, 1] : [Math.cos(ang(id)), Math.sin(ang(id))]);
-    const range = (c) => [Math.min(4, 0.9 + c * 0.035), Math.min(6, 1.5 + c * 0.06)]; // 鞠の速さの下限・上限（輪の半径／秒）。続けるほど上がる
+    const range = (c) => [0.9 + c * 0.035, 1.5 + c * 0.06]; // 鞠の速さの下限・上限（輪の半径／秒）。続けるほど際限なく上がる（2.100.0 上限なし）
     const alive = () => ids.filter((id) => !env.gone[id]);
     const pack = () => ({ k: 'km', seq: S.seq, from: S.from, to: S.to, dur: S.dur, v: S.v, cnt: S.cnt, kicks: S.kicks, great: S.great, phase: S.phase, over: S.over, call: S.call });
     const cast = () => { hb = 1; send(env.others, pack()); };
     function fly(from) { // リーダー：次の行き先と速さ
       const pool = alive().filter((id) => id !== from), to = pool.length ? pool[Math.floor(rng() * pool.length)] : from;
       const [lo, hi] = range(S.cnt), v = lo + rng() * (hi - lo), a = unit(from), b = unit(to), dist = to === from ? 0.9 : Math.hypot(a[0] - b[0], a[1] - b[1]);
-      S.seq++; S.from = from; S.to = to; S.v = r2(v); S.dur = Math.round(Math.max(380, (dist / v) * 1000 + 220)); S.phase = 'fly'; t0 = performance.now(); cast();
+      S.seq++; S.from = from; S.to = to; S.v = r2(v); S.dur = Math.round(Math.max(150, (dist / v) * 1000 + 220)); S.phase = 'fly'; t0 = performance.now(); cast();
     }
     function apply(id, ok, gr) { // リーダー：受けた人の結果
       if (S.phase !== 'fly' || id !== S.to) return;
