@@ -9,7 +9,6 @@
   HD.KIND = KIND;
   HD.OPTS = [
     { k: 'st', n: '舞台', v: [['street', '町の通り'], ['castle', '城下'], ['yashiki', '屋敷の庭'], ['rooms', '大きな屋敷（部屋がたくさん）']] },
-    { k: 'sk', n: '探す側の人数', v: [[1, '1人'], [2, '2人'], [3, '3人']] },
     { k: 'mv', n: '化けたあとの動き', v: [['slow', 'ゆっくり動ける'], ['none', '動けない']] },
     { k: 'wn', n: '勝ち方', v: [['time', '時間まで隠れる'], ['escape', '宝箱の鍵を集めて脱出']] },
     { k: 'cau', n: '見つかったら', v: [['seek', '探す側に回る'], ['out', 'その回は終わり']] },
@@ -242,17 +241,17 @@
     }
     // 役割（同じ種で全員同じ）
     const order = ids.slice(); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
-    const nSk = solo ? 0 : clamp(+o.sk || 1, 1, Math.max(1, ids.length - 1));
+    const nSk = solo ? 0 : 1; // 2.77.0 鬼1人・逃げる側4人
     const P = {}, col = (id) => env.pal[ids.indexOf(id) % env.pal.length], hex = (s) => parseInt(String(s).replace('#', ''), 16);
     const chOf0 = (id, r) => { const m = (cfg.mem || []).find((x) => x.id === id), c = m && m.ch && m.ch[r]; return HD.CH[r].some((x) => x.k === c) ? c : HD.CH[r][0].k; };
     order.forEach((id, i) => {
       const sk = i < nSk, [x, z] = sk ? [(i - (nSk - 1) / 2) * 2, HZ - 6] : free(0.6);
-      P[id] = { id, role: sk ? 's' : 'h', role0: sk ? 's' : 'h', x, z, tx: x, tz: z, fx: 0, fz: -1, form: null, mv: 0, hp: 3, out: false, caught: 0, stun: 0, cd: 0, fcd: 0, grp: null, key: '', bob: 0, chh: chOf0(id, 'h'), chs: chOf0(id, 's'), sk: 0, boost: 0, freeze: 0, slowT: 0, shield: false, arrowT: 0 };
+      P[id] = { id, role: sk ? 's' : 'h', role0: sk ? 's' : 'h', x, z, tx: x, tz: z, fx: 0, fz: -1, form: null, mv: 0, hp: 3, out: false, caught: 0, stun: 0, cd: 0, fcd: 0, grp: null, key: '', bob: 0, chh: chOf0(id, 'h'), chs: chOf0(id, 's'), sk: 0, boost: 0, freeze: 0, slowT: 0, olk: 0, shield: false, arrowT: 0 };
     });
     const cho = (p) => (p.role === 'h' ? p.chh : p.chs), chN = (p) => (HD.CH[p.role].find((x) => x.k === cho(p)) || HD.CH[p.role][0]).n, marks = {};
     const cpu = solo ? { id: '__cpu', x: 0, z: HZ - 6, fx: 0, fz: -1, cd: 1.5, tgt: null, grp: mkYokai('oni'), mv: 0 } : null; if (cpu) scene.add(cpu.grp);
     // 脱出モード：鍵が4つ、3つ集めると鳥居の出口が開く（出口に着いた人は脱出成功）
-    const esc = o.wn === 'escape', NK = 4, NEED = 3, OPEN_T = 5, keys = [], exitP = { x: 0, z: -HZ + 3, open: false }; let kgot = 0, exM = null, exBeam = null, opening = null; const openCh = (q) => { if (q.lid) q.lid.rotation.x = -1.9; if (q.beam) q.beam.visible = false; };
+    const esc = o.wn === 'escape', NK = 4, NEED = 3, OPEN_W = 80, keys = [], exitP = { x: 0, z: -HZ + 3, open: false }; let kgot = 0, exM = null, exBeam = null, opening = null, qte = null, qtT = 0, pdir = null; const QK = ['u', 'd', 'l', 'r', 'a', 'b'], QL = { u: '↑', d: '↓', l: '←', r: '→', a: 'A', b: 'B' }; const openCh = (q) => { if (q.lid) q.lid.rotation.x = -1.9; if (q.beam) q.beam.visible = false; };
     if (esc) {
       for (let i = 0; i < NK; i++) { let q = null; for (let k = 0; k < 80 && !q; k++) { const [x, z] = free(1); if (z < HZ - 7 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 8)) q = { x, z }; } if (!q) { const [x, z] = free(1); q = { x, z }; } q.got = false; const gk = new THREE.Group(), GD = new THREE.MeshLambertMaterial({ color: 0xf2c14e, emissive: 0x806010 }); gk.add(part(G('chb', () => new THREE.BoxGeometry(1.2, 0.7, 0.75)), M(0x7a4a22), 0, 0.35, 0)); const lid = new THREE.Group(); lid.position.set(0, 0.7, -0.37); const lm = part(G('chl', () => new THREE.CylinderGeometry(0.375, 0.375, 1.2, 12, 1, false, 0, Math.PI)), M(0x8a5a2a), 0, 0, 0.37); lm.rotation.z = Math.PI / 2; lm.rotation.y = Math.PI / 2; lid.add(lm); gk.add(lid); q.lid = lid; for (const x of [-0.45, 0.45]) gk.add(part(G('chg', () => new THREE.BoxGeometry(0.1, 0.75, 0.8)), GD, x, 0.37, 0)); gk.add(part(G('chk', () => new THREE.BoxGeometry(0.2, 0.22, 0.08)), GD, 0, 0.6, 0.4)); const bm = new THREE.Mesh(G('kyl', () => new THREE.CylinderGeometry(0.1, 0.1, 3, 8)), new THREE.MeshBasicMaterial({ color: 0xffe070, transparent: true, opacity: 0.35, depthWrite: false })); bm.position.y = 1.9; gk.add(bm); q.beam = bm; q.pr = 0; gk.position.set(q.x, 0, q.z); scene.add(gk); q.m = gk; gk.rotation.y = hh(keys.length + 9) * 6.28; keys.push(q); }
       for (let k = 0; k < 80; k++) { const [x, z] = free(2.5); if (z < -HZ * 0.25 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 5)) { exitP.x = x; exitP.z = z; break; } }
@@ -340,6 +339,7 @@
         if (m.k === 'hp') { const q = P[from]; if (!q) return; q.tx = m.x; q.tz = m.z; q.fx = m.fx; q.fz = m.fz; q.mv = m.m; const f = m.f ? { k: m.f[0], v: m.f[1] } : null; if (q.role === 'h') q.form = f; }
         else if (m.k === 'hs') { if (MY.role === 'h' && alive(MY) && phase !== 'end' && Math.hypot(m.x - MY.x, m.z - MY.z) < (m.r || R_HIT) * (cho(MY) === 'kodomo' ? 0.78 : 1)) { if (MY.shield) { MY.shield = false; tell({ k: 'hb', by: m.id }); say('お札が鬼の一撃を防いだ！'); SGK.AUDIO.sfx('open'); } else { caught(me, m.id); tell({ k: 'hc', id: me, by: m.id }); } } }
         else if (m.k === 'hb') { if (m.by === me) { MY.stun = 1.2; if (pend) pend.ok = true; say('お札にはじかれた！'); } }
+        else if (m.k === 'qf') { const q2 = P[m.id]; if (q2) q2.olk = 4; if (MY.role === 's' && alive(MY)) { nzo = { x: m.x, z: m.z, t: 4 }; FX.push({ x: m.x, z: m.z, t: 0.6, bad: true }); SGK.AUDIO.sfx('hit'); say('宝箱のほうで物音がした！'); } }
         else if (m.k === 'tr') { addTrap(m.tid, m.x, m.z); }
         else if (m.k === 'tx') { const i = traps.findIndex((q) => q.tid === m.tid); if (i >= 0) { scene.remove(traps[i].m); traps.splice(i, 1); } if (m.by) { FX.push({ x: m.x, z: m.z, t: 0.5, bad: true }); SGK.AUDIO.sfx('hit'); } }
         else if (m.k === 'ns') { nzo = { x: m.x, z: m.z, t: 5 }; SGK.AUDIO.sfx('news'); say('どこかで声がした…'); }
@@ -360,7 +360,7 @@
       },
       update(dt) {
         t += dt; phase = t < HIDE_T ? 'hide' : 'play'; toastT -= dt;
-        for (const id of ids) { const p = P[id]; p.cd -= dt; p.stun -= dt; p.fcd -= dt; p.sk = Math.max(0, p.sk - dt); p.boost -= dt; p.freeze -= dt; p.slowT -= dt; p.arrowT -= dt; }
+        for (const id of ids) { const p = P[id]; p.cd -= dt; p.stun -= dt; p.fcd -= dt; p.sk = Math.max(0, p.sk - dt); p.boost -= dt; p.freeze -= dt; p.slowT -= dt; p.olk -= dt; p.arrowT -= dt; }
         for (const k in marks) marks[k] -= dt;
         // 自分の操作
         { const gp = (navigator.getGamepads ? navigator.getGamepads() : []).find((x) => x && x.connected); if (gp && !qv && Math.abs(gp.axes[2]) > 0.2) cyaw -= gp.axes[2] * 2.6 * dt; }
@@ -368,23 +368,43 @@
         const [ix, iy] = inVec(), wx = RT[0] * ix + FW[0] * -iy, wz = RT[1] * ix + FW[1] * -iy, ml = Math.hypot(wx, wz);
         const act = alive(MY) && !done; MY.mv = 0;
         if (act && MY.stun <= 0) {
-          const locked = MY.role === 's' && phase === 'hide';
+          const locked = (MY.role === 's' && phase === 'hide') || !!qte;
           const dis = MY.role === 'h' && MY.form;
           if (!locked && MY.freeze <= 0 && ml > 0.05) {
             if (dis && o.mv === 'none') { const a = Math.atan2(MY.fx, MY.fz) - ix * 3 * dt; MY.fx = Math.sin(a); MY.fz = Math.cos(a); }
             else { const c = cho(MY); let sp; if (MY.role === 's') { sp = c === 'tengu' ? 5.2 : SP_S; if (MY.slowT > 0) sp *= 0.5; } else { sp = dis ? (c === 'shonin' ? 3.2 : c === 'kariudo' ? 2.6 : SP_HS) : (c === 'kodomo' ? 5.0 : SP_H); if (MY.boost > 0) sp *= 1.8; if (seekers().some((q) => q.id !== me && cho(q) === 'yuki' && Math.hypot(q.x - MY.x, q.z - MY.z) < 3.5)) sp *= 0.85; } moveBy(MY, wx / Math.max(1, ml) * sp * dt, wz / Math.max(1, ml) * sp * dt, 0.4); MY.fx = wx / ml; MY.fz = wz / ml; MY.mv = 1; }
           }
-          if (IN.aT) {
+          if (IN.aT && !qte) {
             if (MY.role === 's') { if (!locked) strike(MY); }
             else if (MY.fcd <= 0) { const q = near(MY.x, MY.z, 2.4); if (q) { MY.form = { k: q.kind, v: q.v }; MY.fcd = cho(MY) === 'geinin' ? 0.2 : 0.8; SGK.AUDIO.sfx('kmrKick'); say(`${KIND[q.kind]}に化けた`); } else say('近くに化けられる物がありません'); }
           }
           if (IN.cT) useSkill();
-          if (IN.bT && MY.role === 'h' && MY.form) { MY.form = null; MY.fcd = 0.5; say('人の姿に戻った'); }
+          if (IN.bT && !qte && MY.role === 'h' && MY.form) { MY.form = null; MY.fcd = 0.5; say('人の姿に戻った'); }
         }
         // 鍵・出口
-        if (esc && act && MY.role === 'h') {
-          let op = null; keys.forEach((q, i) => { if (q.got) return; if (!MY.form && MY.stun <= 0 && MY.freeze <= 0 && !MY.mv && Math.hypot(q.x - MY.x, q.z - MY.z) < 1.8) { q.pr += dt; op = q; if (q.pr >= OPEN_T) { q.got = true; openCh(q); kgot++; tell({ k: 'kp', i }); say(`宝箱から鍵を手に入れた（${kgot}/${NEED}）`); SGK.AUDIO.sfx('coin'); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が開いた！'); } } } else q.pr = Math.max(0, q.pr - dt * 0.5); }); opening = op && !op.got ? op : null;
-          if (exitP.open && Math.hypot(exitP.x - MY.x, exitP.z - MY.z) < 1.9) { MY.esc = true; tell({ k: 'es', id: me }); say('脱出成功！'); SGK.AUDIO.sfx('gbWin'); }
+        if (esc) {
+          const RATE = [0, 1, 1.7, 2.1, 2.2], okH = (q2) => q2.role === 'h' && alive(q2) && q2.olk <= 0 && !q2.form && !q2.mv && q2.stun <= 0 && q2.freeze <= 0; // 開ける人数が増えるほど1人あたりは遅くなる
+          const qfail = (msg) => { qte.q.pr = Math.max(0, qte.q.pr - 10); MY.olk = 4; tell({ k: 'qf', id: me, x: r2(qte.q.x), z: r2(qte.q.z) }); say(msg); SGK.AUDIO.sfx('hit'); qte = null; };
+          let n1 = null; const dr = Math.abs(ix) > Math.abs(iy) ? (ix > 0.6 ? 'r' : ix < -0.6 ? 'l' : null) : (iy > 0.6 ? 'd' : iy < -0.6 ? 'u' : null);
+          keys.forEach((q, i) => {
+            if (q.got) return; let n = 0;
+            for (const id of ids) { const p = P[id]; if (!okH(p) || Math.hypot(q.x - p.x, q.z - p.z) >= 1.8 || (id === me && qte)) continue; n++; }
+            if (act && MY.role === 'h' && okH(MY) && Math.hypot(q.x - MY.x, q.z - MY.z) < 1.8) n1 = q;
+            if (n > 0) q.pr += RATE[Math.min(4, n)] * dt; else q.pr = Math.max(0, q.pr - dt * 0.5);
+            if (q.pr >= OPEN_W) { q.got = true; openCh(q); kgot++; tell({ k: 'kp', i }); say(`宝箱が開いて鍵を手に入れた（${kgot}/${NEED}）`); SGK.AUDIO.sfx('coin'); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が開いた！'); } }
+          });
+          opening = n1 && !n1.got ? n1 : null;
+          if (opening && !qte) { qtT += dt; if (qtT >= 12) { qtT = 0; qte = { q: opening, seq: [0, 1, 2, 3].map(() => QK[Math.floor(Math.random() * 6)]), i: 0, t: 6 }; say('合図の順に押せ！'); } } else if (!qte) qtT = Math.max(0, qtT - dt);
+          if (qte) {
+            if (!act || qte.q.got || MY.stun > 0 || MY.role !== 'h' || Math.hypot(qte.q.x - MY.x, qte.q.z - MY.z) > 2.4) qte = null;
+            else {
+              qte.t -= dt; const pk = IN.aT ? 'a' : IN.bT ? 'b' : dr && dr !== pdir ? dr : null;
+              if (pk) { if (pk === qte.seq[qte.i]) { qte.i++; SGK.AUDIO.sfx('kmrKick'); if (qte.i >= qte.seq.length) { qte.q.pr += 4; say('成功！'); qte = null; } } else qfail('失敗…進みが戻り、しばらく開けられない'); }
+              else if (qte.t <= 0) qfail('間に合わなかった…進みが戻り、しばらく開けられない');
+            }
+          }
+          pdir = dr;
+          if (act && MY.role === 'h' && exitP.open && Math.hypot(exitP.x - MY.x, exitP.z - MY.z) < 1.9) { MY.esc = true; tell({ k: 'es', id: me }); say('脱出成功！'); SGK.AUDIO.sfx('gbWin'); }
         }
         if (esc) { if (exBeam) exBeam.visible = exitP.open; }
         // 送る
@@ -457,7 +477,8 @@
           if (cho(MY) === 'neko') for (const q of hiders()) if (q.id !== me && q.mv && Math.hypot(q.x - MY.x, q.z - MY.z) < 8) { const [sx, sy] = pj(q.x, 2.1, q.z); txt('？', sx, sy, { al: 'center', sz: 26, b: 1, c: '#ffe070' }); }
           if (MY.arrowT > 0) { let b = null, bd = 1e9; for (const q of hiders()) { if (q.id === me) continue; const d = Math.hypot(q.x - MY.x, q.z - MY.z); if (d < bd) { bd = d; b = q; } } if (b) { const [ax, ay] = pj(MY.x, 1, MY.z), [bx, by] = pj(b.x, 1, b.z), l = Math.hypot(bx - ax, by - ay) || 1, ux = (bx - ax) / l, uy = (by - ay) / l; txt('➤', ax + ux * 110, ay + uy * 110, { al: 'center', sz: 30, c: '#ffe070' }); txt(`${Math.round(bd)}m`, ax + ux * 140, ay + uy * 140 + 6, { al: 'center', sz: 14, c: '#ffe070' }); } }
         }
-        if (esc && opening) { const k = Math.min(1, opening.pr / OPEN_T); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(W / 2 - 110, H * 0.7, 220, 16); g.fillStyle = '#ffd24a'; g.fillRect(W / 2 - 108, H * 0.7 + 2, 216 * k, 12); txt('宝箱を開けている…（動かない・化けない）', W / 2, H * 0.7 - 8, { al: 'center', sz: 15, c: '#ffe9a0' }); }
+        if (esc && opening) { const k = Math.min(1, opening.pr / OPEN_W); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(W / 2 - 110, H * 0.7, 220, 16); g.fillStyle = '#ffd24a'; g.fillRect(W / 2 - 108, H * 0.7 + 2, 216 * k, 12); txt(qte ? '' : MY.olk > 0 ? '中断中…' : '宝箱を開けている…（動かない・化けない／12秒ごとに合図）', W / 2, H * 0.7 - 8, { al: 'center', sz: 15, c: '#ffe9a0' }); }
+        if (qte) { const bw = 54, x0 = W / 2 - bw * 2 - 9, y0 = H * 0.42; g.fillStyle = 'rgba(0,0,0,.65)'; g.fillRect(x0 - 12, y0 - 40, bw * 4 + 54, bw + 74); txt('この順に押す！', W / 2, y0 - 18, { al: 'center', sz: 16, c: '#ffe9a0' }); qte.seq.forEach((c, i2) => { g.fillStyle = i2 < qte.i ? '#4aa84a' : i2 === qte.i ? '#f2c14e' : '#6a5a3a'; g.fillRect(x0 + i2 * (bw + 6), y0, bw, bw); txt(QL[c], x0 + i2 * (bw + 6) + bw / 2, y0 + bw / 2 + 10, { al: 'center', sz: 28, c: '#1a1208' }); }); g.fillStyle = '#ffd24a'; g.fillRect(x0, y0 + bw + 10, (bw * 4 + 18) * Math.max(0, qte.t / 6), 8); }
         if (esc) { txt(`鍵 ${kgot}/${NEED}　出口：${exitP.open ? '開いた！（鳥居へ）' : 'まだ閉じている'}`, W / 2, 74, { al: 'center', sz: 15, c: exitP.open ? '#9affb0' : '#ffe070' });
           if (exitP.open && MY.role === 'h' && alive(MY)) { const [ax, ay] = pj(MY.x, 1, MY.z), [bx, by] = pj(exitP.x, 1, exitP.z), l = Math.hypot(bx - ax, by - ay) || 1; if (l > 120) txt('出口 ➤', ax + (bx - ax) / l * 120, ay + (by - ay) / l * 120, { al: 'center', sz: 20, b: 1, c: '#9affb0' }); } }
         const qn = MY.role === 'h' && alive(MY) ? near(MY.x, MY.z, 2.4) : null;
