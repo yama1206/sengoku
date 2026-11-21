@@ -409,7 +409,7 @@
       c.id = id; c.t = CAGE_T; c.by = by; h.cage = i; if (mine(h)) { h.x = c.x; h.z = c.z; if (h === MY) say('牢に入れられた…仲間の救助を待て'); else say(`${nm(id)}が牢に入れられた`); } else say(`${nm(id)}が牢に入れられた`); SGK.AUDIO.sfx('open'); };
     const applyRelease = (id) => { const h = P[id]; if (!h || !h.car) return; if (P[h.car]) P[h.car].carry = null; h.car = null; if (mine(h)) { h.hh = 30; h.inv = 2; h.pan = 3; if (h === MY) say('鬼の手をふりほどいた！逃げろ！'); else say(`${nm(id)}が鬼の手をふりほどいた！`); } else say(`${nm(id)}が鬼の手をふりほどいた！`); };
     const applyRescue = (i) => { const c = cages[i]; if (!c || !c.id) return; const id = c.id, h = P[id], late = c.t < CAGE_T / 2; c.id = null; if (h) { h.cage = null; if (late) h.weak = true; if (mine(h)) { h.hh = 50; h.inv = 2; h.pan = 3; if (h === MY) say(late ? '救助された！ただし半分を過ぎた…次に吊るされたらすぐ負け' : '救助された！次に吊るされても、また45秒耐えられる'); else say(`${nm(id)}が救助された！`); } else say(`${nm(id)}が救助された！`); } SGK.AUDIO.sfx('coin'); };
-    const hurt = (p) => { if (cho(p) !== 'oni' && p.hp > 1) p.hp--; /* 鬼は倒れない（体力は1より下がらない） */ p.stun = cho(p) === 'kappa' ? 0.4 : 1; FX.push({ x: p.x, z: p.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('gbLose'); if (mine(p)) { tell({ k: 'hl', id: p.id, hp: p.hp }); if (p === MY) say(p.hp > 0 ? (cho(p) === 'oni' ? '外れ！ ただの置物だった' : '外れ！ ただの置物だった（体力-1）') : '体力がなくなった…'); } };
+    const hurt = (p) => { /* 鬼に体力はない（外してもひるむだけ） */ p.stun = cho(p) === 'kappa' ? 0.4 : 1; FX.push({ x: p.x, z: p.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('gbLose'); if (mine(p)) { tell({ k: 'hl', id: p.id, hp: p.hp }); if (p === MY) say('外れ！ ただの置物だった'); } };
 
     const rush = () => esc && (exitP.list.some((e) => e.opened) || !!exitP.extra); // 脱出口が開いている間は、鬼は一撃でダウン・足が少し速い
     const applyBlock = () => { if (!exitP.extra) return; setWell(exitP.extra.w, false); exitP.extra = null; exitP.blocked = true; exitP.open = true; say('井戸の蓋が閉じられた！普通の出口が現れた！'); SGK.AUDIO.sfx('hit'); };
@@ -732,7 +732,7 @@
         const rem = Math.max(0, Math.ceil(RND - t)); txt(`${Math.floor(rem / 60)}:${String(rem % 60).padStart(2, '0')}`, W / 2, 30, { al: 'center', sz: 26, b: 1 });
         txt(`${stg.name}　${MY.role === 's' ? '探す側' : MY.esc ? '脱出成功（観戦）' : alive(MY) ? '隠れる側' : '見つかった（観戦）'}　隠れている：${solo ? (alive(MY) ? 1 : 0) : hiders().length}人`, W / 2, 52, { al: 'center', sz: 14 });
         if (MY.role === 's' && MY.form) txt(`いまの姿：${KIND[MY.form.k]}（ゆっくり動ける・Aで叩くと正体を現す）`, 16, 56, { sz: 15, c: '#ffe070' });
-        if (MY.role === 's') txt('体力 ' + '●'.repeat(Math.max(0, MY.hp)) + '○'.repeat(Math.max(0, 3 - MY.hp)), 16, 30, { sz: 20, c: '#ff9a8a' });
+        
         else if (MY.form) txt(`いまの姿：${KIND[MY.form.k]}（受けるダメージ：${SZN[SZ[MY.form.k] || 'M']}）${o.mv === 'none' ? '（動けない・←→で向き）' : '（ゆっくり動ける）'}　体力 ${Math.max(0, Math.round(MY.hh))}`, 16, 30, { sz: 16, c: '#ffe070' });
         else if (MY.role === 'h' && alive(MY)) txt(`体力 ${Math.max(0, Math.round(MY.hh))}${MY.pan > 0 ? '　足が速い！' : ''}`, 16, 30, { sz: 18, c: '#ffe070' });
         // キャラ（パッシブ・アクティブ）
