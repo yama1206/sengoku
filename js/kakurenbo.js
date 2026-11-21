@@ -42,6 +42,7 @@
   // 2.80.0 逃げる側の体力は100。化けた物が大きいほど受けるダメージは少なく、小さいほど大きい（人の姿は40）
   const SZ = { cart: 'L', rock: 'L', haystack: 'L', shrine: 'L', barrel: 'L', cask: 'L', bench: 'L', crate: 'M', lantern: 'M', stone: 'M', jar: 'M', bale: 'M', firewood: 'M', sign: 'M', umbrella: 'M', bush: 'M', drum: 'M', bucket: 'S', stool: 'S', pot: 'S', tub: 'S', basket: 'S', stump: 'S', sack: 'S' };
   const DMG = { L: 25, M: 34, S: 60, H: 40 }, SZN = { L: '大きい', M: 'ふつう', S: '小さい', H: 'ふつう' };
+  const CARRY_T = 15; // 鬼が1人を担いでいられる時間（秒）。過ぎると逃げる側がふりほどく
   const CAGE_T = 45; // 牢に入れられてから完全に負けるまで（秒）。仲間が近づいて1秒で救助できる
   const ROUND = 180, HIDE_T = 15, BEACON0 = 30, BEACON_EVERY = 22, R_HIT = 1.3, R_BIG = 3.2, SP_H = 4.2, SP_HS = 2.0, SP_S = 5.4; // 鬼の基本の速さは、逃げる側の基本（子ども5.0が最速）より速い
   const SQ = Math.SQRT1_2, RIGHT = [SQ, -SQ], FWD = [-SQ, -SQ]; // 画面の右・奥（カメラは (+,+,+) の斜め上から）
@@ -247,8 +248,9 @@
     }
     // 牢（鬼が体力のなくなった逃げる側を担いで運ぶ先）。全員同じ場所
     const cages = [];
-    for (let i = 0; i < 3; i++) {
-      let q = null; for (let k = 0; k < 80 && !q; k++) { const [x, z] = free(2); if (cages.every((c) => Math.hypot(c.x - x, c.z - z) > Math.min(HX, HZ) * 0.7) && Math.abs(z - (HZ - 6)) > 6) q = { x, z }; }
+    for (let i = 0; i < 12; i++) { // 4×3 に等間隔（置けない所は近くにずらす）
+      const cw = HX * 2 / 4, ch = HZ * 2 / 3, cx = -HX + (i % 4 + 0.5) * cw, cz = -HZ + (Math.floor(i / 4) + 0.5) * ch; let q = null;
+      for (let k = 0; k < 60 && !q; k++) { const r = Math.min(cw, ch) * 0.1 + k * 0.4, x = k ? cx + (rng() * 2 - 1) * r : cx, z = k ? cz + (rng() * 2 - 1) * r : cz; if (!blocked(x, z, 2) && Math.hypot(x, z - (HZ - 6)) > 6 && props.every((pp) => Math.hypot(pp.x - x, pp.z - z) > 2.2)) q = { x, z }; }
       if (!q) { const [x, z] = free(2); q = { x, z }; }
       const cg = new THREE.Group(), wd = M(0x6b4a2a); cg.add(part(G('cgb', () => new THREE.BoxGeometry(2, 0.15, 2)), M(0x4a3018), 0, 0.08, 0)); cg.add(part(G('cgr', () => new THREE.BoxGeometry(2.3, 0.15, 2.3)), wd, 0, 2.2, 0));
       for (let j = 0; j < 8; j++) { const a = j / 8 * 6.283; cg.add(part(G('cgp', () => new THREE.BoxGeometry(0.12, 2.1, 0.12)), wd, Math.cos(a) * 0.9, 1.1, Math.sin(a) * 0.9)); }
@@ -262,7 +264,7 @@
     const chOf0 = (id, r) => { const m = (cfg.mem || []).find((x) => x.id === id), c = m && m.ch && m.ch[r]; return HD.CH[r].some((x) => x.k === c) ? c : HD.CH[r][0].k; };
     order.forEach((id, i) => {
       const sk = i < nSk, [x, z] = sk ? [(i - (nSk - 1) / 2) * 2, HZ - 6] : free(0.6);
-      P[id] = { id, role: sk ? 's' : 'h', role0: sk ? 's' : 'h', x, z, tx: x, tz: z, fx: 0, fz: -1, form: null, mv: 0, hp: 3, out: false, caught: 0, stun: 0, cd: 0, fcd: 0, grp: null, key: '', bob: 0, chh: chOf0(id, 'h'), chs: chOf0(id, 's'), sk: 0, boost: 0, freeze: 0, slowT: 0, olk: 0, hh: 100, inv: 0, pan: 0, car: null, carry: null, cage: null, rsT: 0, hangs: 0, weak: false, shield: false, arrowT: 0 };
+      P[id] = { id, role: sk ? 's' : 'h', role0: sk ? 's' : 'h', x, z, tx: x, tz: z, fx: 0, fz: -1, form: null, mv: 0, hp: 3, out: false, caught: 0, stun: 0, cd: 0, fcd: 0, grp: null, key: '', bob: 0, chh: chOf0(id, 'h'), chs: chOf0(id, 's'), sk: 0, boost: 0, freeze: 0, slowT: 0, olk: 0, hh: 100, inv: 0, pan: 0, car: null, carry: null, carryT: 0, cage: null, rsT: 0, hangs: 0, weak: false, shield: false, arrowT: 0 };
     });
     const cho = (p) => (p.role === 'h' ? p.chh : p.chs), chN = (p) => (HD.CH[p.role].find((x) => x.k === cho(p)) || HD.CH[p.role][0]).n, marks = {};
     const cpu = solo ? { id: '__cpu', x: 0, z: HZ - 6, fx: 0, fz: -1, cd: 1.5, tgt: null, grp: mkYokai('oni'), mv: 0 } : null; if (cpu) scene.add(cpu.grp);
@@ -356,6 +358,7 @@
       const instant = h.weak || h.hangs >= 2; h.hangs++; h.weak = false; // 2.82.0 3回目、または前に半分を過ぎてから救助された人は、吊るされたらすぐ負け
       if (instant) { if (id === me) { say(h.hangs >= 3 ? '3回目…もう耐えられない！' : '前の消耗で、耐えられない！'); caught(me, by); tell({ k: 'hc', id: me, by }); } else say(`${nm(id)}は吊るされてすぐ力尽きた…`); return; }
       c.id = id; c.t = CAGE_T; c.by = by; h.cage = i; if (id === me) { MY.x = c.x; MY.z = c.z; say('牢に入れられた…仲間の救助を待て'); } else say(`${nm(id)}が牢に入れられた`); SGK.AUDIO.sfx('open'); };
+    const applyRelease = (id) => { const h = P[id]; if (!h || !h.car) return; if (P[h.car]) P[h.car].carry = null; h.car = null; if (id === me) { MY.hh = 30; MY.inv = 2; MY.pan = 3; say('鬼の手をふりほどいた！逃げろ！'); } else say(`${nm(id)}が鬼の手をふりほどいた！`); };
     const applyRescue = (i) => { const c = cages[i]; if (!c || !c.id) return; const id = c.id, h = P[id], late = c.t < CAGE_T / 2; c.id = null; if (h) { h.cage = null; if (late) h.weak = true; if (id === me) { MY.hh = 50; MY.inv = 2; MY.pan = 3; say(late ? '救助された！ただし半分を過ぎた…次に吊るされたらすぐ負け' : '救助された！次に吊るされても、また45秒耐えられる'); } else say(`${nm(id)}が救助された！`); } SGK.AUDIO.sfx('coin'); };
     const hurt = (p) => { if (cho(p) !== 'oni') p.hp--; p.stun = cho(p) === 'kappa' ? 0.4 : 1; FX.push({ x: p.x, z: p.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('gbLose'); if (p === MY) { tell({ k: 'hl', id: me, hp: p.hp }); say(p.hp > 0 ? (cho(p) === 'oni' ? '外れ！ ただの置物だった' : '外れ！ ただの置物だった（体力-1）') : '体力がなくなった…'); } };
 
@@ -381,8 +384,9 @@
             else if (m.s === 'kappa' && d < 6 && dot > 0.5) { marks[me] = 6; tell({ k: 'mk', id: me }); say('水をかけられた！しばらく光って見える'); }
             else if (m.s === 'yuki' && d < 7) { MY.freeze = 3; say('吹雪で動けない！'); } }
         }
-        else if (m.k === 'hc') { if (P[m.id] && P[m.id].role === 'h') { if (m.d) { if (m.dn) { const h = P[m.id], sk = P[m.by]; if (h && sk && sk.role === 's') { h.car = m.by; sk.carry = m.id; h.form = null; if (m.by === me) say(`${nm(m.id)}を担いだ！牢へ運べ`); else if (m.id !== me) say(`${nm(m.id)}が担がれた！`); } } if (m.id !== me) { FX.push({ x: P[m.id].x, z: P[m.id].z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); } } else caught(m.id, m.by); } if (m.by === me && pend) pend.ok = true; }
+        else if (m.k === 'hc') { if (P[m.id] && P[m.id].role === 'h') { if (m.d) { if (m.dn) { const h = P[m.id], sk = P[m.by]; if (h && sk && sk.role === 's') { h.car = m.by; sk.carry = m.id; sk.carryT = 0; h.form = null; if (m.by === me) say(`${nm(m.id)}を担いだ！牢へ運べ`); else if (m.id !== me) say(`${nm(m.id)}が担がれた！`); } } if (m.id !== me) { FX.push({ x: P[m.id].x, z: P[m.id].z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); } } else caught(m.id, m.by); } if (m.by === me && pend) pend.ok = true; }
         else if (m.k === 'cg') { applyCage(m.i, m.id, m.by); }
+        else if (m.k === 'cr') { applyRelease(m.id); }
         else if (m.k === 'rs') { applyRescue(m.i); }
         else if (m.k === 'hl') { if (p) p.hp = m.hp; }
       },
@@ -399,6 +403,7 @@
         for (const c of cages) if (c.id) c.t -= dt;
         if (MY.car) { const cr = P[MY.car]; if (cr) { MY.x = cr.x; MY.z = cr.z; } }
         else if (MY.cage != null) { const c = cages[MY.cage]; MY.x = c.x; MY.z = c.z; if (c.t <= 0 && !done) { const by = c.by; c.id = null; caught(me, by); tell({ k: 'hc', id: me, by }); } }
+        if (MY.role === 's' && MY.carry && alive(MY)) { MY.carryT += dt; if (MY.carryT >= CARRY_T) { const id = MY.carry; tell({ k: 'cr', id }); applyRelease(id); } }
         if (MY.role === 's' && MY.carry && alive(MY)) { const ci = cages.findIndex((c) => !c.id && Math.hypot(c.x - MY.x, c.z - MY.z) < 1.8); if (ci >= 0) { const id = MY.carry; tell({ k: 'cg', i: ci, id, by: me }); applyCage(ci, id, me); } }
         rescuing = null; if (MY.role === 'h' && act && !MY.form) { cages.forEach((c, i) => { if (c.id && c.id !== me && Math.hypot(c.x - MY.x, c.z - MY.z) < 1.8) rescuing = i; }); if (rescuing != null) { MY.rsT += dt; if (MY.rsT >= 1) { MY.rsT = 0; tell({ k: 'rs', i: rescuing }); applyRescue(rescuing); rescuing = null; } } else MY.rsT = 0; } else MY.rsT = 0;
         if (act && MY.stun <= 0) {
@@ -515,7 +520,7 @@
         for (const c of cages) if (c.id) { const [sx, sy] = pj(c.x, 3.2, c.z); txt(`牢 あと${Math.max(0, Math.ceil(c.t))}秒`, sx, sy, { al: 'center', sz: 16, c: '#e0b0ff' }); }
         if (MY.car) txt('鬼に担がれている…', W / 2, H * 0.62, { al: 'center', sz: 22, c: '#ffb0b0' });
         else if (MY.cage != null) txt(`牢の中… あと${Math.max(0, Math.ceil(cages[MY.cage].t))}秒で完全に負け（仲間の救助を待つ）`, W / 2, H * 0.62, { al: 'center', sz: 18, c: '#e0b0ff' });
-        if (MY.carry && MY.role === 's') txt(`${nm(MY.carry)}を担いでいる → 牢へ運べ（紫の光の所）`, W / 2, H * 0.62, { al: 'center', sz: 18, c: '#ffd0a0' });
+        if (MY.carry && MY.role === 's') txt(`${nm(MY.carry)}を担いでいる（あと${Math.max(0, Math.ceil(CARRY_T - MY.carryT))}秒）→ 牢へ運べ（紫の光の所）`, W / 2, H * 0.62, { al: 'center', sz: 18, c: '#ffd0a0' });
         if (rescuing != null) { const k = Math.min(1, MY.rsT / 1); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(W / 2 - 80, H * 0.66, 160, 14); g.fillStyle = '#9affb0'; g.fillRect(W / 2 - 78, H * 0.66 + 2, 156 * k, 10); txt('救助中…', W / 2, H * 0.66 - 6, { al: 'center', sz: 15, c: '#c8ffd0' }); }
         if (esc && opening) { const k = Math.min(1, opening.pr / OPEN_W); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(W / 2 - 110, H * 0.7, 220, 16); g.fillStyle = '#ffd24a'; g.fillRect(W / 2 - 108, H * 0.7 + 2, 216 * k, 12); txt(qte ? '' : MY.olk > 0 ? '中断中…' : '宝箱を開けている…（動かない・化けない／12秒ごとに合図）', W / 2, H * 0.7 - 8, { al: 'center', sz: 15, c: '#ffe9a0' }); }
         if (qte) { const bw = 54, x0 = W / 2 - bw * 2 - 9, y0 = H * 0.42; g.fillStyle = 'rgba(0,0,0,.65)'; g.fillRect(x0 - 12, y0 - 40, bw * 4 + 54, bw + 74); txt('この順に押す！', W / 2, y0 - 18, { al: 'center', sz: 16, c: '#ffe9a0' }); qte.seq.forEach((c, i2) => { g.fillStyle = i2 < qte.i ? '#4aa84a' : i2 === qte.i ? '#f2c14e' : '#6a5a3a'; g.fillRect(x0 + i2 * (bw + 6), y0, bw, bw); txt(QL(c), x0 + i2 * (bw + 6) + bw / 2, y0 + bw / 2 + 10, { al: 'center', sz: 28, c: '#1a1208' }); }); g.fillStyle = '#ffd24a'; g.fillRect(x0, y0 + bw + 10, (bw * 4 + 18) * Math.max(0, qte.t / 6), 8);
