@@ -39,7 +39,7 @@
       { k: 'kappa', n: '河童', pa: '叩いて外してもすぐ動ける', ac: '水かけ：前方の人に印をつけ、6秒間光って見える', cd: 16 },
       { k: 'yuki', n: '雪女', pa: '近くの逃げる側が少し遅くなる', ac: '吹雪：周りの逃げる側が3秒間動けなくなる', cd: 22 },
       { k: 'neko', n: '化け猫', pa: '動いている逃げる側が近いと「？」が出る', ac: 'かぎつけ：いちばん近い逃げる側の方向を5秒間示す', cd: 20 },
-      { k: 'oni', n: '赤鬼', pa: '置物を叩いて外しても体力が減らない', ac: '金棒：広い範囲をまとめて叩く', cd: 14 },
+      { k: 'oni', n: '赤鬼', pa: '捕まえた人を担いでも足が遅くならない', ac: '金棒：広い範囲をまとめて叩く', cd: 14 },
     ],
   };
   const mulberry = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -440,7 +440,7 @@
       const [wx, wz] = a.wp[Math.min(a.wi, a.wp.length - 1)], dx = wx - c.x, dz = wz - c.z, l = Math.hypot(dx, dz) || 1;
       moveBy(c, dx / l * sp * dt, dz / l * sp * dt, c.role === 's' ? 0.6 : 0.4); c.fx = dx / l; c.fz = dz / l; c.mv = 1; return false;
     };
-    const seekSp = (c) => { let sp = c.form ? 2.8 : cho(c) === 'tengu' ? 6.0 : SP_S; if (c.carry) sp *= 0.85; if (rush()) sp *= 1.15; if (c.slowT > 0) sp *= 0.5; return sp * [0.8, 0.95, 1.08][lvOf(c) - 1]; };
+    const seekSp = (c) => { let sp = c.form ? 2.8 : cho(c) === 'tengu' ? 6.0 : SP_S; if (c.carry && cho(c) !== 'oni') sp *= 0.85; if (rush()) sp *= 1.15; if (c.slowT > 0) sp *= 0.5; return sp * [0.8, 0.95, 1.08][lvOf(c) - 1]; };
     const hidSp = (c) => { const k = cho(c); let sp = c.form ? (k === 'shonin' ? 3.2 : k === 'kariudo' ? 2.6 : SP_HS) : (k === 'kodomo' ? 5.0 : SP_H); if (c.pan > 0) sp *= 1.5; if (c.boost > 0) sp *= 1.6; if (k === 'kenzan' && cages.some((k2) => k2.id && k2.id !== c.id)) sp *= 1.4; if (seekers().some((q) => cho(q) === 'yuki' && Math.hypot(q.x - c.x, q.z - c.z) < 3.5)) sp *= 0.85; return sp * [0.88, 0.97, 1.05][lvOf(c) - 1]; };
     // 鬼（探す側）のCPU
     const seekBrain = (c, dt) => {
@@ -624,7 +624,7 @@
           const dis = MY.role === 'h' && MY.form;
           if (!locked && MY.freeze <= 0 && ml > 0.05) {
             if (dis && o.mv === 'none') { const a = Math.atan2(MY.fx, MY.fz) - ix * 3 * dt; MY.fx = Math.sin(a); MY.fz = Math.cos(a); }
-            else { const c = cho(MY); let sp; if (MY.role === 's') { sp = MY.form ? 2.8 : c === 'tengu' ? 6.0 : SP_S; if (MY.carry) sp *= 0.85; if (rush()) sp *= 1.15; if (MY.slowT > 0) sp *= 0.5; } else { sp = dis ? (c === 'shonin' ? 3.2 : c === 'kariudo' ? 2.6 : SP_HS) : (c === 'kodomo' ? 5.0 : SP_H); if (MY.pan > 0) sp *= 1.5; if (c === 'kenzan' && (cages.some((cc) => cc.id && cc.id !== me) || ids.some((i) => i !== me && P[i].car))) sp *= 1.4; if (MY.boost > 0) sp *= c === 'dorobo' ? 1.6 : 1.8; if (seekers().some((q) => q.id !== me && cho(q) === 'yuki' && Math.hypot(q.x - MY.x, q.z - MY.z) < 3.5)) sp *= 0.85; } moveBy(MY, wx / Math.max(1, ml) * sp * dt, wz / Math.max(1, ml) * sp * dt, MY.role === 's' ? 0.6 : 0.4); MY.fx = wx / ml; MY.fz = wz / ml; MY.mv = 1; }
+            else { const c = cho(MY); let sp; if (MY.role === 's') { sp = MY.form ? 2.8 : c === 'tengu' ? 6.0 : SP_S; if (MY.carry && c !== 'oni') sp *= 0.85; if (rush()) sp *= 1.15; if (MY.slowT > 0) sp *= 0.5; } else { sp = dis ? (c === 'shonin' ? 3.2 : c === 'kariudo' ? 2.6 : SP_HS) : (c === 'kodomo' ? 5.0 : SP_H); if (MY.pan > 0) sp *= 1.5; if (c === 'kenzan' && (cages.some((cc) => cc.id && cc.id !== me) || ids.some((i) => i !== me && P[i].car))) sp *= 1.4; if (MY.boost > 0) sp *= c === 'dorobo' ? 1.6 : 1.8; if (seekers().some((q) => q.id !== me && cho(q) === 'yuki' && Math.hypot(q.x - MY.x, q.z - MY.z) < 3.5)) sp *= 0.85; } moveBy(MY, wx / Math.max(1, ml) * sp * dt, wz / Math.max(1, ml) * sp * dt, MY.role === 's' ? 0.6 : 0.4); MY.fx = wx / ml; MY.fz = wz / ml; MY.mv = 1; }
           }
           if (IN.aT && !qte) {
             if (MY.role === 's') { if (!locked) strike(MY); }
