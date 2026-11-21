@@ -376,12 +376,13 @@
     const applyRescue = (i) => { const c = cages[i]; if (!c || !c.id) return; const id = c.id, h = P[id], late = c.t < CAGE_T / 2; c.id = null; if (h) { h.cage = null; if (late) h.weak = true; if (id === me) { MY.hh = 50; MY.inv = 2; MY.pan = 3; say(late ? '救助された！ただし半分を過ぎた…次に吊るされたらすぐ負け' : '救助された！次に吊るされても、また45秒耐えられる'); } else say(`${nm(id)}が救助された！`); } SGK.AUDIO.sfx('coin'); };
     const hurt = (p) => { if (cho(p) !== 'oni') p.hp--; p.stun = cho(p) === 'kappa' ? 0.4 : 1; FX.push({ x: p.x, z: p.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('gbLose'); if (p === MY) { tell({ k: 'hl', id: me, hp: p.hp }); say(p.hp > 0 ? (cho(p) === 'oni' ? '外れ！ ただの置物だった' : '外れ！ ただの置物だった（体力-1）') : '体力がなくなった…'); } };
 
+    const rush = () => esc && (exitP.list.some((e) => e.opened) || !!exitP.extra); // 脱出口が開いている間は、鬼は一撃でダウン・足が少し速い
     const applyBlock = () => { if (!exitP.extra) return; setWell(exitP.extra.w, false); exitP.extra = null; exitP.blocked = true; exitP.open = true; say('井戸の蓋が閉じられた！普通の出口が現れた！'); SGK.AUDIO.sfx('hit'); };
     const game = {
       msg(from, m) {
         const p = P[m.id || from];
         if (m.k === 'hp') { const q = P[from]; if (!q) return; q.tx = m.x; q.tz = m.z; q.fx = m.fx; q.fz = m.fz; q.mv = m.m; const f = m.f ? { k: m.f[0], v: m.f[1] } : null; q.form = f; }
-        else if (m.k === 'hs') { if (MY.role === 'h' && alive(MY) && phase !== 'end' && !(P[m.id] && wallBetween(P[m.id].x, P[m.id].z, MY.x, MY.z)) && Math.hypot(m.x - MY.x, m.z - MY.z) < (m.r || R_HIT) * (cho(MY) === 'kodomo' ? 0.78 : 1)) { if (MY.car || MY.cage != null) { tell({ k: 'hc', id: me, by: m.id, d: 1 }); } else if (MY.shield) { MY.shield = false; tell({ k: 'hb', by: m.id }); say('お札が鬼の一撃を防いだ！'); SGK.AUDIO.sfx('open'); } else if (MY.inv > 0) { tell({ k: 'hc', id: me, by: m.id, d: 1 }); } else { MY.hh -= DMG[MY.form ? SZ[MY.form.k] || 'M' : 'H']; if (MY.hh <= 0) { MY.hh = 0; MY.car = m.id; MY.form = null; if (P[m.id]) P[m.id].carry = me; FX.push({ x: MY.x, z: MY.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); say('動けない！鬼に担がれた…'); tell({ k: 'hc', id: me, by: m.id, d: 1, dn: 1 }); } else { MY.inv = 1; MY.pan = 3; FX.push({ x: MY.x, z: MY.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); say(`ダメージ！ 体力${Math.round(MY.hh)}　しばらく足が速い！`); tell({ k: 'hc', id: me, by: m.id, d: 1 }); } } } }
+        else if (m.k === 'hs') { if (MY.role === 'h' && alive(MY) && phase !== 'end' && !(P[m.id] && wallBetween(P[m.id].x, P[m.id].z, MY.x, MY.z)) && Math.hypot(m.x - MY.x, m.z - MY.z) < (m.r || R_HIT) * (cho(MY) === 'kodomo' ? 0.78 : 1)) { if (MY.car || MY.cage != null) { tell({ k: 'hc', id: me, by: m.id, d: 1 }); } else if (MY.shield) { MY.shield = false; tell({ k: 'hb', by: m.id }); say('お札が鬼の一撃を防いだ！'); SGK.AUDIO.sfx('open'); } else if (MY.inv > 0) { tell({ k: 'hc', id: me, by: m.id, d: 1 }); } else { MY.hh -= rush() ? 999 : DMG[MY.form ? SZ[MY.form.k] || 'M' : 'H']; if (MY.hh <= 0) { MY.hh = 0; MY.car = m.id; MY.form = null; if (P[m.id]) P[m.id].carry = me; FX.push({ x: MY.x, z: MY.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); say('動けない！鬼に担がれた…'); tell({ k: 'hc', id: me, by: m.id, d: 1, dn: 1 }); } else { MY.inv = 1; MY.pan = 3; FX.push({ x: MY.x, z: MY.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); say(`ダメージ！ 体力${Math.round(MY.hh)}　しばらく足が速い！`); tell({ k: 'hc', id: me, by: m.id, d: 1 }); } } } }
         else if (m.k === 'hb') { if (m.by === me) { MY.stun = 1.2; if (pend) pend.ok = true; say('お札にはじかれた！'); } }
         else if (m.k === 'qf') { const q2 = P[m.id]; if (q2) q2.olk = 1; if (MY.role === 's' && alive(MY)) { nzo = { x: m.x, z: m.z, t: 4 }; FX.push({ x: m.x, z: m.z, t: 0.6, bad: true }); SGK.AUDIO.sfx('hit'); say('宝箱のほうで物音がした！'); } }
         else if (m.k === 'tr') { addTrap(m.tid, m.x, m.z); }
@@ -391,7 +392,7 @@
         else if (m.k === 'mk') { marks[m.id] = 6; }
         else if (m.k === 'kp') { const q = keys[m.i]; if (q && !q.got) { q.got = true; openCh(q); kgot++; say(`宝箱が開けられた（${kgot}/${NEED}）`); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が2か所に現れた！20秒そばにいると開く（全員の位置が壁越しに見える）'); } } }
         else if (m.k === 'xb') { applyBlock(); }
-        else if (m.k === 'xo') { const e = exitP.list[m.i]; if (e && !e.opened) { e.opened = true; say('出口が開いた！'); SGK.AUDIO.sfx('coin'); } }
+        else if (m.k === 'xo') { const e = exitP.list[m.i]; if (e && !e.opened) { e.opened = true; say('出口が開いた！鬼が強くなった（一撃でダウン・足が少し速い）'); SGK.AUDIO.sfx('coin'); } }
         else if (m.k === 'es') { const q = P[m.id]; if (q) { q.esc = true; say(`${nm(m.id)}が脱出した！`); SGK.AUDIO.sfx('gbWin'); } }
         else if (m.k === 'sk') {
           FX.push({ x: m.x + (m.s === 'yuki' || m.s === 'sou' ? 0 : m.fx * 2.5), z: m.z + (m.s === 'yuki' || m.s === 'sou' ? 0 : m.fz * 2.5), t: 0.5, bad: false, big: true });
@@ -429,7 +430,7 @@
           const dis = MY.role === 'h' && MY.form;
           if (!locked && MY.freeze <= 0 && ml > 0.05) {
             if (dis && o.mv === 'none') { const a = Math.atan2(MY.fx, MY.fz) - ix * 3 * dt; MY.fx = Math.sin(a); MY.fz = Math.cos(a); }
-            else { const c = cho(MY); let sp; if (MY.role === 's') { sp = MY.form ? 2.8 : c === 'tengu' ? 6.0 : SP_S; if (MY.carry) sp *= 0.85; if (MY.slowT > 0) sp *= 0.5; } else { sp = dis ? (c === 'shonin' ? 3.2 : c === 'kariudo' ? 2.6 : SP_HS) : (c === 'kodomo' ? 5.0 : SP_H); if (MY.pan > 0) sp *= 1.5; if (c === 'kenzan' && (cages.some((cc) => cc.id && cc.id !== me) || ids.some((i) => i !== me && P[i].car))) sp *= 1.4; if (MY.boost > 0) sp *= c === 'dorobo' ? 1.6 : 1.8; if (seekers().some((q) => q.id !== me && cho(q) === 'yuki' && Math.hypot(q.x - MY.x, q.z - MY.z) < 3.5)) sp *= 0.85; } moveBy(MY, wx / Math.max(1, ml) * sp * dt, wz / Math.max(1, ml) * sp * dt, MY.role === 's' ? 0.6 : 0.4); MY.fx = wx / ml; MY.fz = wz / ml; MY.mv = 1; }
+            else { const c = cho(MY); let sp; if (MY.role === 's') { sp = MY.form ? 2.8 : c === 'tengu' ? 6.0 : SP_S; if (MY.carry) sp *= 0.85; if (rush()) sp *= 1.15; if (MY.slowT > 0) sp *= 0.5; } else { sp = dis ? (c === 'shonin' ? 3.2 : c === 'kariudo' ? 2.6 : SP_HS) : (c === 'kodomo' ? 5.0 : SP_H); if (MY.pan > 0) sp *= 1.5; if (c === 'kenzan' && (cages.some((cc) => cc.id && cc.id !== me) || ids.some((i) => i !== me && P[i].car))) sp *= 1.4; if (MY.boost > 0) sp *= c === 'dorobo' ? 1.6 : 1.8; if (seekers().some((q) => q.id !== me && cho(q) === 'yuki' && Math.hypot(q.x - MY.x, q.z - MY.z) < 3.5)) sp *= 0.85; } moveBy(MY, wx / Math.max(1, ml) * sp * dt, wz / Math.max(1, ml) * sp * dt, MY.role === 's' ? 0.6 : 0.4); MY.fx = wx / ml; MY.fz = wz / ml; MY.mv = 1; }
           }
           if (IN.aT && !qte) {
             if (MY.role === 's') { if (!locked) strike(MY); }
@@ -462,7 +463,7 @@
               else if (qte.t <= 0) qfail('間に合わなかった…1秒だけ開けられない');
             }
           }
-          if (exitP.open) exitP.list.forEach((e, ei) => { if (e.opened) return; let ws = 0; for (const id of ids) { const p = P[id]; if (okH(p) && Math.hypot(e.x - p.x, e.z - p.z) < 2.6) ws += cho(p) === 'dorobo' ? 1.5 : 1; } e.pr += ws * dt; if (e.pr >= EXIT_W) { e.opened = true; tell({ k: 'xo', i: ei }); say('出口が開いた！'); SGK.AUDIO.sfx('coin'); } }); // 出口は20秒そばにいると開く（やめても進捗は残る）
+          if (exitP.open) exitP.list.forEach((e, ei) => { if (e.opened) return; let ws = 0; for (const id of ids) { const p = P[id]; if (okH(p) && Math.hypot(e.x - p.x, e.z - p.z) < 2.6) ws += cho(p) === 'dorobo' ? 1.5 : 1; } e.pr += ws * dt; if (e.pr >= EXIT_W) { e.opened = true; tell({ k: 'xo', i: ei }); say('出口が開いた！鬼が強くなった（一撃でダウン・足が少し速い）'); SGK.AUDIO.sfx('coin'); } }); // 出口は20秒そばにいると開く（やめても進捗は残る）
           if (act && MY.role === 'h' && ((exitP.open && exitP.list.some((e) => e.opened && Math.hypot(e.x - MY.x, e.z - MY.z) < 1.9)) || (exitP.extra && Math.hypot(exitP.extra.x - MY.x, exitP.extra.z - MY.z) < 1.9))) { MY.esc = true; tell({ k: 'es', id: me }); say('脱出成功！'); SGK.AUDIO.sfx('gbWin'); }
         }
         if (esc) for (const e of exitP.list) { e.m.visible = exitP.open; e.beam.visible = !!e.opened; }
@@ -566,6 +567,7 @@
           qrects.length = 0; QK.forEach((c, i2) => { const rx = x0 + i2 * (bw + 6), ry = y0 + bw + 30; qrects.push([rx, ry, bw, bw, c]); g.fillStyle = '#3a6a9a'; g.fillRect(rx, ry, bw, bw); txt(QL(c), rx + bw / 2, ry + bw / 2 + 10, { al: 'center', sz: 26, c: '#fff' }); }); txt('キー：Space=A　X=B　C=X　V=Y　／　画面のボタンも押せます', W / 2, y0 + bw * 2 + 52, { al: 'center', sz: 13, c: '#e8dcc0' }); } else qrects.length = 0;
         if (esc) { txt(`宝箱 ${kgot}/${NEED}　出口：${exitP.open ? '2か所に出現！全員の位置が見える' : 'まだ現れない'}`, W / 2, 74, { al: 'center', sz: 15, c: exitP.open ? '#9affb0' : '#ffe070' });
           if (MY.role === 'h' && alive(MY)) for (const e of (exitP.open ? exitP.list : []).concat(exitP.extra ? [exitP.extra] : [])) { const [ax, ay] = pj(MY.x, 1, MY.z), [bx, by] = pj(e.x, 1, e.z), l = Math.hypot(bx - ax, by - ay) || 1; if (l > 120) txt('出口 ➤', ax + (bx - ax) / l * 120, ay + (by - ay) / l * 120, { al: 'center', sz: 20, b: 1, c: '#9affb0' }); } }
+        if (rush()) txt('脱出口が開いている間：鬼は一撃でダウン・足が少し速い！', W / 2, 96, { al: 'center', sz: 15, c: '#ff9a8a' });
         const qn = alive(MY) && !(MY.role === 's' && phase === 'hide') ? near(MY.x, MY.z, 2.4) : null;
         const hint = MY.role === 's' ? `A／Space：叩く（置物を叩くと体力-1）　${MY.form ? 'B／X：鬼の姿に戻る　' : qn ? `B／X：${KIND[qn.kind]}に化ける　` : ''}移動：矢印／WASD／スティック` : alive(MY) ? `${qn ? `A／Space：${KIND[qn.kind]}に化ける　` : ''}${MY.form ? 'B／X：人に戻る　' : ''}移動：矢印／WASD／スティック` : '';
         txt(hint, W / 2, H - BO - 16, { al: 'center', sz: 14 });
