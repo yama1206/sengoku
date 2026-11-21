@@ -125,27 +125,30 @@
   }
   /* 舞台：町の通り／城下／屋敷の庭。置物の数・種類もここで決める */
   const STAGES = {
-    street: { name: '町の通り', HX: 20, HZ: 14, gnd: 0x9b8760, n: 58, kinds: ['crate', 'crate', 'barrel', 'barrel', 'jar', 'bucket', 'bale', 'stone', 'stump', 'lantern'],
+    street: { name: '町の通り', HX: 34, HZ: 24, gnd: 0x9b8760, n: 130, kinds: ['crate', 'crate', 'barrel', 'barrel', 'jar', 'bucket', 'bale', 'stone', 'stump', 'lantern'],
       build(S) {
-        const r = part(new THREE.PlaneGeometry(46, 6), M(0xb8a47a), 0, 0.02, 1); r.rotation.x = -Math.PI / 2; r.castShadow = false; S.scene.add(r);
-        [[-14, -11.5, 7, 4, 3, 0xe6dcc0], [-5, -11.5, 6, 4, 3.2, 0xd9c8a0], [4, -11.5, 8, 4, 3, 0xe6dcc0], [14, -11.5, 6, 4, 3.4, 0xcfbf98], [-12, 11.5, 8, 4, 3, 0xd9c8a0], [-1, 11.5, 6, 4, 3.3, 0xe6dcc0], [11, 11.5, 9, 4, 3, 0xcfbf98]]
-          .forEach(([x, z, w, d, h, c]) => house(S, x, z, w, d, h, c, 0x3a3f46));
-        S.circs.push([0, 5.5, 0.5]); const tb = part(new THREE.CylinderGeometry(0.5, 0.5, 1.2, 8), M(0x6a4a2a), 0, 0.6, 5.5); tb.position.x = 0; S.scene.add(tb); // 井戸（仮）
+        const r = part(new THREE.PlaneGeometry(76, 7), M(0xb8a47a), 0, 0.02, 1); r.rotation.x = -Math.PI / 2; r.castShadow = false; S.scene.add(r);
+        const r2 = part(new THREE.PlaneGeometry(6, 48), M(0xb8a47a), 11, 0.02, 0); r2.rotation.x = -Math.PI / 2; r2.castShadow = false; S.scene.add(r2);
+        const W = [7, 6, 8, 6, 9, 7, 6, 8], C = [0xe6dcc0, 0xd9c8a0, 0xcfbf98];
+        for (const z of [-21.5, 21.5]) { let x = -29, k = z < 0 ? 0 : 3; while (x < 30) { const w = W[k % W.length]; house(S, x + w / 2, z, w, 4, 3 + (k % 3) * 0.2, C[k % 3], 0x3a3f46); x += w + 1.5; k++; } }
+        [[-24, -9, 6, 4, 3], [22, -10, 7, 4, 3.2], [-24, 11, 7, 4, 3], [24, 10, 6, 4, 3]].forEach(([x, z, w, d, h], i) => house(S, x, z, w, d, h, C[i % 3], 0x3a3f46));
+        for (const [x, z] of [[0, 6], [-16, -6]]) { S.circs.push([x, z, 0.5]); S.scene.add(part(new THREE.CylinderGeometry(0.5, 0.5, 1.2, 8), M(0x6a4a2a), x, 0.6, z)); } // 井戸（仮）
       } },
-    castle: { name: '城下', HX: 18, HZ: 16, gnd: 0x8a8575, n: 52, kinds: ['crate', 'barrel', 'barrel', 'jar', 'stone', 'stone', 'bale', 'stump', 'bucket', 'lantern'],
+    castle: { name: '城下', HX: 30, HZ: 28, gnd: 0x8a8575, n: 115, kinds: ['crate', 'barrel', 'barrel', 'jar', 'stone', 'stone', 'bale', 'stump', 'bucket', 'lantern'],
       build(S) {
-        const wl = part(new THREE.BoxGeometry(40, 3.2, 1.6), M(0x7d786c), 0, 1.6, -14.5); S.scene.add(wl); S.boxes.push([-20, -15.3, 20, -13.7]);
-        for (const x of [-17, 17]) house(S, x, -13, 4, 4, 5, 0xece6d6, 0x3a3f46);
-        house(S, -13, 9, 7, 4, 3, 0xd9c8a0, 0x4a4a46); house(S, 13, 10, 6, 4, 3, 0xd9c8a0, 0x4a4a46);
-        [[-8, 3], [9, -3], [-14, -4], [15, 3]].forEach(([x, z], i) => tree(S, x, z, 1.1, i % 2 === 0));
-        const p = part(new THREE.PlaneGeometry(6, 30), M(0x9d9886), 0, 0.02, 0); p.rotation.x = -Math.PI / 2; p.castShadow = false; S.scene.add(p);
+        const p = part(new THREE.PlaneGeometry(7, 56), M(0x9d9886), 0, 0.02, 0); p.rotation.x = -Math.PI / 2; p.castShadow = false; S.scene.add(p);
+        const p2 = part(new THREE.PlaneGeometry(60, 5), M(0x9d9886), 0, 0.02, 2); p2.rotation.x = -Math.PI / 2; p2.castShadow = false; S.scene.add(p2);
+        const wl = part(new THREE.BoxGeometry(56, 3.2, 1.6), M(0x7d786c), 0, 1.6, -26.8); S.scene.add(wl); S.boxes.push([-28, -27.6, 28, -26]);
+        for (const x of [-26, 26]) house(S, x, -24, 5, 5, 5, 0xece6d6, 0x3a3f46);
+        [[-20, 12, 7, 4, 3], [20, 14, 6, 4, 3], [-8, 21, 8, 4, 3.2], [11, -12, 6, 4, 3], [-18, -12, 6, 4, 3], [22, -2, 5, 4, 3]].forEach(([x, z, w, d, h]) => house(S, x, z, w, d, h, 0xd9c8a0, 0x4a4a46));
+        [[-10, 6], [12, -5], [-22, 0], [24, 6], [0, -16], [-5, 18], [18, 22], [-24, 22]].forEach(([x, z], i) => tree(S, x, z, 1.1, i % 2 === 0));
       } },
-    yashiki: { name: '屋敷の庭', HX: 16, HZ: 16, gnd: 0x6f8f4a, n: 46, kinds: ['stone', 'stone', 'lantern', 'lantern', 'jar', 'bucket', 'stump', 'crate', 'bale'],
+    yashiki: { name: '屋敷の庭', HX: 28, HZ: 28, gnd: 0x6f8f4a, n: 100, kinds: ['stone', 'stone', 'lantern', 'lantern', 'jar', 'bucket', 'stump', 'crate', 'bale'],
       build(S) {
-        house(S, 0, -12.5, 18, 5, 3.4, 0xe6dcc0, 0x4a4036);
-        const pd = part(new THREE.CylinderGeometry(4.2, 4.2, 0.05, 28), M(0x4a86a8), -6, 0.03, 4); pd.castShadow = false; S.scene.add(pd); S.circs.push([-6, 4, 4.2]);
-        tree(S, 9, 3, 1.3, true); tree(S, -12, -4, 1.2, true); tree(S, 11, 11, 1, true); tree(S, -2, 12, 1.1, false);
-        for (let i = 0; i < 6; i++) { const s = part(new THREE.CylinderGeometry(0.45, 0.45, 0.06, 10), M(0x9a968c), 3 + i * 0.9, 0.03, -6 + i * 1.7); s.castShadow = false; S.scene.add(s); }
+        house(S, 0, -24.5, 24, 5, 3.4, 0xe6dcc0, 0x4a4036); house(S, 21, -13, 6, 5, 3, 0xd9c8a0, 0x4a4036); house(S, -22, -15, 6, 5, 3, 0xd9c8a0, 0x4a4036);
+        const pd = part(new THREE.CylinderGeometry(6, 6, 0.05, 32), M(0x4a86a8), -10, 0.03, 6); pd.castShadow = false; S.scene.add(pd); S.circs.push([-10, 6, 6]);
+        [[12, 4, 1.3, true], [-21, -4, 1.2, true], [16, 16, 1, true], [-4, 19, 1.1, false], [22, -6, 1.2, true], [-19, 19, 1.2, false], [6, -12, 1.1, true], [4, 8, 1, false]].forEach(([x, z, k, b]) => tree(S, x, z, k, b));
+        for (let i = 0; i < 9; i++) { const s2 = part(new THREE.CylinderGeometry(0.45, 0.45, 0.06, 10), M(0x9a968c), 3 + i * 1.0, 0.03, -10 + i * 1.8); s2.castShadow = false; S.scene.add(s2); }
       } },
   };
   HD.STAGES = STAGES;
@@ -176,7 +179,7 @@
     cv.style.position = 'absolute'; cv.style.left = cv.style.top = '0'; cv.style.zIndex = 1;
     const scene = new T3.Scene(); scene.background = new T3.Color(0xbfd9ee); scene.fog = new T3.Fog(0xbfd9ee, 60, 110);
     scene.add(new T3.AmbientLight(0xffffff, 0.62)); const sun = new T3.DirectionalLight(0xfff0d8, 0.85); sun.position.set(12, 22, 8); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
-    Object.assign(sun.shadow.camera, { left: -28, right: 28, top: 28, bottom: -28, near: 1, far: 70 }); scene.add(sun);
+    Object.assign(sun.shadow.camera, { left: -28, right: 28, top: 28, bottom: -28, near: 1, far: 70 }); scene.add(sun); scene.add(sun.target);
     const S = { scene, boxes: [], circs: [] };
     const gr = part(new T3.PlaneGeometry(HX * 2 + 24, HZ * 2 + 24), M(stg.gnd), 0, 0, 0); gr.rotation.x = -Math.PI / 2; gr.castShadow = false; scene.add(gr);
     for (const [w, d, x, z] of [[HX * 2 + 1, 0.3, 0, -HZ], [HX * 2 + 1, 0.3, 0, HZ], [0.3, HZ * 2, -HX, 0], [0.3, HZ * 2, HX, 0]]) scene.add(part(new T3.BoxGeometry(w, 0.8, d), M(0x6b5a3a), x, 0.4, z));
@@ -202,11 +205,11 @@
     const P = {}, col = (id) => env.pal[ids.indexOf(id) % env.pal.length], hex = (s) => parseInt(String(s).replace('#', ''), 16);
     const chOf0 = (id, r) => { const m = (cfg.mem || []).find((x) => x.id === id), c = m && m.ch && m.ch[r]; return HD.CH[r].some((x) => x.k === c) ? c : HD.CH[r][0].k; };
     order.forEach((id, i) => {
-      const sk = i < nSk, [x, z] = sk ? [(i - (nSk - 1) / 2) * 2, HZ - 3.2] : free(0.6);
+      const sk = i < nSk, [x, z] = sk ? [(i - (nSk - 1) / 2) * 2, HZ - 6] : free(0.6);
       P[id] = { id, role: sk ? 's' : 'h', role0: sk ? 's' : 'h', x, z, tx: x, tz: z, fx: 0, fz: -1, form: null, mv: 0, hp: 3, out: false, caught: 0, stun: 0, cd: 0, fcd: 0, grp: null, key: '', bob: 0, chh: chOf0(id, 'h'), chs: chOf0(id, 's'), sk: 0, boost: 0, freeze: 0, slowT: 0, shield: false, arrowT: 0 };
     });
     const cho = (p) => (p.role === 'h' ? p.chh : p.chs), chN = (p) => (HD.CH[p.role].find((x) => x.k === cho(p)) || HD.CH[p.role][0]).n, marks = {};
-    const cpu = solo ? { id: '__cpu', x: 0, z: HZ - 3, fx: 0, fz: -1, cd: 1.5, tgt: null, grp: mkYokai('oni'), mv: 0 } : null; if (cpu) scene.add(cpu.grp);
+    const cpu = solo ? { id: '__cpu', x: 0, z: HZ - 6, fx: 0, fz: -1, cd: 1.5, tgt: null, grp: mkYokai('oni'), mv: 0 } : null; if (cpu) scene.add(cpu.grp);
     // 脱出モード：鍵が4つ、3つ集めると鳥居の出口が開く（出口に着いた人は脱出成功）
     const esc = o.wn === 'escape', NK = 4, NEED = 3, keys = [], exitP = { x: 0, z: -HZ + 3, open: false }; let kgot = 0, exM = null, exBeam = null;
     if (esc) {
@@ -217,9 +220,16 @@
     }
     const MY = P[me], nm = (id) => (id === '__cpu' ? '見回り' : env.names[id] || '？');
     // カメラ（斜め上から見下ろす）
-    const cam = new T3.OrthographicCamera(-10, 10, 10, -10, 0.1, 120), VH = 21; let camX = MY.x, camZ = MY.z;
-    const fitCam = () => { rd.setSize(innerWidth, innerHeight, false); const a = innerWidth / Math.max(1, innerHeight); cam.left = -VH * a / 2; cam.right = VH * a / 2; cam.top = VH / 2; cam.bottom = -VH / 2; cam.updateProjectionMatrix(); }; fitCam(); addEventListener('resize', fitCam);
-    const setCam = () => { cam.position.set(camX + 15, 17, camZ + 15); cam.lookAt(camX, 0, camZ); };
+    let view = 'tp'; try { view = localStorage.getItem('sgk-hide-vw') || 'tp'; } catch (e) {} if (view !== 'fp' && view !== 'qv') view = 'tp';
+    const qv = view === 'qv', cam = qv ? new T3.OrthographicCamera(-10, 10, 10, -10, 0.1, 120) : new T3.PerspectiveCamera(view === 'fp' ? 72 : 58, 1, 0.1, 160), VH = 21; let camX = MY.x, camZ = MY.z, cyaw = Math.atan2(MY.fx, MY.fz);
+    const fitCam = () => { rd.setSize(innerWidth, innerHeight, false); const a = innerWidth / Math.max(1, innerHeight); if (qv) { cam.left = -VH * a / 2; cam.right = VH * a / 2; cam.top = VH / 2; cam.bottom = -VH / 2; } else cam.aspect = a; cam.updateProjectionMatrix(); }; fitCam(); addEventListener('resize', fitCam);
+    const setCam = () => {
+      sun.position.set(camX + 12, 22, camZ + 8); sun.target.position.set(camX, 0, camZ); sun.target.updateMatrixWorld();
+      if (qv) { cam.position.set(camX + 15, 17, camZ + 15); cam.lookAt(camX, 0, camZ); return; }
+      const sn = Math.sin(cyaw), cs = Math.cos(cyaw);
+      if (view === 'fp') { cam.position.set(MY.x, 1.55, MY.z); cam.lookAt(MY.x + sn * 5, 1.45, MY.z + cs * 5); }
+      else { const d = 5.5, ex = clamp(MY.x - sn * d, -HX - 1.5, HX + 1.5), ez = clamp(MY.z - cs * d, -HZ - 1.5, HZ + 1.5); cam.position.set(ex, 3.2, ez); cam.lookAt(MY.x + sn * 1.5, 1.0, MY.z + cs * 1.5); }
+    };
     // 印（探す先の輪・叩いた所・ビーコン）
     const ring = (c, ri, ro) => { const m = new T3.Mesh(new T3.RingGeometry(ri, ro, 28), new T3.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.8, side: T3.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.y = 0.06; m.visible = false; scene.add(m); return m; };
     const nz = ring(0x70c8ff, 4.6, 5), hl = ring(0xffe070, 0.7, 0.85), bc = ring(0xff8040, 5.6, 6), sw = ring(0xffffff, 0.9, 1.3), swm = ring(0xff4040, 0.9, 1.3);
@@ -242,6 +252,11 @@
     const pd = (e) => { if (!coarse || stick.on || e.clientX > innerWidth * 0.55) return; stick.on = true; stick.id = e.pointerId; stick.x0 = e.clientX; stick.y0 = e.clientY; stick.x = stick.y = 0; };
     const pm = (e) => { if (!stick.on || e.pointerId !== stick.id) return; const dx = e.clientX - stick.x0, dy = e.clientY - stick.y0, l = Math.hypot(dx, dy) || 1, k = Math.min(1, l / 50); stick.x = dx / l * k; stick.y = dy / l * k; };
     const pu = (e) => { if (e.pointerId === stick.id) { stick.on = false; stick.x = stick.y = 0; } };
+    const dg = { id: -1, x: 0 };
+    const dd = (e) => { if (qv || dg.id >= 0 || (coarse && e.clientX < innerWidth * 0.55)) return; dg.id = e.pointerId; dg.x = e.clientX; };
+    const dm = (e) => { if (e.pointerId !== dg.id) return; cyaw -= (e.clientX - dg.x) * 0.006; dg.x = e.clientX; };
+    const du = (e) => { if (e.pointerId === dg.id) dg.id = -1; };
+    cv.addEventListener('pointerdown', dd); cv.addEventListener('pointermove', dm); addEventListener('pointerup', du); addEventListener('pointercancel', du);
     cv.addEventListener('pointerdown', pd); cv.addEventListener('pointermove', pm); addEventListener('pointerup', pu); addEventListener('pointercancel', pu);
     const inVec = () => {
       let ix = (IN.r ? 1 : 0) - (IN.l ? 1 : 0), iy = (IN.d ? 1 : 0) - (IN.u ? 1 : 0);
@@ -307,7 +322,9 @@
         for (const id of ids) { const p = P[id]; p.cd -= dt; p.stun -= dt; p.fcd -= dt; p.sk = Math.max(0, p.sk - dt); p.boost -= dt; p.freeze -= dt; p.slowT -= dt; p.arrowT -= dt; }
         for (const k in marks) marks[k] -= dt;
         // 自分の操作
-        const [ix, iy] = inVec(), wx = RIGHT[0] * ix + FWD[0] * -iy, wz = RIGHT[1] * ix + FWD[1] * -iy, ml = Math.hypot(wx, wz);
+        { const gp = (navigator.getGamepads ? navigator.getGamepads() : []).find((x) => x && x.connected); if (gp && !qv && Math.abs(gp.axes[2]) > 0.2) cyaw -= gp.axes[2] * 2.6 * dt; }
+        const sn = Math.sin(cyaw), cs = Math.cos(cyaw), RT = qv ? RIGHT : [-cs, sn], FW = qv ? FWD : [sn, cs];
+        const [ix, iy] = inVec(), wx = RT[0] * ix + FW[0] * -iy, wz = RT[1] * ix + FW[1] * -iy, ml = Math.hypot(wx, wz);
         const act = alive(MY) && !done; MY.mv = 0;
         if (act && MY.stun <= 0) {
           const locked = MY.role === 's' && phase === 'hide';
@@ -360,6 +377,7 @@
         // 絵に反映
         for (const id of ids) { const p = P[id]; if (p.role === 'h' && !p.form) { /* 人 */ } look(p); const gp = p.grp; if (!gp) continue; gp.visible = !p.out && !p.esc; p.bob += dt * (p.mv ? 9 : 0); const hop = p.mv ? Math.abs(Math.sin(p.bob)) * (p.role === 'h' && p.form ? 0.22 : 0.08) : 0; gp.position.set(p.x, hop, p.z); gp.rotation.y = Math.atan2(p.fx, p.fz); }
         if (cpu) { cpu.grp.position.set(cpu.x, 0, cpu.z); cpu.grp.rotation.y = Math.atan2(cpu.fx, cpu.fz); }
+        if (view === 'fp') { if (act && MY.stun <= 0 && !(MY.role === 'h' && MY.form && o.mv === 'none')) { MY.fx = Math.sin(cyaw); MY.fz = Math.cos(cyaw); } if (MY.grp) MY.grp.visible = false; }
         camX += (MY.x - camX) * Math.min(1, dt * 6); camZ += (MY.z - camZ) * Math.min(1, dt * 6);
         // 印
         const q = MY.role === 'h' && alive(MY) ? near(MY.x, MY.z, 2.4) : null; hl.visible = !!q && act; if (q) hl.position.set(q.x, 0.06, q.z);
@@ -408,7 +426,7 @@
         if (MY.stun > 0) { g.fillStyle = 'rgba(255,0,0,0.18)'; g.fillRect(0, 0, W, H); }
         if (stick.on) { g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 3; g.beginPath(); g.arc(stick.x0, stick.y0, 50, 0, 7); g.stroke(); g.beginPath(); g.arc(stick.x0 + stick.x * 50, stick.y0 + stick.y * 50, 20, 0, 7); g.fillStyle = 'rgba(255,255,255,.45)'; g.fill(); }
       },
-      dispose() { removeEventListener('resize', fitCam); cv.removeEventListener('pointerdown', pd); cv.removeEventListener('pointermove', pm); removeEventListener('pointerup', pu); removeEventListener('pointercancel', pu); try { rd.dispose(); } catch (e) {} if (c3.parentNode) c3.parentNode.removeChild(c3); },
+      dispose() { removeEventListener('resize', fitCam); cv.removeEventListener('pointerdown', dd); cv.removeEventListener('pointermove', dm); removeEventListener('pointerup', du); removeEventListener('pointercancel', du); cv.removeEventListener('pointerdown', pd); cv.removeEventListener('pointermove', pm); removeEventListener('pointerup', pu); removeEventListener('pointercancel', pu); try { rd.dispose(); } catch (e) {} if (c3.parentNode) c3.parentNode.removeChild(c3); },
     };
     return game;
   };
