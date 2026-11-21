@@ -8,7 +8,7 @@
   const KIND = { crate: '木箱', barrel: '樽', jar: '壺', lantern: '石灯籠', stone: '石', bucket: '桶', bale: '米俵', stump: '切り株' };
   HD.KIND = KIND;
   HD.OPTS = [
-    { k: 'st', n: '舞台', v: [['street', '町の通り'], ['castle', '城下'], ['yashiki', '屋敷の庭']] },
+    { k: 'st', n: '舞台', v: [['street', '町の通り'], ['castle', '城下'], ['yashiki', '屋敷の庭'], ['rooms', '大きな屋敷（部屋がたくさん）']] },
     { k: 'sk', n: '探す側の人数', v: [[1, '1人'], [2, '2人'], [3, '3人']] },
     { k: 'mv', n: '化けたあとの動き', v: [['slow', 'ゆっくり動ける'], ['none', '動けない']] },
     { k: 'wn', n: '勝ち方', v: [['time', '時間まで隠れる'], ['escape', '鍵を集めて脱出']] },
@@ -124,31 +124,39 @@
     g.position.set(x, 0, z); S.scene.add(g); S.circs.push([x, z, 0.7 * s]);
   }
   /* 舞台：町の通り／城下／屋敷の庭。置物の数・種類もここで決める */
+  const hh = (i) => { const v = Math.sin(i * 12.9898 + 4.1) * 43758.5453; return v - Math.floor(v); }; // 決まった「でたらめ」（全員同じ配置にするため）
+  const flat = (S, w, d, x, z, c) => { const m = part(new THREE.PlaneGeometry(w, d), M(c), x, 0.02, z); m.rotation.x = -Math.PI / 2; m.castShadow = false; S.scene.add(m); };
+  const wall = (S, x0, z0, x1, z1, c) => { const w = Math.max(0.4, x1 - x0), d = Math.max(0.4, z1 - z0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2; S.scene.add(part(new THREE.BoxGeometry(w, 2.8, d), M(c || 0xd9cfb4), cx, 1.4, cz)); S.boxes.push([cx - w / 2, cz - d / 2, cx + w / 2, cz + d / 2]); };
+  /* 2.75.0 舞台：端から端まで走って40秒ほどの広さ。置物の数・種類もここで決める */
   const STAGES = {
-    street: { name: '町の通り', HX: 34, HZ: 24, gnd: 0x9b8760, n: 130, kinds: ['crate', 'crate', 'barrel', 'barrel', 'jar', 'bucket', 'bale', 'stone', 'stump', 'lantern'],
+    street: { name: '町の通り', HX: 85, HZ: 45, gnd: 0x9b8760, n: 380, kinds: ['crate', 'crate', 'barrel', 'barrel', 'jar', 'bucket', 'bale', 'stone', 'stump', 'lantern'],
       build(S) {
-        const r = part(new THREE.PlaneGeometry(76, 7), M(0xb8a47a), 0, 0.02, 1); r.rotation.x = -Math.PI / 2; r.castShadow = false; S.scene.add(r);
-        const r2 = part(new THREE.PlaneGeometry(6, 48), M(0xb8a47a), 11, 0.02, 0); r2.rotation.x = -Math.PI / 2; r2.castShadow = false; S.scene.add(r2);
-        const W = [7, 6, 8, 6, 9, 7, 6, 8], C = [0xe6dcc0, 0xd9c8a0, 0xcfbf98];
-        for (const z of [-21.5, 21.5]) { let x = -29, k = z < 0 ? 0 : 3; while (x < 30) { const w = W[k % W.length]; house(S, x + w / 2, z, w, 4, 3 + (k % 3) * 0.2, C[k % 3], 0x3a3f46); x += w + 1.5; k++; } }
-        [[-24, -9, 6, 4, 3], [22, -10, 7, 4, 3.2], [-24, 11, 7, 4, 3], [24, 10, 6, 4, 3]].forEach(([x, z, w, d, h], i) => house(S, x, z, w, d, h, C[i % 3], 0x3a3f46));
-        for (const [x, z] of [[0, 6], [-16, -6]]) { S.circs.push([x, z, 0.5]); S.scene.add(part(new THREE.CylinderGeometry(0.5, 0.5, 1.2, 8), M(0x6a4a2a), x, 0.6, z)); } // 井戸（仮）
+        flat(S, 172, 8, 0, 1, 0xb8a47a); const XR = [-45, 0, 45]; for (const x of XR) flat(S, 6, 92, x, 0, 0xb8a47a);
+        const W = [7, 6, 8, 6, 9, 7, 6, 8], C = [0xe6dcc0, 0xd9c8a0, 0xcfbf98], ok = (x) => XR.every((r) => Math.abs(x - r) > 6);
+        for (const [z, k0] of [[-42, 0], [42, 3], [-11, 5], [13, 2], [-26, 1], [28, 4]]) { let x = -81, k = k0; while (x < 80) { const w = W[k % W.length]; if (ok(x + w / 2) && hh(x * 3 + z) > 0.12) house(S, x + w / 2, z, w, 4, 3 + (k % 3) * 0.2, C[k % 3], 0x3a3f46); x += w + 1.5 + hh(x + z) * 3; k++; } }
+        for (const [x, z] of [[-22, 6], [22, 6], [70, -20], [-70, 20], [0, -34]]) { S.circs.push([x, z, 0.5]); S.scene.add(part(new THREE.CylinderGeometry(0.5, 0.5, 1.2, 8), M(0x6a4a2a), x, 0.6, z)); } // 井戸（仮）
       } },
-    castle: { name: '城下', HX: 30, HZ: 28, gnd: 0x8a8575, n: 115, kinds: ['crate', 'barrel', 'barrel', 'jar', 'stone', 'stone', 'bale', 'stump', 'bucket', 'lantern'],
+    castle: { name: '城下', HX: 80, HZ: 50, gnd: 0x8a8575, n: 340, kinds: ['crate', 'barrel', 'barrel', 'jar', 'stone', 'stone', 'bale', 'stump', 'bucket', 'lantern'],
       build(S) {
-        const p = part(new THREE.PlaneGeometry(7, 56), M(0x9d9886), 0, 0.02, 0); p.rotation.x = -Math.PI / 2; p.castShadow = false; S.scene.add(p);
-        const p2 = part(new THREE.PlaneGeometry(60, 5), M(0x9d9886), 0, 0.02, 2); p2.rotation.x = -Math.PI / 2; p2.castShadow = false; S.scene.add(p2);
-        const wl = part(new THREE.BoxGeometry(56, 3.2, 1.6), M(0x7d786c), 0, 1.6, -26.8); S.scene.add(wl); S.boxes.push([-28, -27.6, 28, -26]);
-        for (const x of [-26, 26]) house(S, x, -24, 5, 5, 5, 0xece6d6, 0x3a3f46);
-        [[-20, 12, 7, 4, 3], [20, 14, 6, 4, 3], [-8, 21, 8, 4, 3.2], [11, -12, 6, 4, 3], [-18, -12, 6, 4, 3], [22, -2, 5, 4, 3]].forEach(([x, z, w, d, h]) => house(S, x, z, w, d, h, 0xd9c8a0, 0x4a4a46));
-        [[-10, 6], [12, -5], [-22, 0], [24, 6], [0, -16], [-5, 18], [18, 22], [-24, 22]].forEach(([x, z], i) => tree(S, x, z, 1.1, i % 2 === 0));
+        flat(S, 7, 100, 0, 0, 0x9d9886); flat(S, 160, 5, 0, 2, 0x9d9886);
+        S.scene.add(part(new THREE.BoxGeometry(156, 3.2, 1.6), M(0x7d786c), 0, 1.6, -47.8)); S.boxes.push([-78, -48.6, 78, -47]);
+        for (const x of [-76, -38, 38, 76]) house(S, x, -44, 5, 5, 5, 0xece6d6, 0x3a3f46);
+        let n = 0; for (const x of [-68, -52, -36, -20, 20, 36, 52, 68]) for (const z of [-32, -14, 16, 30, 42]) { if (hh(n++) < 0.25) continue; house(S, x + (hh(n) - 0.5) * 4, z, 6 + Math.floor(hh(n + 7) * 3), 4, 3 + hh(n + 3) * 0.4, 0xd9c8a0, 0x4a4a46); }
+        for (let i = 0; i < 40; i++) { const x = (hh(i + 300) * 2 - 1) * 74, z = (hh(i + 400) * 2 - 1) * 44; if (Math.abs(x) < 6 || Math.abs(z - 2) < 4) continue; tree(S, x, z, 1.0 + hh(i) * 0.3, i % 2 === 0); }
       } },
-    yashiki: { name: '屋敷の庭', HX: 28, HZ: 28, gnd: 0x6f8f4a, n: 100, kinds: ['stone', 'stone', 'lantern', 'lantern', 'jar', 'bucket', 'stump', 'crate', 'bale'],
+    yashiki: { name: '屋敷の庭', HX: 80, HZ: 50, gnd: 0x6f8f4a, n: 300, kinds: ['stone', 'stone', 'lantern', 'lantern', 'jar', 'bucket', 'stump', 'crate', 'bale'],
       build(S) {
-        house(S, 0, -24.5, 24, 5, 3.4, 0xe6dcc0, 0x4a4036); house(S, 21, -13, 6, 5, 3, 0xd9c8a0, 0x4a4036); house(S, -22, -15, 6, 5, 3, 0xd9c8a0, 0x4a4036);
-        const pd = part(new THREE.CylinderGeometry(6, 6, 0.05, 32), M(0x4a86a8), -10, 0.03, 6); pd.castShadow = false; S.scene.add(pd); S.circs.push([-10, 6, 6]);
-        [[12, 4, 1.3, true], [-21, -4, 1.2, true], [16, 16, 1, true], [-4, 19, 1.1, false], [22, -6, 1.2, true], [-19, 19, 1.2, false], [6, -12, 1.1, true], [4, 8, 1, false]].forEach(([x, z, k, b]) => tree(S, x, z, k, b));
-        for (let i = 0; i < 9; i++) { const s2 = part(new THREE.CylinderGeometry(0.45, 0.45, 0.06, 10), M(0x9a968c), 3 + i * 1.0, 0.03, -10 + i * 1.8); s2.castShadow = false; S.scene.add(s2); }
+        house(S, 0, -45, 60, 6, 3.6, 0xe6dcc0, 0x4a4036); house(S, 60, -28, 8, 6, 3.2, 0xd9c8a0, 0x4a4036); house(S, -60, -28, 8, 6, 3.2, 0xd9c8a0, 0x4a4036); house(S, 66, 30, 7, 6, 3, 0xd9c8a0, 0x4a4036); house(S, -66, 34, 7, 6, 3, 0xd9c8a0, 0x4a4036);
+        const ponds = [[-30, 10, 10], [42, 14, 7], [10, 34, 6]]; for (const [x, z, r] of ponds) { const pd = part(new THREE.CylinderGeometry(r, r, 0.05, 36), M(0x4a86a8), x, 0.03, z); pd.castShadow = false; S.scene.add(pd); S.circs.push([x, z, r]); }
+        for (let i = 0; i < 46; i++) { const x = (hh(i + 500) * 2 - 1) * 74, z = (hh(i + 600) * 2 - 1) * 44; if (ponds.some(([px, pz, r]) => Math.hypot(x - px, z - pz) < r + 3) || z < -36) continue; tree(S, x, z, 1.0 + hh(i) * 0.4, i % 3 !== 0); }
+        for (let i = 0; i < 30; i++) { const s2 = part(new THREE.CylinderGeometry(0.45, 0.45, 0.06, 10), M(0x9a968c), -4 + i * 1.2, 0.03, -36 + i * 1.5); s2.castShadow = false; S.scene.add(s2); }
+      } },
+    rooms: { name: '大きな屋敷', HX: 72, HZ: 39, gnd: 0x8a6a48, n: 360, kinds: ['crate', 'barrel', 'jar', 'bucket', 'bale', 'stone', 'stump', 'lantern', 'crate', 'jar'],
+      build(S) { // 部屋 9×6。部屋の境にはかべと戸口（戸口の位置は少しずつずらす）
+        const cw = 16, ch = 13, C = 9, R = 6, FL = [0xb8a47a, 0xa8b58a, 0xc9b28f];
+        for (let i = 0; i < C; i++) for (let j = 0; j < R; j++) flat(S, cw - 0.4, ch - 0.4, -72 + cw * (i + 0.5), -39 + ch * (j + 0.5), FL[(i + j * 2) % 3]);
+        for (let k = 1; k < C; k++) for (let j = 0; j < R; j++) { const x = -72 + cw * k, z0 = -39 + ch * j, dc = z0 + ch / 2 + (((k + j) % 3) - 1) * 3; wall(S, x - 0.2, z0, x + 0.2, dc - 1.5); wall(S, x - 0.2, dc + 1.5, x + 0.2, z0 + ch); }
+        for (let k = 1; k < R; k++) for (let i = 0; i < C; i++) { const z = -39 + ch * k, x0 = -72 + cw * i, dc = x0 + cw / 2 + (((k * 2 + i) % 3) - 1) * 3; wall(S, x0, z - 0.2, dc - 1.5, z + 0.2); wall(S, dc + 1.5, z - 0.2, x0 + cw, z + 0.2); }
       } },
   };
   HD.STAGES = STAGES;
@@ -221,7 +229,7 @@
     const MY = P[me], nm = (id) => (id === '__cpu' ? '見回り' : env.names[id] || '？');
     // カメラ（斜め上から見下ろす）
     let view = 'tp'; try { view = localStorage.getItem('sgk-hide-vw') || 'tp'; } catch (e) {} if (view !== 'fp') view = 'tp'; // 2.74.1 見下ろしは廃止
-    const qv = view === 'qv', cam = qv ? new T3.OrthographicCamera(-10, 10, 10, -10, 0.1, 120) : new T3.PerspectiveCamera(view === 'fp' ? 72 : 58, 1, 0.1, 160), VH = 21; let camX = MY.x, camZ = MY.z, cyaw = Math.atan2(MY.fx, MY.fz);
+    const qv = view === 'qv', cam = qv ? new T3.OrthographicCamera(-10, 10, 10, -10, 0.1, 120) : new T3.PerspectiveCamera(view === 'fp' ? 72 : 58, 1, 0.1, 220), VH = 21; let camX = MY.x, camZ = MY.z, cyaw = Math.atan2(MY.fx, MY.fz);
     const fitCam = () => { rd.setSize(innerWidth, innerHeight, false); const a = innerWidth / Math.max(1, innerHeight); if (qv) { cam.left = -VH * a / 2; cam.right = VH * a / 2; cam.top = VH / 2; cam.bottom = -VH / 2; } else cam.aspect = a; cam.updateProjectionMatrix(); }; fitCam(); addEventListener('resize', fitCam);
     const setCam = () => {
       sun.position.set(camX + 12, 22, camZ + 8); sun.target.position.set(camX, 0, camZ); sun.target.updateMatrixWorld();
