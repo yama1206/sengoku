@@ -90,6 +90,7 @@ cv.addEventListener('wheel', (e) => { e.preventDefault(); anyZoom(e.deltaY < 0 ?
 // ---------- キーボード ----------
 const keys = new Set();
 window.addEventListener('keydown', (e) => {
+  if (SGK.PARTY && SGK.PARTY.current && SGK.PARTY.current()) { keys.clear(); return; } // 2.99.2 みんなで遊ぶの最中は地図・メニューのキーを効かせない（Wで地図が動いていた）
   if (e.target.tagName === 'INPUT') { if (e.key === 'Enter' && G.mode === 'title' && e.target.id === 'codeInput') $('btnJoinGo').click(); return; }
   const k = e.key;
   if (actB() && !activeMenuNotBattle() && k.toLowerCase() === 't') { const on = R.act3d && R.act3d.toggle(); if (!on && document.pointerLockElement) document.exitPointerLock(); toast(on ? '3D表示にしました' : '2D表示にしました', 1000); return; }
@@ -231,6 +232,7 @@ function drawCross(x, y, col) {
 }
 function pollPad(dt) {
   if (SGK.MINEUI && SGK.MINEUI.isOpen()) return [0, 0]; if (SGK.GATHERUI && SGK.GATHERUI.isOpen()) return [0, 0]; // 2.27.0 釣り場の画面 // 2.25.0 採掘の画面ではコントローラーを採掘に使う
+  if (SGK.PARTY && SGK.PARTY.current && SGK.PARTY.current()) return [0, 0]; // 2.99.2 みんなで遊ぶの最中はコントローラーで地図を動かさない
   if ((SGK.NINJA && SGK.NINJA.on) || (SGK.NINJA3D && SGK.NINJA3D.on)) return [0, 0]; // 0.77.0 潜入中
   // 0.63.1 PCで別の機器（仮想コントローラーなど）が先に並ぶと使えなくなるので、最後に触ったコントローラーを使う（なければ標準配置のもの）
   const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter((p) => p && p.connected !== false) : [];
