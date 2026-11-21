@@ -151,6 +151,20 @@
   HD.STAGES = STAGES;
 
   // ---------------- 遊びの本体 ----------------
+  // 2.73.0 部屋のキャラ一覧用：キャラの見た目を小さな絵にして返す（一度作ったら使い回す）
+  const prevC = {}; let prevR = null, prevS = null, prevCam = null;
+  HD.preview = function (role, key) {
+    const id = role + key; if (prevC[id]) return prevC[id];
+    try {
+      if (!prevR) {
+        prevR = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); prevR.setSize(120, 150); prevR.setPixelRatio(1); prevR.outputEncoding = THREE.sRGBEncoding;
+        prevS = new THREE.Scene(); prevS.add(new THREE.HemisphereLight(0xffffff, 0x887766, 1.0)); const dl = new THREE.DirectionalLight(0xffffff, 0.8); dl.position.set(2, 4, 3); prevS.add(dl);
+        prevCam = new THREE.PerspectiveCamera(32, 120 / 150, 0.1, 50); prevCam.position.set(0, 1.15, 4.4); prevCam.lookAt(0, 0.8, 0);
+      }
+      const o = role === 'h' ? mkHuman(0xc0a060, key) : mkYokai(key); o.rotation.y = 0.5; prevS.add(o); prevR.render(prevS, prevCam); prevS.remove(o);
+      return (prevC[id] = prevR.domElement.toDataURL('image/png'));
+    } catch (e) { return ''; }
+  };
   HD.make = function (env) {
     const { cfg, me, ids, cv, g2: g, IN, send } = env;
     const o = Object.assign({ st: 'street', sk: 1, mv: 'slow', wn: 'time', cau: 'seek' }, cfg.o || {}), stg = STAGES[o.st] || STAGES.street;
