@@ -326,8 +326,6 @@
     let t = -2, busy = false, msg = '', msgT = 0, doneAt = null, dayShown = -1, over = false, catchImg = null; // 2.59.2 釣れた魚の絵（assets/creatures/〇〇.webp）
     const IMG = {}; const fishImg = (id) => { if (!IMG[id]) { const im = new Image(); im.src = `assets/creatures/${id}.webp?v=${SGK.VERSION}`; IMG[id] = im; } return IMG[id]; };
     const pick = () => { let r = Math.random() * TW; for (const c of LIST) { r -= RW[c.r] || 1; if (r <= 0) return c; } return LIST[0]; };
-    box.oninput = (e) => { const k = e.target.dataset && e.target.dataset.ho; if (!k) return; OPT[k] = +e.target.value; saveOpt(); const sp = e.target.nextElementSibling; if (sp) sp.textContent = k === 'spd' ? `${OPT.spd.toFixed(1)}倍` : `${Math.round(OPT[k] * 100)}%`; };
-    box.onchange = (e) => { const k = e.target.dataset && e.target.dataset.ho; if (k === 'my' && st.picks[me]) { const mu = M(); if (mu && mu.ok()) mu.play(st.picks[me], mu.now() + 0.02, 'a', 74, 0.3, 0.55 * OPT.my); } };
     function cast() {
       if (busy || !LIST.length || !SGK.GATHERUI || !SGK.GATHERUI.party) return; const sp = pick(), frac = (Math.random() + Math.random()) / 2; busy = true; catchImg = null; fishImg(sp.id); /* 先に読んでおく */
       SGK.GATHERUI.party({ n: -1, k: 'f', id: sp.id, d: sp.d, r: sp.r, fr: frac }, (q) => {
@@ -661,6 +659,8 @@ ${['a', 'b'].map((c) => `<div style="margin-top:3px"><span style="color:${c === 
 <div style="margin-top:3px">${touch ? `画面のボタン：<button data-ht="1">${OPT.redTop ? '赤が上・白が下' : '白が上・赤が下'}（押すと入れ替え）</button>` : ''}<button data-hr="1">元に戻す</button></div></div>
 <div style="font-size:12px;color:#cdbf9a;margin-top:6px">赤い丸は赤、白い丸は白で打つ。下の線に重なった時に打つ</div>`;
     }
+    box.oninput = (e) => { const k = e.target.dataset && e.target.dataset.ho; if (!k) return; OPT[k] = +e.target.value; saveOpt(); const sp = e.target.nextElementSibling; if (sp) sp.textContent = k === 'spd' ? `${OPT.spd.toFixed(1)}倍` : `${Math.round(OPT[k] * 100)}%`; };
+    box.onchange = (e) => { const k = e.target.dataset && e.target.dataset.ho; if (k === 'my' && st.picks[me]) { const mu = M(); if (mu && mu.ok()) mu.play(st.picks[me], mu.now() + 0.02, 'a', 74, 0.3, 0.55 * OPT.my); } };
     box.onclick = (e) => {
       const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
       if (d.hl) { learn = learn === d.hl ? null : d.hl; drawPick(); return; }
