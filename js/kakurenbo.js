@@ -254,7 +254,7 @@
     // 2.78.0 合図はA/B/X/Y（コントローラーはPS配置：×=A ○=B □=X △=Y）
     const esc = o.wn === 'escape', NK = 4, NEED = 3, OPEN_W = 80, keys = [], exitP = { x: 0, z: -HZ + 3, open: false }; let kgot = 0, exM = null, exBeam = null, opening = null, qte = null, qtT = 0, pdir = null; const QK = ['a', 'b', 'x', 'y'], qq = [], padPrev = [], qrects = []; let padOn = false; const QL = (c) => (padOn ? { a: '×', b: '○', x: '□', y: '△' }[c] : c.toUpperCase()); const openCh = (q) => { if (q.lid) q.lid.rotation.x = -1.9; if (q.beam) q.beam.visible = false; };
     if (esc) {
-      for (let i = 0; i < NK; i++) { let q = null; for (let k = 0; k < 80 && !q; k++) { const [x, z] = free(1); if (z < HZ - 7 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 8)) q = { x, z }; } if (!q) { const [x, z] = free(1); q = { x, z }; } q.got = false; const gk = new THREE.Group(), GD = new THREE.MeshLambertMaterial({ color: 0xf2c14e, emissive: 0x806010 }); gk.add(part(G('chb', () => new THREE.BoxGeometry(1.2, 0.7, 0.75)), M(0x7a4a22), 0, 0.35, 0)); const lid = new THREE.Group(); lid.position.set(0, 0.7, -0.37); const lm = part(G('chl', () => new THREE.CylinderGeometry(0.375, 0.375, 1.2, 12, 1, false, 0, Math.PI)), M(0x8a5a2a), 0, 0, 0.37); lm.rotation.z = Math.PI / 2; lm.rotation.y = Math.PI / 2; lid.add(lm); gk.add(lid); q.lid = lid; for (const x of [-0.45, 0.45]) gk.add(part(G('chg', () => new THREE.BoxGeometry(0.1, 0.75, 0.8)), GD, x, 0.37, 0)); gk.add(part(G('chk', () => new THREE.BoxGeometry(0.2, 0.22, 0.08)), GD, 0, 0.6, 0.4)); const bm = new THREE.Mesh(G('kyl', () => new THREE.CylinderGeometry(0.1, 0.1, 3, 8)), new THREE.MeshBasicMaterial({ color: 0xffe070, transparent: true, opacity: 0.35, depthWrite: false })); bm.position.y = 1.9; gk.add(bm); q.beam = bm; q.pr = 0; gk.position.set(q.x, 0, q.z); scene.add(gk); q.m = gk; gk.rotation.y = hh(keys.length + 9) * 6.28; keys.push(q); }
+      for (let i = 0; i < NK; i++) { let q = null; for (let k = 0; k < 80 && !q; k++) { const [x, z] = free(1); if (z < HZ - 7 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 8)) q = { x, z }; } if (!q) { const [x, z] = free(1); q = { x, z }; } q.got = false; const gk = new THREE.Group(), GD = new THREE.MeshLambertMaterial({ color: 0xf2c14e, emissive: 0x806010 }); gk.add(part(G('chb', () => new THREE.BoxGeometry(1.2, 0.7, 0.75)), M(0x7a4a22), 0, 0.35, 0)); const lid = new THREE.Group(); lid.position.set(0, 0.7, -0.37); const lm = part(G('chl', () => new THREE.CylinderGeometry(0.375, 0.375, 1.2, 12, 1, false, 0, Math.PI)), M(0x8a5a2a), 0, 0, 0.37); lm.rotation.z = Math.PI / 2; lm.rotation.y = Math.PI / 2; lid.add(lm); gk.add(lid); q.lid = lid; for (const x of [-0.45, 0.45]) gk.add(part(G('chg', () => new THREE.BoxGeometry(0.1, 0.75, 0.8)), GD, x, 0.37, 0)); gk.add(part(G('chk', () => new THREE.BoxGeometry(0.2, 0.22, 0.08)), GD, 0, 0.6, 0.4)); const bm = new THREE.Mesh(G('kyl', () => new THREE.CylinderGeometry(0.1, 0.1, 3, 8)), new THREE.MeshBasicMaterial({ color: 0xffe070, transparent: true, opacity: 0.35, depthWrite: false })); bm.position.y = 1.9; gk.add(bm); q.beam = bm; q.pr = 0; { const ef = new THREE.LineSegments(new THREE.EdgesGeometry(G('chf', () => new THREE.BoxGeometry(1.8, 1.4, 1.4))), new THREE.LineBasicMaterial({ color: 0xff2a2a, depthTest: false, transparent: true })), ff = new THREE.Mesh(G('chf', () => new THREE.BoxGeometry(1.8, 1.4, 1.4)), new THREE.MeshBasicMaterial({ color: 0xff2a2a, depthTest: false, transparent: true, opacity: 0.22 })); const fr = new THREE.Group(); fr.add(ef, ff); fr.position.y = 0.55; fr.renderOrder = 999; ef.renderOrder = ff.renderOrder = 999; fr.visible = false; gk.add(fr); q.frame = fr; } gk.position.set(q.x, 0, q.z); scene.add(gk); q.m = gk; gk.rotation.y = hh(keys.length + 9) * 6.28; keys.push(q); }
       for (let k = 0; k < 80; k++) { const [x, z] = free(2.5); if (z < -HZ * 0.25 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 5)) { exitP.x = x; exitP.z = z; break; } }
       exM = new THREE.Group(); const rm = M(0xc8402f); for (const x of [-1.8, 1.8]) exM.add(part(G('tp', () => new THREE.CylinderGeometry(0.25, 0.3, 3.4, 10)), rm, x, 1.7, 0)); exM.add(part(G('tk', () => new THREE.BoxGeometry(4.8, 0.32, 0.7)), M(0x2a2a2a), 0, 3.5, 0)); exM.add(part(G('tn2', () => new THREE.BoxGeometry(3.8, 0.22, 0.34)), rm, 0, 2.8, 0));
       exBeam = new THREE.Mesh(G('exb', () => new THREE.CylinderGeometry(1.5, 1.5, 6, 16, 1, true)), new THREE.MeshBasicMaterial({ color: 0x7affa0, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide })); exBeam.position.y = 3; exBeam.visible = false; exM.add(exBeam); exM.position.set(exitP.x, 0, exitP.z); scene.add(exM);
@@ -343,7 +343,7 @@
         if (m.k === 'hp') { const q = P[from]; if (!q) return; q.tx = m.x; q.tz = m.z; q.fx = m.fx; q.fz = m.fz; q.mv = m.m; const f = m.f ? { k: m.f[0], v: m.f[1] } : null; if (q.role === 'h') q.form = f; }
         else if (m.k === 'hs') { if (MY.role === 'h' && alive(MY) && phase !== 'end' && Math.hypot(m.x - MY.x, m.z - MY.z) < (m.r || R_HIT) * (cho(MY) === 'kodomo' ? 0.78 : 1)) { if (MY.shield) { MY.shield = false; tell({ k: 'hb', by: m.id }); say('お札が鬼の一撃を防いだ！'); SGK.AUDIO.sfx('open'); } else { caught(me, m.id); tell({ k: 'hc', id: me, by: m.id }); } } }
         else if (m.k === 'hb') { if (m.by === me) { MY.stun = 1.2; if (pend) pend.ok = true; say('お札にはじかれた！'); } }
-        else if (m.k === 'qf') { const q2 = P[m.id]; if (q2) q2.olk = 4; if (MY.role === 's' && alive(MY)) { nzo = { x: m.x, z: m.z, t: 4 }; FX.push({ x: m.x, z: m.z, t: 0.6, bad: true }); SGK.AUDIO.sfx('hit'); say('宝箱のほうで物音がした！'); } }
+        else if (m.k === 'qf') { const q2 = P[m.id]; if (q2) q2.olk = 1; if (MY.role === 's' && alive(MY)) { nzo = { x: m.x, z: m.z, t: 4 }; FX.push({ x: m.x, z: m.z, t: 0.6, bad: true }); SGK.AUDIO.sfx('hit'); say('宝箱のほうで物音がした！'); } }
         else if (m.k === 'tr') { addTrap(m.tid, m.x, m.z); }
         else if (m.k === 'tx') { const i = traps.findIndex((q) => q.tid === m.tid); if (i >= 0) { scene.remove(traps[i].m); traps.splice(i, 1); } if (m.by) { FX.push({ x: m.x, z: m.z, t: 0.5, bad: true }); SGK.AUDIO.sfx('hit'); } }
         else if (m.k === 'ns') { nzo = { x: m.x, z: m.z, t: 5 }; SGK.AUDIO.sfx('news'); say('どこかで声がした…'); }
@@ -388,7 +388,7 @@
         // 鍵・出口
         if (esc) {
           const RATE = [0, 1, 1.7, 2.1, 2.2], okH = (q2) => q2.role === 'h' && alive(q2) && q2.olk <= 0 && !q2.form && !q2.mv && q2.stun <= 0 && q2.freeze <= 0; // 開ける人数が増えるほど1人あたりは遅くなる
-          const qfail = (msg) => { qte.q.pr = Math.max(0, qte.q.pr - 10); MY.olk = 4; tell({ k: 'qf', id: me, x: r2(qte.q.x), z: r2(qte.q.z) }); say(msg); SGK.AUDIO.sfx('hit'); qte = null; };
+          const qfail = (msg) => { MY.olk = 1; tell({ k: 'qf', id: me, x: r2(qte.q.x), z: r2(qte.q.z) }); say(msg); SGK.AUDIO.sfx('hit'); qte = null; };
           { const gp2 = (navigator.getGamepads ? navigator.getGamepads() : []).find((x) => x && x.connected); padOn = !!gp2; for (let i2 = 0; i2 < 4; i2++) { const on = !!(gp2 && gp2.buttons[i2] && gp2.buttons[i2].pressed); if (on && !padPrev[i2]) qq.push(QK[i2]); padPrev[i2] = on; } if (!qte) qq.length = 0; }
           let n1 = null;
           keys.forEach((q, i) => {
@@ -398,14 +398,14 @@
             if (n > 0) q.pr += RATE[Math.min(4, n)] * dt; else q.pr = Math.max(0, q.pr - dt * 0.5);
             if (q.pr >= OPEN_W) { q.got = true; openCh(q); kgot++; tell({ k: 'kp', i }); say(`宝箱が開いて鍵を手に入れた（${kgot}/${NEED}）`); SGK.AUDIO.sfx('coin'); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が開いた！'); } }
           });
-          opening = n1 && !n1.got ? n1 : null;
+          opening = n1 && !n1.got ? n1 : null; keys.forEach((q) => { if (q.frame) q.frame.visible = MY.role === 's' && !q.got; }); // 鬼には宝箱が�ワクで壁越しに見える
           if (opening && !qte) { qtT += dt; if (qtT >= 12) { qtT = 0; qte = { q: opening, seq: [0, 1, 2, 3].map(() => QK[Math.floor(Math.random() * 4)]), i: 0, t: 6 }; say('合図の順に押せ！'); } } else if (!qte) qtT = Math.max(0, qtT - dt);
           if (qte) {
             if (!act || qte.q.got || MY.stun > 0 || MY.role !== 'h' || Math.hypot(qte.q.x - MY.x, qte.q.z - MY.z) > 2.4) qte = null;
             else {
               qte.t -= dt; const pk = qq.shift() || null;
-              if (pk) { if (pk === qte.seq[qte.i]) { qte.i++; SGK.AUDIO.sfx('kmrKick'); if (qte.i >= qte.seq.length) { qte.q.pr += 4; say('成功！'); qte = null; } } else qfail('失敗…進みが戻り、しばらく開けられない'); }
-              else if (qte.t <= 0) qfail('間に合わなかった…進みが戻り、しばらく開けられない');
+              if (pk) { if (pk === qte.seq[qte.i]) { qte.i++; SGK.AUDIO.sfx('kmrKick'); if (qte.i >= qte.seq.length) { qte.q.pr += 4; say('成功！'); qte = null; } } else qfail('失敗…1秒だけ開けられない'); }
+              else if (qte.t <= 0) qfail('間に合わなかった…1秒だけ開けられない');
             }
           }
           if (act && MY.role === 'h' && exitP.open && Math.hypot(exitP.x - MY.x, exitP.z - MY.z) < 1.9) { MY.esc = true; tell({ k: 'es', id: me }); say('脱出成功！'); SGK.AUDIO.sfx('gbWin'); }
