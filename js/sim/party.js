@@ -16,6 +16,9 @@
     } else if (c.game === 'hayashi') { // 2.68.0 囃子合わせ：みんなの合わせぐあいと難しさ
       const acc = Math.max(0, Math.min(1, +c.acc || 0)), df = Math.max(0, Math.min(2, c.diff | 0));
       money = Math.round((200 + acc * acc * 1300) * [0.7, 1, 1.4][df]); fame = acc >= 0.95 && df >= 1 ? 1 : 0; msg = `囃子合わせ（合わせぐあい${Math.round(acc * 100)}%）`;
+    } else if (c.game === 'hide') { // 2.70.0 かくれんぼ？：隠れきる・全員見つける（探す側は見つけた人数も）
+      const win = c.win ? 1 : 0, cnt = Math.max(0, Math.min(9, c.cnt | 0));
+      money = (win ? 1200 : 450) + (c.role === 's' ? cnt * 150 : 0); fame = win ? 1 : 0; msg = `かくれんぼ？${win ? '（勝ち）' : '（負け）'}`;
     } else if (c.game === 'kemari') { // 2.62.0 蹴鞠：続けた回数（みんなの）と自分が蹴った数
       const cnt = Math.max(0, Math.min(999, c.cnt | 0)), mine = Math.max(0, Math.min(cnt + 1, c.kicks | 0));
       money = Math.min(2000, cnt * 25 + mine * 15); fame = cnt >= 40 ? 1 : 0; msg = `蹴鞠で${cnt}回続けた（自分は${mine}回蹴った）`;

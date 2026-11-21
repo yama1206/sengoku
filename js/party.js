@@ -12,6 +12,7 @@
     archery: { name: '弓の的当て大会', max: 10, team: true, desc: '動く的を10本で射抜いて点を競う。風で矢が流れる。狙う＝マウス／矢印／スティック、射つ＝クリック／A／Space。金の的は2倍' },
     fish: { name: '釣り大会', max: 10, team: true, mode: true, desc: '朝・昼・夕の3日間（1日40秒）で釣りくらべ。釣り方はいつもの釣りと同じ（浮きを投げる→アタリ→タイミング）。勝ち方は「いちばん大きい魚」か「釣った数」を選べます' },
     hayashi: { name: '囃子合わせ', max: 5, team: false, desc: '和楽器のリズム遊び。太鼓・鼓・篠笛・三味線・鉦から楽器を選び、みんなで一つの曲を合わせる。流れてくる譜を下の線で打つ（赤＝F・J・Space、白＝D・K。画面では左右に赤と白のボタン）。自分のパートは叩いた音で鳴る' },
+    hide: { name: 'かくれんぼ？', max: 10, team: false, opts: true, desc: '隠れる側は木箱・樽・壺などの置物に化けて、探す側から逃げ切る（斜め上から見る視点）。隠れる側：Aで近くの物に化ける、Bで人に戻る。探す側：Aで叩く（本物の置物を叩くと体力が減る）。最初の15秒は探す側は目をつぶって動けない。ときどき音がして、だれかの近くが分かる。舞台・探す側の人数・化けたあとの動き・見つかったあとを選べます' },
     kemari: { name: '蹴鞠', max: 10, team: false, desc: '輪になって鞠を蹴り回す。鞠が自分に飛んできたら、足もとの輪に重なった瞬間に「蹴る」（クリック／タップ／A／Space）。続けるほど鞠は速くなる。毎月5日は大きな町で蹴鞠大会' },
     cart: { name: '荷運び競争', max: 10, team: true, desc: '荷車を引いてゴールまで運ぶ。←→で5本の道を選ぶ（みんなの平均で進む）、A／Spaceを押している間引く。岩にぶつかると荷が崩れる。「？」の箱で道具（加速・修理・守り、チーム戦では相手に岩落とし）が手に入り、B／X／クリックで使う。チーム戦は赤と白の荷車で競走' },
   };
@@ -46,22 +47,25 @@
   PT.current = () => (RUN ? RUN.g : null); // 2.68.0 いま遊んでいる遊び（囃子合わせの間は BGM を止める）
   PT.openLobby = (g) => {
     if (!ENV || RUN) return; addCss();
-    LB = { g, rid: ENV.me() + '-' + Date.now(), lead: true, leader: ENV.me(), mem: [{ id: ENV.me(), name: ENV.name() }], team: false, mode: 'big' };
+    LB = { g, rid: ENV.me() + '-' + Date.now(), lead: true, leader: ENV.me(), mem: [{ id: ENV.me(), name: ENV.name() }], team: false, mode: 'big', o: GAMES[g].opts ? defOpts() : null };
     drawLobby();
   };
+  const defOpts = () => { const o = {}; for (const op of SGK.HIDE.OPTS) o[op.k] = op.v[0][0]; return o; };
+  const optTxt = (o) => SGK.HIDE.OPTS.map((op) => `${op.n}：${(op.v.find((x) => x[0] === o[op.k]) || op.v[0])[1]}`).join('　');
   function closeLobby(tell) { if (LB && tell && !LB.lead) send([LB.leader], { k: 'leave', rid: LB.rid }); if (LB && LB.lead) send(memIds(), { k: 'mem', rid: LB.rid, g: LB.g, mem: [], closed: 1 }); LB = null; const b = document.getElementById('ptBox'); if (b) b.remove(); }
-  function pushMem() { if (LB && LB.lead) send(memIds(), { k: 'mem', rid: LB.rid, g: LB.g, mem: LB.mem, team: LB.team, mode: LB.mode }); }
+  function pushMem() { if (LB && LB.lead) send(memIds(), { k: 'mem', rid: LB.rid, g: LB.g, mem: LB.mem, team: LB.team, mode: LB.mode, o: LB.o }); }
   function drawLobby() {
     if (!LB) return; const d = GAMES[LB.g], e = box('ptBox'), n = LB.mem.length;
     const list = LB.mem.map((x, i) => `<div class="m">${LB.team ? `<b style="color:${TEAM[i % 2].c}">${TEAM[i % 2].n}</b> ` : ''}${esc(x.name)}${x.id === LB.leader ? '（リーダー）' : ''}</div>`).join('');
-    e.innerHTML = `<div><h2>${d.name}</h2><div class="d">${esc(d.desc)}</div><div>参加者 ${n}/${d.max}人${LB.team ? '（チーム戦：交互に赤・白）' : ''}${d.mode ? `　勝ち方：${LB.mode === 'big' ? '大物（いちばん大きい魚）' : '数（釣った数）'}` : ''}</div>${list}
-      <div style="margin-top:8px">${LB.lead ? `<button data-a="inv">同じ町の人を誘う</button>${d.team ? `<button data-a="team">${LB.team ? '個人戦にする' : 'チーム戦にする'}</button>` : ''}${d.mode ? '<button data-a="mode">勝ち方を変える</button>' : ''}${n >= 2 ? '<button data-a="go">出発する</button>' : ''}<button data-a="solo">ひとりで練習（報酬なし）</button>` : '<div class="d">リーダーが出発すると始まります</div>'}<button data-a="close">${LB.lead ? 'やめる' : '抜ける'}</button></div></div>`;
+    e.innerHTML = `<div><h2>${d.name}</h2><div class="d">${esc(d.desc)}</div><div>参加者 ${n}/${d.max}人${LB.team ? '（チーム戦：交互に赤・白）' : ''}${d.opts && LB.o ? `<div style="font-size:13px;color:#cdbf9a">${optTxt(LB.o)}</div>` : ''}${d.mode ? `　勝ち方：${LB.mode === 'big' ? '大物（いちばん大きい魚）' : '数（釣った数）'}` : ''}</div>${list}
+      <div style="margin-top:8px">${LB.lead ? `<button data-a="inv">同じ町の人を誘う</button>${d.team ? `<button data-a="team">${LB.team ? '個人戦にする' : 'チーム戦にする'}</button>` : ''}${d.mode ? '<button data-a="mode">勝ち方を変える</button>' : ''}${d.opts && LB.o ? SGK.HIDE.OPTS.map((op) => `<button data-a="o:${op.k}">${op.n}を変える</button>`).join('') : ''}${n >= 2 ? '<button data-a="go">出発する</button>' : ''}<button data-a="solo">ひとりで練習（報酬なし）</button>` : '<div class="d">リーダーが出発すると始まります</div>'}<button data-a="close">${LB.lead ? 'やめる' : '抜ける'}</button></div></div>`;
     try { if (typeof setFocus === 'function') setFocus(e, currentFocus(e)); } catch (er) {} // 2.69.2 作り直してもコントローラーの選択を保つ
     e.onclick = (ev) => {
       const b = ev.target.closest('button[data-a]'); if (!b || !LB) return; const a = b.dataset.a;
-      if (a === 'inv') { const to = ENV.others().map((x) => x.id); send(to, { k: 'inv', g: LB.g, rid: LB.rid, nm: ENV.name(), team: LB.team, mode: LB.mode }); b.textContent = to.length ? `${to.length}人に声をかけた` : '同じ町にほかの人がいません'; }
+      if (a === 'inv') { const to = ENV.others().map((x) => x.id); send(to, { k: 'inv', g: LB.g, rid: LB.rid, nm: ENV.name(), team: LB.team, mode: LB.mode, o: LB.o }); b.textContent = to.length ? `${to.length}人に声をかけた` : '同じ町にほかの人がいません'; }
       else if (a === 'team') { LB.team = !LB.team; pushMem(); drawLobby(); }
       else if (a === 'mode') { LB.mode = LB.mode === 'big' ? 'num' : 'big'; pushMem(); drawLobby(); }
+      else if (a.startsWith('o:') && LB.lead && LB.o) { const op = SGK.HIDE.OPTS.find((x) => x.k === a.slice(2)); if (op) { const i = op.v.findIndex((x) => x[0] === LB.o[op.k]); LB.o[op.k] = op.v[(i + 1) % op.v.length][0]; pushMem(); drawLobby(); } }
       else if (a === 'go') startRoom(false);
       else if (a === 'solo') startRoom(true);
       else closeLobby(true);
@@ -69,14 +73,14 @@
   }
   function startRoom(solo) {
     const seed = (Math.random() * 1e9) | 0, mem = (solo ? [LB.mem[0]] : LB.mem).map((x, i) => ({ id: x.id, name: x.name, tm: i % 2 }));
-    const cfg = { g: LB.g, seed, mem, team: !solo && LB.team, lead: LB.leader, solo, mode: LB.mode };
+    const cfg = { g: LB.g, seed, mem, team: !solo && LB.team, lead: LB.leader, solo, mode: LB.mode, o: LB.o };
     if (!solo) send(memIds(), { k: 'go', rid: LB.rid, cfg });
     closeLobby(false); startGame(cfg);
   }
   function showInvite(from, m) {
     if (RUN || !GAMES[m.g]) return; addCss(); const e = box('ptInv'); clearTimeout(invT);
     e.innerHTML = `<b>${esc(m.nm)}</b>が『${GAMES[m.g].name}』${m.team ? '（チーム戦）' : ''}の仲間を募っています <button data-a="y">参加する</button><button data-a="n">閉じる</button>`;
-    e.onclick = (ev) => { const b = ev.target.closest('button[data-a]'); if (!b) return; e.remove(); if (b.dataset.a !== 'y') return; if (LB) closeLobby(true); LB = { g: m.g, rid: m.rid, lead: false, leader: from, mem: [], team: !!m.team, mode: m.mode || 'big' }; send([from], { k: 'join', rid: m.rid, nm: ENV.name() }); drawLobby(); };
+    e.onclick = (ev) => { const b = ev.target.closest('button[data-a]'); if (!b) return; e.remove(); if (b.dataset.a !== 'y') return; if (LB) closeLobby(true); LB = { g: m.g, rid: m.rid, lead: false, leader: from, mem: [], team: !!m.team, mode: m.mode || 'big', o: m.o || null }; send([from], { k: 'join', rid: m.rid, nm: ENV.name() }); drawLobby(); };
     invT = setTimeout(() => { if (e.parentNode) e.remove(); }, 60000);
   }
 
@@ -85,7 +89,7 @@
     if (m.k === 'inv') return showInvite(from, m);
     if (m.k === 'join') { if (LB && LB.lead && m.rid === LB.rid && LB.mem.length < GAMES[LB.g].max && !LB.mem.some((x) => x.id === from)) { LB.mem.push({ id: from, name: m.nm }); pushMem(); drawLobby(); } return; }
     if (m.k === 'leave') { if (LB && LB.lead && m.rid === LB.rid) { LB.mem = LB.mem.filter((x) => x.id !== from); pushMem(); drawLobby(); } return; }
-    if (m.k === 'mem') { if (LB && !LB.lead && m.rid === LB.rid) { if (m.closed) { closeLobby(false); ENV.toast && ENV.toast('部屋がなくなりました'); } else { LB.mem = m.mem; LB.team = !!m.team; LB.mode = m.mode || 'big'; drawLobby(); } } return; }
+    if (m.k === 'mem') { if (LB && !LB.lead && m.rid === LB.rid) { if (m.closed) { closeLobby(false); ENV.toast && ENV.toast('部屋がなくなりました'); } else { LB.mem = m.mem; LB.team = !!m.team; LB.mode = m.mode || 'big'; if (m.o) LB.o = m.o; drawLobby(); } } return; }
     if (m.k === 'go') { if (LB && !LB.lead && m.rid === LB.rid && !RUN) { closeLobby(false); startGame(m.cfg); } return; }
     if (RUN && RUN.on) RUN.on(from, m);
   };
@@ -119,12 +123,12 @@
     const touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches), hold = (el, k) => { const on = (e) => { e.preventDefault(); if (!IN[k]) { if (k === 'a') { IN.aT = 1; IN.aAt = performance.now(); } if (k === 'b') { IN.bT = 1; IN.bAt = performance.now(); } if (k === 'l') IN.lT = 1; if (k === 'r') IN.rT = 1; } IN[k] = 1; }, off = (e) => { e.preventDefault(); IN[k] = 0; }; el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointerleave', off); el.addEventListener('pointercancel', off); };
     const mkBtn = (host, txt, k) => { const b = document.createElement('button'); b.textContent = txt; host.appendChild(b); hold(b, k); };
     const pl = root.querySelector('.pl'), pr = root.querySelector('.pr');
-    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '使う', 'b'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { mkBtn(pl, 'ダッシュ', 'b'); mkBtn(pr, 'ジャンプ', 'a'); } else if (cfg.g === 'fish') mkBtn(pr, '釣る', 'a'); else if (cfg.g === 'kemari') mkBtn(pr, '蹴る', 'a'); else if (cfg.g === 'hayashi') { /* 2.68.2 囃子合わせは自分でボタンを置く */ } else mkBtn(pr, '射つ', 'a'); }
+    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '使う', 'b'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { mkBtn(pl, 'ダッシュ', 'b'); mkBtn(pr, 'ジャンプ', 'a'); } else if (cfg.g === 'fish') mkBtn(pr, '釣る', 'a'); else if (cfg.g === 'hide') { mkBtn(pl, '戻る', 'b'); mkBtn(pr, '化ける・叩く', 'a'); } else if (cfg.g === 'kemari') mkBtn(pr, '蹴る', 'a'); else if (cfg.g === 'hayashi') { /* 2.68.2 囃子合わせは自分でボタンを置く */ } else mkBtn(pr, '射つ', 'a'); }
     const ptr = (e) => { const r = cv.getBoundingClientRect(); IN.mx = (e.clientX - r.left) * cv.width / r.width; IN.my = (e.clientY - r.top) * cv.height / r.height; };
     cv.addEventListener('pointermove', ptr); cv.addEventListener('pointerdown', (e) => { ptr(e); if (cfg.g === 'archery' || cfg.g === 'cart') IN.click = 1; else if (cfg.g === 'fish' || cfg.g === 'kemari') IN.aT = 1; });
-    const env = { cfg, me, ids: cfg.mem.map((x) => x.id), names: Object.fromEntries(cfg.mem.map((x) => [x.id, x.name])), tm: Object.fromEntries(cfg.mem.map((x) => [x.id, x.tm])), others: cfg.mem.map((x) => x.id).filter((id) => id !== me), cv, g2, finished: false, gone: {} };
-    const game = { race: raceGame, archery: archeryGame, cart: cartGame, fish: fishGame, kemari: kemariGame, hayashi: hayashiGame }[cfg.g](env);
-    let raf = 0, last = performance.now(); const stop = () => { cancelAnimationFrame(raf); removeEventListener('resize', onR); root.remove(); RUN = null; for (const k of ['l', 'r', 'u', 'd', 'a', 'b']) IN[k] = 0; };
+    const env = { cfg, me, ids: cfg.mem.map((x) => x.id), names: Object.fromEntries(cfg.mem.map((x) => [x.id, x.name])), tm: Object.fromEntries(cfg.mem.map((x) => [x.id, x.tm])), others: cfg.mem.map((x) => x.id).filter((id) => id !== me), cv, g2, finished: false, gone: {}, IN, send, pal: PAL, text: drawText };
+    const game = { race: raceGame, archery: archeryGame, cart: cartGame, fish: fishGame, kemari: kemariGame, hayashi: hayashiGame, hide: (e) => SGK.HIDE.make(e) }[cfg.g](env);
+    let raf = 0, last = performance.now(); const stop = () => { cancelAnimationFrame(raf); removeEventListener('resize', onR); try { if (game.dispose) game.dispose(); } catch (er) {} root.remove(); RUN = null; for (const k of ['l', 'r', 'u', 'd', 'a', 'b']) IN[k] = 0; };
     RUN = { g: cfg.g, on: (from, m) => { if (m.k === 'quit') { env.gone[from] = 1; } if (game.msg) game.msg(from, m); } };
     env.end = (res) => { if (env.finished) return; env.finished = true; showResult(env, res, () => stop()); };
     root.querySelector('button[data-a="quit"]').onclick = () => { send(env.others, { k: 'quit' }); stop(); };
