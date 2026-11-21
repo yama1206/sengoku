@@ -613,21 +613,35 @@
     root.appendChild(box);
     const instOf = (id) => HY.INST.find((x) => x.id === st.picks[id]);
     // 2.68.2 各自の設定（音量・譜の速さ）はこの端末に残す
-    const OPT = Object.assign({ my: 1, oth: 0.8, spd: 1 }, (() => { try { return JSON.parse(localStorage.getItem('sgk-hayashi')) || {}; } catch (e) { return {}; } })());
+    const DEFK = { a: ['f', 'j', ' '], b: ['d', 'k'] }, DEFP = { a: [0, 1, 6, 7], b: [2, 3, 4, 5] };
+    const OPT = Object.assign({ my: 1, oth: 0.8, spd: 1, keys: { a: DEFK.a.slice(), b: DEFK.b.slice() }, pads: { a: DEFP.a.slice(), b: DEFP.b.slice() }, redTop: false }, (() => { try { return JSON.parse(localStorage.getItem('sgk-hayashi')) || {}; } catch (e) { return {}; } })());
     const saveOpt = () => { try { localStorage.setItem('sgk-hayashi', JSON.stringify(OPT)); } catch (e) {} };
     // 2.68.2 打つ操作：赤・白それぞれ2つずつ（キーボード 赤＝F・J・Space、白＝D・K／コントローラー 赤＝A・B・LT・RT、白＝X・Y・LB・RB／画面 左右に赤と白）。押すたびに数える（同じ色を2つで交互に打てる）
     const Q = [], hit = (k) => Q.push({ k, at: performance.now() });
-    const KEY = { f: 'a', j: 'a', ' ': 'a', Enter: 'a', d: 'b', k: 'b' };
-    const onKey = (e) => { if (!root.isConnected) { removeEventListener('keydown', onKey, true); return; } const k = KEY[e.key.length === 1 ? e.key.toLowerCase() : e.key]; if (!k) return; e.preventDefault(); e.stopPropagation(); if (!e.repeat && st.phase === 'play') hit(k); };
+    // 2.68.3 どのキー・ボタンで打つかは自分で決められる（「キーを足す」を押してから、使いたいキーかコントローラーのボタンを押す）
+    let learn = null; // 'a'（赤）か 'b'（白）を覚え中
+    const kname = (k) => (k === ' ' ? 'Space' : k.length === 1 ? k.toUpperCase() : k), PADN = { 0: 'A', 1: 'B', 2: 'X', 3: 'Y', 4: 'LB', 5: 'RB', 6: 'LT', 7: 'RT', 8: 'SELECT', 9: 'START', 10: 'L押込', 11: 'R押込', 12: '↑', 13: '↓', 14: '←', 15: '→' };
+    const keyOf = (e) => (e.key.length === 1 ? e.key.toLowerCase() : e.key), colorOfKey = (k) => (OPT.keys.a.includes(k) ? 'a' : OPT.keys.b.includes(k) ? 'b' : null), colorOfPad = (i) => (OPT.pads.a.includes(i) ? 'a' : OPT.pads.b.includes(i) ? 'b' : null);
+    function assign(kind, v) { const L = kind === 'key' ? OPT.keys : OPT.pads; L.a = L.a.filter((x) => x !== v); L.b = L.b.filter((x) => x !== v); L[learn].push(v); learn = null; saveOpt(); drawPick(); }
+    const onKey = (e) => {
+      if (!root.isConnected) { removeEventListener('keydown', onKey, true); return; } const key = keyOf(e);
+      if (learn) { if (key === 'Escape') { learn = null; drawPick(); } else assign('key', key); e.preventDefault(); e.stopPropagation(); return; }
+      const k = colorOfKey(key); if (!k) return; e.preventDefault(); e.stopPropagation(); if (!e.repeat && st.phase === 'play') hit(k);
+    };
     addEventListener('keydown', onKey, true);
-    const padPrev = []; const GP = { 0: 'a', 1: 'a', 6: 'a', 7: 'a', 2: 'b', 3: 'b', 4: 'b', 5: 'b' };
-    const pollPad = () => { const gp = (navigator.getGamepads ? navigator.getGamepads() : []).find((x) => x && x.connected); if (!gp) return; for (const i in GP) { const on = !!(gp.buttons[i] && gp.buttons[i].pressed); if (on && !padPrev[i]) hit(GP[i]); padPrev[i] = on; } };
-    const touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
-    if (touch) for (const side of ['left', 'right']) {
-      const col = document.createElement('div'); col.style.cssText = `position:absolute;bottom:12px;${side}:10px;display:flex;flex-direction:column;gap:10px;z-index:1`;
-      for (const [k, nm, bg, fg] of [['b', '白', '#f3ead2', '#1a1a1a'], ['a', '赤', '#c8401e', '#fff']]) { const b = document.createElement('button'); b.textContent = nm; b.style.cssText = `width:38vw;height:84px;border-radius:18px;font-size:28px;font-weight:bold;background:${bg};color:${fg};border:3px solid #1a1a1a;opacity:.92;touch-action:none`; b.addEventListener('pointerdown', (e) => { e.preventDefault(); if (st.phase === 'play') hit(k); b.style.filter = 'brightness(1.4)'; setTimeout(() => { b.style.filter = ''; }, 80); }); col.appendChild(b); }
+    const padPrev = [];
+    const pollPad = () => { const gp = (navigator.getGamepads ? navigator.getGamepads() : []).find((x) => x && x.connected); if (!gp) return; gp.buttons.forEach((b, i) => { const on = !!(b && b.pressed); if (on && !padPrev[i]) { if (learn) assign('pad', i); else { const k = colorOfPad(i); if (k && st.phase === 'play') hit(k); } } padPrev[i] = on; }); };
+    const touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches), tcols = [];
+    function makeTouch() {
+      tcols.forEach((c) => c.remove()); tcols.length = 0; if (!touch) return;
+      for (const side of ['left', 'right']) {
+      const col = document.createElement('div'); col.style.cssText = `position:absolute;bottom:12px;${side}:10px;display:flex;flex-direction:column;gap:10px;z-index:1`; tcols.push(col);
+      const two = [['b', '白', '#f3ead2', '#1a1a1a'], ['a', '赤', '#c8401e', '#fff']]; if (OPT.redTop) two.reverse();
+      for (const [k, nm, bg, fg] of two) { const b = document.createElement('button'); b.textContent = nm; b.style.cssText = `width:38vw;height:84px;border-radius:18px;font-size:28px;font-weight:bold;background:${bg};color:${fg};border:3px solid #1a1a1a;opacity:.92;touch-action:none`; b.addEventListener('pointerdown', (e) => { e.preventDefault(); if (st.phase === 'play') hit(k); b.style.filter = 'brightness(1.4)'; setTimeout(() => { b.style.filter = ''; }, 80); }); col.appendChild(b); }
       root.appendChild(col);
+      }
     }
+    makeTouch();
     function drawPick() {
       if (st.phase !== 'pick') { box.style.display = 'none'; return; } box.style.display = '';
       const used = Object.values(st.picks);
@@ -641,10 +655,18 @@
 <span>自分の楽器の音</span><input type="range" min="0" max="1.5" step="0.05" value="${OPT.my}" data-ho="my"><span>${Math.round(OPT.my * 100)}%</span>
 <span>ほかの楽器の音</span><input type="range" min="0" max="1.5" step="0.05" value="${OPT.oth}" data-ho="oth"><span>${Math.round(OPT.oth * 100)}%</span>
 <span>譜の流れる速さ</span><input type="range" min="0.5" max="2.5" step="0.1" value="${OPT.spd}" data-ho="spd"><span>${OPT.spd.toFixed(1)}倍</span></div>
-<div style="font-size:12px;color:#cdbf9a;margin-top:6px">赤い丸＝赤（F・J・Space／コントローラーのA・B）　白い丸＝白（D・K／X・Y）。画面では左右の下に赤、その上に白。下の線に重なった時に打つ</div>`;
+<div style="margin-top:8px"><b>打つキー・ボタン</b>（「足す」を押してから、使いたいキーかコントローラーのボタンを押す。Escでやめる）
+${['a', 'b'].map((c) => `<div style="margin-top:3px"><span style="color:${c === 'a' ? '#ff7a5a' : '#f3ead2'};font-weight:bold">${c === 'a' ? '赤' : '白'}</span>：${OPT.keys[c].map((k) => `<button data-hk="${c}|${encodeURIComponent(k)}" title="外す">${kname(k)} ✕</button>`).join('')}${OPT.pads[c].map((i) => `<button data-hp="${c}|${i}" title="外す">🎮${PADN[i] || '#' + i} ✕</button>`).join('')}<button data-hl="${c}" ${learn === c ? 'style="background:#a0702e"' : ''}>${learn === c ? 'キーかボタンを押して…' : '足す'}</button></div>`).join('')}
+<div style="margin-top:3px">${touch ? `画面のボタン：<button data-ht="1">${OPT.redTop ? '赤が上・白が下' : '白が上・赤が下'}（押すと入れ替え）</button>` : ''}<button data-hr="1">元に戻す</button></div></div>
+<div style="font-size:12px;color:#cdbf9a;margin-top:6px">赤い丸は赤、白い丸は白で打つ。下の線に重なった時に打つ</div>`;
     }
     box.onclick = (e) => {
       const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
+      if (d.hl) { learn = learn === d.hl ? null : d.hl; drawPick(); return; }
+      if (d.hk) { const [c, k] = d.hk.split('|'); OPT.keys[c] = OPT.keys[c].filter((x) => x !== decodeURIComponent(k)); saveOpt(); drawPick(); return; }
+      if (d.hp) { const [c, i] = d.hp.split('|'); OPT.pads[c] = OPT.pads[c].filter((x) => x !== +i); saveOpt(); drawPick(); return; }
+      if (d.ht) { OPT.redTop = !OPT.redTop; saveOpt(); makeTouch(); drawPick(); return; }
+      if (d.hr) { OPT.keys = { a: DEFK.a.slice(), b: DEFK.b.slice() }; OPT.pads = { a: DEFP.a.slice(), b: DEFP.b.slice() }; OPT.redTop = false; saveOpt(); makeTouch(); drawPick(); return; }
       if (d.hi) { st.picks[me] = d.hi; if (lead) cast(); else send([cfg.lead], { k: 'hpick', inst: d.hi }); const mu = M(); if (mu && mu.ok()) { const L = HY.build(HY.SONGS[0], 2).notes[d.hi], na = L.find((n) => n.k === 'a') || L[0], nb = L.find((n) => n.k === 'b') || na; mu.play(d.hi, mu.now() + 0.02, 'a', na.m, 0.3, 0.55 * OPT.my); mu.play(d.hi, mu.now() + 0.4, 'b', nb.m, 0.3, 0.55 * OPT.my); } } // 選んだ楽器の音（赤・白）を鳴らす
       if (lead && d.hs) { st.song = +d.hs; cast(); } if (lead && d.hd) { st.diff = +d.hd; cast(); }
       if (lead && d.hgo) { st.phase = 'play'; startAt = Date.now() + 2500; cast(); begin(2500); }
@@ -685,7 +707,7 @@
         if (m.k === 'hst') { const was = st.phase; st.song = m.song; st.diff = m.diff; st.picks = m.picks; st.phase = m.phase; if (was === 'pick' && st.phase === 'play') begin(2400); drawPick(); }
       },
       update() {
-        if (st.phase === 'pick') { if (!box.innerHTML) drawPick(); if (lead) { sendT -= 0.016; if (sendT <= 0) { sendT = 1; cast(); } } else if (performance.now() - rx > 10000) env.end({ title: 'リーダーとの通信が切れました', rows: [], cmd: null }); return; }
+        if (st.phase === 'pick') { pollPad(); if (!box.innerHTML) drawPick(); if (lead) { sendT -= 0.016; if (sendT <= 0) { sendT = 1; cast(); } } else if (performance.now() - rx > 10000) env.end({ title: 'リーダーとの通信が切れました', rows: [], cmd: null }); return; }
         if (!chart) return; const t = songT(), mu = M();
         // 自動で鳴らすパート（自分以外の人の楽器・空いた楽器）と数えの拍子木を、少し先まで予約する
         if (mu) {
