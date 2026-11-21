@@ -251,7 +251,8 @@
     const cho = (p) => (p.role === 'h' ? p.chh : p.chs), chN = (p) => (HD.CH[p.role].find((x) => x.k === cho(p)) || HD.CH[p.role][0]).n, marks = {};
     const cpu = solo ? { id: '__cpu', x: 0, z: HZ - 6, fx: 0, fz: -1, cd: 1.5, tgt: null, grp: mkYokai('oni'), mv: 0 } : null; if (cpu) scene.add(cpu.grp);
     // 脱出モード：鍵が4つ、3つ集めると鳥居の出口が開く（出口に着いた人は脱出成功）
-    const esc = o.wn === 'escape', NK = 4, NEED = 3, OPEN_W = 80, keys = [], exitP = { x: 0, z: -HZ + 3, open: false }; let kgot = 0, exM = null, exBeam = null, opening = null, qte = null, qtT = 0, pdir = null; const QK = ['u', 'd', 'l', 'r', 'a', 'b'], QL = { u: '↑', d: '↓', l: '←', r: '→', a: 'A', b: 'B' }; const openCh = (q) => { if (q.lid) q.lid.rotation.x = -1.9; if (q.beam) q.beam.visible = false; };
+    // 2.78.0 合図はA/B/X/Y（コントローラーはPS配置：×=A ○=B □=X △=Y）
+    const esc = o.wn === 'escape', NK = 4, NEED = 3, OPEN_W = 80, keys = [], exitP = { x: 0, z: -HZ + 3, open: false }; let kgot = 0, exM = null, exBeam = null, opening = null, qte = null, qtT = 0, pdir = null; const QK = ['a', 'b', 'x', 'y'], qq = [], padPrev = [], qrects = []; let padOn = false; const QL = (c) => (padOn ? { a: '×', b: '○', x: '□', y: '△' }[c] : c.toUpperCase()); const openCh = (q) => { if (q.lid) q.lid.rotation.x = -1.9; if (q.beam) q.beam.visible = false; };
     if (esc) {
       for (let i = 0; i < NK; i++) { let q = null; for (let k = 0; k < 80 && !q; k++) { const [x, z] = free(1); if (z < HZ - 7 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 8)) q = { x, z }; } if (!q) { const [x, z] = free(1); q = { x, z }; } q.got = false; const gk = new THREE.Group(), GD = new THREE.MeshLambertMaterial({ color: 0xf2c14e, emissive: 0x806010 }); gk.add(part(G('chb', () => new THREE.BoxGeometry(1.2, 0.7, 0.75)), M(0x7a4a22), 0, 0.35, 0)); const lid = new THREE.Group(); lid.position.set(0, 0.7, -0.37); const lm = part(G('chl', () => new THREE.CylinderGeometry(0.375, 0.375, 1.2, 12, 1, false, 0, Math.PI)), M(0x8a5a2a), 0, 0, 0.37); lm.rotation.z = Math.PI / 2; lm.rotation.y = Math.PI / 2; lid.add(lm); gk.add(lid); q.lid = lid; for (const x of [-0.45, 0.45]) gk.add(part(G('chg', () => new THREE.BoxGeometry(0.1, 0.75, 0.8)), GD, x, 0.37, 0)); gk.add(part(G('chk', () => new THREE.BoxGeometry(0.2, 0.22, 0.08)), GD, 0, 0.6, 0.4)); const bm = new THREE.Mesh(G('kyl', () => new THREE.CylinderGeometry(0.1, 0.1, 3, 8)), new THREE.MeshBasicMaterial({ color: 0xffe070, transparent: true, opacity: 0.35, depthWrite: false })); bm.position.y = 1.9; gk.add(bm); q.beam = bm; q.pr = 0; gk.position.set(q.x, 0, q.z); scene.add(gk); q.m = gk; gk.rotation.y = hh(keys.length + 9) * 6.28; keys.push(q); }
       for (let k = 0; k < 80; k++) { const [x, z] = free(2.5); if (z < -HZ * 0.25 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 5)) { exitP.x = x; exitP.z = z; break; } }
@@ -296,6 +297,9 @@
     const dd = (e) => { if (qv || dg.id >= 0 || (coarse && e.clientX < innerWidth * 0.55)) return; dg.id = e.pointerId; dg.x = e.clientX; };
     const dm = (e) => { if (e.pointerId !== dg.id) return; cyaw -= (e.clientX - dg.x) * 0.006; dg.x = e.clientX; };
     const du = (e) => { if (e.pointerId === dg.id) dg.id = -1; };
+    const qk = (e) => { if (!qte || e.repeat) return; const c = { ' ': 'a', z: 'a', Z: 'a', x: 'b', X: 'b', c: 'x', C: 'x', v: 'y', V: 'y' }[e.key]; if (c) qq.push(c); };
+    const qp = (e) => { if (!qte || !qrects.length) return; const r = cv.getBoundingClientRect(), px = (e.clientX - r.left) * cv.width / r.width, py = (e.clientY - r.top) * cv.height / r.height; for (const [rx, ry, rw, rh, c] of qrects) if (px >= rx && px <= rx + rw && py >= ry && py <= ry + rh) { qq.push(c); break; } };
+    addEventListener('keydown', qk); cv.addEventListener('pointerdown', qp);
     cv.addEventListener('pointerdown', dd); cv.addEventListener('pointermove', dm); addEventListener('pointerup', du); addEventListener('pointercancel', du);
     cv.addEventListener('pointerdown', pd); cv.addEventListener('pointermove', pm); addEventListener('pointerup', pu); addEventListener('pointercancel', pu);
     const inVec = () => {
@@ -385,7 +389,8 @@
         if (esc) {
           const RATE = [0, 1, 1.7, 2.1, 2.2], okH = (q2) => q2.role === 'h' && alive(q2) && q2.olk <= 0 && !q2.form && !q2.mv && q2.stun <= 0 && q2.freeze <= 0; // 開ける人数が増えるほど1人あたりは遅くなる
           const qfail = (msg) => { qte.q.pr = Math.max(0, qte.q.pr - 10); MY.olk = 4; tell({ k: 'qf', id: me, x: r2(qte.q.x), z: r2(qte.q.z) }); say(msg); SGK.AUDIO.sfx('hit'); qte = null; };
-          let n1 = null; const dr = Math.abs(ix) > Math.abs(iy) ? (ix > 0.6 ? 'r' : ix < -0.6 ? 'l' : null) : (iy > 0.6 ? 'd' : iy < -0.6 ? 'u' : null);
+          { const gp2 = (navigator.getGamepads ? navigator.getGamepads() : []).find((x) => x && x.connected); padOn = !!gp2; for (let i2 = 0; i2 < 4; i2++) { const on = !!(gp2 && gp2.buttons[i2] && gp2.buttons[i2].pressed); if (on && !padPrev[i2]) qq.push(QK[i2]); padPrev[i2] = on; } if (!qte) qq.length = 0; }
+          let n1 = null;
           keys.forEach((q, i) => {
             if (q.got) return; let n = 0;
             for (const id of ids) { const p = P[id]; if (!okH(p) || Math.hypot(q.x - p.x, q.z - p.z) >= 1.8 || (id === me && qte)) continue; n++; }
@@ -394,16 +399,15 @@
             if (q.pr >= OPEN_W) { q.got = true; openCh(q); kgot++; tell({ k: 'kp', i }); say(`宝箱が開いて鍵を手に入れた（${kgot}/${NEED}）`); SGK.AUDIO.sfx('coin'); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が開いた！'); } }
           });
           opening = n1 && !n1.got ? n1 : null;
-          if (opening && !qte) { qtT += dt; if (qtT >= 12) { qtT = 0; qte = { q: opening, seq: [0, 1, 2, 3].map(() => QK[Math.floor(Math.random() * 6)]), i: 0, t: 6 }; say('合図の順に押せ！'); } } else if (!qte) qtT = Math.max(0, qtT - dt);
+          if (opening && !qte) { qtT += dt; if (qtT >= 12) { qtT = 0; qte = { q: opening, seq: [0, 1, 2, 3].map(() => QK[Math.floor(Math.random() * 4)]), i: 0, t: 6 }; say('合図の順に押せ！'); } } else if (!qte) qtT = Math.max(0, qtT - dt);
           if (qte) {
             if (!act || qte.q.got || MY.stun > 0 || MY.role !== 'h' || Math.hypot(qte.q.x - MY.x, qte.q.z - MY.z) > 2.4) qte = null;
             else {
-              qte.t -= dt; const pk = IN.aT ? 'a' : IN.bT ? 'b' : dr && dr !== pdir ? dr : null;
+              qte.t -= dt; const pk = qq.shift() || null;
               if (pk) { if (pk === qte.seq[qte.i]) { qte.i++; SGK.AUDIO.sfx('kmrKick'); if (qte.i >= qte.seq.length) { qte.q.pr += 4; say('成功！'); qte = null; } } else qfail('失敗…進みが戻り、しばらく開けられない'); }
               else if (qte.t <= 0) qfail('間に合わなかった…進みが戻り、しばらく開けられない');
             }
           }
-          pdir = dr;
           if (act && MY.role === 'h' && exitP.open && Math.hypot(exitP.x - MY.x, exitP.z - MY.z) < 1.9) { MY.esc = true; tell({ k: 'es', id: me }); say('脱出成功！'); SGK.AUDIO.sfx('gbWin'); }
         }
         if (esc) { if (exBeam) exBeam.visible = exitP.open; }
@@ -478,7 +482,8 @@
           if (MY.arrowT > 0) { let b = null, bd = 1e9; for (const q of hiders()) { if (q.id === me) continue; const d = Math.hypot(q.x - MY.x, q.z - MY.z); if (d < bd) { bd = d; b = q; } } if (b) { const [ax, ay] = pj(MY.x, 1, MY.z), [bx, by] = pj(b.x, 1, b.z), l = Math.hypot(bx - ax, by - ay) || 1, ux = (bx - ax) / l, uy = (by - ay) / l; txt('➤', ax + ux * 110, ay + uy * 110, { al: 'center', sz: 30, c: '#ffe070' }); txt(`${Math.round(bd)}m`, ax + ux * 140, ay + uy * 140 + 6, { al: 'center', sz: 14, c: '#ffe070' }); } }
         }
         if (esc && opening) { const k = Math.min(1, opening.pr / OPEN_W); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(W / 2 - 110, H * 0.7, 220, 16); g.fillStyle = '#ffd24a'; g.fillRect(W / 2 - 108, H * 0.7 + 2, 216 * k, 12); txt(qte ? '' : MY.olk > 0 ? '中断中…' : '宝箱を開けている…（動かない・化けない／12秒ごとに合図）', W / 2, H * 0.7 - 8, { al: 'center', sz: 15, c: '#ffe9a0' }); }
-        if (qte) { const bw = 54, x0 = W / 2 - bw * 2 - 9, y0 = H * 0.42; g.fillStyle = 'rgba(0,0,0,.65)'; g.fillRect(x0 - 12, y0 - 40, bw * 4 + 54, bw + 74); txt('この順に押す！', W / 2, y0 - 18, { al: 'center', sz: 16, c: '#ffe9a0' }); qte.seq.forEach((c, i2) => { g.fillStyle = i2 < qte.i ? '#4aa84a' : i2 === qte.i ? '#f2c14e' : '#6a5a3a'; g.fillRect(x0 + i2 * (bw + 6), y0, bw, bw); txt(QL[c], x0 + i2 * (bw + 6) + bw / 2, y0 + bw / 2 + 10, { al: 'center', sz: 28, c: '#1a1208' }); }); g.fillStyle = '#ffd24a'; g.fillRect(x0, y0 + bw + 10, (bw * 4 + 18) * Math.max(0, qte.t / 6), 8); }
+        if (qte) { const bw = 54, x0 = W / 2 - bw * 2 - 9, y0 = H * 0.42; g.fillStyle = 'rgba(0,0,0,.65)'; g.fillRect(x0 - 12, y0 - 40, bw * 4 + 54, bw + 74); txt('この順に押す！', W / 2, y0 - 18, { al: 'center', sz: 16, c: '#ffe9a0' }); qte.seq.forEach((c, i2) => { g.fillStyle = i2 < qte.i ? '#4aa84a' : i2 === qte.i ? '#f2c14e' : '#6a5a3a'; g.fillRect(x0 + i2 * (bw + 6), y0, bw, bw); txt(QL(c), x0 + i2 * (bw + 6) + bw / 2, y0 + bw / 2 + 10, { al: 'center', sz: 28, c: '#1a1208' }); }); g.fillStyle = '#ffd24a'; g.fillRect(x0, y0 + bw + 10, (bw * 4 + 18) * Math.max(0, qte.t / 6), 8);
+          qrects.length = 0; QK.forEach((c, i2) => { const rx = x0 + i2 * (bw + 6), ry = y0 + bw + 30; qrects.push([rx, ry, bw, bw, c]); g.fillStyle = '#3a6a9a'; g.fillRect(rx, ry, bw, bw); txt(QL(c), rx + bw / 2, ry + bw / 2 + 10, { al: 'center', sz: 26, c: '#fff' }); }); txt('キー：Space=A　X=B　C=X　V=Y　／　画面のボタンも押せます', W / 2, y0 + bw * 2 + 52, { al: 'center', sz: 13, c: '#e8dcc0' }); } else qrects.length = 0;
         if (esc) { txt(`鍵 ${kgot}/${NEED}　出口：${exitP.open ? '開いた！（鳥居へ）' : 'まだ閉じている'}`, W / 2, 74, { al: 'center', sz: 15, c: exitP.open ? '#9affb0' : '#ffe070' });
           if (exitP.open && MY.role === 'h' && alive(MY)) { const [ax, ay] = pj(MY.x, 1, MY.z), [bx, by] = pj(exitP.x, 1, exitP.z), l = Math.hypot(bx - ax, by - ay) || 1; if (l > 120) txt('出口 ➤', ax + (bx - ax) / l * 120, ay + (by - ay) / l * 120, { al: 'center', sz: 20, b: 1, c: '#9affb0' }); } }
         const qn = MY.role === 'h' && alive(MY) ? near(MY.x, MY.z, 2.4) : null;
@@ -489,7 +494,7 @@
         if (MY.stun > 0) { g.fillStyle = 'rgba(255,0,0,0.18)'; g.fillRect(0, 0, W, H); }
         if (stick.on) { g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 3; g.beginPath(); g.arc(stick.x0, stick.y0, 50, 0, 7); g.stroke(); g.beginPath(); g.arc(stick.x0 + stick.x * 50, stick.y0 + stick.y * 50, 20, 0, 7); g.fillStyle = 'rgba(255,255,255,.45)'; g.fill(); }
       },
-      dispose() { removeEventListener('resize', fitCam); cv.removeEventListener('pointerdown', dd); cv.removeEventListener('pointermove', dm); removeEventListener('pointerup', du); removeEventListener('pointercancel', du); cv.removeEventListener('pointerdown', pd); cv.removeEventListener('pointermove', pm); removeEventListener('pointerup', pu); removeEventListener('pointercancel', pu); try { rd.dispose(); } catch (e) {} if (c3.parentNode) c3.parentNode.removeChild(c3); },
+      dispose() { removeEventListener('resize', fitCam); removeEventListener('keydown', qk); cv.removeEventListener('pointerdown', qp); cv.removeEventListener('pointerdown', dd); cv.removeEventListener('pointermove', dm); removeEventListener('pointerup', du); removeEventListener('pointercancel', du); cv.removeEventListener('pointerdown', pd); cv.removeEventListener('pointermove', pm); removeEventListener('pointerup', pu); removeEventListener('pointercancel', pu); try { rd.dispose(); } catch (e) {} if (c3.parentNode) c3.parentNode.removeChild(c3); },
     };
     return game;
   };
