@@ -261,6 +261,7 @@
     }
     // 役割（同じ種で全員同じ）
     const order = ids.slice(); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+    { const isV = (i) => !!((cfg.mem || []).find((x) => x.id === i) || {}).vol, vo = order.filter(isV), rest = order.filter((i) => !isV(i)); order.length = 0; order.push(...vo, ...rest); } // 2.91.0 鬼は立候補した人からランダム（立候補がいなければ全員から）
     const nSk = solo ? 0 : 1; // 2.77.0 鬼1人・逃げる側4人
     const P = {}, col = (id) => env.pal[ids.indexOf(id) % env.pal.length], hex = (s) => parseInt(String(s).replace('#', ''), 16);
     const chOf0 = (id, r) => { const m = (cfg.mem || []).find((x) => x.id === id), c = m && m.ch && m.ch[r]; return HD.CH[r].some((x) => x.k === c) ? c : HD.CH[r][0].k; };
