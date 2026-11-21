@@ -354,7 +354,7 @@
     }
     const MY = P[me], nm = (id) => (id === '__cpu' ? '見回り' : env.names[id] || '？');
     // カメラ（斜め上から見下ろす）
-    let view = 'tp'; try { view = localStorage.getItem('sgk-hide-vw') || 'tp'; } catch (e) {} if (view !== 'fp') view = 'tp'; // 2.74.1 見下ろしは廃止
+    let view = 'fp'; // 2.101.7 かくれんぼは一人称視点だけ（2.74.1 見下ろしは廃止）
     const qv = view === 'qv', cam = qv ? new T3.OrthographicCamera(-10, 10, 10, -10, 0.1, 120) : new T3.PerspectiveCamera(view === 'fp' ? 72 : 58, 1, 0.1, 220), VH = 21; let camX = MY.x, camZ = MY.z, cyaw = Math.atan2(MY.fx, MY.fz);
     const fitCam = () => { rd.setSize(innerWidth, innerHeight, false); const a = innerWidth / Math.max(1, innerHeight); if (qv) { cam.left = -VH * a / 2; cam.right = VH * a / 2; cam.top = VH / 2; cam.bottom = -VH / 2; } else cam.aspect = a; cam.updateProjectionMatrix(); }; fitCam(); addEventListener('resize', fitCam);
     const setCam = () => {
