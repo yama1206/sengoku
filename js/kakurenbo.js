@@ -11,6 +11,7 @@
     { k: 'st', n: '舞台', v: [['street', '町の通り'], ['castle', '城下'], ['yashiki', '屋敷の庭']] },
     { k: 'sk', n: '探す側の人数', v: [[1, '1人'], [2, '2人'], [3, '3人']] },
     { k: 'mv', n: '化けたあとの動き', v: [['slow', 'ゆっくり動ける'], ['none', '動けない']] },
+    { k: 'wn', n: '勝ち方', v: [['time', '時間まで隠れる'], ['escape', '鍵を集めて脱出']] },
     { k: 'cau', n: '見つかったら', v: [['seek', '探す側に回る'], ['out', 'その回は終わり']] },
   ];
   /* 2.71.0 キャラ（見た目＋パッシブ＋アクティブ）。逃げる側は人間、鬼は日本の妖怪。数値は仮
@@ -146,7 +147,7 @@
   // ---------------- 遊びの本体 ----------------
   HD.make = function (env) {
     const { cfg, me, ids, cv, g2: g, IN, send } = env;
-    const o = Object.assign({ st: 'street', sk: 1, mv: 'slow', cau: 'seek' }, cfg.o || {}), stg = STAGES[o.st] || STAGES.street;
+    const o = Object.assign({ st: 'street', sk: 1, mv: 'slow', wn: 'time', cau: 'seek' }, cfg.o || {}), stg = STAGES[o.st] || STAGES.street;
     const solo = ids.length < 2, rng = mulberry((cfg.seed ^ 0x2f6e2b1) >>> 0), HX = stg.HX, HZ = stg.HZ;
     const root = cv.parentNode, T3 = THREE;
     // 3D の画面（絵は下の canvas、文字は上の canvas）
@@ -186,6 +187,14 @@
     });
     const cho = (p) => (p.role === 'h' ? p.chh : p.chs), chN = (p) => (HD.CH[p.role].find((x) => x.k === cho(p)) || HD.CH[p.role][0]).n, marks = {};
     const cpu = solo ? { id: '__cpu', x: 0, z: HZ - 3, fx: 0, fz: -1, cd: 1.5, tgt: null, grp: mkYokai('oni'), mv: 0 } : null; if (cpu) scene.add(cpu.grp);
+    // 脱出モード：鍵が4つ、3つ集めると鳥居の出口が開く（出口に着いた人は脱出成功）
+    const esc = o.wn === 'escape', NK = 4, NEED = 3, keys = [], exitP = { x: 0, z: -HZ + 3, open: false }; let kgot = 0, exM = null, exBeam = null;
+    if (esc) {
+      for (let i = 0; i < NK; i++) { let q = null; for (let k = 0; k < 80 && !q; k++) { const [x, z] = free(1); if (z < HZ - 7 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 8)) q = { x, z }; } if (!q) { const [x, z] = free(1); q = { x, z }; } q.got = false; const gk = new THREE.Group(); gk.add(part(G('kyb', () => new THREE.BoxGeometry(0.5, 0.18, 0.3)), new THREE.MeshLambertMaterial({ color: 0xf2c14e, emissive: 0x806010 }), 0, 0.8, 0)); gk.add(part(G('kyr', () => new THREE.TorusGeometry(0.2, 0.05, 6, 12)), new THREE.MeshLambertMaterial({ color: 0xf2c14e, emissive: 0x806010 }), -0.35, 0.8, 0)); const bm = new THREE.Mesh(G('kyl', () => new THREE.CylinderGeometry(0.1, 0.1, 3, 8)), new THREE.MeshBasicMaterial({ color: 0xffe070, transparent: true, opacity: 0.35, depthWrite: false })); bm.position.y = 1.5; gk.add(bm); gk.position.set(q.x, 0, q.z); scene.add(gk); q.m = gk; keys.push(q); }
+      for (let k = 0; k < 80; k++) { const [x, z] = free(2.5); if (z < -HZ * 0.25 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 5)) { exitP.x = x; exitP.z = z; break; } }
+      exM = new THREE.Group(); const rm = M(0xc8402f); for (const x of [-1.8, 1.8]) exM.add(part(G('tp', () => new THREE.CylinderGeometry(0.25, 0.3, 3.4, 10)), rm, x, 1.7, 0)); exM.add(part(G('tk', () => new THREE.BoxGeometry(4.8, 0.32, 0.7)), M(0x2a2a2a), 0, 3.5, 0)); exM.add(part(G('tn2', () => new THREE.BoxGeometry(3.8, 0.22, 0.34)), rm, 0, 2.8, 0));
+      exBeam = new THREE.Mesh(G('exb', () => new THREE.CylinderGeometry(1.5, 1.5, 6, 16, 1, true)), new THREE.MeshBasicMaterial({ color: 0x7affa0, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide })); exBeam.position.y = 3; exBeam.visible = false; exM.add(exBeam); exM.position.set(exitP.x, 0, exitP.z); scene.add(exM);
+    }
     const MY = P[me], nm = (id) => (id === '__cpu' ? '見回り' : env.names[id] || '？');
     // カメラ（斜め上から見下ろす）
     const cam = new T3.OrthographicCamera(-10, 10, 10, -10, 0.1, 120), VH = 21; let camX = MY.x, camZ = MY.z;
@@ -198,7 +207,7 @@
     // 状態
     const FX = []; let t = 0, phase = 'hide', done = false, toast = null, toastT = 0, pend = null, sendT = 0, bk = 0, beacon = null, bcT = 0, last = { aT: 0 };
     const say = (s) => { toast = s; toastT = 3; };
-    const alive = (p) => p && !p.out && !env.gone[p.id];
+    const alive = (p) => p && !p.out && !p.esc && !env.gone[p.id];
     const hiders = () => ids.map((i) => P[i]).filter((p) => alive(p) && p.role === 'h');
     const seekers = () => ids.map((i) => P[i]).filter((p) => alive(p) && p.role === 's' && p.hp > 0);
     const look = (p) => { // 見た目（化けていれば置物、そうでなければ人）
@@ -254,6 +263,8 @@
         else if (m.k === 'hb') { if (m.by === me) { MY.stun = 1.2; if (pend) pend.ok = true; say('お札にはじかれた！'); } }
         else if (m.k === 'dc') { addDecoy(m.x, m.z, m.kd, m.v, m.rot); }
         else if (m.k === 'mk') { marks[m.id] = 6; }
+        else if (m.k === 'kp') { const q = keys[m.i]; if (q && !q.got) { q.got = true; q.m.visible = false; kgot++; say(`鍵が見つかった（${kgot}/${NEED}）`); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が開いた！'); } } }
+        else if (m.k === 'es') { const q = P[m.id]; if (q) { q.esc = true; say(`${nm(m.id)}が脱出した！`); SGK.AUDIO.sfx('gbWin'); } }
         else if (m.k === 'sk') {
           FX.push({ x: m.x + (m.s === 'yuki' ? 0 : m.fx * 2.5), z: m.z + (m.s === 'yuki' ? 0 : m.fz * 2.5), t: 0.5, bad: false, big: true });
           if (MY.role === 'h' && alive(MY)) { const dx = MY.x - m.x, dz = MY.z - m.z, d = Math.hypot(dx, dz) || 0.01, dot = (dx * m.fx + dz * m.fz) / d;
@@ -285,6 +296,12 @@
           if (IN.cT) useSkill();
           if (IN.bT && MY.role === 'h' && MY.form) { MY.form = null; MY.fcd = 0.5; say('人の姿に戻った'); }
         }
+        // 鍵・出口
+        if (esc && act && MY.role === 'h') {
+          keys.forEach((q, i) => { if (!q.got && Math.hypot(q.x - MY.x, q.z - MY.z) < 1.3) { q.got = true; q.m.visible = false; kgot++; tell({ k: 'kp', i }); say(`鍵を手に入れた（${kgot}/${NEED}）`); SGK.AUDIO.sfx('coin'); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が開いた！'); } } });
+          if (exitP.open && Math.hypot(exitP.x - MY.x, exitP.z - MY.z) < 1.9) { MY.esc = true; tell({ k: 'es', id: me }); say('脱出成功！'); SGK.AUDIO.sfx('gbWin'); }
+        }
+        if (esc) { keys.forEach((q) => { if (q.m.visible) q.m.rotation.y += dt * 2; }); if (exBeam) exBeam.visible = exitP.open; }
         // 送る
         sendT -= dt; if (sendT <= 0 && !solo) { sendT = 0.1; tell({ k: 'hp', x: r2(MY.x), z: r2(MY.z), fx: r2(MY.fx), fz: r2(MY.fz), m: MY.mv, f: MY.role === 'h' && MY.form ? [MY.form.k, MY.form.v] : 0 }); }
         // ほかの人の位置をなめらかに
@@ -309,11 +326,12 @@
         // 終わり？
         if (!done) {
           const hs = hiders(), ss = seekers(); let over = null;
-          if (!solo && !hs.length) over = 's'; else if (solo && (!alive(MY) || MY.role !== 'h')) over = 's'; else if (!solo && !ss.length && phase === 'play') over = 'h'; else if (t >= ROUND) over = 'h';
+          const escN = ids.filter((i) => P[i].esc).length, cgt = ids.filter((i) => P[i].caught0).length, hwin = escN > 0 && escN >= cgt;
+          if (esc && solo && MY.esc) over = 'h'; else if (esc && !solo && !hs.length) over = hwin ? 'h' : 's'; else if (!solo && !hs.length) over = 's'; else if (solo && (!alive(MY) || MY.role !== 'h')) over = 's'; else if (!solo && !ss.length && phase === 'play') over = 'h'; else if (t >= ROUND) over = esc ? (solo ? 's' : hwin ? 'h' : 's') : 'h';
           if (over) { done = true; this.finish(over); }
         }
         // 絵に反映
-        for (const id of ids) { const p = P[id]; if (p.role === 'h' && !p.form) { /* 人 */ } look(p); const gp = p.grp; if (!gp) continue; gp.visible = !p.out; p.bob += dt * (p.mv ? 9 : 0); const hop = p.mv ? Math.abs(Math.sin(p.bob)) * (p.role === 'h' && p.form ? 0.22 : 0.08) : 0; gp.position.set(p.x, hop, p.z); gp.rotation.y = Math.atan2(p.fx, p.fz); }
+        for (const id of ids) { const p = P[id]; if (p.role === 'h' && !p.form) { /* 人 */ } look(p); const gp = p.grp; if (!gp) continue; gp.visible = !p.out && !p.esc; p.bob += dt * (p.mv ? 9 : 0); const hop = p.mv ? Math.abs(Math.sin(p.bob)) * (p.role === 'h' && p.form ? 0.22 : 0.08) : 0; gp.position.set(p.x, hop, p.z); gp.rotation.y = Math.atan2(p.fx, p.fz); }
         if (cpu) { cpu.grp.position.set(cpu.x, 0, cpu.z); cpu.grp.rotation.y = Math.atan2(cpu.fx, cpu.fz); }
         camX += (MY.x - camX) * Math.min(1, dt * 6); camZ += (MY.z - camZ) * Math.min(1, dt * 6);
         // 印
@@ -324,9 +342,9 @@
       },
       finish(over) {
         const ini = MY.role0, hs = ids.filter((i) => P[i].role0 === 'h'), surv = (id) => !P[id].caught0 && !env.gone[id];
-        const win = ini === 'h' ? surv(me) : over === 's';
-        const rows = ids.map((id) => { const p = P[id]; return `<b style="color:${col(id)}">${nm(id)}</b>（${(HD.CH[p.role0].find((x) => x.k === (p.role0 === 'h' ? p.chh : p.chs)) || {}).n}）　${p.role0 === 'h' ? (surv(id) ? '隠れきった！' : '見つかった') : `探す側：${p.caught}人見つけた`}`; });
-        env.end({ title: win ? (ini === 'h' ? '隠れきった！' : '全員見つけた！') : (ini === 'h' ? '見つかってしまった…' : '見つけきれなかった…'), rows, cmd: { type: 'partyResult', game: 'hide', n: ids.length, win: win ? 1 : 0, cnt: P[me].caught, role: ini } });
+        const win = ini === 'h' ? (esc ? !!P[me].esc : surv(me)) : over === 's';
+        const rows = ids.map((id) => { const p = P[id]; return `<b style="color:${col(id)}">${nm(id)}</b>（${(HD.CH[p.role0].find((x) => x.k === (p.role0 === 'h' ? p.chh : p.chs)) || {}).n}）　${p.role0 === 'h' ? (esc ? (p.esc ? '脱出成功！' : surv(id) ? '脱出できなかった' : '見つかった') : surv(id) ? '隠れきった！' : '見つかった') : `探す側：${p.caught}人見つけた`}`; });
+        env.end({ title: win ? (ini === 'h' ? (esc ? '脱出成功！' : '隠れきった！') : '全員見つけた！') : (ini === 'h' ? (P[me].caught0 ? '見つかってしまった…' : '脱出できなかった…') : '見つけきれなかった…'), rows, cmd: { type: 'partyResult', game: 'hide', n: ids.length, win: win ? 1 : 0, cnt: P[me].caught, role: ini } });
       },
       draw() {
         setCam(); rd.render(scene, cam);
@@ -337,7 +355,7 @@
         if (cpu) { const [sx, sy] = pj(cpu.x, 2, cpu.z); txt('見回り', sx, sy, { al: 'center', sz: 13, c: '#ff9a8a' }); }
         { const [sx, sy] = pj(MY.x, MY.role === 'h' && MY.form ? 1.6 : 2.1, MY.z); txt('▼', sx, sy, { al: 'center', sz: 14, c: '#ffe070' }); }
         const rem = Math.max(0, Math.ceil(ROUND - t)); txt(`${Math.floor(rem / 60)}:${String(rem % 60).padStart(2, '0')}`, W / 2, 30, { al: 'center', sz: 26, b: 1 });
-        txt(`${stg.name}　${MY.role === 's' ? '探す側' : alive(MY) ? '隠れる側' : '見つかった（観戦）'}　隠れている：${solo ? (alive(MY) ? 1 : 0) : hiders().length}人`, W / 2, 52, { al: 'center', sz: 14 });
+        txt(`${stg.name}　${MY.role === 's' ? '探す側' : MY.esc ? '脱出成功（観戦）' : alive(MY) ? '隠れる側' : '見つかった（観戦）'}　隠れている：${solo ? (alive(MY) ? 1 : 0) : hiders().length}人`, W / 2, 52, { al: 'center', sz: 14 });
         if (MY.role === 's') txt('体力 ' + '●'.repeat(Math.max(0, MY.hp)) + '○'.repeat(Math.max(0, 3 - MY.hp)), 16, 30, { sz: 20, c: '#ff9a8a' });
         else if (MY.form) txt(`いまの姿：${KIND[MY.form.k]}${o.mv === 'none' ? '（動けない・←→で向き）' : '（ゆっくり動ける）'}`, 16, 30, { sz: 16, c: '#ffe070' });
         // キャラ（パッシブ・アクティブ）
@@ -350,11 +368,13 @@
           if (cho(MY) === 'neko') for (const q of hiders()) if (q.id !== me && q.mv && Math.hypot(q.x - MY.x, q.z - MY.z) < 8) { const [sx, sy] = pj(q.x, 2.1, q.z); txt('？', sx, sy, { al: 'center', sz: 26, b: 1, c: '#ffe070' }); }
           if (MY.arrowT > 0) { let b = null, bd = 1e9; for (const q of hiders()) { if (q.id === me) continue; const d = Math.hypot(q.x - MY.x, q.z - MY.z); if (d < bd) { bd = d; b = q; } } if (b) { const [ax, ay] = pj(MY.x, 1, MY.z), [bx, by] = pj(b.x, 1, b.z), l = Math.hypot(bx - ax, by - ay) || 1, ux = (bx - ax) / l, uy = (by - ay) / l; txt('➤', ax + ux * 110, ay + uy * 110, { al: 'center', sz: 30, c: '#ffe070' }); txt(`${Math.round(bd)}m`, ax + ux * 140, ay + uy * 140 + 6, { al: 'center', sz: 14, c: '#ffe070' }); } }
         }
+        if (esc) { txt(`鍵 ${kgot}/${NEED}　出口：${exitP.open ? '開いた！（鳥居へ）' : 'まだ閉じている'}`, W / 2, 74, { al: 'center', sz: 15, c: exitP.open ? '#9affb0' : '#ffe070' });
+          if (exitP.open && MY.role === 'h' && alive(MY)) { const [ax, ay] = pj(MY.x, 1, MY.z), [bx, by] = pj(exitP.x, 1, exitP.z), l = Math.hypot(bx - ax, by - ay) || 1; if (l > 120) txt('出口 ➤', ax + (bx - ax) / l * 120, ay + (by - ay) / l * 120, { al: 'center', sz: 20, b: 1, c: '#9affb0' }); } }
         const qn = MY.role === 'h' && alive(MY) ? near(MY.x, MY.z, 2.4) : null;
         const hint = MY.role === 's' ? 'A／Space：叩く（置物を叩くと体力-1）　移動：矢印／WASD／スティック' : alive(MY) ? `${qn ? `A／Space：${KIND[qn.kind]}に化ける　` : ''}${MY.form ? 'B／X：人に戻る　' : ''}移動：矢印／WASD／スティック` : '';
         txt(hint, W / 2, H - 16, { al: 'center', sz: 14 });
         if (toastT > 0 && toast) txt(toast, W / 2, H * 0.28, { al: 'center', sz: 22, b: 1, c: '#ffe9a0' });
-        if (phase === 'hide') { const left = Math.ceil(HIDE_T - t); if (MY.role === 's') { g.fillStyle = 'rgba(0,0,0,0.9)'; g.fillRect(0, 0, W, H); txt(`目をつぶって数えています… ${left}`, W / 2, H / 2, { al: 'center', sz: 28, b: 1 }); } else txt(`隠れよう！（あと${left}秒）近くの物でAを押すと化けられる`, W / 2, H * 0.2, { al: 'center', sz: 20, b: 1, c: '#bff0c0' }); }
+        if (phase === 'hide') { const left = Math.ceil(HIDE_T - t); if (MY.role === 's') { g.fillStyle = 'rgba(0,0,0,0.9)'; g.fillRect(0, 0, W, H); txt(`目をつぶって数えています… ${left}`, W / 2, H / 2, { al: 'center', sz: 28, b: 1 }); } else txt(esc ? `隠れよう！（あと${left}秒）鍵を3つ集めると出口が開く` : `隠れよう！（あと${left}秒）近くの物でAを押すと化けられる`, W / 2, H * 0.2, { al: 'center', sz: 20, b: 1, c: '#bff0c0' }); }
         if (MY.stun > 0) { g.fillStyle = 'rgba(255,0,0,0.18)'; g.fillRect(0, 0, W, H); }
         if (stick.on) { g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 3; g.beginPath(); g.arc(stick.x0, stick.y0, 50, 0, 7); g.stroke(); g.beginPath(); g.arc(stick.x0 + stick.x * 50, stick.y0 + stick.y * 50, 20, 0, 7); g.fillStyle = 'rgba(255,255,255,.45)'; g.fill(); }
       },
