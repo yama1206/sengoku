@@ -188,8 +188,10 @@
     try {
       const hu = role === 'h', ch = L.mk('t1', { tint: TINT[K] || 0x6a5a3a, hood: K === 'ninja' || K === 'dorobo', skin: hu ? null : SKINC[K] || SKINC.oni });
       const wrap = new THREE.Group(); wrap.add(ch.root); wrap.updateMatrixWorld(true);
-      const bb = new THREE.Box3().setFromObject(ch.root), h0 = bb.max.y - bb.min.y; if (h0 > 0.01) ch.root.scale.multiplyScalar((HGT[K] || 1.68) / h0);
-      wrap.updateMatrixWorld(true); const bb2 = new THREE.Box3().setFromObject(ch.root); ch.root.position.y -= bb2.min.y; wrap.updateMatrixWorld(true); // 足を地面に
+      // 2.101.11 背の高さは骨の位置で測る（Box3 は骨入りの体を正しく測れず、とても大きくなっていた）。頭の骨は背の約87%、足首は地面から約0.08
+      const wy = (n) => { const bn = ch.bones[n]; if (!bn) return null; const v = new THREE.Vector3(); bn.getWorldPosition(v); return v.y; };
+      const hy = wy('Head'), fys = ['LeftFoot', 'RightFoot', 'LeftToeBase', 'RightToeBase'].map(wy).filter((v) => v != null), fy = fys.length ? Math.min(...fys) : null;
+      if (hy != null && fy != null && hy - fy > 0.05) { const h0 = (hy - fy) / 0.87 + 0.08, k = (HGT[K] || 1.68) / h0; ch.root.scale.multiplyScalar(k); wrap.updateMatrixWorld(true); ch.root.position.y -= wy('LeftFoot') != null ? Math.min(...fys.length ? ['LeftFoot', 'RightFoot', 'LeftToeBase', 'RightToeBase'].map(wy).filter((v) => v != null) : [0]) - 0.08 : 0; wrap.updateMatrixWorld(true); } // 足を地面に
       const bp = new THREE.Vector3(), bq = new THREE.Quaternion(), bs = new THREE.Vector3();
       for (const [bn, geo, c, off, rot] of ACC[K] || []) {
         const b = ch.bones[bn] || ch.bones.Head; if (!b) continue; b.getWorldPosition(bp); b.getWorldQuaternion(bq); b.getWorldScale(bs);
