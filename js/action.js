@@ -341,7 +341,8 @@
       if (A.wq[hero.pc]) { A.wq[hero.pc] = false; if (k2) { hero.wi = hero.wi ? 0 : 1; hero.cd = Math.max(hero.cd, 0.5); } else SIM.say(hero.pc, k2r === 'tate' ? '竹束は持ち替えられません（脇差と一緒に使います）' : '副武器を持っていません（町の武具屋で「副武器に買う」）'); }
       if (A.jq[hero.pc]) { A.jq[hero.pc] = false; if (!(hero.jp > 0)) hero.jp = 0.55; } // 0.64.0 ジャンプ（見た目だけ）
       hero.jp = Math.max(0, (hero.jp || 0) - dt);
-      const kk = ACT.WEP[hero.wi && k2 ? k2 : k1] ? (hero.wi && k2 ? k2 : k1) : 'tachi', W0 = ACT.WEP[kk], skk = W0.sk || kk, wf = (key) => (pl && SIM.wsFx ? SIM.wsFx(pl, skk + key) : 0); // 0.76.0 技能の特技
+      hero.nj = pl && pl.nin ? 1 : 0; hero.ncl = hero.nj; hero.cu = hero.nj && CW ? SIM.wallClimb(CW, hero.x, hero.y) : 0; // 2.69.0 ジャンプの高さは忍びだけ今まで通り（ほかは半分）／忍びは登れる壁を越えられる
+      const kk =ACT.WEP[hero.wi && k2 ? k2 : k1] ? (hero.wi && k2 ? k2 : k1) : 'tachi', W0 = ACT.WEP[kk], skk = W0.sk || kk, wf = (key) => (pl && SIM.wsFx ? SIM.wsFx(pl, skk + key) : 0); // 0.76.0 技能の特技
       const W = Object.assign({}, W0, { cd: W0.cd * (1 + wf('Cd')), dmg: W0.dmg * (1 + wf('Atk')) }, W0.reach ? { reach: W0.reach + wf('Reach') } : { shot: W0.shot * (1 + wf('Range')) }); hero.wk = skk;
       hero.wep = W; if (hero.pc === A.pid) A.wep = W;
       hero.cd -= dt; hero.dcd -= dt; hero.dash -= dt; hero.blk = !!inp.blk && hero.dash <= 0;
@@ -353,7 +354,7 @@
       const hasH = !!(pl && pl.equip && pl.equip.horse); A.rq = A.rq || {};
       if (A.rq[hero.pc]) { A.rq[hero.pc] = false; if (!hasH) SIM.say(hero.pc, '馬を装備していません'); else { hero.off = !hero.off; SIM.say(hero.pc, hero.off ? '馬から降りました' : '馬に乗りました'); } } // 1.6.17 △長押し／Rキー
       hero.rd = hasH && !hero.off ? 1 : 0; // 1.6.16 馬を装備していれば本人も馬に乗る
-      const sp = (hero.rd ? TR.kiba.spd : TR.hero.spd) * ACT.SPD * 1.1 * (hero.blk ? 0.5 : 1) * (!hero.rd && (hero.sw || (hero.hold > 0 && !W.shot)) ? 0.45 : 1) * (hero.tate ? 0.85 : 1) * (pl && pl.nin ? SIM.NIN.actSpd : 1); // 0.77.0 忍びは速い
+      const sp = (hero.rd ? TR.kiba.spd : TR.hero.spd) * ACT.SPD * 1.1 * (hero.blk ? 0.5 : 1) * (!hero.rd && (hero.sw || (hero.hold > 0 && !W.shot)) ? 0.45 : 1) * (hero.tate ? 0.85 : 1) * (pl && pl.nin ? SIM.NIN.actSpd : 1) * (1 - 0.5 * (hero.cu || 0)); // 0.77.0 忍びは速い（2.69.0 壁を登っている間はゆっくり）
       if (hero.rd) { /* 1.6.75 馬：真横には動けない。前は速く、後ろはゆっくり。動きながらの向き変えはゆっくり */
         if (hero.hh == null) hero.hh = hero.f || 0;
         const il = Math.hypot(mx, my), hv = hero.hv || 0, r = Math.min(1, Math.abs(hv) / sp);
@@ -572,7 +573,7 @@
     const A = b.act, L = A.s.filter(live), o = { id: b.id, s: [], pr: [], dc: A.dc, dead: A.dead.slice(-40).map((d) => [q10(d.x), q10(d.y), d.side === 'A' ? 0 : 1]) };
     for (const s of L) o.s.push(s.id, q10(s.x), q10(s.y), Math.round((s.f || 0) * 100), Math.round((s.hp / s.mh) * 100), (s.fl ? 1 : 0) | (s.at && performance.now() / 1000 - s.at < 0.3 ? 2 : 0) | (s.kat ? 4 : 0));
     for (const p of A.pr) o.pr.push(q10(p.x), q10(p.y), Math.round(p.vx), Math.round(p.vy), p.gun ? 1 : 0, q10(p.h || 0));
-    o.h = A.s.filter((s) => s.pc && live(s)).map((s) => [s.id, s.sw ? [Math.round(s.sw.t * 100), Math.round(s.sw.a * 100), Math.round(s.sw.arc * 100), q10(s.sw.r), Math.round((s.sw.d || 0.18) * 100)] : null, s.wep ? s.wep.name : '', s.blk ? 1 : 0, Math.round((s.jp || 0) * 100), s.rd ? 1 : 0, s.hn || 0, s.hw || '', s.hd || 0, s.tate ? 1 : 0, s.hold > 0 ? 1 : 0, s.rd && s.hh != null ? Math.round(s.hh * 100) : null]);
+    o.h = A.s.filter((s) => s.pc && live(s)).map((s) => [s.id, s.sw ? [Math.round(s.sw.t * 100), Math.round(s.sw.a * 100), Math.round(s.sw.arc * 100), q10(s.sw.r), Math.round((s.sw.d || 0.18) * 100)] : null, s.wep ? s.wep.name : '', s.blk ? 1 : 0, Math.round((s.jp || 0) * 100), s.rd ? 1 : 0, s.hn || 0, s.hw || '', s.hd || 0, s.tate ? 1 : 0, s.hold > 0 ? 1 : 0, s.rd && s.hh != null ? Math.round(s.hh * 100) : null, s.nj ? 1 : 0, Math.round((s.cu || 0) * 100)]);
     if (A.gt) o.gt = A.gt;
     o.u = b.units.filter((u) => u.hp > 0 && !u.gone).map((u) => [u.id, u.side, u.owner || u.cmd || null, u.type, u.n, u.order, u.idx || 0, u.gname || '']);
     if (full) o.st = A.s.filter(live).map((s) => [s.id, s.side === 'A' ? 0 : 1, s.g, s.type || '', s.hero ? 1 : 0, s.pc || 0]);
@@ -595,7 +596,7 @@
     A.s = list; A.pr = [];
     for (let i = 0; i < o.pr.length; i += 6) A.pr.push({ x: o.pr[i] / 10, y: o.pr[i + 1] / 10, vx: o.pr[i + 2], vy: o.pr[i + 3], gun: !!o.pr[i + 4], h: o.pr[i + 5] / 10 });
     const nd = o.dc - A.dc; if (nd > 0) { for (const [x, y, sd] of o.dead.slice(-Math.min(nd, o.dead.length))) A.dead.push({ x: x / 10, y: y / 10, side: sd ? 'B' : 'A' }); if (A.dead.length > 500) A.dead.splice(0, A.dead.length - 500); } A.dc = o.dc;
-    for (const [id, sw, wn, bl, jp, rd, hn, hw, hd, tt, hl, hh] of o.h) { const s = V.byId[id]; if (!s) continue; s.hh = hh == null ? null : hh / 100; s.tate = tt ? 1 : 0; s.hold = hl ? 1 : 0; s.rd = rd ? 1 : 0; s.hn = hn; s.hw = hw; s.hd = hd; s.wep = { name: wn }; s.blk = !!bl; if (jp && !(s.jp > 0)) s.jp = jp / 100; const was = s.sw; s.sw = sw ? { t: sw[0] / 100, a: sw[1] / 100, arc: sw[2] / 100, r: sw[3] / 10, d: (sw[4] || 18) / 100 } : null; if (sw && !was && s.pc === SIM.localPid) SGK.AUDIO.sfx('slash'); }
+    for (const [id, sw, wn, bl, jp, rd, hn, hw, hd, tt, hl, hh, nj, cu] of o.h) { const s = V.byId[id]; if (!s) continue; s.nj = nj ? 1 : 0; s.cu = (cu || 0) / 100; s.hh = hh == null ? null : hh / 100; s.tate = tt ? 1 : 0; s.hold = hl ? 1 : 0; s.rd = rd ? 1 : 0; s.hn = hn; s.hw = hw; s.hd = hd; s.wep = { name: wn }; s.blk = !!bl; if (jp && !(s.jp > 0)) s.jp = jp / 100; const was = s.sw; s.sw = sw ? { t: sw[0] / 100, a: sw[1] / 100, arc: sw[2] / 100, r: sw[3] / 10, d: (sw[4] || 18) / 100 } : null; if (sw && !was && s.pc === SIM.localPid) SGK.AUDIO.sfx('slash'); }
     V.units = o.u.map(([id, side, owner, type, n, order, idx, gname]) => ({ id, side, owner, type, n, order, idx, gname: gname || undefined, hp: n > 0 ? 1 : 0, gone: false }));
     A.byG = {}; for (const u of V.units) A.byG[u.id] = u;
     A.gt = o.gt || null;

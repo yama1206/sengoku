@@ -75,7 +75,8 @@
     for (const [x, y, a, w, id] of c.G || []) N.gates.push(mkGate(x, y, a, w, id));
     let raw = []; for (const w of c.W || []) raw = raw.concat(wallSegs(w));
     N.segs = cutByGates(raw, N.gates);
-    N.K = N.A.filter((a) => a[0] === 'K').map((a) => a[1]);
+    N.segs.forEach((s, i) => { s.cl = s.st !== 'k' && s.len >= 2.5 && (i % 9 === 3 || i % 9 === 4) ? 1 : 0; }); // 2.69.0 忍びが登れる壁（石垣・土塀のところどころ。柵は対象外）
+    N.K =N.A.filter((a) => a[0] === 'K').map((a) => a[1]);
     N.E = c.E || [];
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     const ext = (a, b, c2, d) => { x0 = Math.min(x0, a); y0 = Math.min(y0, b); x1 = Math.max(x1, c2); y1 = Math.max(y1, d); };
@@ -239,6 +240,8 @@
     if (!hit) for (const g of N.gates) if (!gOpen(g.id, G) && segHit(x0, y0, x1, y1, g.x1, g.y1, g.x2, g.y2)) return true;
     return hit;
   };
+  /* 2.69.0 登れる壁にどれだけ近いか（0＝遠い〜1＝壁の上）。忍びが登っている間の高さと速さに使う */
+  SIM.wallClimb = (N, x, y) => { if (!N) return 0; let m = 99; nearSegs(N, x, y, x, y, (s) => { if (s.cl) { const d = dSeg(s, x, y); if (d < m) m = d; } }); return m >= 2 ? 0 : m <= 0.9 ? 1 : (2 - m) / 1.1; };
   /* 塀のすぐ内側（狭間から撃てる場所）にいるか */
   SIM.atLoophole = (N, x, y) => { if (!N) return false; let r = false; nearSegs(N, x, y, x, y, (s) => { if (dSeg(s, x, y) < 3.2) { r = true; return false; } }); return r; };
 
@@ -257,7 +260,7 @@
       if ((ins > 0 && ins < sg.len) || (side >= 0) !== (cur >= 0)) { const sg2 = side >= 0 ? 1 : -1; s.x = px + nx * sg2 * m; s.y = py + ny * sg2 * m; }
       else if (d > 1e-4) { s.x = px + (dx / d) * m; s.y = py + (dy / d) * m; }
     };
-    nearSegs(N, s.x, s.y, s.x, s.y, (sg) => { push(sg); });
+    nearSegs(N, s.x, s.y, s.x, s.y, (sg) => { if (sg.cl && s.ncl) return; /* 2.69.0 忍びは登れる壁なら越えられる */ push(sg); });
     for (const g of N.gates) if (Math.abs(s.x - g.x) < g.w + 3 && Math.abs(s.y - g.y) < g.w + 3 && !gOpen(g.id, G)) push(g);
     const k = cellAt(N, s.x, s.y);
     const lk = lp ? cellAt(N, lp[0], lp[1]) : -1;

@@ -792,6 +792,26 @@
         for (const m of ms) { m.castShadow = true; m.receiveShadow = true; scene.add(m); trees.push(m); }
       }
     }
+    { /* 2.69.0 忍びが登れる壁：蔦と縄をかけて目印にする（見た目。登れるのは忍びだけ） */
+      const CL = NW ? NW.segs.filter((q) => q.cl) : [];
+      if (CL.length) {
+        const BH = { i: 2.0, d: 1.5 }, BWD = { i: 1.6, d: 3.4 }, o3 = new T.Object3D(), ms = [];
+        const mk = (g, c, n) => { const m = new T.InstancedMesh(g, new T.MeshLambertMaterial({ color: c }), n); ms.push(m); return m; };
+        const lo = mk(new T.BoxGeometry(1, 1, 0.08), 0x3f6a2e, CL.length * 2), up = mk(new T.BoxGeometry(1, 1.8, 0.08), 0x4a7a35, CL.length * 2), rp = mk(new T.BoxGeometry(0.1, 1, 0.1), 0x8a6a3a, CL.length * 6);
+        let ki = 0, ri = 0;
+        CL.forEach((sg) => {
+          const bh = BH[sg.st] || 2.0, bw = BWD[sg.st] || 1.6, ro = -Math.atan2(sg.uy, sg.ux), mx = (sg.x1 + sg.x2) / 2, my = (sg.y1 + sg.y2) / 2, g = hgt(mx, my);
+          [1, -1].forEach((sd) => {
+            const px = -sg.uy * sd, py = sg.ux * sd;
+            o3.rotation.set(0, ro, 0); o3.scale.set(sg.len * 0.96, bh, 1); o3.position.set(mx + px * (bw / 2 + 0.05), g + bh / 2 - 0.1, my + py * (bw / 2 + 0.05)); o3.updateMatrix(); lo.setMatrixAt(ki, o3.matrix);
+            o3.scale.set(sg.len * 0.96, 1, 1); o3.position.set(mx + px * 0.3, g + bh + 0.8, my + py * 0.3); o3.updateMatrix(); up.setMatrixAt(ki, o3.matrix); ki++;
+            for (const t of [-0.3, 0, 0.3]) { o3.rotation.set(0, ro, 0); o3.scale.set(1, bh + 1.8, 1); o3.position.set(mx + sg.ux * sg.len * t + px * (bw / 2 + 0.09), g + (bh + 1.8) / 2 - 0.1, my + sg.uy * sg.len * t + py * (bw / 2 + 0.09)); o3.updateMatrix(); rp.setMatrixAt(ri++, o3.matrix); }
+          });
+        });
+        lo.count = up.count = ki; rp.count = ri;
+        for (const m of ms) { m.castShadow = true; scene.add(m); trees.push(m); }
+      }
+    }
     /* 1.6.38 門：櫓門（門の上に櫓）と扉。扉は破られたら消える。外の塀の角には隅櫓 */
     gateM = [];
     const mat = (c) => new T.MeshLambertMaterial({ color: c }), addM = (m) => { m.castShadow = m.receiveShadow = true; scene.add(m); trees.push(m); return m; };
@@ -976,7 +996,7 @@
   function drawSk(s, u, cav, mv, nowS, gy, f, own, col, ph) {
     const S3 = SGK.SOLD3D, tr = Math.min(4, Math.max(1, s.hero ? 4 : (s.type && TR[s.type] && TR[s.type].tier) || 2)), b = S3.tiers[tr - 1];
     const wk = weaponOf(s), sc = s.hero ? 1.1 : 1;
-    const jh = s.jp > 0 ? Math.sin(Math.PI * (1 - s.jp / 0.55)) * 1.1 : 0;
+    const jh = (s.jp > 0 ? Math.sin(Math.PI * (1 - s.jp / 0.55)) * (s.nj ? 1.1 : 0.55) : 0) + (s.cu || 0) * 3.3; // 2.69.0 ジャンプは忍び以外は半分の高さ／忍びは壁を登る分だけ持ち上がる
     O.position.set(s.x, gy + jh, s.y); O.rotation.set(0, -f, 0); O.scale.set(1, 1, 1); O.updateMatrix();
     let c, up = 0, fw = 0;
     if (cav) { // 馬に乗る：馬の背に座った姿勢で
@@ -1073,7 +1093,7 @@
         put('horse', O.matrix); put('hneck', O.matrix); put('hhead', O.matrix); put('htail', O.matrix); put('saddle', O.matrix, C.setHex(s.side === 'B' ? 0x7a2418 : 0x1f3a66));
         putPart('hlegF', O.matrix, 0.62, 0.82, 0, stp * 0.55); putPart('hlegB', O.matrix, -0.62, 0.82, 0, -stp * 0.55);
       }
-      const jh = s.jp > 0 ? Math.sin(Math.PI * (1 - s.jp / 0.55)) * 1.1 : 0; // 0.64.0 ジャンプ
+      const jh = (s.jp > 0 ? Math.sin(Math.PI * (1 - s.jp / 0.55)) * (s.nj ? 1.1 : 0.55) : 0) + (s.cu || 0) * 3.3; // 0.64.0 ジャンプ（2.69.0 忍び以外は半分の高さ・忍びは壁を登る分だけ持ち上がる）
       O.position.set(s.x, gy + ride + bob + jh, s.y); O.rotation.set(0, -f, 0); O.scale.set(sc, sc, sc); O.updateMatrix();
       const tr = s.hero ? 5 : (s.type && TR[s.type] && TR[s.type].tier) || 2; /* 1.6.36 格ごとの見た目 */
       if (!C2) C2 = new T.Color();
