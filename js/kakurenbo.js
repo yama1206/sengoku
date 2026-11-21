@@ -368,6 +368,8 @@
     addEventListener('keydown', qk); cv.addEventListener('pointerdown', qp);
     cv.addEventListener('pointerdown', dd); cv.addEventListener('pointermove', dm); addEventListener('pointerup', du); addEventListener('pointercancel', du);
     cv.addEventListener('pointerdown', pd); cv.addEventListener('pointermove', pm); addEventListener('pointerup', pu); addEventListener('pointercancel', pu);
+    const tall = (e) => { if (e && e.touches && e.touches.length) return; stick.on = false; stick.id = -1; stick.x = stick.y = 0; dg.id = -1; }; // 2.99.3 指が全部離れたら必ず止める（離しても進み続けることがあった）
+    const blr = () => tall(null); addEventListener('touchend', tall, true); addEventListener('touchcancel', tall, true); addEventListener('blur', blr);
     const inVec = () => {
       let ix = (IN.r ? 1 : 0) - (IN.l ? 1 : 0), iy = (IN.d ? 1 : 0) - (IN.u ? 1 : 0);
       const gp = (navigator.getGamepads ? navigator.getGamepads() : []).find((x) => x && x.connected);
@@ -771,7 +773,7 @@
         if (MY.stun > 0) { g.fillStyle = 'rgba(255,0,0,0.18)'; g.fillRect(0, 0, W, H); }
         if (stick.on) { g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 3; g.beginPath(); g.arc(stick.x0, stick.y0, 50, 0, 7); g.stroke(); g.beginPath(); g.arc(stick.x0 + stick.x * 50, stick.y0 + stick.y * 50, 20, 0, 7); g.fillStyle = 'rgba(255,255,255,.45)'; g.fill(); }
       },
-      dispose() { removeEventListener('resize', fitCam); removeEventListener('keydown', qk); cv.removeEventListener('pointerdown', qp); cv.removeEventListener('pointerdown', dd); cv.removeEventListener('pointermove', dm); removeEventListener('pointerup', du); removeEventListener('pointercancel', du); cv.removeEventListener('pointerdown', pd); cv.removeEventListener('pointermove', pm); removeEventListener('pointerup', pu); removeEventListener('pointercancel', pu); try { rd.dispose(); } catch (e) {} if (c3.parentNode) c3.parentNode.removeChild(c3); },
+      dispose() { removeEventListener('resize', fitCam); removeEventListener('keydown', qk); cv.removeEventListener('pointerdown', qp); cv.removeEventListener('pointerdown', dd); cv.removeEventListener('pointermove', dm); removeEventListener('pointerup', du); removeEventListener('pointercancel', du); cv.removeEventListener('pointerdown', pd); cv.removeEventListener('pointermove', pm); removeEventListener('pointerup', pu); removeEventListener('pointercancel', pu); removeEventListener('touchend', tall, true); removeEventListener('touchcancel', tall, true); removeEventListener('blur', blr); try { rd.dispose(); } catch (e) {} if (c3.parentNode) c3.parentNode.removeChild(c3); },
     };
     return game;
   };

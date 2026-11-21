@@ -36,7 +36,7 @@ window.addEventListener('pointermove', (e) => {
   if (e.target === cv) { G.mouseXY = [e.offsetX, e.offsetY]; G.vcur = G.mouseXY; G.vcurOn = false; G.padUsed = false; e.stopPropagation(); }
 }, true);
 const actUp = (e) => {
-  if (!actB()) return;
+  if (!actB()) { if (e.pointerType === 'touch') { if (G.tL && G.tL.id === e.pointerId) { G.tL = G.tL2; G.tL2 = null; } else if (G.tL2 && G.tL2.id === e.pointerId) G.tL2 = null; if (G.tR && G.tR.id === e.pointerId) G.tR = null; } return; } // 2.99.3 戦の外で離しても指の記録を消す（戦が終わってから離すと残り、次の戦で前へ進み続けていた）
   if (e.pointerType === 'touch') { if (G.tL2 && G.tL2.id === e.pointerId) { G.tL2 = null; if (G.tL) { G.tL.sx = G.tL.x; G.tL.sy = G.tL.y; } } else if (G.tL && G.tL.id === e.pointerId) { G.tL = G.tL2; G.tL2 = null; if (G.tL) { G.tL.sx = G.tL.x; G.tL.sy = G.tL.y; } } if (G.tR && G.tR.id === e.pointerId) { G.tR = null; G.tAtk = true; } e.stopPropagation(); return; }
   G.actAtk = false; G.actTouch = null; if (e.target === cv) e.stopPropagation();
   if (ML() && e.pointerType !== 'touch') { if (e.button === 2) G.actBlk = false; G.actRD = null; return; }
@@ -45,6 +45,7 @@ const actUp = (e) => {
     if (G.selUnit == null) { toast('先に部隊を選んでください', 1000); return; } const unit = G.selUnit; moveFace(unit, x, y, dr ? Math.atan2(y2 - y, x2 - x) : null); toast(dr ? 'そこへ向かわせ、その方向を向かせます' : 'そこへ向かわせます', 800); }
 };
 window.addEventListener('pointerup', actUp, true); window.addEventListener('pointercancel', actUp, true);
+{ const tall = (e) => { if (e && e.touches && e.touches.length) return; G.tL = G.tL2 = null; G.tR = null; }; window.addEventListener('touchend', tall, true); window.addEventListener('touchcancel', tall, true); window.addEventListener('blur', () => tall(null)); } // 2.99.3 指が全部離れたら合戦の移動スティックを必ず止める
 cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.offsetX, y: e.offsetY, sx: e.offsetX, sy: e.offsetY, btn: e.button }); dragMoved = false; pinchD = 0; });
 cv.addEventListener('mousemove', (e) => { G.hov = [e.offsetX, e.offsetY]; G.hovT = performance.now(); });
 cv.addEventListener('pointermove', (e) => {

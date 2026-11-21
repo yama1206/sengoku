@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="2.99.2">
+<meta name="sgk-ver" content="2.99.3">
 <title>天下往来</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -311,6 +311,16 @@
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="https://unpkg.com/three@0.149.0/build/three.min.js"></script>
 <script>
+  // 2.99.3 スマホで縦横を切り替えた時：ブラウザが新しい画面の大きさを遅れて知らせることがあるので、少し間をおいて何度か「大きさが変わった」を流し直す（地図・遊び・3Dの画面が合わせ直す）
+  (function () {
+    let busy = false, tm = [];
+    const re = () => { busy = true; try { window.scrollTo(0, 0); window.dispatchEvent(new Event('resize')); } catch (e) {} busy = false; };
+    const kick = () => { tm.forEach(clearTimeout); tm = [60, 250, 600, 1200].map((d) => setTimeout(re, d)); };
+    window.addEventListener('orientationchange', kick);
+    try { if (screen.orientation) screen.orientation.addEventListener('change', kick); } catch (e) {}
+    let lw = innerWidth > innerHeight; window.addEventListener('resize', () => { if (busy) return; const w = innerWidth > innerHeight; if (w !== lw) { lw = w; kick(); } });
+    try { if (window.visualViewport) visualViewport.addEventListener('resize', () => { if (!busy) { const w = innerWidth > innerHeight; if (w !== lw) { lw = w; kick(); } } }); } catch (e) {}
+  })();
   // 更新が確実に反映されるよう、毎回最新のファイルを読み込む
   (function () {
     const files = ['js/config.js', 'js/icons.js', 'js/data/world1560.js', 'js/data/villages.js', 'js/data/geo.js', 'js/data/lakes.js', 'js/data/rivers.js', 'js/data/creatures.js', 'js/data/items.js', 'js/data/bushoart.js', 'js/sim/world.js', 'js/sim/ledger.js', 'js/sim/route.js', 'js/sim/economy.js', 'js/sim/military.js', 'js/sim/growth.js', 'js/sim/rank.js', 'js/sim/castle.js', 'js/sim/daimyo.js', 'js/sim/siege.js', 'js/sim/army.js', 'js/sim/bushou.js', 'js/sim/supply.js', 'js/sim/house.js', 'js/sim/quest.js', 'js/sim/fushin.js', 'js/sim/invest.js', 'js/sim/equip.js', 'js/sim/chiho.js', 'js/sim/castlemap.js', 'js/sim/kuni.js', 'js/sim/nawa.js', 'js/sim/nawagen.js', 'js/sim/torihiki.js', 'js/sim/gamble.js', 'js/sim/asobi.js', 'js/sim/title.js', 'js/sim/creatures.js', 'js/sim/mining.js', 'js/sim/seisaku.js', 'js/sim/skill.js', 'js/sim/shinobi.js', 'js/sim/testmode.js', 'js/sim/cloth.js', 'js/sim/home.js', 'js/sim/smith.js', 'js/sim/farm.js', 'js/sim/gosho.js', 'js/sim/kaigai.js', 'js/sim/shoka.js', 'js/sim/nomin.js', 'js/sim/carry.js', 'js/sim/weather.js', 'js/sim/party.js', 'js/sim/musume.js', 'js/save.js', 'js/net/cloud.js', 'js/net/net.js', 'js/kamon.js', 'js/render.js', 'js/audio.js', 'js/action.js', 'js/lib/BufferGeometryUtils.js', 'js/lib/GLTFLoader.js', 'js/soldier3d.js', 'js/action3d.js', 'js/ninja.js', 'js/ninja3d.js', 'js/hayashi.js', 'js/kakurenbo.js', 'js/party.js', 'js/main.js', 'js/main_title.js', 'js/main_net.js', 'js/main_info.js', 'js/main_town.js', 'js/main_person.js', 'js/main_menu.js', 'js/main_input.js', 'js/main_loop.js', 'js/gather.js', 'js/nawaedit.js', 'js/testui.js', 'js/ledgerui.js', 'js/gambleui.js', 'js/asobiui.js', 'js/clothui.js', 'js/mineui.js', 'js/smithui.js', 'js/farmui.js', 'js/goshoui.js', 'js/shokaui.js', 'js/nominui.js', 'js/carryui.js'];

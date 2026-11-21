@@ -152,6 +152,7 @@ function frame0(now) {
   requestAnimationFrame(frame);
 }
 const fit = () => R.resize(cv);
+let fitW = 0, fitH = 0; setInterval(() => { const w = cv.clientWidth, h = cv.clientHeight; if (w && h && (w !== fitW || h !== fitH)) { fitW = w; fitH = h; fit(); } }, 300); // 2.99.3 縦横を切り替えた時、大きさの知らせが来なくても地図を合わせ直す
 window.addEventListener('resize', fit); fit();
 requestAnimationFrame(frame);
 setFocus($('titleMenu'), $('btnNew'));

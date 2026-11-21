@@ -622,6 +622,8 @@
     cv.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) { if (joy && t.identifier === joy.id) { joy.dx = clamp((t.clientX - joy.x) / 45, -1, 1); joy.dy = clamp((t.clientY - joy.y) / 45, -1, 1); const l = Math.hypot(joy.dx, joy.dy); if (l > 1) { joy.dx /= l; joy.dy /= l; } hud.querySelector('.joy i').style.transform = `translate(${joy.dx * 35}px,${joy.dy * 35}px)`; } else if (drag && t.identifier === drag.id) { look.dx += (t.clientX - drag.x) * 2.2; look.dy += (t.clientY - drag.y) * 2.2; drag.x = t.clientX; drag.y = t.clientY; } } e.preventDefault(); }, { passive: false });
     const tend = (e) => { for (const t of e.changedTouches) { if (joy && t.identifier === joy.id) { joy = null; hud.querySelector('.joy').style.display = 'none'; } if (drag && t.identifier === drag.id) drag = null; } };
     cv.addEventListener('touchend', tend); cv.addEventListener('touchcancel', tend);
+    const tall = (e) => { if (e && e.touches && e.touches.length) return; if (joy) { joy = null; hud.querySelector('.joy').style.display = 'none'; } drag = null; vk.clear(); }; // 2.99.3 指が全部離れたら必ず止める（離しても進み続けることがあった）
+    addEventListener('touchend', tall, true); addEventListener('touchcancel', tall, true); addEventListener('blur', () => tall(null));
     return true;
   }
   function touchUi() {
