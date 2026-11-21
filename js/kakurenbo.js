@@ -354,7 +354,7 @@
     }
     const MY = P[me], nm = (id) => (id === '__cpu' ? '見回り' : env.names[id] || '？');
     // カメラ（斜め上から見下ろす）
-    let view = 'fp'; // 2.101.7 かくれんぼは一人称視点だけ（2.74.1 見下ろしは廃止）
+    let view = 'tp'; try { view = localStorage.getItem('sgk-hide-vw') || 'tp'; } catch (e) {} if (view !== 'fp') view = 'tp'; // 2.74.1 見下ろしは廃止
     const qv = view === 'qv', cam = qv ? new T3.OrthographicCamera(-10, 10, 10, -10, 0.1, 120) : new T3.PerspectiveCamera(view === 'fp' ? 72 : 58, 1, 0.1, 220), VH = 21; let camX = MY.x, camZ = MY.z, cyaw = Math.atan2(MY.fx, MY.fz);
     const fitCam = () => { rd.setSize(innerWidth, innerHeight, false); const a = innerWidth / Math.max(1, innerHeight); if (qv) { cam.left = -VH * a / 2; cam.right = VH * a / 2; cam.top = VH / 2; cam.bottom = -VH / 2; } else cam.aspect = a; cam.updateProjectionMatrix(); }; fitCam(); addEventListener('resize', fitCam);
     const setCam = () => {
@@ -362,7 +362,7 @@
       if (qv) { cam.position.set(camX + 15, 17, camZ + 15); cam.lookAt(camX, 0, camZ); return; }
       const sn = Math.sin(cyaw), cs = Math.cos(cyaw);
       if (view === 'fp') { cam.position.set(MY.x, 1.55, MY.z); cam.lookAt(MY.x + sn * 5, 1.45, MY.z + cs * 5); }
-      else { const d = 5.5, ex = clamp(MY.x - sn * d, -HX - 1.5, HX + 1.5), ez = clamp(MY.z - cs * d, -HZ - 1.5, HZ + 1.5); cam.position.set(ex, 3.2, ez); cam.lookAt(MY.x + sn * 1.5, 1.0, MY.z + cs * 1.5); }
+      else { let d = 4.6; while (d > 1.2 && wallBetween(MY.x, MY.z, MY.x - sn * d, MY.z - cs * d)) d -= 0.4; const ex = clamp(MY.x - sn * d, -HX - 1.5, HX + 1.5), ez = clamp(MY.z - cs * d, -HZ - 1.5, HZ + 1.5); cam.position.set(ex, 2.05, ez); cam.lookAt(MY.x + sn * 3, 1.35, MY.z + cs * 3); } // 2.101.8 三人称の視線を低めに（肩の少し上から前を見る）
     };
     // 印（探す先の輪・叩いた所・ビーコン）
     const ring = (c, ri, ro) => { const m = new T3.Mesh(new T3.RingGeometry(ri, ro, 28), new T3.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.8, side: T3.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.y = 0.06; m.visible = false; scene.add(m); return m; };
