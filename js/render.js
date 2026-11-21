@@ -138,12 +138,14 @@
       const [x, y] = R.toScreen(s.x, s.y);
       const fr = frameOf(s.owner), zk = Math.max(0.45, Math.min(1, cam.scale / 4)); // 引いたときは印を小さく
       if (cam.scale < 1.5 && s.type === 'village') continue;
+      const bigFar = cam.scale < 1.5 && s.type === 'town' && SGK.DATA.isBig(s), zb = bigFar ? 1.15 : zk; // 2.99.9 引いた地図では大きな町を大きく・金の輪で目立たせる
+      if (bigFar) { ctx.fillStyle = 'rgba(242,193,78,.22)'; ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, 28, 0, 7); ctx.fill(); ctx.stroke(); }
       if (view.myHome && s.id === view.myHome) { // 2.40.0 自宅のある拠点：青緑の光の輪と「家」の札で目立たせる
         const hr = (s.type === 'castle' ? 24 : SGK.DATA.isBig(s) ? 26 : 21) * zk;
         ctx.fillStyle = 'rgba(60,220,190,.28)'; ctx.strokeStyle = '#2fd6b4'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, hr, 0, 7); ctx.fill(); ctx.stroke();
       }
       if (s.type === 'castle') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 18 * zk, 'shiro', fr[0], fr[1]); // 0.54.7 城は天守の形・町や村は四角（部隊は丸）
-      else if (s.type === 'town') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, (SGK.DATA.isBig(s) ? 20 : 15) * zk, SGK.DATA.isBig(s) ? 'dia' : 'sq', fr[0], fr[1]); // 1.6.78 大きな町は印を大きく（2.61.5 ひし形に）
+      else if (s.type === 'town') SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, (SGK.DATA.isBig(s) ? 20 : 15) * zb, SGK.DATA.isBig(s) ? 'dia' : 'sq', fr[0], fr[1]); // 1.6.78 大きな町は印を大きく（2.61.5 ひし形に）
       else SGK.KAMON.badge(ctx, s.owner, view.factions[s.owner], x, y, 10, 'sq', fr[0], Math.min(fr[1], 2));
       if (SGK.SIM.minato && SGK.SIM.minato(s) && cam.scale >= 1.5) { // 0.53.0 湊の錨
         const ax = x + 13 * zk, ay = y - 11 * zk, big = SGK.SIM.minato(s) === 2;
@@ -163,9 +165,9 @@
       if (cam.scale < 6 && !s.lord && !s.built && s.type !== 'town' && s.id !== selectedId) continue;
       if (cam.scale < 1.5 && !SGK.DATA.isBig(s) && !(view.factions[s.owner] && view.factions[s.owner].leader === s.lord) && s.id !== selectedId) continue; // 全国を見るときは大名の本城だけ // 引いたときは主な拠点の名前だけ
       const label = s.site ? s.name + '（普請中）' : s.name;
-      ctx.font = `${s.type === 'castle' || SGK.DATA.isBig(s) ? 'bold 13px' : '12px'} "Hiragino Mincho ProN","Yu Mincho",serif`;
-      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(245,238,215,.9)'; ctx.strokeText(label, x, y + 12);
-      ctx.fillStyle = '#2a2118'; ctx.fillText(label, x, y + 12);
+      ctx.font = `${bigFar ? 'bold 16px' : s.type === 'castle' || SGK.DATA.isBig(s) ? 'bold 13px' : '12px'} "Hiragino Mincho ProN","Yu Mincho",serif`;
+      const ly = bigFar ? 28 : 12; ctx.lineWidth = bigFar ? 4 : 3; ctx.strokeStyle = 'rgba(245,238,215,.9)'; ctx.strokeText(label, x, y + ly);
+      ctx.fillStyle = '#2a2118'; ctx.fillText(label, x, y + ly);
     }
     // 視界の外を少し暗く（他の部隊は見えない）
     const meV = view.players.find((p) => p.id === myPid);
