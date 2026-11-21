@@ -82,8 +82,8 @@ cv.addEventListener('pointerup', (e) => {
     if (!$('char').classList.contains('hidden')) { openChar(false); return; }
     if (ms && Math.hypot(ms[0] - e.offsetX, ms[1] - e.offsetY) < 18) { openChar(true); return; }
   }
-  if (p.btn === 2) { hit ? moveTo(hit.x, hit.y, hit.id) : moveTo(wx, wy); } // 右クリック：すぐ移動
-  else if (hit) selectSettlement(hit);   // 左クリック・タップ：拠点なら情報
+  if (p.btn === 2) { const m2 = me(), d2 = m2 && (G.disp[m2.id] || m2); if (d2) { R.cam.x = d2.x; R.cam.y = d2.y; R.cam.follow = true; } return; } // 2.99.10 右クリック：自分のいる場所へ飛んで、追いかける（前は押した所へ移動）
+  if (hit) selectSettlement(hit);   // 左クリック・タップ：拠点なら情報
   else moveTo(wx, wy);                   // 地面なら移動
 });
 cv.addEventListener('wheel', (e) => { e.preventDefault(); anyZoom(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.offsetX, e.offsetY); }, { passive: false });
