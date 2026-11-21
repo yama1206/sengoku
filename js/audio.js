@@ -262,6 +262,13 @@
     const now = ctx.currentTime; if (lastSfx[name] && now - lastSfx[name] < 0.05) return; lastSfx[name] = now;
     SFX[name](now + 0.01);
   };
+  // 2.101.5 足音（かくれんぼの鬼）。v＝大きさ（近いほど大きい 0〜1）、pan＝左右（-1〜1）
+  A.foot = (v, pan) => {
+    if (!ctx || ctx.state !== 'running' || !opt.sfx || !(v > 0.01)) return;
+    const t = ctx.currentTime + 0.01, d = dest(t, Math.min(1, v) * 0.9, pan);
+    const o = osc('sine', 95 + R() * 25, t, 0.16), g = env(t, 0.003, 0.9, 0.1); o.frequency.exponentialRampToValueAtTime(48, t + 0.1); o.connect(g); g.connect(d);
+    const n = noise(t, 0.09), lp = ctx.createBiquadFilter(), ng = env(t, 0.002, 0.55, 0.06); lp.type = 'lowpass'; lp.frequency.value = 700 + R() * 300; n.connect(lp); lp.connect(ng); ng.connect(d);
+  };
 
   // 2.68.2 太鼓の「ドン」：胴が鳴る低い響き（打った瞬間に高く、すぐ沈む）と皮の打音
   function don(t, vol, bus) {

@@ -269,7 +269,7 @@
     const free = (r) => { for (let i = 0; i < 200; i++) { const x = (rng() * 2 - 1) * (HX - 2), z = (rng() * 2 - 1) * (HZ - 2); if (!blocked(x, z, r)) return [x, z]; } return [0, 0]; };
     // 井戸（決まった位置に5か所。最後の1人になったとき、どれか1つの蓋が開いて脱出口になる）
     if (o.st !== 'rooms') { // 2.101.1 視線をさえぎる高い建物を必ず置く（広さに合わせた数）
-      const nb = Math.max(4, Math.round((o.st === 'street' ? 8 : 12) * MF * MF)), bcs = [0xd9cfb4, 0xcdbb94, 0xb9a98a, 0xe0d4b8, 0xc9b8a0];
+      const nb = Math.max(6, Math.round((o.st === 'street' ? 16 : 22) * MF * MF)), bcs /* 2.101.5 高い建物を約2倍に */ = [0xd9cfb4, 0xcdbb94, 0xb9a98a, 0xe0d4b8, 0xc9b8a0];
       for (let i = 0; i < nb; i++) {
         const w = 9 + rng() * 7, d = 7 + rng() * 6, h = 7 + rng() * 4; let q = null;
         for (let k = 0; k < 120 && !q; k++) {
@@ -280,6 +280,19 @@
         if (!q) continue;
         S.scene.add(part(new THREE.BoxGeometry(w, h, d), M(bcs[i % bcs.length]), q.x, h / 2, q.z)); S.scene.add(part(new THREE.BoxGeometry(w + 0.8, 0.5, d + 0.8), M(0x5a4a3a), q.x, h + 0.25, q.z));
         S.boxes.push([q.x - w / 2, q.z - d / 2, q.x + w / 2, q.z + d / 2]);
+      }
+      // 2.101.5 塀（板塀・土塀）：見通しを切る長い壁。まわりに通り道を残して置く
+      const nf = Math.max(8, Math.round(30 * MF * MF)), fcs = [0x8a6a44, 0xd8ccb0, 0x6e5a40];
+      for (let i = 0; i < nf; i++) {
+        const L = 6 + rng() * 8, hz = rng() < 0.5, fw = hz ? L : 0.5, fd = hz ? 0.5 : L, fh = 3.4; let q = null;
+        for (let k = 0; k < 80 && !q; k++) {
+          const x = (rng() * 2 - 1) * (HX - fw / 2 - 3), z = (rng() * 2 - 1) * (HZ - fd / 2 - 3); let ok = true;
+          for (let t = -1; t <= 1.001 && ok; t += 0.25) if (blocked(x + (hz ? t * fw / 2 : 0), z + (hz ? 0 : t * fd / 2), 2.6)) ok = false;
+          if (ok) q = { x, z };
+        }
+        if (!q) continue; const c = fcs[i % fcs.length];
+        S.scene.add(part(new THREE.BoxGeometry(fw, fh, fd), M(c), q.x, fh / 2, q.z)); S.scene.add(part(new THREE.BoxGeometry(fw + 0.3, 0.25, fd + 0.3), M(0x3e3a36), q.x, fh + 0.12, q.z)); // 笠木
+        S.boxes.push([q.x - fw / 2, q.z - fd / 2, q.x + fw / 2, q.z + fd / 2]);
       }
     }
     const wells = [];
@@ -721,6 +734,11 @@
           else if (esc && solo && MY.esc) over = 'h'; else if (esc && !solo && cgt >= WN && hs.every(dnd)) over = 's'; // 2.101.1 最後の一人がダウンしていなければ続ける else if (esc && !solo && !hs.length) over = ev(); else if (!solo && !hs.length) over = 's'; else if (solo && (!alive(MY) || MY.role !== 'h')) over = 's'; else if (!solo && !ss.length && phase === 'play') over = esc ? 'k' : 'h'; else if (t >= RND) over = esc ? 's' : 'h'; // 脱出モードは10分で、時間切れは鬼の勝ち
           if (over) { done = true; this.finish(over); }
         }
+        // 2.101.5 鬼の足音：歩いている鬼の足音が聞こえる（近いほど大きく、左右も分かる）。自分の足音は鳴らさない
+        { const fsn = Math.sin(cyaw), fcs = Math.cos(cyaw), RT2 = qv ? RIGHT : [-fcs, fsn];
+          const foot = (p) => { if (!p || p === MY || !p.mv || p.form || p.out || env.gone[p.id]) { if (p) p.ftT = 0; return; } p.ftT = (p.ftT || 0) - dt; if (p.ftT > 0) return; p.ftT = 0.36 + Math.random() * 0.04;
+            const dx = p.x - MY.x, dz = p.z - MY.z, dd = Math.hypot(dx, dz), k = Math.max(0, 1 - dd / 32); if (k <= 0) return; SGK.AUDIO.foot && SGK.AUDIO.foot(k * k, dd > 0.5 ? (dx * RT2[0] + dz * RT2[1]) / dd : 0); };
+          if (!done) { for (const id of ids) if (P[id].role === 's') foot(P[id]); if (cpu) foot(cpu); } }
         // 絵に反映
         for (const id of ids) { const p = P[id]; if (p.role === 'h' && !p.form) { /* 人 */ } look(p); const gp = p.grp; if (!gp) continue; gp.visible = !p.out && !p.esc; p.bob += dt * (p.mv ? 9 : 0); const hop = p.mv ? Math.abs(Math.sin(p.bob)) * (p.form ? 0.22 : 0.08) : 0; gp.position.set(p.x, hop, p.z); gp.rotation.y = Math.atan2(p.fx, p.fz); }
         if (cpu) { cpu.grp.position.set(cpu.x, 0, cpu.z); cpu.grp.rotation.y = Math.atan2(cpu.fx, cpu.fz); }
