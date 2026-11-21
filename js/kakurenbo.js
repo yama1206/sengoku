@@ -697,7 +697,10 @@
         if (!done) {
           const hs = hiders(), ss = seekers(); let over = null;
           const escN = ids.filter((i) => P[i].esc).length, cgt = ids.filter((i) => P[i].caught0).length, nH0 = ids.filter((i) => P[i].role0 === 'h').length, WN = Math.min(nH0 <= 4 ? 3 : Math.ceil(nH0 * 0.75), nH0), ev = () => (cgt >= WN ? 's' : WN >= 2 && cgt === WN - 1 ? 'd' : escN > 0 ? 'h' : 's'); // 鬼が3人以上で勝ち・2人で引き分け
-          if (esc && solo && MY.esc) over = 'h'; else if (esc && !solo && cgt >= WN) over = 's'; else if (esc && !solo && !hs.length) over = ev(); else if (!solo && !hs.length) over = 's'; else if (solo && (!alive(MY) || MY.role !== 'h')) over = 's'; else if (!solo && !ss.length && phase === 'play') over = esc ? 'k' : 'h'; else if (t >= RND) over = esc ? 's' : 'h'; // 脱出モードは10分で、時間切れは鬼の勝ち
+          const dnd = (p) => !!p.car || p.cage != null; // 2.99.12 ダウン＝鬼に担がれている／牢に入れられている
+          const allDn = esc && phase === 'play' && hs.length > 0 && hs.every(dnd); // 脱出モード：残った逃げる側が全員ダウンしたら、その時点で終わり（助けに来られる人がいない）
+          if (allDn) { for (const p of hs) p.caught0 = true; const c2 = cgt + hs.length; over = solo ? 's' : c2 >= WN ? 's' : WN >= 2 && c2 === WN - 1 ? 'd' : escN > 0 ? 'h' : 's'; }
+          else if (esc && solo && MY.esc) over = 'h'; else if (esc && !solo && cgt >= WN) over = 's'; else if (esc && !solo && !hs.length) over = ev(); else if (!solo && !hs.length) over = 's'; else if (solo && (!alive(MY) || MY.role !== 'h')) over = 's'; else if (!solo && !ss.length && phase === 'play') over = esc ? 'k' : 'h'; else if (t >= RND) over = esc ? 's' : 'h'; // 脱出モードは10分で、時間切れは鬼の勝ち
           if (over) { done = true; this.finish(over); }
         }
         // 絵に反映
