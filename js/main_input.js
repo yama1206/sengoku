@@ -47,12 +47,13 @@ const actUp = (e) => {
 window.addEventListener('pointerup', actUp, true); window.addEventListener('pointercancel', actUp, true);
 { const tall = (e) => { if (e && e.touches && e.touches.length) return; G.tL = G.tL2 = null; G.tR = null; }; window.addEventListener('touchend', tall, true); window.addEventListener('touchcancel', tall, true); window.addEventListener('blur', () => tall(null)); } // 2.99.3 指が全部離れたら合戦の移動スティックを必ず止める
 cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.offsetX, y: e.offsetY, sx: e.offsetX, sy: e.offsetY, btn: e.button }); dragMoved = false; pinchD = 0; });
+{ const drop = (e) => { if (ptrs.delete(e.pointerId)) pinchD = 0; }; cv.addEventListener('pointercancel', drop); cv.addEventListener('lostpointercapture', drop); window.addEventListener('touchend', (e) => { if (!e.touches || !e.touches.length) { ptrs.clear(); pinchD = 0; } }, true); } // 2.101.2 スマホで指の記録が消えずに残り、ピンチで拡大・縮小できなくなっていた
 cv.addEventListener('mousemove', (e) => { G.hov = [e.offsetX, e.offsetY]; G.hovT = performance.now(); });
 cv.addEventListener('pointermove', (e) => {
   const p = ptrs.get(e.pointerId); if (!p) return;
-  if (ptrs.size === 2) {
+  if (ptrs.size >= 2) { // 2.101.2 指の記録が残っていても、最後に置いた2本でピンチする
     p.x = e.offsetX; p.y = e.offsetY;
-    const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y);
+    const [a, b] = [...ptrs.values()].slice(-2); if (p !== a && p !== b) return; const d = Math.hypot(a.x - b.x, a.y - b.y);
     if (pinchD) anyZoom(d / pinchD, (a.x + b.x) / 2, (a.y + b.y) / 2); pinchD = d; dragMoved = true; return;
   }
   const dx = e.offsetX - p.x, dy = e.offsetY - p.y; p.x = e.offsetX; p.y = e.offsetY;
