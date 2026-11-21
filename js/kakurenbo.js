@@ -268,6 +268,20 @@
     };
     const free = (r) => { for (let i = 0; i < 200; i++) { const x = (rng() * 2 - 1) * (HX - 2), z = (rng() * 2 - 1) * (HZ - 2); if (!blocked(x, z, r)) return [x, z]; } return [0, 0]; };
     // 井戸（決まった位置に5か所。最後の1人になったとき、どれか1つの蓋が開いて脱出口になる）
+    if (o.st !== 'rooms') { // 2.101.1 視線をさえぎる高い建物を必ず置く（広さに合わせた数）
+      const nb = Math.max(4, Math.round((o.st === 'street' ? 8 : 12) * MF * MF)), bcs = [0xd9cfb4, 0xcdbb94, 0xb9a98a, 0xe0d4b8, 0xc9b8a0];
+      for (let i = 0; i < nb; i++) {
+        const w = 9 + rng() * 7, d = 7 + rng() * 6, h = 7 + rng() * 4; let q = null;
+        for (let k = 0; k < 120 && !q; k++) {
+          const x = (rng() * 2 - 1) * (HX - w / 2 - 2), z = (rng() * 2 - 1) * (HZ - d / 2 - 2); if (z > HZ - d / 2 - 9) continue; let ok = true;
+          for (let a = -1; a <= 1 && ok; a++) for (let b = -1; b <= 1 && ok; b++) if (blocked(x + a * w / 2, z + b * d / 2, 2)) ok = false;
+          if (ok) q = { x, z };
+        }
+        if (!q) continue;
+        S.scene.add(part(new THREE.BoxGeometry(w, h, d), M(bcs[i % bcs.length]), q.x, h / 2, q.z)); S.scene.add(part(new THREE.BoxGeometry(w + 0.8, 0.5, d + 0.8), M(0x5a4a3a), q.x, h + 0.25, q.z));
+        S.boxes.push([q.x - w / 2, q.z - d / 2, q.x + w / 2, q.z + d / 2]);
+      }
+    }
     const wells = [];
     [[-0.55, -0.35], [0.55, -0.35], [-0.65, 0.4], [0.65, 0.4], [0, 0.05]].forEach(([ax, az], i) => {
       let wx = ax * HX, wz = az * HZ; for (let k = 0; k < 150 && blocked(wx, wz, 2.2); k++) { const a = hh(i * 31 + k) * 6.283, r = 1.5 + k * 0.4; wx = ax * HX + Math.cos(a) * r; wz = az * HZ + Math.sin(a) * r; }
@@ -618,6 +632,7 @@
         const sn = Math.sin(cyaw), cs = Math.cos(cyaw), RT = qv ? RIGHT : [-cs, sn], FW = qv ? FWD : [sn, cs];
         const [ix, iy] = inVec(), wx = RT[0] * ix + FW[0] * -iy, wz = RT[1] * ix + FW[1] * -iy, ml = Math.hypot(wx, wz);
         const act = alive(MY) && !done && !MY.car && MY.cage == null; MY.mv = 0;
+        if (!alive(MY) && !done && MY.cage == null && !MY.car && ml > 0.05) { MY.x = clamp(MY.x + wx / Math.max(1, ml) * 9 * dt, -HX + 0.5, HX - 0.5); MY.z = clamp(MY.z + wz / Math.max(1, ml) * 9 * dt, -HZ + 0.5, HZ - 0.5); MY.fx = wx / ml; MY.fz = wz / ml; MY.mv = 1; } // 2.101.1 完全に負けた人（観戦）は透明人間で、壁も通り抜けて自由に動ける
         // 担ぐ・牢・救助
         for (const c of cages) if (c.id) c.t -= dt;
         if (MY.car) { const cr = P[MY.car]; if (cr) { MY.x = cr.x; MY.z = cr.z; } }
@@ -699,11 +714,11 @@
         // 終わり？
         if (!done) {
           const hs = hiders(), ss = seekers(); let over = null;
-          const escN = ids.filter((i) => P[i].esc).length, cgt = ids.filter((i) => P[i].caught0).length, nH0 = ids.filter((i) => P[i].role0 === 'h').length, WN = Math.min(nH0 <= 4 ? 3 : Math.ceil(nH0 * 0.75), nH0), ev = () => (cgt >= WN ? 's' : WN >= 2 && cgt === WN - 1 ? 'd' : escN > 0 ? 'h' : 's'); // 鬼が3人以上で勝ち・2人で引き分け
+          const escN = ids.filter((i) => P[i].esc).length, cgt = ids.filter((i) => P[i].caught0).length, nH0 = ids.filter((i) => P[i].role0 === 'h').length, WN = Math.min(nH0 <= 4 ? 3 : Math.ceil(nH0 * 0.75), nH0), ev = () => (cgt >= WN ? (escN > 0 ? 'h' : 's') : WN >= 2 && cgt === WN - 1 ? 'd' : escN > 0 ? 'h' : 's'); // 鬼が3人以上で勝ち・2人で引き分け
           const dnd = (p) => !!p.car || p.cage != null; // 2.99.12 ダウン＝鬼に担がれている／牢に入れられている
           const allDn = esc && phase === 'play' && hs.length > 0 && hs.every(dnd); // 脱出モード：残った逃げる側が全員ダウンしたら、その時点で終わり（助けに来られる人がいない）
           if (allDn) { for (const p of hs) p.caught0 = true; const c2 = cgt + hs.length; over = solo ? 's' : c2 >= WN ? 's' : WN >= 2 && c2 === WN - 1 ? 'd' : escN > 0 ? 'h' : 's'; }
-          else if (esc && solo && MY.esc) over = 'h'; else if (esc && !solo && cgt >= WN) over = 's'; else if (esc && !solo && !hs.length) over = ev(); else if (!solo && !hs.length) over = 's'; else if (solo && (!alive(MY) || MY.role !== 'h')) over = 's'; else if (!solo && !ss.length && phase === 'play') over = esc ? 'k' : 'h'; else if (t >= RND) over = esc ? 's' : 'h'; // 脱出モードは10分で、時間切れは鬼の勝ち
+          else if (esc && solo && MY.esc) over = 'h'; else if (esc && !solo && cgt >= WN && hs.every(dnd)) over = 's'; // 2.101.1 最後の一人がダウンしていなければ続ける else if (esc && !solo && !hs.length) over = ev(); else if (!solo && !hs.length) over = 's'; else if (solo && (!alive(MY) || MY.role !== 'h')) over = 's'; else if (!solo && !ss.length && phase === 'play') over = esc ? 'k' : 'h'; else if (t >= RND) over = esc ? 's' : 'h'; // 脱出モードは10分で、時間切れは鬼の勝ち
           if (over) { done = true; this.finish(over); }
         }
         // 絵に反映
@@ -739,7 +754,7 @@
           for (const q of props) { if (q === nb || Math.hypot(q.x - MY.x, q.z - MY.z) > 9) continue; const sp3 = pv(q.x, 1.5, q.z); if (sp3) txt('◆', sp3[0], sp3[1], { al: 'center', sz: 14, c: '#e6c860' }); }
           if (nb) { const sp3 = pv(nb.x, 2.3, nb.z); if (sp3) { txt('▼', sp3[0], sp3[1] + 6, { al: 'center', sz: 22, b: 1, c: '#ffe070' }); txt(`${kk}：${KIND[nb.kind]}に化ける`, sp3[0], sp3[1] - 14, { al: 'center', sz: 16, b: 1, c: '#ffe070' }); } } }
         const rem = Math.max(0, Math.ceil(RND - t)); txt(`${Math.floor(rem / 60)}:${String(rem % 60).padStart(2, '0')}`, W / 2, 30, { al: 'center', sz: 26, b: 1 });
-        txt(`${stg.name}　${MY.role === 's' ? '探す側' : MY.esc ? '脱出成功（観戦）' : alive(MY) ? '隠れる側' : '見つかった（観戦）'}　隠れている：${solo ? (alive(MY) ? 1 : 0) : hiders().length}人`, W / 2, 52, { al: 'center', sz: 14 });
+        txt(`${stg.name}　${MY.role === 's' ? '探す側' : MY.esc ? '脱出成功（観戦・自由に動ける）' : alive(MY) ? '隠れる側' : '見つかった（観戦・自由に動ける）'}　隠れている：${solo ? (alive(MY) ? 1 : 0) : hiders().length}人`, W / 2, 52, { al: 'center', sz: 14 });
         if (MY.role === 's' && MY.form) txt(`いまの姿：${KIND[MY.form.k]}（ゆっくり動ける・Aで叩くと正体を現す）`, 16, 56, { sz: 15, c: '#ffe070' });
         
         else if (MY.form) txt(`いまの姿：${KIND[MY.form.k]}（受けるダメージ：${SZN[SZ[MY.form.k] || 'M']}）${o.mv === 'none' ? '（動けない・←→で向き）' : '（ゆっくり動ける）'}　体力 ${Math.max(0, Math.round(MY.hh))}`, 16, 30, { sz: 16, c: '#ffe070' });
