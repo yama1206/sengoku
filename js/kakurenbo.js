@@ -501,9 +501,9 @@
       },
       finish(over) {
         const ini = MY.role0, hs = ids.filter((i) => P[i].role0 === 'h'), surv = (id) => !P[id].caught0 && !env.gone[id];
-        const escN2 = ids.filter((i) => P[i].esc).length, win = ini === 'h' ? (esc ? (escN2 * 2 <= hs.length ? !!P[me].esc : over === 'h' || !!P[me].esc) : surv(me)) : over === 's'; // 脱出できたのが半分以下なら、脱出できた人だけ勝ち
+        const escN2 = ids.filter((i) => P[i].esc).length, winH = (id) => (esc ? (escN2 * 2 <= hs.length ? !!P[id].esc : over === 'h' || !!P[id].esc) : surv(id)), win = ini === 'h' ? winH(me) : over === 's', ws = hs.filter(winH).length; // 脱出できたのが半分以下なら、脱出できた人だけ勝ち
         const rows = ids.map((id) => { const p = P[id]; return `<b style="color:${col(id)}">${nm(id)}</b>（${(HD.CH[p.role0].find((x) => x.k === (p.role0 === 'h' ? p.chh : p.chs)) || {}).n}）　${p.role0 === 'h' ? (esc ? (p.esc ? '脱出成功！' : surv(id) ? '脱出できなかった' : '見つかった') : surv(id) ? '隠れきった！' : '見つかった') : `探す側：${p.caught}人見つけた`}`; });
-        env.end({ title: win ? (ini === 'h' ? (esc ? (P[me].esc ? '脱出成功！' : 'みんなの勝ち！') : '隠れきった！') : '全員見つけた！') : over === 'd' ? '引き分け！' : (ini === 'h' ? (P[me].caught0 ? '見つかってしまった…' : '脱出できなかった…') : '見つけきれなかった…'), rows, cmd: { type: 'partyResult', game: 'hide', n: ids.length, win: win ? 1 : 0, cnt: P[me].caught, role: ini } });
+        env.end({ title: win ? (ini === 'h' ? (esc ? (P[me].esc ? '脱出成功！' : 'みんなの勝ち！') : '隠れきった！') : '全員見つけた！') : over === 'd' ? '引き分け！' : (ini === 'h' ? (P[me].caught0 ? '見つかってしまった…' : '脱出できなかった…') : '見つけきれなかった…'), rows, cmd: { type: 'partyResult', game: 'hide', n: ids.length, win: win ? 1 : 0, ws, cnt: P[me].caught, role: ini } });
       },
       draw() {
         setCam(); rd.render(scene, cam);
