@@ -42,6 +42,7 @@
   // 2.80.0 逃げる側の体力は100。化けた物が大きいほど受けるダメージは少なく、小さいほど大きい（人の姿は40）
   const SZ = { cart: 'L', rock: 'L', haystack: 'L', shrine: 'L', barrel: 'L', cask: 'L', bench: 'L', crate: 'M', lantern: 'M', stone: 'M', jar: 'M', bale: 'M', firewood: 'M', sign: 'M', umbrella: 'M', bush: 'M', drum: 'M', bucket: 'S', stool: 'S', pot: 'S', tub: 'S', basket: 'S', stump: 'S', sack: 'S' };
   const DMG = { L: 25, M: 34, S: 60, H: 40 }, SZN = { L: '大きい', M: 'ふつう', S: '小さい', H: 'ふつう' };
+  const CAGE_T = 45; // 牢に入れられてから完全に負けるまで（秒）。仲間が近づいて1秒で救助できる
   const ROUND = 180, HIDE_T = 15, BEACON0 = 30, BEACON_EVERY = 22, R_HIT = 1.3, R_BIG = 3.2, SP_H = 4.2, SP_HS = 2.0, SP_S = 5.4; // 鬼の基本の速さは、逃げる側の基本（子ども5.0が最速）より速い
   const SQ = Math.SQRT1_2, RIGHT = [SQ, -SQ], FWD = [-SQ, -SQ]; // 画面の右・奥（カメラは (+,+,+) の斜め上から）
 
@@ -244,6 +245,16 @@
       if (!p) continue; p.kind = stg.kinds[Math.floor(rng() * stg.kinds.length)]; p.v = Math.floor(rng() * 3); p.rot = rng() * 6.28;
       p.m = mkProp(p.kind, p.v); p.m.position.set(p.x, 0, p.z); p.m.rotation.y = p.rot; scene.add(p.m); props.push(p);
     }
+    // 牢（鬼が体力のなくなった逃げる側を担いで運ぶ先）。全員同じ場所
+    const cages = [];
+    for (let i = 0; i < 3; i++) {
+      let q = null; for (let k = 0; k < 80 && !q; k++) { const [x, z] = free(2); if (cages.every((c) => Math.hypot(c.x - x, c.z - z) > Math.min(HX, HZ) * 0.7) && Math.abs(z - (HZ - 6)) > 6) q = { x, z }; }
+      if (!q) { const [x, z] = free(2); q = { x, z }; }
+      const cg = new THREE.Group(), wd = M(0x6b4a2a); cg.add(part(G('cgb', () => new THREE.BoxGeometry(2, 0.15, 2)), M(0x4a3018), 0, 0.08, 0)); cg.add(part(G('cgr', () => new THREE.BoxGeometry(2.3, 0.15, 2.3)), wd, 0, 2.2, 0));
+      for (let j = 0; j < 8; j++) { const a = j / 8 * 6.283; cg.add(part(G('cgp', () => new THREE.BoxGeometry(0.12, 2.1, 0.12)), wd, Math.cos(a) * 0.9, 1.1, Math.sin(a) * 0.9)); }
+      const bm = new THREE.Mesh(G('cgl', () => new THREE.CylinderGeometry(0.15, 0.15, 7, 8)), new THREE.MeshBasicMaterial({ color: 0xb060ff, transparent: true, opacity: 0.3, depthWrite: false })); bm.position.y = 3.5; cg.add(bm);
+      cg.position.set(q.x, 0, q.z); scene.add(cg); S.circs.push([q.x, q.z, 1.1]); cages.push({ x: q.x, z: q.z, id: null, t: 0, by: null, m: cg });
+    }
     // 役割（同じ種で全員同じ）
     const order = ids.slice(); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
     const nSk = solo ? 0 : 1; // 2.77.0 鬼1人・逃げる側4人
@@ -251,13 +262,13 @@
     const chOf0 = (id, r) => { const m = (cfg.mem || []).find((x) => x.id === id), c = m && m.ch && m.ch[r]; return HD.CH[r].some((x) => x.k === c) ? c : HD.CH[r][0].k; };
     order.forEach((id, i) => {
       const sk = i < nSk, [x, z] = sk ? [(i - (nSk - 1) / 2) * 2, HZ - 6] : free(0.6);
-      P[id] = { id, role: sk ? 's' : 'h', role0: sk ? 's' : 'h', x, z, tx: x, tz: z, fx: 0, fz: -1, form: null, mv: 0, hp: 3, out: false, caught: 0, stun: 0, cd: 0, fcd: 0, grp: null, key: '', bob: 0, chh: chOf0(id, 'h'), chs: chOf0(id, 's'), sk: 0, boost: 0, freeze: 0, slowT: 0, olk: 0, hh: 100, inv: 0, pan: 0, shield: false, arrowT: 0 };
+      P[id] = { id, role: sk ? 's' : 'h', role0: sk ? 's' : 'h', x, z, tx: x, tz: z, fx: 0, fz: -1, form: null, mv: 0, hp: 3, out: false, caught: 0, stun: 0, cd: 0, fcd: 0, grp: null, key: '', bob: 0, chh: chOf0(id, 'h'), chs: chOf0(id, 's'), sk: 0, boost: 0, freeze: 0, slowT: 0, olk: 0, hh: 100, inv: 0, pan: 0, car: null, carry: null, cage: null, rsT: 0, shield: false, arrowT: 0 };
     });
     const cho = (p) => (p.role === 'h' ? p.chh : p.chs), chN = (p) => (HD.CH[p.role].find((x) => x.k === cho(p)) || HD.CH[p.role][0]).n, marks = {};
     const cpu = solo ? { id: '__cpu', x: 0, z: HZ - 6, fx: 0, fz: -1, cd: 1.5, tgt: null, grp: mkYokai('oni'), mv: 0 } : null; if (cpu) scene.add(cpu.grp);
     // 脱出モード：鍵が4つ、3つ集めると鳥居の出口が開く（出口に着いた人は脱出成功）
     // 2.78.0 合図はA/B/X/Y（コントローラーはPS配置：×=A ○=B □=X △=Y）
-    const esc = o.wn === 'escape', NK = 4, NEED = 3, OPEN_W = 80, keys = [], exitP = { x: 0, z: -HZ + 3, open: false }; let kgot = 0, exM = null, exBeam = null, opening = null, qte = null, qtT = 0, pdir = null; const QK = ['a', 'b', 'x', 'y'], qq = [], padPrev = [], qrects = []; let padOn = false; const QL = (c) => (padOn ? { a: '×', b: '○', x: '□', y: '△' }[c] : c.toUpperCase()); const openCh = (q) => { if (q.lid) q.lid.rotation.x = -1.9; if (q.beam) q.beam.visible = false; };
+    const esc = o.wn === 'escape', NK = 4, NEED = 3, OPEN_W = 80, keys = [], exitP = { x: 0, z: -HZ + 3, open: false }; let kgot = 0, exM = null, exBeam = null, opening = null, rescuing = null, qte = null, qtT = 0, pdir = null; const QK = ['a', 'b', 'x', 'y'], qq = [], padPrev = [], qrects = []; let padOn = false; const QL = (c) => (padOn ? { a: '×', b: '○', x: '□', y: '△' }[c] : c.toUpperCase()); const openCh = (q) => { if (q.lid) q.lid.rotation.x = -1.9; if (q.beam) q.beam.visible = false; };
     if (esc) {
       for (let i = 0; i < NK; i++) { let q = null; for (let k = 0; k < 80 && !q; k++) { const [x, z] = free(1); if (z < HZ - 7 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 8)) q = { x, z }; } if (!q) { const [x, z] = free(1); q = { x, z }; } q.got = false; const gk = new THREE.Group(), GD = new THREE.MeshLambertMaterial({ color: 0xf2c14e, emissive: 0x806010 }); gk.add(part(G('chb', () => new THREE.BoxGeometry(1.2, 0.7, 0.75)), M(0x7a4a22), 0, 0.35, 0)); const lid = new THREE.Group(); lid.position.set(0, 0.7, -0.37); const lm = part(G('chl', () => new THREE.CylinderGeometry(0.375, 0.375, 1.2, 12, 1, false, 0, Math.PI)), M(0x8a5a2a), 0, 0, 0.37); lm.rotation.z = Math.PI / 2; lm.rotation.y = Math.PI / 2; lid.add(lm); gk.add(lid); q.lid = lid; for (const x of [-0.45, 0.45]) gk.add(part(G('chg', () => new THREE.BoxGeometry(0.1, 0.75, 0.8)), GD, x, 0.37, 0)); gk.add(part(G('chk', () => new THREE.BoxGeometry(0.2, 0.22, 0.08)), GD, 0, 0.6, 0.4)); const bm = new THREE.Mesh(G('kyl', () => new THREE.CylinderGeometry(0.1, 0.1, 3, 8)), new THREE.MeshBasicMaterial({ color: 0xffe070, transparent: true, opacity: 0.35, depthWrite: false })); bm.position.y = 1.9; gk.add(bm); q.beam = bm; q.pr = 0; { const ef = new THREE.LineSegments(new THREE.EdgesGeometry(G('chf', () => new THREE.BoxGeometry(1.8, 1.4, 1.4))), new THREE.LineBasicMaterial({ color: 0xff2a2a, depthTest: false, transparent: true })), ff = new THREE.Mesh(G('chf', () => new THREE.BoxGeometry(1.8, 1.4, 1.4)), new THREE.MeshBasicMaterial({ color: 0xff2a2a, depthTest: false, transparent: true, opacity: 0.22 })); const fr = new THREE.Group(); fr.add(ef, ff); fr.position.y = 0.55; fr.renderOrder = 999; ef.renderOrder = ff.renderOrder = 999; fr.visible = false; gk.add(fr); q.frame = fr; } gk.position.set(q.x, 0, q.z); scene.add(gk); q.m = gk; gk.rotation.y = hh(keys.length + 9) * 6.28; keys.push(q); }
       for (let k = 0; k < 80; k++) { const [x, z] = free(2.5); if (z < -HZ * 0.25 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 5)) { exitP.x = x; exitP.z = z; break; } }
@@ -316,7 +327,7 @@
     const tell = (m) => send(env.others, m);
     // 叩く
     const strike = (p, big) => {
-      if (p.cd > 0 || p.stun > 0) return; p.cd = 0.8; const R = big ? R_BIG : R_HIT, off = big ? 1.5 : 1.2, x = p.x + p.fx * off, z = p.z + p.fz * off; FX.push({ x, z, t: 0.25, bad: false, big }); SGK.AUDIO.sfx(big ? 'hit' : 'slash');
+      if (p.cd > 0 || p.stun > 0 || (p === MY && MY.carry)) return; p.cd = 0.8; const R = big ? R_BIG : R_HIT, off = big ? 1.5 : 1.2, x = p.x + p.fx * off, z = p.z + p.fz * off; FX.push({ x, z, t: 0.25, bad: false, big }); SGK.AUDIO.sfx(big ? 'hit' : 'slash');
       if (p === MY) { tell({ k: 'hs', id: me, x: r2(x), z: r2(z), r: R }); pend = { t: 0.5, x, z, R, ok: false }; }
     };
     const addDecoy = (x, z, kd, v, rot) => { const q = { x, z, kind: kd, v, rot, dc: 1, m: mkProp(kd, v) }; q.m.position.set(x, 0, z); q.m.rotation.y = rot; scene.add(q.m); props.push(q); };
@@ -338,16 +349,18 @@
       if (ok) MY.sk = def.cd;
     };
     const caught = (id, by) => {
-      const p = P[id]; if (!p || p.role !== 'h') return; p.form = null; p.caught0 = true; if (o.cau === 'out') p.out = true; else { p.role = 's'; p.hp = 3; }
+      const p = P[id]; if (!p || p.role !== 'h') return; p.form = null; if (p.car && P[p.car]) P[p.car].carry = null; p.car = null; p.cage = null; cages.forEach((c) => { if (c.id === id) c.id = null; }); p.caught0 = true; if (o.cau === 'out') p.out = true; else { p.role = 's'; p.hp = 3; }
       if (P[by]) P[by].caught++; say(`${nm(id)}が見つかった！`); SGK.AUDIO.sfx('hit');
     };
+    const applyCage = (i, id, by) => { const c = cages[i], h = P[id]; if (!c || !h || c.id) return; c.id = id; c.t = CAGE_T; c.by = by; h.car = null; h.cage = i; if (P[by]) P[by].carry = null; if (id === me) { MY.x = c.x; MY.z = c.z; say('牢に入れられた…仲間の救助を待て'); } else say(`${nm(id)}が牢に入れられた`); SGK.AUDIO.sfx('open'); };
+    const applyRescue = (i) => { const c = cages[i]; if (!c || !c.id) return; const id = c.id, h = P[id]; c.id = null; if (h) { h.cage = null; if (id === me) { MY.hh = 50; MY.inv = 2; MY.pan = 3; say('救助された！'); } else say(`${nm(id)}が救助された！`); } SGK.AUDIO.sfx('coin'); };
     const hurt = (p) => { if (cho(p) !== 'oni') p.hp--; p.stun = cho(p) === 'kappa' ? 0.4 : 1; FX.push({ x: p.x, z: p.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('gbLose'); if (p === MY) { tell({ k: 'hl', id: me, hp: p.hp }); say(p.hp > 0 ? (cho(p) === 'oni' ? '外れ！ ただの置物だった' : '外れ！ ただの置物だった（体力-1）') : '体力がなくなった…'); } };
 
     const game = {
       msg(from, m) {
         const p = P[m.id || from];
         if (m.k === 'hp') { const q = P[from]; if (!q) return; q.tx = m.x; q.tz = m.z; q.fx = m.fx; q.fz = m.fz; q.mv = m.m; const f = m.f ? { k: m.f[0], v: m.f[1] } : null; if (q.role === 'h') q.form = f; }
-        else if (m.k === 'hs') { if (MY.role === 'h' && alive(MY) && phase !== 'end' && Math.hypot(m.x - MY.x, m.z - MY.z) < (m.r || R_HIT) * (cho(MY) === 'kodomo' ? 0.78 : 1)) { if (MY.shield) { MY.shield = false; tell({ k: 'hb', by: m.id }); say('お札が鬼の一撃を防いだ！'); SGK.AUDIO.sfx('open'); } else if (MY.inv > 0) { tell({ k: 'hc', id: me, by: m.id, d: 1 }); } else { MY.hh -= DMG[MY.form ? SZ[MY.form.k] || 'M' : 'H']; if (MY.hh <= 0) { caught(me, m.id); tell({ k: 'hc', id: me, by: m.id }); } else { MY.inv = 1; MY.pan = 3; FX.push({ x: MY.x, z: MY.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); say(`ダメージ！ 体力${Math.round(MY.hh)}　しばらく足が速い！`); tell({ k: 'hc', id: me, by: m.id, d: 1 }); } } } }
+        else if (m.k === 'hs') { if (MY.role === 'h' && alive(MY) && phase !== 'end' && Math.hypot(m.x - MY.x, m.z - MY.z) < (m.r || R_HIT) * (cho(MY) === 'kodomo' ? 0.78 : 1)) { if (MY.car || MY.cage != null) { tell({ k: 'hc', id: me, by: m.id, d: 1 }); } else if (MY.shield) { MY.shield = false; tell({ k: 'hb', by: m.id }); say('お札が鬼の一撃を防いだ！'); SGK.AUDIO.sfx('open'); } else if (MY.inv > 0) { tell({ k: 'hc', id: me, by: m.id, d: 1 }); } else { MY.hh -= DMG[MY.form ? SZ[MY.form.k] || 'M' : 'H']; if (MY.hh <= 0) { MY.hh = 0; MY.car = m.id; MY.form = null; if (P[m.id]) P[m.id].carry = me; FX.push({ x: MY.x, z: MY.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); say('動けない！鬼に担がれた…'); tell({ k: 'hc', id: me, by: m.id, d: 1, dn: 1 }); } else { MY.inv = 1; MY.pan = 3; FX.push({ x: MY.x, z: MY.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); say(`ダメージ！ 体力${Math.round(MY.hh)}　しばらく足が速い！`); tell({ k: 'hc', id: me, by: m.id, d: 1 }); } } } }
         else if (m.k === 'hb') { if (m.by === me) { MY.stun = 1.2; if (pend) pend.ok = true; say('お札にはじかれた！'); } }
         else if (m.k === 'qf') { const q2 = P[m.id]; if (q2) q2.olk = 1; if (MY.role === 's' && alive(MY)) { nzo = { x: m.x, z: m.z, t: 4 }; FX.push({ x: m.x, z: m.z, t: 0.6, bad: true }); SGK.AUDIO.sfx('hit'); say('宝箱のほうで物音がした！'); } }
         else if (m.k === 'tr') { addTrap(m.tid, m.x, m.z); }
@@ -365,7 +378,9 @@
             else if (m.s === 'kappa' && d < 6 && dot > 0.5) { marks[me] = 6; tell({ k: 'mk', id: me }); say('水をかけられた！しばらく光って見える'); }
             else if (m.s === 'yuki' && d < 7) { MY.freeze = 3; say('吹雪で動けない！'); } }
         }
-        else if (m.k === 'hc') { if (P[m.id] && P[m.id].role === 'h') { if (m.d) { if (m.id !== me) { FX.push({ x: P[m.id].x, z: P[m.id].z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); } } else caught(m.id, m.by); } if (m.by === me && pend) pend.ok = true; }
+        else if (m.k === 'hc') { if (P[m.id] && P[m.id].role === 'h') { if (m.d) { if (m.dn) { const h = P[m.id], sk = P[m.by]; if (h && sk && sk.role === 's') { h.car = m.by; sk.carry = m.id; h.form = null; if (m.by === me) say(`${nm(m.id)}を担いだ！牢へ運べ`); else if (m.id !== me) say(`${nm(m.id)}が担がれた！`); } } if (m.id !== me) { FX.push({ x: P[m.id].x, z: P[m.id].z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); } } else caught(m.id, m.by); } if (m.by === me && pend) pend.ok = true; }
+        else if (m.k === 'cg') { applyCage(m.i, m.id, m.by); }
+        else if (m.k === 'rs') { applyRescue(m.i); }
         else if (m.k === 'hl') { if (p) p.hp = m.hp; }
       },
       update(dt) {
@@ -376,13 +391,19 @@
         { const gp = (navigator.getGamepads ? navigator.getGamepads() : []).find((x) => x && x.connected); if (gp && !qv && Math.abs(gp.axes[2]) > 0.2) cyaw -= gp.axes[2] * 2.6 * dt; }
         const sn = Math.sin(cyaw), cs = Math.cos(cyaw), RT = qv ? RIGHT : [-cs, sn], FW = qv ? FWD : [sn, cs];
         const [ix, iy] = inVec(), wx = RT[0] * ix + FW[0] * -iy, wz = RT[1] * ix + FW[1] * -iy, ml = Math.hypot(wx, wz);
-        const act = alive(MY) && !done; MY.mv = 0;
+        const act = alive(MY) && !done && !MY.car && MY.cage == null; MY.mv = 0;
+        // 担ぐ・牢・救助
+        for (const c of cages) if (c.id) c.t -= dt;
+        if (MY.car) { const cr = P[MY.car]; if (cr) { MY.x = cr.x; MY.z = cr.z; } }
+        else if (MY.cage != null) { const c = cages[MY.cage]; MY.x = c.x; MY.z = c.z; if (c.t <= 0 && !done) { const by = c.by; c.id = null; caught(me, by); tell({ k: 'hc', id: me, by }); } }
+        if (MY.role === 's' && MY.carry && alive(MY)) { const ci = cages.findIndex((c) => !c.id && Math.hypot(c.x - MY.x, c.z - MY.z) < 1.8); if (ci >= 0) { const id = MY.carry; tell({ k: 'cg', i: ci, id, by: me }); applyCage(ci, id, me); } }
+        rescuing = null; if (MY.role === 'h' && act && !MY.form) { cages.forEach((c, i) => { if (c.id && c.id !== me && Math.hypot(c.x - MY.x, c.z - MY.z) < 1.8) rescuing = i; }); if (rescuing != null) { MY.rsT += dt; if (MY.rsT >= 1) { MY.rsT = 0; tell({ k: 'rs', i: rescuing }); applyRescue(rescuing); rescuing = null; } } else MY.rsT = 0; } else MY.rsT = 0;
         if (act && MY.stun <= 0) {
           const locked = (MY.role === 's' && phase === 'hide') || !!qte;
           const dis = MY.role === 'h' && MY.form;
           if (!locked && MY.freeze <= 0 && ml > 0.05) {
             if (dis && o.mv === 'none') { const a = Math.atan2(MY.fx, MY.fz) - ix * 3 * dt; MY.fx = Math.sin(a); MY.fz = Math.cos(a); }
-            else { const c = cho(MY); let sp; if (MY.role === 's') { sp = c === 'tengu' ? 6.0 : SP_S; if (MY.slowT > 0) sp *= 0.5; } else { sp = dis ? (c === 'shonin' ? 3.2 : c === 'kariudo' ? 2.6 : SP_HS) : (c === 'kodomo' ? 5.0 : SP_H); if (MY.pan > 0) sp *= 1.5; if (MY.boost > 0) sp *= c === 'dorobo' ? 1.6 : 1.8; if (seekers().some((q) => q.id !== me && cho(q) === 'yuki' && Math.hypot(q.x - MY.x, q.z - MY.z) < 3.5)) sp *= 0.85; } moveBy(MY, wx / Math.max(1, ml) * sp * dt, wz / Math.max(1, ml) * sp * dt, 0.4); MY.fx = wx / ml; MY.fz = wz / ml; MY.mv = 1; }
+            else { const c = cho(MY); let sp; if (MY.role === 's') { sp = c === 'tengu' ? 6.0 : SP_S; if (MY.carry) sp *= 0.85; if (MY.slowT > 0) sp *= 0.5; } else { sp = dis ? (c === 'shonin' ? 3.2 : c === 'kariudo' ? 2.6 : SP_HS) : (c === 'kodomo' ? 5.0 : SP_H); if (MY.pan > 0) sp *= 1.5; if (MY.boost > 0) sp *= c === 'dorobo' ? 1.6 : 1.8; if (seekers().some((q) => q.id !== me && cho(q) === 'yuki' && Math.hypot(q.x - MY.x, q.z - MY.z) < 3.5)) sp *= 0.85; } moveBy(MY, wx / Math.max(1, ml) * sp * dt, wz / Math.max(1, ml) * sp * dt, 0.4); MY.fx = wx / ml; MY.fz = wz / ml; MY.mv = 1; }
           }
           if (IN.aT && !qte) {
             if (MY.role === 's') { if (!locked) strike(MY); }
@@ -488,6 +509,11 @@
           if (cho(MY) === 'neko') for (const q of hiders()) if (q.id !== me && q.mv && Math.hypot(q.x - MY.x, q.z - MY.z) < 8) { const [sx, sy] = pj(q.x, 2.1, q.z); txt('？', sx, sy, { al: 'center', sz: 26, b: 1, c: '#ffe070' }); }
           if (MY.arrowT > 0) { let b = null, bd = 1e9; for (const q of hiders()) { if (q.id === me) continue; const d = Math.hypot(q.x - MY.x, q.z - MY.z); if (d < bd) { bd = d; b = q; } } if (b) { const [ax, ay] = pj(MY.x, 1, MY.z), [bx, by] = pj(b.x, 1, b.z), l = Math.hypot(bx - ax, by - ay) || 1, ux = (bx - ax) / l, uy = (by - ay) / l; txt('➤', ax + ux * 110, ay + uy * 110, { al: 'center', sz: 30, c: '#ffe070' }); txt(`${Math.round(bd)}m`, ax + ux * 140, ay + uy * 140 + 6, { al: 'center', sz: 14, c: '#ffe070' }); } }
         }
+        for (const c of cages) if (c.id) { const [sx, sy] = pj(c.x, 3.2, c.z); txt(`牢 あと${Math.max(0, Math.ceil(c.t))}秒`, sx, sy, { al: 'center', sz: 16, c: '#e0b0ff' }); }
+        if (MY.car) txt('鬼に担がれている…', W / 2, H * 0.62, { al: 'center', sz: 22, c: '#ffb0b0' });
+        else if (MY.cage != null) txt(`牢の中… あと${Math.max(0, Math.ceil(cages[MY.cage].t))}秒で完全に負け（仲間の救助を待つ）`, W / 2, H * 0.62, { al: 'center', sz: 18, c: '#e0b0ff' });
+        if (MY.carry && MY.role === 's') txt(`${nm(MY.carry)}を担いでいる → 牢へ運べ（紫の光の所）`, W / 2, H * 0.62, { al: 'center', sz: 18, c: '#ffd0a0' });
+        if (rescuing != null) { const k = Math.min(1, MY.rsT / 1); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(W / 2 - 80, H * 0.66, 160, 14); g.fillStyle = '#9affb0'; g.fillRect(W / 2 - 78, H * 0.66 + 2, 156 * k, 10); txt('救助中…', W / 2, H * 0.66 - 6, { al: 'center', sz: 15, c: '#c8ffd0' }); }
         if (esc && opening) { const k = Math.min(1, opening.pr / OPEN_W); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(W / 2 - 110, H * 0.7, 220, 16); g.fillStyle = '#ffd24a'; g.fillRect(W / 2 - 108, H * 0.7 + 2, 216 * k, 12); txt(qte ? '' : MY.olk > 0 ? '中断中…' : '宝箱を開けている…（動かない・化けない／12秒ごとに合図）', W / 2, H * 0.7 - 8, { al: 'center', sz: 15, c: '#ffe9a0' }); }
         if (qte) { const bw = 54, x0 = W / 2 - bw * 2 - 9, y0 = H * 0.42; g.fillStyle = 'rgba(0,0,0,.65)'; g.fillRect(x0 - 12, y0 - 40, bw * 4 + 54, bw + 74); txt('この順に押す！', W / 2, y0 - 18, { al: 'center', sz: 16, c: '#ffe9a0' }); qte.seq.forEach((c, i2) => { g.fillStyle = i2 < qte.i ? '#4aa84a' : i2 === qte.i ? '#f2c14e' : '#6a5a3a'; g.fillRect(x0 + i2 * (bw + 6), y0, bw, bw); txt(QL(c), x0 + i2 * (bw + 6) + bw / 2, y0 + bw / 2 + 10, { al: 'center', sz: 28, c: '#1a1208' }); }); g.fillStyle = '#ffd24a'; g.fillRect(x0, y0 + bw + 10, (bw * 4 + 18) * Math.max(0, qte.t / 6), 8);
           qrects.length = 0; QK.forEach((c, i2) => { const rx = x0 + i2 * (bw + 6), ry = y0 + bw + 30; qrects.push([rx, ry, bw, bw, c]); g.fillStyle = '#3a6a9a'; g.fillRect(rx, ry, bw, bw); txt(QL(c), rx + bw / 2, ry + bw / 2 + 10, { al: 'center', sz: 26, c: '#fff' }); }); txt('キー：Space=A　X=B　C=X　V=Y　／　画面のボタンも押せます', W / 2, y0 + bw * 2 + 52, { al: 'center', sz: 13, c: '#e8dcc0' }); } else qrects.length = 0;
