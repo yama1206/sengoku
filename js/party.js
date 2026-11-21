@@ -58,6 +58,21 @@
   function closeLobby(tell) { if (LB && tell && !LB.lead) send([LB.leader], { k: 'leave', rid: LB.rid }); if (LB && LB.lead) send(memIds(), { k: 'mem', rid: LB.rid, g: LB.g, mem: [], closed: 1 }); LB = null; const b = document.getElementById('ptBox'); if (b) b.remove(); }
   function pushMem() { if (LB && LB.lead) send(memIds(), { k: 'mem', rid: LB.rid, g: LB.g, mem: LB.mem, team: LB.team, mode: LB.mode, o: LB.o }); }
   function vwGet() { let v = 'tp'; try { v = localStorage.getItem('sgk-hide-vw') || 'tp'; } catch (er) {} return v === 'fp' ? v : 'tp'; }
+  // 2.98.0 かくれんぼの操作設定（部屋の「操作設定」）。変えたい項目を選んでキー／ボタンを押す
+  function keysHtml() {
+    const H = SGK.HIDE, c = H.keys(), sel = LB.kc.sel;
+    const row = (id, n, v) => `<button data-a="ks:${id}" style="${sel === id ? 'background:#a0702e;' : ''}">${n}：<b>${sel === id ? '押してください…（Escで取り消し）' : v}</b></button>`;
+    return `<div><h2>操作設定（かくれんぼ？）</h2><div class="d">変えたい項目を選んでから、キーボードのキー／コントローラーのボタンを押すと決まります（コントローラーはPS配置：×○□△）。移動のスティック・十字キーと、視点のスティックは変えられません</div><div style="max-height:56vh;overflow:auto"><b>キーボード</b>${H.KA.map(([k, n]) => row('k:' + k, n, c.kb[k].map(H.kn).join('・') || '未設定')).join('')}<b>コントローラー</b>${H.KP.map(([k, n]) => row('p:' + k, n, c.pd[k].map(H.pn).join('・') || '未設定')).join('')}</div><div><button data-a="kr">初期設定に戻す</button><button data-a="kx">閉じる</button></div></div>`;
+  }
+  let capK = false, capT = 0, capPrev = [];
+  function capOn() {
+    if (!capK) { capK = true; addEventListener('keydown', (e) => { if (!LB || !LB.kc || !LB.kc.sel || !LB.kc.sel.startsWith('k:')) return; e.preventDefault(); e.stopPropagation(); if (e.key !== 'Escape') SGK.HIDE.setKey(LB.kc.sel.slice(2), e.key); LB.kc.sel = null; drawLobby(); }, true); }
+    clearInterval(capT); capPrev = []; // コントローラーのボタンを待つ
+    capT = setInterval(() => {
+      if (!LB || !LB.kc) { clearInterval(capT); return; } const gp = (navigator.getGamepads ? navigator.getGamepads() : []).find((g) => g && g.connected); if (!gp) return;
+      const sel = LB.kc.sel; gp.buttons.forEach((b, i) => { const on = !!b.pressed; if (on && !capPrev[i] && sel && sel.startsWith('p:')) { SGK.HIDE.setPad(sel.slice(2), i); LB.kc.sel = null; drawLobby(); } capPrev[i] = on; });
+    }, 60);
+  }
   function pickHtml() { // 2.73.0 キャラ一覧（見た目・パッシブ・アクティブを見比べる）
     const r = LB.pk, L = SGK.HIDE.CH[r], cur = myCh()[r];
     return `<div><h2>${r === 'h' ? '逃げる時のキャラ' : '鬼の時のキャラ'}</h2><div class="d">選ぶと決まります</div><div style="max-height:62vh;overflow:auto">${L.map((x) => { const im = SGK.HIDE.preview(r, x.k); return `<button data-a="pk:${x.k}" style="display:flex;gap:8px;align-items:center;${x.k === cur ? 'background:#a0702e;' : ''}">${im ? `<img src="${im}" width="60" height="75" style="flex:none">` : ''}<span><b>${x.n}</b>${x.k === cur ? '（いま選んでいる）' : ''}<br><span style="font-size:12px;color:#cdbf9a">パッシブ：${x.pa}<br>スキル：${x.ac}（${x.cd}秒）</span></span></button>`; }).join('')}</div><div><button data-a="pkx">もどる</button></div></div>`;
@@ -65,8 +80,8 @@
   function drawLobby() {
     if (!LB) return; const d = GAMES[LB.g], e = box('ptBox'), n = LB.mem.length;
     const list = LB.mem.map((x, i) => `<div class="m">${LB.team ? `<b style="color:${TEAM[i % 2].c}">${TEAM[i % 2].n}</b> ` : ''}${esc(x.name)}${x.id === LB.leader ? '（リーダー）' : ''}${d.opts && x.vol ? '<span style="font-size:12px;color:#ffb0a0">　【鬼に立候補】</span>' : ''}${d.opts && x.ch ? `<span style="font-size:12px;color:#cdbf9a">　逃げ：${chName('h', x.ch.h)}／鬼：${chName('s', x.ch.s)}</span>` : ''}</div>`).join('');
-    e.innerHTML = LB.pk ? pickHtml() : `<div><h2>${d.name}</h2><div><button data-a="desc">ゲーム説明${LB.desc ? '（閉じる）' : ''}</button></div>${LB.desc ? `<div class="d">${esc(d.desc)}</div>` : ''}<div>参加者 ${n}/${d.max}人${LB.team ? '（チーム戦：交互に赤・白）' : ''}${d.opts && LB.o ? `<div style="font-size:13px;color:#cdbf9a">${optTxt(LB.o)}</div>` : ''}${d.mode ? `　勝ち方：${LB.mode === 'big' ? '大物（いちばん大きい魚）' : '数（釣った数）'}` : ''}</div>${list}
-      ${d.opts ? (() => { const c = myCh(), H = SGK.HIDE.CH, a = H.h.find((x) => x.k === c.h), b = H.s.find((x) => x.k === c.s); return `<div style="margin-top:6px;font-size:12px;color:#cdbf9a"><b>逃げる時：${a.n}</b>　${a.pa}／${a.ac}<br><b>鬼の時：${b.n}</b>　${b.pa}／${b.ac}</div><div><button data-a="ch:h">逃げる時のキャラを選ぶ</button><button data-a="ch:s">鬼の時のキャラを選ぶ</button><button data-a="vol">${(LB.mem.find((y) => y.id === ENV.me()) || {}).vol ? '鬼に立候補をやめる' : '鬼に立候補する'}</button><button data-a="vw">視点：${({ tp: '三人称（うしろから）', fp: '一人称' })[vwGet()]}（変える）</button></div>`; })() : ''}
+    e.innerHTML = LB.kc ? keysHtml() : LB.pk ? pickHtml() : `<div><h2>${d.name}</h2><div><button data-a="desc">ゲーム説明${LB.desc ? '（閉じる）' : ''}</button></div>${LB.desc ? `<div class="d">${esc(d.desc)}</div>` : ''}<div>参加者 ${n}/${d.max}人${LB.team ? '（チーム戦：交互に赤・白）' : ''}${d.opts && LB.o ? `<div style="font-size:13px;color:#cdbf9a">${optTxt(LB.o)}</div>` : ''}${d.mode ? `　勝ち方：${LB.mode === 'big' ? '大物（いちばん大きい魚）' : '数（釣った数）'}` : ''}</div>${list}
+      ${d.opts ? (() => { const c = myCh(), H = SGK.HIDE.CH, a = H.h.find((x) => x.k === c.h), b = H.s.find((x) => x.k === c.s); return `<div style="margin-top:6px;font-size:12px;color:#cdbf9a"><b>逃げる時：${a.n}</b>　${a.pa}／${a.ac}<br><b>鬼の時：${b.n}</b>　${b.pa}／${b.ac}</div><div><button data-a="ch:h">逃げる時のキャラを選ぶ</button><button data-a="ch:s">鬼の時のキャラを選ぶ</button><button data-a="vol">${(LB.mem.find((y) => y.id === ENV.me()) || {}).vol ? '鬼に立候補をやめる' : '鬼に立候補する'}</button><button data-a="kc">操作設定（キー・ボタン）</button><button data-a="vw">視点：${({ tp: '三人称（うしろから）', fp: '一人称' })[vwGet()]}（変える）</button></div>`; })() : ''}
       <div style="margin-top:8px">${LB.lead ? `${d.opts && LB.o ? '<button data-a="o:wn">勝ち方を変える</button>' : ''}<button data-a="inv">同じ町の人を誘う</button>${d.team ? `<button data-a="team">${LB.team ? '個人戦にする' : 'チーム戦にする'}</button>` : ''}${d.mode ? '<button data-a="mode">勝ち方を変える</button>' : ''}${d.opts && LB.o ? SGK.HIDE.OPTS.filter((op) => op.k !== 'wn').map((op) => `<button data-a="o:${op.k}">${op.n}を変える</button>`).join('') : ''}${n >= 2 ? '<button data-a="go">出発する</button>' : ''}<button data-a="solo">ひとりで練習（報酬なし）</button>` : '<div class="d">リーダーが出発すると始まります</div>'}<button data-a="close">${LB.lead ? 'やめる' : '抜ける'}</button></div></div>`;
     try { if (typeof setFocus === 'function') setFocus(e, currentFocus(e)); } catch (er) {} // 2.69.2 作り直してもコントローラーの選択を保つ
     e.onclick = (ev) => {
@@ -76,6 +91,10 @@
       else if (a === 'mode') { LB.mode = LB.mode === 'big' ? 'num' : 'big'; pushMem(); drawLobby(); }
       else if (a.startsWith('o:') && LB.lead && LB.o) { const op = SGK.HIDE.OPTS.find((x) => x.k === a.slice(2)); if (op) { const i = op.v.findIndex((x) => x[0] === LB.o[op.k]); LB.o[op.k] = op.v[(i + 1) % op.v.length][0]; pushMem(); drawLobby(); } }
       else if (a === 'ch:h' || a === 'ch:s') { LB.pk = a.slice(3); drawLobby(); }
+      else if (a === 'kc') { LB.kc = { sel: null }; capOn(); drawLobby(); }
+      else if (a === 'kx') { LB.kc = null; drawLobby(); }
+      else if (a === 'kr') { SGK.HIDE.resetKeys(); if (LB.kc) LB.kc.sel = null; drawLobby(); }
+      else if (a.startsWith('ks:')) { if (LB.kc) LB.kc.sel = a.slice(3); drawLobby(); }
       else if (a === 'vw') { try { localStorage.setItem('sgk-hide-vw', vwGet() === 'tp' ? 'fp' : 'tp'); } catch (er) {} drawLobby(); }
       else if (a === 'desc') { LB.desc = !LB.desc; drawLobby(); }
       else if (a === 'pkx') { LB.pk = null; drawLobby(); }
@@ -118,15 +137,15 @@
   function bindKeys() {
     if (keysBound) return; keysBound = true;
     const map = { ArrowLeft: 'l', a: 'l', A: 'l', ArrowRight: 'r', d: 'r', D: 'r', ArrowUp: 'u', w: 'u', W: 'u', ArrowDown: 'd', s: 'd', S: 'd', ' ': 'a', e: 'c', E: 'c', q: 'c', Q: 'c', z: 'a', Z: 'a', Enter: 'a', x: 'b', X: 'b', Shift: 'b', f: 'a', F: 'a', j: 'b', J: 'b' };
-    addEventListener('keydown', (e) => { if (!RUN) return; const k = map[e.key]; if (!k) return; e.preventDefault(); if (!IN[k] && !e.repeat) { if (k === 'a') { IN.aT = 1; IN.aAt = performance.now(); } if (k === 'b') { IN.bT = 1; IN.bAt = performance.now(); } if (k === 'c') IN.cT = 1; if (k === 'l') IN.lT = 1; if (k === 'r') IN.rT = 1; } IN[k] = 1; });
-    addEventListener('keyup', (e) => { if (!RUN) return; const k = map[e.key]; if (k) { e.preventDefault(); IN[k] = 0; } });
+    addEventListener('keydown', (e) => { if (!RUN) return; const k = (RUN.g === 'hide' ? SGK.HIDE.keyMap() : map)[e.key]; if (!k) return; e.preventDefault(); if (!IN[k] && !e.repeat) { if (k === 'a') { IN.aT = 1; IN.aAt = performance.now(); } if (k === 'b') { IN.bT = 1; IN.bAt = performance.now(); } if (k === 'c') IN.cT = 1; if (k === 'l') IN.lT = 1; if (k === 'r') IN.rT = 1; } IN[k] = 1; });
+    addEventListener('keyup', (e) => { if (!RUN) return; const k = (RUN.g === 'hide' ? SGK.HIDE.keyMap() : map)[e.key]; if (k) { e.preventDefault(); IN[k] = 0; } });
   }
   let padC = false, padA = false, padB = false, padL = false, padR = false;
   function readPad() {
     const gp = (navigator.getGamepads ? navigator.getGamepads() : []).find((g) => g && g.connected); if (!gp) return { x: 0, y: 0 };
-    const x = Math.abs(gp.axes[0]) > 0.2 ? gp.axes[0] : 0, y = Math.abs(gp.axes[1]) > 0.2 ? gp.axes[1] : 0, a = !!(gp.buttons[0] && gp.buttons[0].pressed), b = !!(gp.buttons[2] && gp.buttons[2].pressed || gp.buttons[1] && gp.buttons[1].pressed);
+    const x = Math.abs(gp.axes[0]) > 0.2 ? gp.axes[0] : 0, y = Math.abs(gp.axes[1]) > 0.2 ? gp.axes[1] : 0, hk = RUN && RUN.g === 'hide' ? SGK.HIDE.keys().pd : null, pr = (ls) => ls.some((i) => gp.buttons[i] && gp.buttons[i].pressed), a = hk ? pr(hk.pa) : !!(gp.buttons[0] && gp.buttons[0].pressed), b = hk ? pr(hk.pb) : !!(gp.buttons[2] && gp.buttons[2].pressed || gp.buttons[1] && gp.buttons[1].pressed);
     const l = x < -0.5 || !!(gp.buttons[14] && gp.buttons[14].pressed), r = x > 0.5 || !!(gp.buttons[15] && gp.buttons[15].pressed);
-    if (a && !padA) IN.aT = 1; if (b && !padB) IN.bT = 1; padB = b; if (l && !padL) IN.lT = 1; if (r && !padR) IN.rT = 1; { const cc = !!(gp.buttons[3] && gp.buttons[3].pressed); if (cc && !padC) IN.cT = 1; padC = cc; } padA = a; padL = l; padR = r; IN.pa = a; IN.pb = b; IN.pu = y < -0.5 || !!(gp.buttons[12] && gp.buttons[12].pressed);
+    if (a && !padA) IN.aT = 1; if (b && !padB) IN.bT = 1; padB = b; if (l && !padL) IN.lT = 1; if (r && !padR) IN.rT = 1; { const cc = hk ? pr(hk.pc) : !!(gp.buttons[3] && gp.buttons[3].pressed); if (cc && !padC) IN.cT = 1; padC = cc; } padA = a; padL = l; padR = r; IN.pa = a; IN.pb = b; IN.pu = y < -0.5 || !!(gp.buttons[12] && gp.buttons[12].pressed);
     return { x, y };
   }
   function startGame(cfg) {

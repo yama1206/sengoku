@@ -206,6 +206,27 @@
   HD.STAGES = STAGES;
 
   // ---------------- 遊びの本体 ----------------
+  // 2.98.0 かくれんぼの操作設定（キーボードのキー・コントローラーのボタン。部屋の「操作設定」から変えられる）
+  const KDEF = { l: ['ArrowLeft', 'a'], r: ['ArrowRight', 'd'], u: ['ArrowUp', 'w'], d: ['ArrowDown', 's'], a: [' ', 'z', 'Enter', 'f'], b: ['x', 'Shift', 'j'], c: ['e', 'q'], qx: ['c'], qy: ['v'] };
+  const PDEF = { pa: [0], pb: [2, 1], pc: [3], qa: [0], qb: [1], qx: [2], qy: [3] }; // PS配置：0=× 1=○ 2=□ 3=△
+  HD.KA = [['u', '上へ移動'], ['d', '下へ移動'], ['l', '左へ移動'], ['r', '右へ移動'], ['a', '叩く／化ける（A）'], ['b', '人・鬼の姿に戻る（B）'], ['c', 'スキル'], ['qx', '宝箱の合図：X'], ['qy', '宝箱の合図：Y']];
+  HD.KP = [['pa', '叩く／化ける'], ['pb', '人・鬼の姿に戻る'], ['pc', 'スキル'], ['qa', '宝箱の合図：A'], ['qb', '宝箱の合図：B'], ['qx', '宝箱の合図：X'], ['qy', '宝箱の合図：Y']];
+  const PSN = ['×', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'SELECT', 'START', 'L3', 'R3', '十字↑', '十字↓', '十字←', '十字→'];
+  HD.kn = (k) => ({ ' ': 'Space', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' }[k] || (k.length === 1 ? k.toUpperCase() : k));
+  HD.pn = (i) => PSN[i] || 'ボタン' + i;
+  let KC = null, KM = null;
+  HD.keys = () => {
+    if (KC) return KC; let st = {}; try { st = JSON.parse(localStorage.getItem('sgk-hide-keymap') || '{}') || {}; } catch (e) {}
+    const kb = {}, pd = {}; for (const k in KDEF) kb[k] = st.kb && Array.isArray(st.kb[k]) ? st.kb[k].slice() : KDEF[k].slice(); for (const k in PDEF) pd[k] = st.pd && Array.isArray(st.pd[k]) ? st.pd[k].slice() : PDEF[k].slice();
+    KM = {}; for (const act of ['l', 'r', 'u', 'd', 'a', 'b', 'c']) for (const key of kb[act]) { KM[key] = act; if (key.length === 1) { KM[key.toUpperCase()] = act; KM[key.toLowerCase()] = act; } }
+    return (KC = { kb, pd });
+  };
+  HD.keyMap = () => { HD.keys(); return KM; };
+  const saveKeys = (c) => { try { localStorage.setItem('sgk-hide-keymap', JSON.stringify(c)); } catch (e) {} KC = null; };
+  HD.setKey = (act, key) => { const c = HD.keys(), lk = key.toLowerCase(); for (const k in c.kb) c.kb[k] = c.kb[k].filter((x) => x.toLowerCase() !== lk); c.kb[act] = [key]; saveKeys(c); };
+  HD.setPad = (act, idx) => { const c = HD.keys(), grp = act[0] === 'p' ? ['pa', 'pb', 'pc'] : ['qa', 'qb', 'qx', 'qy']; for (const k of grp) c.pd[k] = c.pd[k].filter((x) => x !== idx); c.pd[act] = [idx]; saveKeys(c); };
+  HD.resetKeys = () => { try { localStorage.removeItem('sgk-hide-keymap'); } catch (e) {} KC = null; };
+
   // 2.73.0 部屋のキャラ一覧用：キャラの見た目を小さな絵にして返す（一度作ったら使い回す）
   const prevC = {}; let prevR = null, prevS = null, prevCam = null;
   HD.preview = function (role, key) {
@@ -295,7 +316,7 @@
     const cpu = solo ? { id: '__cpu', x: 0, z: HZ - 6, fx: 0, fz: -1, cd: 1.5, tgt: null, grp: mkYokai('oni'), mv: 0 } : null; if (cpu) scene.add(cpu.grp);
     // 脱出モード：鍵が4つ、3つ集めると鳥居の出口が開く（出口に着いた人は脱出成功）
     // 2.78.0 合図はA/B/X/Y（コントローラーはPS配置：×=A ○=B □=X △=Y）
-    const esc = o.wn === 'escape', RND = esc ? 600 : ROUND, NK = 11, NEED = 7, OPEN_W = 80, EXIT_W = 20, keys = [], exitP = { open: false, list: [] }; let kgot = 0, exM = null, exBeam = null, opening = null, rescuing = null, qte = null, qtT = 0, pdir = null; const QK = ['a', 'b', 'x', 'y'], qq = [], padPrev = [], qrects = []; let padOn = false; const QL = (c) => (padOn ? { a: '×', b: '○', x: '□', y: '△' }[c] : c.toUpperCase()); const openCh = (q) => { if (q.lid) q.lid.rotation.x = -1.9; if (q.beam) q.beam.visible = false; };
+    const esc = o.wn === 'escape', RND = esc ? 600 : ROUND, NK = 11, NEED = 7, OPEN_W = 80, EXIT_W = 20, keys = [], exitP = { open: false, list: [] }; let kgot = 0, exM = null, exBeam = null, opening = null, rescuing = null, qte = null, qtT = 0, pdir = null; const QK = ['a', 'b', 'x', 'y'], qq = [], padPrev = [], qrects = []; let padOn = false; const QL = (c) => (padOn ? HD.pn((HD.keys().pd['q' + c] || [])[0]) : c.toUpperCase()); const openCh = (q) => { if (q.lid) q.lid.rotation.x = -1.9; if (q.beam) q.beam.visible = false; };
     if (esc) {
       for (let i = 0; i < NK; i++) { let q = null; for (const th of [16, 11, 7]) for (let k = 0; k < 60 && !q; k++) { const [x, z] = free(1); if (z < HZ - 7 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > th)) q = { x, z }; } if (!q) { const [x, z] = free(1); q = { x, z }; } q.got = false; const gk = new THREE.Group(), GD = new THREE.MeshLambertMaterial({ color: 0xf2c14e, emissive: 0x806010 }); gk.add(part(G('chb', () => new THREE.BoxGeometry(1.2, 0.7, 0.75)), M(0x7a4a22), 0, 0.35, 0)); const lid = new THREE.Group(); lid.position.set(0, 0.7, -0.37); const lm = part(G('chl', () => new THREE.CylinderGeometry(0.375, 0.375, 1.2, 12, 1, false, 0, Math.PI)), M(0x8a5a2a), 0, 0, 0.37); lm.rotation.z = Math.PI / 2; lm.rotation.y = Math.PI / 2; lid.add(lm); gk.add(lid); q.lid = lid; for (const x of [-0.45, 0.45]) gk.add(part(G('chg', () => new THREE.BoxGeometry(0.1, 0.75, 0.8)), GD, x, 0.37, 0)); gk.add(part(G('chk', () => new THREE.BoxGeometry(0.2, 0.22, 0.08)), GD, 0, 0.6, 0.4)); const bm = new THREE.Mesh(G('kyl', () => new THREE.CylinderGeometry(0.1, 0.1, 3, 8)), new THREE.MeshBasicMaterial({ color: 0xffe070, transparent: true, opacity: 0.35, depthWrite: false })); bm.position.y = 1.9; gk.add(bm); q.beam = bm; q.pr = 0; { const ef = new THREE.LineSegments(new THREE.EdgesGeometry(G('chf', () => new THREE.BoxGeometry(1.8, 1.4, 1.4))), new THREE.LineBasicMaterial({ color: 0xff2a2a, depthTest: false, transparent: true })), ff = new THREE.Mesh(G('chf', () => new THREE.BoxGeometry(1.8, 1.4, 1.4)), new THREE.MeshBasicMaterial({ color: 0xff2a2a, depthTest: false, transparent: true, opacity: 0.22 })); const fr = new THREE.Group(); fr.add(ef, ff); fr.position.y = 0.55; fr.renderOrder = 999; ef.renderOrder = ff.renderOrder = 999; fr.visible = false; gk.add(fr); q.frame = fr; } gk.position.set(q.x, 0, q.z); scene.add(gk); q.m = gk; gk.rotation.y = hh(keys.length + 9) * 6.28; keys.push(q); }
       for (const sgn of [-1, 1]) { let e = null; for (let k = 0; k < 120 && !e; k++) { const [x, z] = free(2.5); if (x * sgn > HX * 0.4 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 5) && exitP.list.every((o2) => Math.hypot(o2.x - x, o2.z - z) > HX * 1.1)) e = { x, z }; } if (!e) { const [x, z] = free(2.5); e = { x, z }; } exitP.list.push(e); }
@@ -342,7 +363,7 @@
     const dd = (e) => { if (qv || dg.id >= 0 || (coarse && e.clientX < innerWidth * 0.55)) return; dg.id = e.pointerId; dg.x = e.clientX; };
     const dm = (e) => { if (e.pointerId !== dg.id) return; cyaw -= (e.clientX - dg.x) * 0.006; dg.x = e.clientX; };
     const du = (e) => { if (e.pointerId === dg.id) dg.id = -1; };
-    const qk = (e) => { if (!qte || e.repeat) return; const c = { ' ': 'a', z: 'a', Z: 'a', x: 'b', X: 'b', c: 'x', C: 'x', v: 'y', V: 'y' }[e.key]; if (c) qq.push(c); };
+    const qk = (e) => { if (!qte || e.repeat) return; const kb = HD.keys().kb, lk = e.key.toLowerCase(), c = [['a', 'a'], ['b', 'b'], ['qx', 'x'], ['qy', 'y']].find((q2) => kb[q2[0]].some((x) => x.toLowerCase() === lk)); if (c) qq.push(c[1]); };
     const qp = (e) => { if (!qte || !qrects.length) return; const r = cv.getBoundingClientRect(), px = (e.clientX - r.left) * cv.width / r.width, py = (e.clientY - r.top) * cv.height / r.height; for (const [rx, ry, rw, rh, c] of qrects) if (px >= rx && px <= rx + rw && py >= ry && py <= ry + rh) { qq.push(c); break; } };
     addEventListener('keydown', qk); cv.addEventListener('pointerdown', qp);
     cv.addEventListener('pointerdown', dd); cv.addEventListener('pointermove', dm); addEventListener('pointerup', du); addEventListener('pointercancel', du);
@@ -617,7 +638,7 @@
         if (esc) {
           const RATE = [0, 1, 1.7, 2.1, 2.2], okH = (q2) => q2.role === 'h' && alive(q2) && q2.olk <= 0 && !q2.form && !q2.mv && q2.stun <= 0 && q2.freeze <= 0; // 開ける人数が増えるほど1人あたりは遅くなる
           const qfail = (msg) => { MY.olk = 1; tell({ k: 'qf', id: me, x: r2(qte.q.x), z: r2(qte.q.z) }); say(msg); SGK.AUDIO.sfx('hit'); qte = null; };
-          { const gp2 = (navigator.getGamepads ? navigator.getGamepads() : []).find((x) => x && x.connected); padOn = !!gp2; for (let i2 = 0; i2 < 4; i2++) { const on = !!(gp2 && gp2.buttons[i2] && gp2.buttons[i2].pressed); if (on && !padPrev[i2]) qq.push(QK[i2]); padPrev[i2] = on; } if (!qte) qq.length = 0; }
+          { const gp2 = (navigator.getGamepads ? navigator.getGamepads() : []).find((x) => x && x.connected); padOn = !!gp2; const pdq = HD.keys().pd; for (let i2 = 0; i2 < 4; i2++) { const on = !!(gp2 && (pdq['q' + QK[i2]] || []).some((bi) => gp2.buttons[bi] && gp2.buttons[bi].pressed)); if (on && !padPrev[i2]) qq.push(QK[i2]); padPrev[i2] = on; } if (!qte) qq.length = 0; }
           let n1 = null;
           keys.forEach((q, i) => {
             if (q.got) return; let n = 0;
@@ -716,7 +737,7 @@
         else if (MY.role === 'h' && alive(MY)) txt(`体力 ${Math.max(0, Math.round(MY.hh))}${MY.pan > 0 ? '　足が速い！' : ''}`, 16, 30, { sz: 18, c: '#ffe070' });
         // キャラ（パッシブ・アクティブ）
         const BO = coarse ? 100 : 0; // スマホは下の操作ボタンの上に出す
-        { const def = HD.CH[MY.role].find((x) => x.k === cho(MY)) || HD.CH[MY.role][0], keyN = coarse ? 'スキルボタン' : 'E／Q／△(Y)';
+        { const def = HD.CH[MY.role].find((x) => x.k === cho(MY)) || HD.CH[MY.role][0], keyN = coarse ? 'スキルボタン' : `${HD.kn(HD.keys().kb.c[0] || '?')}／${HD.pn((HD.keys().pd.pc || [])[0])}`;
           txt(`${def.n}　パッシブ：${def.pa}`, 16, H - BO - 52, { sz: 13, c: '#cfe8ff' }); txt(`${keyN}：${def.ac.split('：')[0]}　${MY.sk > 0 ? `あと${Math.ceil(MY.sk)}秒` : '使える！'}`, 16, H - BO - 34, { sz: 14, c: MY.sk > 0 ? '#aaa' : '#ffe070', b: MY.sk <= 0 });
           if (MY.shield) txt('お札を構えている', 16, 52, { sz: 14, c: '#ffe070' }); if (MY.boost > 0) txt('ダッシュ中！', 16, 52, { sz: 14, c: '#ffe070' }); if (MY.freeze > 0) txt('動けない！', 16, 52, { sz: 16, c: '#9ad0ff' }); }
         if (MY.role === 'h' && cho(MY) === 'miko' && alive(MY) && seekers().some((q) => Math.hypot(q.x - MY.x, q.z - MY.z) < 6)) { g.fillStyle = 'rgba(255,40,40,0.12)'; g.fillRect(0, 0, W, H); txt('鬼の気配！', W / 2, H * 0.36, { al: 'center', sz: 20, b: 1, c: '#ff8a8a' }); }
@@ -738,12 +759,12 @@
           for (const q of keys) if (!q.got && q.pr > 0) { const sp4 = pv(q.x, 1.8, q.z); if (sp4) txt(`${Math.floor(q.pr / OPEN_W * 100)}%`, sp4[0], sp4[1], { al: 'center', sz: 14, c: '#ffe9a0' }); }
           if (exitP.open) for (const e of exitP.list) if (!e.opened && e.pr > 0) { const sp4 = pv(e.x, 3.9, e.z); if (sp4) txt(`出口 ${Math.floor(e.pr / EXIT_W * 100)}%`, sp4[0], sp4[1], { al: 'center', sz: 14, c: '#9affb0' }); } }
         if (qte) { const bw = 54, x0 = W / 2 - bw * 2 - 9, y0 = H * 0.42; g.fillStyle = 'rgba(0,0,0,.65)'; g.fillRect(x0 - 12, y0 - 40, bw * 4 + 54, bw + 74); txt('この順に押す！', W / 2, y0 - 18, { al: 'center', sz: 16, c: '#ffe9a0' }); qte.seq.forEach((c, i2) => { g.fillStyle = i2 < qte.i ? '#4aa84a' : i2 === qte.i ? '#f2c14e' : '#6a5a3a'; g.fillRect(x0 + i2 * (bw + 6), y0, bw, bw); txt(QL(c), x0 + i2 * (bw + 6) + bw / 2, y0 + bw / 2 + 10, { al: 'center', sz: 28, c: '#1a1208' }); }); g.fillStyle = '#ffd24a'; g.fillRect(x0, y0 + bw + 10, (bw * 4 + 18) * Math.max(0, qte.t / 4), 8);
-          qrects.length = 0; QK.forEach((c, i2) => { const rx = x0 + i2 * (bw + 6), ry = y0 + bw + 30; qrects.push([rx, ry, bw, bw, c]); g.fillStyle = '#3a6a9a'; g.fillRect(rx, ry, bw, bw); txt(QL(c), rx + bw / 2, ry + bw / 2 + 10, { al: 'center', sz: 26, c: '#fff' }); }); txt('キー：Space=A　X=B　C=X　V=Y　／　画面のボタンも押せます', W / 2, y0 + bw * 2 + 52, { al: 'center', sz: 13, c: '#e8dcc0' }); } else qrects.length = 0;
+          qrects.length = 0; QK.forEach((c, i2) => { const rx = x0 + i2 * (bw + 6), ry = y0 + bw + 30; qrects.push([rx, ry, bw, bw, c]); g.fillStyle = '#3a6a9a'; g.fillRect(rx, ry, bw, bw); txt(QL(c), rx + bw / 2, ry + bw / 2 + 10, { al: 'center', sz: 26, c: '#fff' }); }); txt((() => { const kb = HD.keys().kb, f = (k) => HD.kn(kb[k][0] || '?'); return `キー：${f('a')}=A　${f('b')}=B　${f('qx')}=X　${f('qy')}=Y　／　画面のボタンも押せます`; })(), W / 2, y0 + bw * 2 + 52, { al: 'center', sz: 13, c: '#e8dcc0' }); } else qrects.length = 0;
         if (esc) { txt(`宝箱 ${kgot}/${NEED}　出口：${exitP.open ? '2か所に出現！全員の位置が見える' : 'まだ現れない'}`, W / 2, 74, { al: 'center', sz: 15, c: exitP.open ? '#9affb0' : '#ffe070' });
           if (MY.role === 'h' && alive(MY)) for (const e of (exitP.open ? exitP.list : []).concat(exitP.extra ? [exitP.extra] : [])) { const [ax, ay] = pj(MY.x, 1, MY.z), [bx, by] = pj(e.x, 1, e.z), l = Math.hypot(bx - ax, by - ay) || 1; if (l > 120) txt('出口 ➤', ax + (bx - ax) / l * 120, ay + (by - ay) / l * 120, { al: 'center', sz: 20, b: 1, c: '#9affb0' }); } }
         if (rush()) txt('脱出口が開いている間：鬼は一撃でダウン・足が少し速い！', W / 2, 96, { al: 'center', sz: 15, c: '#ff9a8a' });
         const qn = alive(MY) && !(MY.role === 's' && phase === 'hide') ? near(MY.x, MY.z, 2.4) : null;
-        const hint = MY.role === 's' ? `A／Space：叩く（置物を叩くと体力-1）　${MY.form ? 'B／X：鬼の姿に戻る　' : qn ? `B／X：${KIND[qn.kind]}に化ける　` : ''}移動：矢印／WASD／スティック` : alive(MY) ? `${qn ? `A／Space：${KIND[qn.kind]}に化ける　` : ''}${MY.form ? 'B／X：人に戻る　' : ''}移動：矢印／WASD／スティック` : '';
+        const KN = (k) => HD.kn(HD.keys().kb[k][0] || '?'), mvK = () => `${KN('u')}${KN('l')}${KN('d')}${KN('r')}／スティック`; const hint = MY.role === 's' ? `${KN('a')}：叩く（置物を叩くと体力-1）　${MY.form ? `${KN('b')}：鬼の姿に戻る　` : qn ? `${KN('b')}：${KIND[qn.kind]}に化ける　` : ''}移動：${mvK()}` : alive(MY) ? `${qn ? `${KN('a')}：${KIND[qn.kind]}に化ける　` : ''}${MY.form ? `${KN('b')}：人に戻る　` : ''}移動：${mvK()}` : '';
         txt(hint, W / 2, H - BO - 16, { al: 'center', sz: 14 });
         if (toastT > 0 && toast) txt(toast, W / 2, H * 0.28, { al: 'center', sz: 22, b: 1, c: '#ffe9a0' });
         if (phase === 'hide') { const left = Math.ceil(HIDE_T - t); if (MY.role === 's') { g.fillStyle = 'rgba(0,0,0,0.9)'; g.fillRect(0, 0, W, H); txt(`目をつぶって数えています… ${left}`, W / 2, H / 2, { al: 'center', sz: 28, b: 1 }); } else txt(esc ? `隠れよう！（あと${left}秒）宝箱を7つ開けると離れた2か所に出口が現れる` : `隠れよう！（あと${left}秒）◆の付いた物の近くでAを押すと化けられる`, W / 2, H * 0.2, { al: 'center', sz: 20, b: 1, c: '#bff0c0' }); }
