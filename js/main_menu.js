@@ -236,6 +236,7 @@ $('mGrass').onclick = () => { if (R.act3d) R.act3d.setVid('gr', (R.act3d.vid.gr 
 $('mPost').onclick = () => { if (R.act3d) R.act3d.setVid('pp', R.act3d.vid.pp === 0 ? 1 : 0); vidLbl(); };
 // 2.23.0 超低画質（スマホは初めから入）と、戦場に同時に出る兵の数（減ったら控えから増援が出る）
 $('mLow').onclick = () => { if (R.act3d) R.act3d.setVid('lo', R.act3d.vid.lo ? 0 : 1); vidLbl(); };
+$('mRefit').onclick = () => { if (window.SGK_refit) window.SGK_refit(); toast('画面を合わせ直しました', 1200); }; // 2.99.4 縦横を切り替えたあとの予備
 $('mMen').onclick = () => { const X = R.act3d; if (!X) return; const L = X.MEN, i = L.indexOf(X.vid.men); X.setVid('men', L[(i + 1) % L.length]); vidLbl(); toast('次の合戦から変わります', 1200); };
 vidLbl();
 const VOL = { all: 'vAll', bgm: 'vBgm', sfx: 'vSfx' };
