@@ -8,9 +8,9 @@
   const KIND = { sack: '麻袋', basket: '籠', sign: '立て札', bench: '長椅子', cart: '荷車', umbrella: '傘', firewood: '薪の山', haystack: '藁山', pot: '鉢植え', bush: '茂み', drum: '太鼓', cask: '酒樽', tub: '盥', stool: '腰掛け', shrine: '祠', rock: '大岩', crate: '木箱', barrel: '樽', jar: '壺', lantern: '石灯籠', stone: '石', bucket: '桶', bale: '米俵', stump: '切り株' };
   HD.KIND = KIND;
   HD.OPTS = [
+    { k: 'wn', n: '勝ち方', v: [['time', '時間まで隠れる'], ['escape', '宝箱の鍵を集めて脱出']] },
     { k: 'st', n: '舞台', v: [['street', '町の通り'], ['castle', '城下'], ['yashiki', '屋敷の庭'], ['rooms', '大きな屋敷（部屋がたくさん）']] },
     { k: 'mv', n: '化けたあとの動き', v: [['slow', 'ゆっくり動ける'], ['none', '動けない']] },
-    { k: 'wn', n: '勝ち方', v: [['time', '時間まで隠れる'], ['escape', '宝箱の鍵を集めて脱出']] },
     { k: 'cau', n: '見つかったら', v: [['seek', '探す側に回る'], ['out', 'その回は終わり']] },
   ];
   /* 2.71.0 キャラ（見た目＋パッシブ＋アクティブ）。逃げる側は人間、鬼は日本の妖怪。数値は仮
