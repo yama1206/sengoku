@@ -729,7 +729,7 @@ ${['a', 'b'].map((c) => `<div style="margin-top:3px"><span style="color:${c === 
     function cast() { send(env.others, { k: 'hst', song: st.song, diff: st.diff, picks: st.picks, phase: st.phase }); }
     function begin(ms) {
       chart = HY.build(HY.SONGS[st.song], st.diff); myInst = st.picks[me] || null;
-      mine = myInst ? chart.notes[myInst].map((n) => Object.assign({ j: null }, n)) : [];
+      mine = myInst ? chart.notes.taiko.map((n) => Object.assign({ j: null }, n)) : []; // 2.99.6 全員同じ譜面（音だけ自分の楽器）
       const mu = M(); if (mu) mu.ok();
       t0 = performance.now() + ms; a0 = (mu ? mu.now() : 0) + ms / 1000; schedI = {}; drawPick();
     }
@@ -768,7 +768,7 @@ ${['a', 'b'].map((c) => `<div style="margin-top:3px"><span style="color:${c === 
           const ahead = t + 0.25;
           if (schedI.cnt == null) schedI.cnt = 0; while (schedI.cnt < 4 && schedI.cnt * chart.beat < ahead) { mu.play('hyoshi', a0 + schedI.cnt * chart.beat, 'a', 0, 0, 0.6); schedI.cnt++; }
           for (const inst in chart.notes) {
-            if (inst === myInst) continue; const L = chart.notes[inst]; let i = schedI[inst] || 0;
+            if (inst === 'taiko') continue; const L = chart.notes[inst]; let i = schedI[inst] || 0;
             while (i < L.length && L[i].t < ahead) { if (L[i].t >= t - 0.05) mu.play(inst, a0 + L[i].t, L[i].k, L[i].m, L[i].d, 0.45 * OPT.oth); i++; } schedI[inst] = i;
           }
         }
@@ -782,13 +782,13 @@ ${['a', 'b'].map((c) => `<div style="margin-top:3px"><span style="color:${c === 
         const bg = g.createLinearGradient(0, 0, 0, H0); bg.addColorStop(0, '#141a33'); bg.addColorStop(1, '#2a1a10'); g.fillStyle = bg; g.fillRect(0, 0, W0, H0);
         for (let i = 0; i < 8; i++) { const x = ((i + 0.5) * W0) / 8, y = 26 + (i % 2) * 8; g.strokeStyle = '#0006'; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, y - 10); g.stroke(); g.fillStyle = i % 2 ? '#e0462c' : '#f0a030'; g.beginPath(); g.ellipse(x, y, 9, 12, 0, 0, 7); g.fill(); g.fillStyle = '#ffd76a55'; g.beginPath(); g.arc(x, y, 18, 0, 7); g.fill(); } // 提灯
         if (st.phase === 'pick' || !chart) return;
-        const t = songT(), ps = players().length ? players() : [me], lw = Math.min(150, (W0 * 0.9) / Math.max(ps.length, 1)), totalW = lw * ps.length, x0 = (W0 - totalW) / 2, hitY = touch ? Math.min(H0 * 0.8, H0 - 215) : H0 * 0.8, pxs = H0 * (0.55 + st.diff * 0.15) * OPT.spd; // 1秒あたりの点（譜の速さの設定をかける）
+        const t = songT(), ps = myInst ? [me] : [], lw = Math.min(230, W0 * 0.6), totalW = lw * ps.length, x0 = (W0 - totalW) / 2, hitY = touch ? Math.min(H0 * 0.8, H0 - 215) : H0 * 0.8, pxs = H0 * (0.55 + st.diff * 0.15) * OPT.spd; // 1秒あたりの点（譜の速さの設定をかける）
         ps.forEach((id, li) => {
           const ins = instOf(id) || HY.INST[0], lx = x0 + li * lw, isMe = id === me, cx = lx + lw / 2;
           g.fillStyle = isMe ? '#ffffff14' : '#00000033'; g.fillRect(lx + 3, 50, lw - 6, H0 - 50); g.strokeStyle = ins.c + '88'; g.lineWidth = 2; g.strokeRect(lx + 3, 50, lw - 6, H0 - 50);
           drawText(g, ins.n, cx, 70, { sz: 16, b: 1, al: 'center', c: ins.c }); drawText(g, nameOf(env, id) + (isMe ? '（自分）' : ''), cx, 88, { sz: 11, al: 'center' });
           g.fillStyle = '#8a5a2a'; g.fillRect(lx + 6, hitY - 4, lw - 12, 8); g.strokeStyle = '#f2c14e'; g.lineWidth = 2; g.beginPath(); g.arc(cx, hitY, 20, 0, 7); g.stroke(); // 拍子木の線と打つ所
-          const L = isMe ? mine : chart.notes[ins.id];
+          const L = mine;
           for (const n of L) {
             const y = hitY - (n.t - t) * pxs; if (y < 40) break; if (y > H0 + 30) continue; if (isMe && n.j && n.j !== 'miss') continue; if (!isMe && n.t < t - 0.05) continue;
             const tail = n.d > 0.3 ? n.d * pxs : 0; if (tail) { g.fillStyle = ins.c + '55'; g.fillRect(cx - 6, y - tail, 12, tail); }
@@ -805,6 +805,7 @@ ${['a', 'b'].map((c) => `<div style="margin-top:3px"><span style="color:${c === 
           if (combo >= 5) drawText(g, `${combo} 連`, cx, hitY + 46, { sz: 22, b: 1, al: 'center', c: '#ffd76a' });
           drawText(g, `${Math.round(score)}点`, cx, H0 - 12, { sz: 16, b: 1, al: 'center' });
         }
+        { const pl = players().slice().sort((a, b) => ((others[b] || {}).s || 0) - ((others[a] || {}).s || 0)); pl.forEach((id, i) => { const o = id === me ? { s: Math.round(score), combo } : others[id] || {}; drawText(g, `${esc(nameOf(env, id))}（${(instOf(id) || {}).n || ''}）${o.s || 0}点${o.combo ? ' ' + o.combo + '連' : ''}`, W0 - 12, 66 + i * 18, { sz: 13, al: 'right', c: id === me ? '#ffe9a0' : '#fff' }); }); }
         drawText(g, `${HY.SONGS[st.song].name}（${HY.DIFF[st.diff]}）`, 14, 66, { sz: 14 }); bar(g, 14, 74, 140, 6, t / chart.len, '#f2c14e');
         if (t < 0) drawText(g, String(Math.ceil(-t)), W0 / 2, H0 / 2, { sz: 80, b: 1, al: 'center' });
         if (!myInst) drawText(g, '見物中（楽器を選ばなかった）', W0 / 2, H0 * 0.45, { sz: 18, al: 'center' });
