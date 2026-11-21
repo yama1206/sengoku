@@ -26,6 +26,7 @@
       { k: 'kodomo', n: '子ども', pa: '足が速く、叩かれにくい', ac: 'ダッシュ：3秒間とても速く走る', cd: 15 },
       { k: 'kariudo', n: '狩人', pa: '化けたあとの動きが少し速い', ac: '罠：足元に罠を置く。鬼が踏むと2.5秒動けない（鬼には見えない）', cd: 20 },
       { k: 'sou', n: '僧侶', pa: '天狗の風・河童の水・雪女の吹雪を受けない', ac: '読経：近くの鬼を3秒間、半分の速さにする', cd: 22 },
+      { k: 'dorobo', n: '泥棒', pa: '宝箱を開けるのが早い（1.5倍）', ac: '逃げ足：4秒間、足が速くなる', cd: 16 },
       { k: 'geinin', n: '旅芸人', pa: 'すぐ別の物に化けかえられる', ac: '声まね：前の離れた所から物音を出して、鬼を引きつける', cd: 18 },
     ],
     s: [
@@ -38,7 +39,7 @@
   };
   const mulberry = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v), r2 = (v) => Math.round(v * 100) / 100;
-  const ROUND = 180, HIDE_T = 15, BEACON0 = 30, BEACON_EVERY = 22, R_HIT = 1.3, R_BIG = 3.2, SP_H = 4.2, SP_HS = 2.0, SP_S = 4.6;
+  const ROUND = 180, HIDE_T = 15, BEACON0 = 30, BEACON_EVERY = 22, R_HIT = 1.3, R_BIG = 3.2, SP_H = 4.2, SP_HS = 2.0, SP_S = 5.4; // 鬼の基本の速さは、逃げる側の基本（子ども5.0が最速）より速い
   const SQ = Math.SQRT1_2, RIGHT = [SQ, -SQ], FWD = [-SQ, -SQ]; // 画面の右・奥（カメラは (+,+,+) の斜め上から）
 
   // ---------------- 部品 ----------------
@@ -114,15 +115,16 @@
   /* 人間（逃げる側）と妖怪（鬼）の見た目。あとで絵に置き換えるときはここだけ直す */
   function mkHuman(col, ch) {
     const g = new THREE.Group(), K = ch || 'ninja', sc = K === 'kodomo' ? 0.78 : 1;
-    const body = { ninja: 0x23232b, shonin: 0x7a5a3a, miko: 0xf2f2f2, kodomo: 0xe0b43c, kariudo: 0x4f6a3a, sou: 0x4a3a6a, geinin: 0xd8503c }[K] || col;
+    const body = { ninja: 0x23232b, shonin: 0x7a5a3a, miko: 0xf2f2f2, kodomo: 0xe0b43c, kariudo: 0x4f6a3a, sou: 0x4a3a6a, geinin: 0xd8503c, dorobo: 0x3a4a5a }[K] || col;
     g.add(part(G('hb', () => new THREE.CylinderGeometry(0.28, 0.34, 0.95, 10)), M(body), 0, 0.5, 0));
-    g.add(part(G('hs', () => new THREE.BoxGeometry(0.62, 0.1, 0.4)), M({ ninja: 0x8a2a2a, shonin: 0x3a2a1a, miko: 0xc8402f, kodomo: col, kariudo: 0x5a3d1c, sou: 0xe08a2a, geinin: 0xf2f2f2 }[K] || 0x3a2a1a), 0, 0.72, 0));
+    g.add(part(G('hs', () => new THREE.BoxGeometry(0.62, 0.1, 0.4)), M({ ninja: 0x8a2a2a, shonin: 0x3a2a1a, miko: 0xc8402f, kodomo: col, kariudo: 0x5a3d1c, sou: 0xe08a2a, geinin: 0xf2f2f2, dorobo: 0x4a8a5a }[K] || 0x3a2a1a), 0, 0.72, 0));
     g.add(part(G('hh', () => new THREE.SphereGeometry(0.22, 12, 10)), M(0xf0c9a0), 0, 1.2, 0));
     if (K === 'ninja') g.add(part(G('hn', () => new THREE.SphereGeometry(0.235, 12, 8, 0, 6.3, 0, 1.9)), M(0x23232b), 0, 1.22, 0));
     else if (K === 'shonin') g.add(part(G('hm', () => new THREE.CylinderGeometry(0.12, 0.3, 0.2, 12)), M(0xc9a45a), 0, 1.45, 0));
     else if (K === 'miko') { g.add(part(G('hr', () => new THREE.SphereGeometry(0.235, 12, 8, 0, 6.3, 0, 1.2)), M(0x2a2018), 0, 1.22, 0)); g.add(part(G('hrb', () => new THREE.BoxGeometry(0.1, 0.1, 0.5)), M(0xc8402f), 0, 1.42, 0)); }
     else if (K === 'kariudo') g.add(part(G('hf', () => new THREE.SphereGeometry(0.25, 12, 8, 0, 6.3, 0, 1.3)), M(0x7a5a2a), 0, 1.24, 0));
     else if (K === 'sou') g.add(part(G('hq', () => new THREE.TorusGeometry(0.2, 0.04, 6, 14)), M(0xe0b43c), 0, 0.86, 0.12));
+    else if (K === 'dorobo') { g.add(part(G('hd1', () => new THREE.SphereGeometry(0.245, 12, 8, 0, 6.3, 0, 1.45)), M(0x4a8a5a), 0, 1.22, 0)); const sb = part(G('hd2', () => new THREE.SphereGeometry(0.28, 8, 6)), M(0xc8b080), 0, 0.75, -0.3); sb.scale.set(1, 1.1, 0.8); g.add(sb); }
     else if (K === 'geinin') g.add(part(G('hg', () => new THREE.ConeGeometry(0.22, 0.4, 8)), M(0xe0b43c), 0, 1.5, 0));
     else g.add(part(G('hk', () => new THREE.SphereGeometry(0.235, 12, 8, 0, 6.3, 0, 1.2)), M(0x2a2018), 0, 1.22, 0));
     g.scale.setScalar(sc); return g;
@@ -324,6 +326,7 @@
       else if (ch === 'shonin') { if (!MY.form) { say('偽物は、化けている時に使えます'); ok = false; } else { let x = MY.x - fx * 2, z = MY.z - fz * 2; if (blocked(x, z, 0.5)) { x = MY.x; z = MY.z; } const rot = Math.random() * 6.28; addDecoy(x, z, MY.form.k, MY.form.v, rot); tell({ k: 'dc', x: r2(x), z: r2(z), kd: MY.form.k, v: MY.form.v, rot: r2(rot) }); say('偽物を置いた'); SGK.AUDIO.sfx('kmrKick'); } }
       else if (ch === 'miko') { MY.shield = true; say('お札を構えた（次の叩きを1回防ぐ）'); SGK.AUDIO.sfx('open'); }
       else if (ch === 'kodomo') { MY.boost = 3; say('ダッシュ！'); }
+      else if (ch === 'dorobo') { MY.boost = 4; say('逃げ足！'); }
       else if (ch === 'kariudo') { const tid = me + ':' + Math.floor(t * 10); addTrap(tid, MY.x, MY.z); tell({ k: 'tr', tid, x: r2(MY.x), z: r2(MY.z) }); say('罠を置いた'); SGK.AUDIO.sfx('carve'); }
       else if (ch === 'geinin') { let x = MY.x + fx * 7, z = MY.z + fz * 7; for (let k = 7; k > 0 && blocked(x, z, 0.4); k -= 1) { x = MY.x + fx * k; z = MY.z + fz * k; } nzo = { x, z, t: 5 }; tell({ k: 'ns', x: r2(x), z: r2(z) }); say('声まねをした'); SGK.AUDIO.sfx('news'); }
       else if (ch === 'tengu' || ch === 'kappa' || ch === 'yuki' || ch === 'sou') { tell({ k: 'sk', s: ch, id: me, x: r2(MY.x), z: r2(MY.z), fx: r2(fx), fz: r2(fz) }); FX.push({ x: MY.x + (ch === 'yuki' || ch === 'sou' ? 0 : fx * 2.5), z: MY.z + (ch === 'yuki' || ch === 'sou' ? 0 : fz * 2.5), t: 0.5, bad: false, big: true }); SGK.AUDIO.sfx(ch === 'yuki' || ch === 'sou' ? 'zawa' : 'bow'); say(ch === 'tengu' ? '羽ばたき！' : ch === 'kappa' ? '水かけ！' : ch === 'yuki' ? '吹雪！' : '読経…'); }
@@ -376,7 +379,7 @@
           const dis = MY.role === 'h' && MY.form;
           if (!locked && MY.freeze <= 0 && ml > 0.05) {
             if (dis && o.mv === 'none') { const a = Math.atan2(MY.fx, MY.fz) - ix * 3 * dt; MY.fx = Math.sin(a); MY.fz = Math.cos(a); }
-            else { const c = cho(MY); let sp; if (MY.role === 's') { sp = c === 'tengu' ? 5.2 : SP_S; if (MY.slowT > 0) sp *= 0.5; } else { sp = dis ? (c === 'shonin' ? 3.2 : c === 'kariudo' ? 2.6 : SP_HS) : (c === 'kodomo' ? 5.0 : SP_H); if (MY.boost > 0) sp *= 1.8; if (seekers().some((q) => q.id !== me && cho(q) === 'yuki' && Math.hypot(q.x - MY.x, q.z - MY.z) < 3.5)) sp *= 0.85; } moveBy(MY, wx / Math.max(1, ml) * sp * dt, wz / Math.max(1, ml) * sp * dt, 0.4); MY.fx = wx / ml; MY.fz = wz / ml; MY.mv = 1; }
+            else { const c = cho(MY); let sp; if (MY.role === 's') { sp = c === 'tengu' ? 6.0 : SP_S; if (MY.slowT > 0) sp *= 0.5; } else { sp = dis ? (c === 'shonin' ? 3.2 : c === 'kariudo' ? 2.6 : SP_HS) : (c === 'kodomo' ? 5.0 : SP_H); if (MY.boost > 0) sp *= c === 'dorobo' ? 1.6 : 1.8; if (seekers().some((q) => q.id !== me && cho(q) === 'yuki' && Math.hypot(q.x - MY.x, q.z - MY.z) < 3.5)) sp *= 0.85; } moveBy(MY, wx / Math.max(1, ml) * sp * dt, wz / Math.max(1, ml) * sp * dt, 0.4); MY.fx = wx / ml; MY.fz = wz / ml; MY.mv = 1; }
           }
           if (IN.aT && !qte) {
             if (MY.role === 's') { if (!locked) strike(MY); }
@@ -395,7 +398,7 @@
             if (q.got) return; let n = 0;
             for (const id of ids) { const p = P[id]; if (!okH(p) || Math.hypot(q.x - p.x, q.z - p.z) >= 1.8 || (id === me && qte)) continue; n++; }
             if (act && MY.role === 'h' && okH(MY) && Math.hypot(q.x - MY.x, q.z - MY.z) < 1.8) n1 = q;
-            if (n > 0) q.pr += RATE[Math.min(4, n)] * dt; else q.pr = Math.max(0, q.pr - dt * 0.5);
+            if (n > 0) { let ws = 0; for (const id of ids) { const p = P[id]; if (okH(p) && Math.hypot(q.x - p.x, q.z - p.z) < 1.8 && !(id === me && qte)) ws += cho(p) === 'dorobo' ? 1.5 : 1; } q.pr += ws * (RATE[Math.min(4, n)] / Math.min(4, n)) * dt; } else q.pr = Math.max(0, q.pr - dt * 0.5);
             if (q.pr >= OPEN_W) { q.got = true; openCh(q); kgot++; tell({ k: 'kp', i }); say(`宝箱が開いて鍵を手に入れた（${kgot}/${NEED}）`); SGK.AUDIO.sfx('coin'); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が開いた！'); } }
           });
           opening = n1 && !n1.got ? n1 : null; keys.forEach((q) => { if (q.frame) q.frame.visible = MY.role === 's' && !q.got; });
