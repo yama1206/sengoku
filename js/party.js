@@ -33,8 +33,8 @@
 #ptBox button{display:block;width:100%;text-align:left;box-sizing:border-box}#ptBox .m{padding:3px 0;border-bottom:1px solid #fff2}#ptRes .r{padding:3px 0;border-bottom:1px solid #fff2}
 #ptInv{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:9400;background:#2a2118;color:#f3ead2;border:2px solid #f2c14e;border-radius:10px;padding:10px 14px;box-shadow:0 4px 18px #000a;max-width:92vw}
 #ptGame{position:fixed;inset:0;z-index:9200;background:#000}#ptGame canvas{width:100%;height:100%;display:block;touch-action:none}
-#ptGame .tb{position:absolute;right:8px;top:8px}#ptGame .pad{position:absolute;bottom:14px;display:none;gap:10px}
-#ptGame .pad button{width:64px;height:64px;border-radius:32px;font-size:15px;opacity:.85}`;
+#ptGame .tb{position:absolute;right:8px;top:8px;z-index:5}#ptGame .pad{position:absolute;bottom:14px;display:none;gap:10px;z-index:5}
+#ptGame .pad button{width:72px;height:72px;border-radius:36px;font-size:14px;opacity:.85;white-space:pre-line;touch-action:none}`;
     document.head.appendChild(s);
   }
   const box = (id) => { let e = document.getElementById(id); if (!e) { e = document.createElement('div'); e.id = id; document.body.appendChild(e); } return e; };
@@ -138,7 +138,7 @@
     const touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches), hold = (el, k) => { const on = (e) => { e.preventDefault(); if (!IN[k]) { if (k === 'a') { IN.aT = 1; IN.aAt = performance.now(); } if (k === 'b') { IN.bT = 1; IN.bAt = performance.now(); } if (k === 'c') IN.cT = 1; if (k === 'l') IN.lT = 1; if (k === 'r') IN.rT = 1; } IN[k] = 1; }, off = (e) => { e.preventDefault(); IN[k] = 0; }; el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointerleave', off); el.addEventListener('pointercancel', off); };
     const mkBtn = (host, txt, k) => { const b = document.createElement('button'); b.textContent = txt; host.appendChild(b); hold(b, k); };
     const pl = root.querySelector('.pl'), pr = root.querySelector('.pr');
-    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '使う', 'b'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { mkBtn(pl, 'ダッシュ', 'b'); mkBtn(pr, 'ジャンプ', 'a'); } else if (cfg.g === 'fish') mkBtn(pr, '釣る', 'a'); else if (cfg.g === 'hide') { mkBtn(pl, '戻る', 'b'); mkBtn(pl, 'スキル', 'c'); mkBtn(pr, '化ける・叩く', 'a'); } else if (cfg.g === 'kemari') mkBtn(pr, '蹴る', 'a'); else if (cfg.g === 'hayashi') { /* 2.68.2 囃子合わせは自分でボタンを置く */ } else mkBtn(pr, '射つ', 'a'); }
+    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '使う', 'b'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { mkBtn(pl, 'ダッシュ', 'b'); mkBtn(pr, 'ジャンプ', 'a'); } else if (cfg.g === 'fish') mkBtn(pr, '釣る', 'a'); else if (cfg.g === 'hide') { mkBtn(pl, '戻る', 'b'); mkBtn(pl, 'スキル', 'c'); mkBtn(pr, '化ける\n叩く', 'a'); } else if (cfg.g === 'kemari') mkBtn(pr, '蹴る', 'a'); else if (cfg.g === 'hayashi') { /* 2.68.2 囃子合わせは自分でボタンを置く */ } else mkBtn(pr, '射つ', 'a'); }
     const ptr = (e) => { const r = cv.getBoundingClientRect(); IN.mx = (e.clientX - r.left) * cv.width / r.width; IN.my = (e.clientY - r.top) * cv.height / r.height; };
     cv.addEventListener('pointermove', ptr); cv.addEventListener('pointerdown', (e) => { ptr(e); if (cfg.g === 'archery' || cfg.g === 'cart') IN.click = 1; else if (cfg.g === 'fish' || cfg.g === 'kemari') IN.aT = 1; });
     const env = { cfg, me, ids: cfg.mem.map((x) => x.id), names: Object.fromEntries(cfg.mem.map((x) => [x.id, x.name])), tm: Object.fromEntries(cfg.mem.map((x) => [x.id, x.tm])), others: cfg.mem.map((x) => x.id).filter((id) => id !== me), cv, g2, finished: false, gone: {}, IN, send, pal: PAL, text: drawText };
