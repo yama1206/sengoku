@@ -11,7 +11,7 @@
     race: { name: '馬の障害レース', max: 10, team: true, desc: '鬼の難しさの障害コース。ジャンプ＝A／Space（長押しで高く・すぐ離すと小さく）、ダッシュ＝↑／B（スタミナを使う）。高い柵は長押しで跳ぶ、枝の下は跳ばずにくぐる、大穴はダッシュで跳ばないと落ちて戻される、ぬかるみでは遅くなる' },
     archery: { name: '弓の的当て大会', max: 10, team: true, desc: '動く的を10本で射抜いて点を競う。風で矢が流れる。狙う＝マウス／矢印／スティック、射つ＝クリック／A／Space。金の的は2倍' },
     fish: { name: '釣り大会', max: 10, team: true, mode: true, desc: '朝・昼・夕の3日間（1日40秒）で釣りくらべ。釣り方はいつもの釣りと同じ（浮きを投げる→アタリ→タイミング）。勝ち方は「いちばん大きい魚」か「釣った数」を選べます' },
-    hayashi: { name: '囃子合わせ', max: 5, team: false, desc: '和楽器のリズム遊び。太鼓・鼓・篠笛・三味線・鉦から楽器を選び、みんなで一つの曲を合わせる。流れてくる譜を下の線で打つ（打＝A／Space／Z／F、縁＝B／X／J）。自分のパートは叩いた音で鳴る' },
+    hayashi: { name: '囃子合わせ', max: 5, team: false, desc: '和楽器のリズム遊び。太鼓・鼓・篠笛・三味線・鉦から楽器を選び、みんなで一つの曲を合わせる。流れてくる譜を下の線で打つ（赤い丸＝A／Space／Z／F、黒い輪＝B／X／J）。自分のパートは叩いた音で鳴る' },
     kemari: { name: '蹴鞠', max: 10, team: false, desc: '輪になって鞠を蹴り回す。鞠が自分に飛んできたら、足もとの輪に重なった瞬間に「蹴る」（クリック／タップ／A／Space）。続けるほど鞠は速くなる。毎月5日は大きな町で蹴鞠大会' },
     cart: { name: '荷運び競争', max: 10, team: true, desc: '荷車を引いてゴールまで運ぶ。←→で5本の道を選ぶ（みんなの平均で進む）、A／Spaceを押している間引く。岩にぶつかると荷が崩れる。「？」の箱で道具（加速・修理・守り、チーム戦では相手に岩落とし）が手に入り、B／X／クリックで使う。チーム戦は赤と白の荷車で競走' },
   };
@@ -117,7 +117,7 @@
     const touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches), hold = (el, k) => { const on = (e) => { e.preventDefault(); if (!IN[k]) { if (k === 'a') { IN.aT = 1; IN.aAt = performance.now(); } if (k === 'b') { IN.bT = 1; IN.bAt = performance.now(); } if (k === 'l') IN.lT = 1; if (k === 'r') IN.rT = 1; } IN[k] = 1; }, off = (e) => { e.preventDefault(); IN[k] = 0; }; el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointerleave', off); el.addEventListener('pointercancel', off); };
     const mkBtn = (host, txt, k) => { const b = document.createElement('button'); b.textContent = txt; host.appendChild(b); hold(b, k); };
     const pl = root.querySelector('.pl'), pr = root.querySelector('.pr');
-    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '使う', 'b'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { mkBtn(pl, 'ダッシュ', 'b'); mkBtn(pr, 'ジャンプ', 'a'); } else if (cfg.g === 'fish') mkBtn(pr, '釣る', 'a'); else if (cfg.g === 'kemari') mkBtn(pr, '蹴る', 'a'); else if (cfg.g === 'hayashi') { mkBtn(pl, '縁', 'b'); mkBtn(pr, '打', 'a'); } else mkBtn(pr, '射つ', 'a'); }
+    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '使う', 'b'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { mkBtn(pl, 'ダッシュ', 'b'); mkBtn(pr, 'ジャンプ', 'a'); } else if (cfg.g === 'fish') mkBtn(pr, '釣る', 'a'); else if (cfg.g === 'kemari') mkBtn(pr, '蹴る', 'a'); else if (cfg.g === 'hayashi') { mkBtn(pl, '黒', 'b'); mkBtn(pr, '赤', 'a'); for (const [b, bg] of [[pl.lastChild, '#1a1a1a'], [pr.lastChild, '#c8401e']]) b.style.cssText = `width:40vw;height:110px;border-radius:18px;font-size:28px;font-weight:bold;opacity:.9;background:${bg};border:3px solid #f3ead2`; } /* 2.68.1 大きな赤・黒のボタン */ else mkBtn(pr, '射つ', 'a'); }
     const ptr = (e) => { const r = cv.getBoundingClientRect(); IN.mx = (e.clientX - r.left) * cv.width / r.width; IN.my = (e.clientY - r.top) * cv.height / r.height; };
     cv.addEventListener('pointermove', ptr); cv.addEventListener('pointerdown', (e) => { ptr(e); if (cfg.g === 'archery' || cfg.g === 'cart') IN.click = 1; else if (cfg.g === 'fish' || cfg.g === 'kemari') IN.aT = 1; else if (cfg.g === 'hayashi') { const r = cv.getBoundingClientRect(); if (e.clientX - r.left < r.width / 2) { IN.bT = 1; IN.bAt = performance.now(); } else { IN.aT = 1; IN.aAt = performance.now(); } } });
     const env = { cfg, me, ids: cfg.mem.map((x) => x.id), names: Object.fromEntries(cfg.mem.map((x) => [x.id, x.name])), tm: Object.fromEntries(cfg.mem.map((x) => [x.id, x.tm])), others: cfg.mem.map((x) => x.id).filter((id) => id !== me), cv, g2, finished: false, gone: {} };
@@ -604,7 +604,7 @@
     const { cfg, me, g2: g, cv } = env, lead = cfg.lead === me, HY = SGK.HAYASHI, M = () => SGK.AUDIO && SGK.AUDIO.music;
     const GOOD = 0.05, OK = 0.11, WIN = 0.15;
     const st = { phase: 'pick', song: 0, diff: 1, picks: {} }; // picks[pid]＝楽器の id
-    let chart = null, t0 = 0, a0 = 0, schedI = {}, mine = null, myInst = null, fx = [], combo = 0, maxCombo = 0, score = 0, cnt = { good: 0, ok: 0, miss: 0 }, sendT = 0, rx = performance.now(), endT = 0, startAt = 0;
+    let doneQ = 0, chart = null, t0 = 0, a0 = 0, schedI = {}, mine = null, myInst = null, fx = [], combo = 0, maxCombo = 0, score = 0, cnt = { good: 0, ok: 0, miss: 0 }, sendT = 0, rx = performance.now(), endT = 0, startAt = 0;
     const others = {}; for (const id of env.ids) others[id] = { s: 0, good: 0, ok: 0, miss: 0, combo: 0 };
     const root = document.getElementById('ptGame'), box = document.createElement('div');
     box.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#2a2118ee;color:#f3ead2;border:2px solid #a07c42;border-radius:10px;padding:12px 16px;max-width:92vw;max-height:86vh;overflow:auto;font-size:14px;z-index:2';
@@ -619,7 +619,7 @@
 <div style="margin-top:8px">曲：${lead ? HY.SONGS.map((s, i) => `<button data-hs="${i}" ${st.song === i ? 'style="background:#a0702e"' : ''}>${s.name}</button>`).join('') : `<b>${HY.SONGS[st.song].name}</b>`}</div>
 <div>難しさ：${lead ? HY.DIFF.map((d, i) => `<button data-hd="${i}" ${st.diff === i ? 'style="background:#a0702e"' : ''}>${d}</button>`).join('') : `<b>${HY.DIFF[st.diff]}</b>`}</div>
 <div style="margin-top:8px">${lead ? `<button data-hgo="1" ${env.ids.every((id) => st.picks[id] || env.gone[id]) ? '' : 'disabled'}>始める</button>` : 'リーダーが始めるのを待っています'}</div>
-<div style="font-size:12px;color:#cdbf9a;margin-top:6px">打（朱の丸）＝A／Space／Z／F・右側をタップ　縁（墨の輪）＝B／X／J・左側をタップ。下の線に重なった時に打つ</div>`;
+<div style="font-size:12px;color:#cdbf9a;margin-top:6px">赤い丸＝赤（A／Space／Z／F・右のボタン）　黒い輪＝黒（B／X／J・左のボタン）。下の線に重なった時に打つ</div>`;
     }
     box.onclick = (e) => {
       const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
@@ -677,7 +677,7 @@
         if (IN.aT) judge('a', IN.aAt || performance.now()); if (IN.bT) judge('b', IN.bAt || performance.now());
         for (const n of mine) { if (n.j) continue; if (t - n.t > OK) { n.j = 'miss'; cnt.miss++; combo = 0; fx.push({ t: '不可', c: '#ff8a7a', at: performance.now() }); } else break; }
         sendT -= 0.016; if (sendT <= 0) { sendT = 0.5; send(env.others, { k: 'hsc', v: { s: Math.round(score), good: cnt.good, ok: cnt.ok, miss: cnt.miss, combo } }); }
-        if (t > chart.len && !endT) { send(env.others, { k: 'hsc', v: { s: Math.round(score), good: cnt.good, ok: cnt.ok, miss: cnt.miss, combo } }); setTimeout(finish, 1200); endT = -1; }
+        if (t > chart.len && !doneQ) { doneQ = 1; send(env.others, { k: 'hsc', v: { s: Math.round(score), good: cnt.good, ok: cnt.ok, miss: cnt.miss, combo } }); setTimeout(finish, 1200); } /* 2.68.1 曲が終わったら1.2秒後に結果（前は終わらなかった） */
       },
       draw() {
         const W0 = cv.width, H0 = cv.height, now = performance.now();
