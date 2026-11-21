@@ -25,6 +25,9 @@
       { k: 'shonin', n: '商人', pa: '化けたあとも速く動ける', ac: '偽物：化けた物と同じ偽の置物をその場に出す（化けている時だけ）', cd: 20 },
       { k: 'miko', n: '巫女', pa: '鬼が近づくと気配で分かる', ac: 'お札：鬼の叩きを1回だけ無効にする', cd: 25 },
       { k: 'kodomo', n: '子ども', pa: '足が速く、叩かれにくい', ac: 'ダッシュ：3秒間とても速く走る', cd: 15 },
+      { k: 'kariudo', n: '狩人', pa: '化けたあとの動きが少し速い', ac: '罠：足元に罠を置く。鬼が踏むと2.5秒動けない（鬼には見えない）', cd: 20 },
+      { k: 'sou', n: '僧侶', pa: '天狗の風・河童の水・雪女の吹雪を受けない', ac: '読経：近くの鬼を3秒間、半分の速さにする', cd: 22 },
+      { k: 'geinin', n: '旅芸人', pa: 'すぐ別の物に化けかえられる', ac: '声まね：前の離れた所から物音を出して、鬼を引きつける', cd: 18 },
     ],
     s: [
       { k: 'tengu', n: '天狗', pa: '足が速い', ac: '羽ばたき：前方に風を起こし、化けた人を人の姿に戻す', cd: 18 },
@@ -79,13 +82,16 @@
   /* 人間（逃げる側）と妖怪（鬼）の見た目。あとで絵に置き換えるときはここだけ直す */
   function mkHuman(col, ch) {
     const g = new THREE.Group(), K = ch || 'ninja', sc = K === 'kodomo' ? 0.78 : 1;
-    const body = { ninja: 0x23232b, shonin: 0x7a5a3a, miko: 0xf2f2f2, kodomo: 0xe0b43c }[K] || col;
+    const body = { ninja: 0x23232b, shonin: 0x7a5a3a, miko: 0xf2f2f2, kodomo: 0xe0b43c, kariudo: 0x4f6a3a, sou: 0x4a3a6a, geinin: 0xd8503c }[K] || col;
     g.add(part(G('hb', () => new THREE.CylinderGeometry(0.28, 0.34, 0.95, 10)), M(body), 0, 0.5, 0));
-    g.add(part(G('hs', () => new THREE.BoxGeometry(0.62, 0.1, 0.4)), M({ ninja: 0x8a2a2a, shonin: 0x3a2a1a, miko: 0xc8402f, kodomo: col }[K] || 0x3a2a1a), 0, 0.72, 0));
+    g.add(part(G('hs', () => new THREE.BoxGeometry(0.62, 0.1, 0.4)), M({ ninja: 0x8a2a2a, shonin: 0x3a2a1a, miko: 0xc8402f, kodomo: col, kariudo: 0x5a3d1c, sou: 0xe08a2a, geinin: 0xf2f2f2 }[K] || 0x3a2a1a), 0, 0.72, 0));
     g.add(part(G('hh', () => new THREE.SphereGeometry(0.22, 12, 10)), M(0xf0c9a0), 0, 1.2, 0));
     if (K === 'ninja') g.add(part(G('hn', () => new THREE.SphereGeometry(0.235, 12, 8, 0, 6.3, 0, 1.9)), M(0x23232b), 0, 1.22, 0));
     else if (K === 'shonin') g.add(part(G('hm', () => new THREE.CylinderGeometry(0.12, 0.3, 0.2, 12)), M(0xc9a45a), 0, 1.45, 0));
     else if (K === 'miko') { g.add(part(G('hr', () => new THREE.SphereGeometry(0.235, 12, 8, 0, 6.3, 0, 1.2)), M(0x2a2018), 0, 1.22, 0)); g.add(part(G('hrb', () => new THREE.BoxGeometry(0.1, 0.1, 0.5)), M(0xc8402f), 0, 1.42, 0)); }
+    else if (K === 'kariudo') g.add(part(G('hf', () => new THREE.SphereGeometry(0.25, 12, 8, 0, 6.3, 0, 1.3)), M(0x7a5a2a), 0, 1.24, 0));
+    else if (K === 'sou') g.add(part(G('hq', () => new THREE.TorusGeometry(0.2, 0.04, 6, 14)), M(0xe0b43c), 0, 0.86, 0.12));
+    else if (K === 'geinin') g.add(part(G('hg', () => new THREE.ConeGeometry(0.22, 0.4, 8)), M(0xe0b43c), 0, 1.5, 0));
     else g.add(part(G('hk', () => new THREE.SphereGeometry(0.235, 12, 8, 0, 6.3, 0, 1.2)), M(0x2a2018), 0, 1.22, 0));
     g.scale.setScalar(sc); return g;
   }
@@ -183,7 +189,7 @@
     const chOf0 = (id, r) => { const m = (cfg.mem || []).find((x) => x.id === id), c = m && m.ch && m.ch[r]; return HD.CH[r].some((x) => x.k === c) ? c : HD.CH[r][0].k; };
     order.forEach((id, i) => {
       const sk = i < nSk, [x, z] = sk ? [(i - (nSk - 1) / 2) * 2, HZ - 3.2] : free(0.6);
-      P[id] = { id, role: sk ? 's' : 'h', role0: sk ? 's' : 'h', x, z, tx: x, tz: z, fx: 0, fz: -1, form: null, mv: 0, hp: 3, out: false, caught: 0, stun: 0, cd: 0, fcd: 0, grp: null, key: '', bob: 0, chh: chOf0(id, 'h'), chs: chOf0(id, 's'), sk: 0, boost: 0, freeze: 0, shield: false, arrowT: 0 };
+      P[id] = { id, role: sk ? 's' : 'h', role0: sk ? 's' : 'h', x, z, tx: x, tz: z, fx: 0, fz: -1, form: null, mv: 0, hp: 3, out: false, caught: 0, stun: 0, cd: 0, fcd: 0, grp: null, key: '', bob: 0, chh: chOf0(id, 'h'), chs: chOf0(id, 's'), sk: 0, boost: 0, freeze: 0, slowT: 0, shield: false, arrowT: 0 };
     });
     const cho = (p) => (p.role === 'h' ? p.chh : p.chs), chN = (p) => (HD.CH[p.role].find((x) => x.k === cho(p)) || HD.CH[p.role][0]).n, marks = {};
     const cpu = solo ? { id: '__cpu', x: 0, z: HZ - 3, fx: 0, fz: -1, cd: 1.5, tgt: null, grp: mkYokai('oni'), mv: 0 } : null; if (cpu) scene.add(cpu.grp);
@@ -202,10 +208,10 @@
     const setCam = () => { cam.position.set(camX + 15, 17, camZ + 15); cam.lookAt(camX, 0, camZ); };
     // 印（探す先の輪・叩いた所・ビーコン）
     const ring = (c, ri, ro) => { const m = new T3.Mesh(new T3.RingGeometry(ri, ro, 28), new T3.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.8, side: T3.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.y = 0.06; m.visible = false; scene.add(m); return m; };
-    const hl = ring(0xffe070, 0.7, 0.85), bc = ring(0xff8040, 5.6, 6), sw = ring(0xffffff, 0.9, 1.3), swm = ring(0xff4040, 0.9, 1.3);
+    const nz = ring(0x70c8ff, 4.6, 5), hl = ring(0xffe070, 0.7, 0.85), bc = ring(0xff8040, 5.6, 6), sw = ring(0xffffff, 0.9, 1.3), swm = ring(0xff4040, 0.9, 1.3);
 
     // 状態
-    const FX = []; let t = 0, phase = 'hide', done = false, toast = null, toastT = 0, pend = null, sendT = 0, bk = 0, beacon = null, bcT = 0, last = { aT: 0 };
+    const FX = [], traps = []; let nzo = null, t = 0, phase = 'hide', done = false, toast = null, toastT = 0, pend = null, sendT = 0, bk = 0, beacon = null, bcT = 0, last = { aT: 0 };
     const say = (s) => { toast = s; toastT = 3; };
     const alive = (p) => p && !p.out && !p.esc && !env.gone[p.id];
     const hiders = () => ids.map((i) => P[i]).filter((p) => alive(p) && p.role === 'h');
@@ -236,6 +242,7 @@
       if (p === MY) { tell({ k: 'hs', id: me, x: r2(x), z: r2(z), r: R }); pend = { t: 0.5, x, z, R, ok: false }; }
     };
     const addDecoy = (x, z, kd, v, rot) => { const q = { x, z, kind: kd, v, rot, dc: 1, m: mkProp(kd, v) }; q.m.position.set(x, 0, z); q.m.rotation.y = rot; scene.add(q.m); props.push(q); };
+    const addTrap = (tid, x, z) => { const m = new THREE.Mesh(G('trg', () => new THREE.RingGeometry(0.35, 0.75, 14)), new THREE.MeshBasicMaterial({ color: 0x6b3a1a, side: THREE.DoubleSide })); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.07, z); scene.add(m); traps.push({ tid, x, z, m }); };
     const useSkill = () => {
       const ch = cho(MY), def = HD.CH[MY.role].find((x) => x.k === ch); if (!def || MY.sk > 0 || MY.stun > 0 || !alive(MY)) return;
       if (MY.role === 's' && phase === 'hide') return;
@@ -244,7 +251,9 @@
       else if (ch === 'shonin') { if (!MY.form) { say('偽物は、化けている時に使えます'); ok = false; } else { let x = MY.x - fx * 2, z = MY.z - fz * 2; if (blocked(x, z, 0.5)) { x = MY.x; z = MY.z; } const rot = Math.random() * 6.28; addDecoy(x, z, MY.form.k, MY.form.v, rot); tell({ k: 'dc', x: r2(x), z: r2(z), kd: MY.form.k, v: MY.form.v, rot: r2(rot) }); say('偽物を置いた'); SGK.AUDIO.sfx('kmrKick'); } }
       else if (ch === 'miko') { MY.shield = true; say('お札を構えた（次の叩きを1回防ぐ）'); SGK.AUDIO.sfx('open'); }
       else if (ch === 'kodomo') { MY.boost = 3; say('ダッシュ！'); }
-      else if (ch === 'tengu' || ch === 'kappa' || ch === 'yuki') { tell({ k: 'sk', s: ch, id: me, x: r2(MY.x), z: r2(MY.z), fx: r2(fx), fz: r2(fz) }); FX.push({ x: MY.x + (ch === 'yuki' ? 0 : fx * 2.5), z: MY.z + (ch === 'yuki' ? 0 : fz * 2.5), t: 0.5, bad: false, big: true }); SGK.AUDIO.sfx(ch === 'yuki' ? 'zawa' : 'bow'); say(ch === 'tengu' ? '羽ばたき！' : ch === 'kappa' ? '水かけ！' : '吹雪！'); }
+      else if (ch === 'kariudo') { const tid = me + ':' + Math.floor(t * 10); addTrap(tid, MY.x, MY.z); tell({ k: 'tr', tid, x: r2(MY.x), z: r2(MY.z) }); say('罠を置いた'); SGK.AUDIO.sfx('carve'); }
+      else if (ch === 'geinin') { let x = MY.x + fx * 7, z = MY.z + fz * 7; for (let k = 7; k > 0 && blocked(x, z, 0.4); k -= 1) { x = MY.x + fx * k; z = MY.z + fz * k; } nzo = { x, z, t: 5 }; tell({ k: 'ns', x: r2(x), z: r2(z) }); say('声まねをした'); SGK.AUDIO.sfx('news'); }
+      else if (ch === 'tengu' || ch === 'kappa' || ch === 'yuki' || ch === 'sou') { tell({ k: 'sk', s: ch, id: me, x: r2(MY.x), z: r2(MY.z), fx: r2(fx), fz: r2(fz) }); FX.push({ x: MY.x + (ch === 'yuki' || ch === 'sou' ? 0 : fx * 2.5), z: MY.z + (ch === 'yuki' || ch === 'sou' ? 0 : fz * 2.5), t: 0.5, bad: false, big: true }); SGK.AUDIO.sfx(ch === 'yuki' || ch === 'sou' ? 'zawa' : 'bow'); say(ch === 'tengu' ? '羽ばたき！' : ch === 'kappa' ? '水かけ！' : ch === 'yuki' ? '吹雪！' : '読経…'); }
       else if (ch === 'neko') { MY.arrowT = 5; say('においをかぎつけた…'); }
       else if (ch === 'oni') { MY.cd = 0; strike(MY, true); }
       if (ok) MY.sk = def.cd;
@@ -261,13 +270,17 @@
         if (m.k === 'hp') { const q = P[from]; if (!q) return; q.tx = m.x; q.tz = m.z; q.fx = m.fx; q.fz = m.fz; q.mv = m.m; const f = m.f ? { k: m.f[0], v: m.f[1] } : null; if (q.role === 'h') q.form = f; }
         else if (m.k === 'hs') { if (MY.role === 'h' && alive(MY) && phase !== 'end' && Math.hypot(m.x - MY.x, m.z - MY.z) < (m.r || R_HIT) * (cho(MY) === 'kodomo' ? 0.78 : 1)) { if (MY.shield) { MY.shield = false; tell({ k: 'hb', by: m.id }); say('お札が鬼の一撃を防いだ！'); SGK.AUDIO.sfx('open'); } else { caught(me, m.id); tell({ k: 'hc', id: me, by: m.id }); } } }
         else if (m.k === 'hb') { if (m.by === me) { MY.stun = 1.2; if (pend) pend.ok = true; say('お札にはじかれた！'); } }
+        else if (m.k === 'tr') { addTrap(m.tid, m.x, m.z); }
+        else if (m.k === 'tx') { const i = traps.findIndex((q) => q.tid === m.tid); if (i >= 0) { scene.remove(traps[i].m); traps.splice(i, 1); } if (m.by) { FX.push({ x: m.x, z: m.z, t: 0.5, bad: true }); SGK.AUDIO.sfx('hit'); } }
+        else if (m.k === 'ns') { nzo = { x: m.x, z: m.z, t: 5 }; SGK.AUDIO.sfx('news'); say('どこかで声がした…'); }
         else if (m.k === 'dc') { addDecoy(m.x, m.z, m.kd, m.v, m.rot); }
         else if (m.k === 'mk') { marks[m.id] = 6; }
         else if (m.k === 'kp') { const q = keys[m.i]; if (q && !q.got) { q.got = true; q.m.visible = false; kgot++; say(`鍵が見つかった（${kgot}/${NEED}）`); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が開いた！'); } } }
         else if (m.k === 'es') { const q = P[m.id]; if (q) { q.esc = true; say(`${nm(m.id)}が脱出した！`); SGK.AUDIO.sfx('gbWin'); } }
         else if (m.k === 'sk') {
-          FX.push({ x: m.x + (m.s === 'yuki' ? 0 : m.fx * 2.5), z: m.z + (m.s === 'yuki' ? 0 : m.fz * 2.5), t: 0.5, bad: false, big: true });
-          if (MY.role === 'h' && alive(MY)) { const dx = MY.x - m.x, dz = MY.z - m.z, d = Math.hypot(dx, dz) || 0.01, dot = (dx * m.fx + dz * m.fz) / d;
+          FX.push({ x: m.x + (m.s === 'yuki' || m.s === 'sou' ? 0 : m.fx * 2.5), z: m.z + (m.s === 'yuki' || m.s === 'sou' ? 0 : m.fz * 2.5), t: 0.5, bad: false, big: true });
+          if (m.s === 'sou' && MY.role === 's' && alive(MY) && Math.hypot(MY.x - m.x, MY.z - m.z) < 6) { MY.slowT = 3; say('読経で足が重い…'); }
+          if (MY.role === 'h' && alive(MY) && cho(MY) !== 'sou') { const dx = MY.x - m.x, dz = MY.z - m.z, d = Math.hypot(dx, dz) || 0.01, dot = (dx * m.fx + dz * m.fz) / d;
             if (m.s === 'tengu' && d < 5.5 && dot > 0.4) { MY.form = null; MY.fcd = 3; say('天狗の風で姿があらわになった！'); }
             else if (m.s === 'kappa' && d < 6 && dot > 0.5) { marks[me] = 6; tell({ k: 'mk', id: me }); say('水をかけられた！しばらく光って見える'); }
             else if (m.s === 'yuki' && d < 7) { MY.freeze = 3; say('吹雪で動けない！'); } }
@@ -277,7 +290,7 @@
       },
       update(dt) {
         t += dt; phase = t < HIDE_T ? 'hide' : 'play'; toastT -= dt;
-        for (const id of ids) { const p = P[id]; p.cd -= dt; p.stun -= dt; p.fcd -= dt; p.sk = Math.max(0, p.sk - dt); p.boost -= dt; p.freeze -= dt; p.arrowT -= dt; }
+        for (const id of ids) { const p = P[id]; p.cd -= dt; p.stun -= dt; p.fcd -= dt; p.sk = Math.max(0, p.sk - dt); p.boost -= dt; p.freeze -= dt; p.slowT -= dt; p.arrowT -= dt; }
         for (const k in marks) marks[k] -= dt;
         // 自分の操作
         const [ix, iy] = inVec(), wx = RIGHT[0] * ix + FWD[0] * -iy, wz = RIGHT[1] * ix + FWD[1] * -iy, ml = Math.hypot(wx, wz);
@@ -287,11 +300,11 @@
           const dis = MY.role === 'h' && MY.form;
           if (!locked && MY.freeze <= 0 && ml > 0.05) {
             if (dis && o.mv === 'none') { const a = Math.atan2(MY.fx, MY.fz) - ix * 3 * dt; MY.fx = Math.sin(a); MY.fz = Math.cos(a); }
-            else { const c = cho(MY); let sp; if (MY.role === 's') sp = c === 'tengu' ? 5.2 : SP_S; else { sp = dis ? (c === 'shonin' ? 3.2 : SP_HS) : (c === 'kodomo' ? 5.0 : SP_H); if (MY.boost > 0) sp *= 1.8; if (seekers().some((q) => q.id !== me && cho(q) === 'yuki' && Math.hypot(q.x - MY.x, q.z - MY.z) < 3.5)) sp *= 0.85; } moveBy(MY, wx / Math.max(1, ml) * sp * dt, wz / Math.max(1, ml) * sp * dt, 0.4); MY.fx = wx / ml; MY.fz = wz / ml; MY.mv = 1; }
+            else { const c = cho(MY); let sp; if (MY.role === 's') { sp = c === 'tengu' ? 5.2 : SP_S; if (MY.slowT > 0) sp *= 0.5; } else { sp = dis ? (c === 'shonin' ? 3.2 : c === 'kariudo' ? 2.6 : SP_HS) : (c === 'kodomo' ? 5.0 : SP_H); if (MY.boost > 0) sp *= 1.8; if (seekers().some((q) => q.id !== me && cho(q) === 'yuki' && Math.hypot(q.x - MY.x, q.z - MY.z) < 3.5)) sp *= 0.85; } moveBy(MY, wx / Math.max(1, ml) * sp * dt, wz / Math.max(1, ml) * sp * dt, 0.4); MY.fx = wx / ml; MY.fz = wz / ml; MY.mv = 1; }
           }
           if (IN.aT) {
             if (MY.role === 's') { if (!locked) strike(MY); }
-            else if (MY.fcd <= 0) { const q = near(MY.x, MY.z, 2.4); if (q) { MY.form = { k: q.kind, v: q.v }; MY.fcd = 0.8; SGK.AUDIO.sfx('kmrKick'); say(`${KIND[q.kind]}に化けた`); } else say('近くに化けられる物がありません'); }
+            else if (MY.fcd <= 0) { const q = near(MY.x, MY.z, 2.4); if (q) { MY.form = { k: q.kind, v: q.v }; MY.fcd = cho(MY) === 'geinin' ? 0.2 : 0.8; SGK.AUDIO.sfx('kmrKick'); say(`${KIND[q.kind]}に化けた`); } else say('近くに化けられる物がありません'); }
           }
           if (IN.cT) useSkill();
           if (IN.bT && MY.role === 'h' && MY.form) { MY.form = null; MY.fcd = 0.5; say('人の姿に戻った'); }
@@ -336,6 +349,9 @@
         camX += (MY.x - camX) * Math.min(1, dt * 6); camZ += (MY.z - camZ) * Math.min(1, dt * 6);
         // 印
         const q = MY.role === 'h' && alive(MY) ? near(MY.x, MY.z, 2.4) : null; hl.visible = !!q && act; if (q) hl.position.set(q.x, 0.06, q.z);
+        if (MY.role === 's' && alive(MY) && MY.stun <= 0 && !done) for (const q of traps) if (Math.hypot(q.x - MY.x, q.z - MY.z) < 1.0) { MY.stun = 2.5; say('罠にかかった！'); tell({ k: 'tx', tid: q.tid, x: r2(q.x), z: r2(q.z), by: me }); scene.remove(q.m); traps.splice(traps.indexOf(q), 1); FX.push({ x: q.x, z: q.z, t: 0.5, bad: true }); SGK.AUDIO.sfx('hit'); break; }
+        for (const q of traps) q.m.visible = MY.role !== 's';
+        if (nzo) { nzo.t -= dt; nz.visible = nzo.t > 0; nz.position.set(nzo.x, 0.06, nzo.z); nz.scale.setScalar(1 + 0.1 * Math.sin(t * 10)); if (nzo.t <= 0) nzo = null; } else nz.visible = false;
         bc.visible = bcT > 0 && !!beacon; if (beacon) { bc.position.set(beacon.x, 0.06, beacon.z); bc.scale.setScalar(1 + 0.08 * Math.sin(t * 8)); }
         for (const f of FX) f.t -= dt; while (FX.length && FX[0].t <= 0) FX.shift();
         const f0 = FX.find((f) => !f.bad), f1 = FX.find((f) => f.bad); sw.visible = !!f0; if (f0) { sw.position.set(f0.x, 0.07, f0.z); sw.scale.setScalar((1 + (0.25 - f0.t) * 3) * (f0.big ? 2.6 : 1)); } swm.visible = !!f1; if (f1) { swm.position.set(f1.x, 0.07, f1.z); }
