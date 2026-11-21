@@ -66,7 +66,7 @@ function activeMenu() {
   if (!$('captive').classList.contains('hidden')) return $('captive');
   return null;
 }
-function menuButtons(m) { const a = [...m.querySelectorAll('button')]; if (m.id === 'titleMenu') a.push($('updateBtn')); return a.filter((b) => !b.disabled && b.offsetParent); } // 0.60.2 タイトルの更新ボタンもコントローラーで選べる
+function menuButtons(m) { const a = [...m.querySelectorAll('button')]; if (m.id === 'titleMenu') a.push($('updateBtn')); if ((m.id === 'info' || m.id === 'town') && G.mode === 'host') a.push(...$('speedBox').querySelectorAll('button')); /* 2.99.8 拠点の窓を開いている間も、右下の時間ボタンへ十字キーで移れる */ return a.filter((b) => !b.disabled && b.offsetParent); } // 0.60.2 タイトルの更新ボタンもコントローラーで選べる
 function setFocus(m, b) { menuButtons(m).forEach((x) => x.classList.toggle('focus', x === b)); focusMem[m.id] = b ? b.id || b.textContent : null; }
 function currentFocus(m) {
   const bs = menuButtons(m);
