@@ -447,9 +447,16 @@
               else if (qte.t <= 0) qfail('間に合わなかった…1秒だけ開けられない');
             }
           }
-          if (act && MY.role === 'h' && exitP.open && exitP.list.some((e) => Math.hypot(e.x - MY.x, e.z - MY.z) < 1.9)) { MY.esc = true; tell({ k: 'es', id: me }); say('脱出成功！'); SGK.AUDIO.sfx('gbWin'); }
+          if (act && MY.role === 'h' && ((exitP.open && exitP.list.some((e) => Math.hypot(e.x - MY.x, e.z - MY.z) < 1.9)) || (exitP.extra && Math.hypot(exitP.extra.x - MY.x, exitP.extra.z - MY.z) < 1.9))) { MY.esc = true; tell({ k: 'es', id: me }); say('脱出成功！'); SGK.AUDIO.sfx('gbWin'); }
         }
         if (esc) for (const e of exitP.list) e.m.visible = exitP.open;
+        // 逃げる側が1人だけになったら、ランダムな位置に即使える脱出口が出る（位置は種から決めるので全員同じ）
+        if (esc && !solo && !exitP.extra && !done && ids.filter((i) => P[i].role0 === 'h').length >= 2 && hiders().length === 1) {
+          const rr = mulberry((cfg.seed ^ 0x5a17) >>> 0); let x = 0, z = 0; for (let k = 0; k < 200; k++) { x = (rr() * 2 - 1) * (HX - 4); z = (rr() * 2 - 1) * (HZ - 4); if (!blocked(x, z, 2.5)) break; }
+          const m = new THREE.Group(), gd = M(0xe0b43c); for (const px of [-1.8, 1.8]) m.add(part(G('tp', () => new THREE.CylinderGeometry(0.25, 0.3, 3.4, 10)), gd, px, 1.7, 0)); m.add(part(G('tk', () => new THREE.BoxGeometry(4.8, 0.32, 0.7)), M(0x2a2a2a), 0, 3.5, 0)); m.add(part(G('tn2', () => new THREE.BoxGeometry(3.8, 0.22, 0.34)), gd, 0, 2.8, 0));
+          const bm = new THREE.Mesh(G('exb', () => new THREE.CylinderGeometry(1.5, 1.5, 6, 16, 1, true)), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide })); bm.position.y = 3; m.add(bm); m.position.set(x, 0, z); scene.add(m); exitP.extra = { x, z, m };
+          say('最後の1人に脱出口が現れた！（金色の鳥居）'); SGK.AUDIO.sfx('open');
+        }
         // 送る
         sendT -= dt; if (sendT <= 0 && !solo) { sendT = 0.1; tell({ k: 'hp', x: r2(MY.x), z: r2(MY.z), fx: r2(MY.fx), fz: r2(MY.fz), m: MY.mv, f: MY.form ? [MY.form.k, MY.form.v] : 0 }); }
         // ほかの人の位置をなめらかに
@@ -494,9 +501,9 @@
       },
       finish(over) {
         const ini = MY.role0, hs = ids.filter((i) => P[i].role0 === 'h'), surv = (id) => !P[id].caught0 && !env.gone[id];
-        const win = ini === 'h' ? (esc ? over === 'h' && !!P[me].esc : surv(me)) : over === 's';
+        const escN2 = ids.filter((i) => P[i].esc).length, win = ini === 'h' ? (esc ? (escN2 * 2 <= hs.length ? !!P[me].esc : over === 'h' || !!P[me].esc) : surv(me)) : over === 's'; // 脱出できたのが半分以下なら、脱出できた人だけ勝ち
         const rows = ids.map((id) => { const p = P[id]; return `<b style="color:${col(id)}">${nm(id)}</b>（${(HD.CH[p.role0].find((x) => x.k === (p.role0 === 'h' ? p.chh : p.chs)) || {}).n}）　${p.role0 === 'h' ? (esc ? (p.esc ? '脱出成功！' : surv(id) ? '脱出できなかった' : '見つかった') : surv(id) ? '隠れきった！' : '見つかった') : `探す側：${p.caught}人見つけた`}`; });
-        env.end({ title: over === 'd' ? '引き分け！' : win ? (ini === 'h' ? (esc ? '脱出成功！' : '隠れきった！') : '全員見つけた！') : (ini === 'h' ? (P[me].caught0 ? '見つかってしまった…' : '脱出できなかった…') : '見つけきれなかった…'), rows, cmd: { type: 'partyResult', game: 'hide', n: ids.length, win: win ? 1 : 0, cnt: P[me].caught, role: ini } });
+        env.end({ title: win ? (ini === 'h' ? (esc ? (P[me].esc ? '脱出成功！' : 'みんなの勝ち！') : '隠れきった！') : '全員見つけた！') : over === 'd' ? '引き分け！' : (ini === 'h' ? (P[me].caught0 ? '見つかってしまった…' : '脱出できなかった…') : '見つけきれなかった…'), rows, cmd: { type: 'partyResult', game: 'hide', n: ids.length, win: win ? 1 : 0, cnt: P[me].caught, role: ini } });
       },
       draw() {
         setCam(); rd.render(scene, cam);
@@ -537,7 +544,7 @@
         if (qte) { const bw = 54, x0 = W / 2 - bw * 2 - 9, y0 = H * 0.42; g.fillStyle = 'rgba(0,0,0,.65)'; g.fillRect(x0 - 12, y0 - 40, bw * 4 + 54, bw + 74); txt('この順に押す！', W / 2, y0 - 18, { al: 'center', sz: 16, c: '#ffe9a0' }); qte.seq.forEach((c, i2) => { g.fillStyle = i2 < qte.i ? '#4aa84a' : i2 === qte.i ? '#f2c14e' : '#6a5a3a'; g.fillRect(x0 + i2 * (bw + 6), y0, bw, bw); txt(QL(c), x0 + i2 * (bw + 6) + bw / 2, y0 + bw / 2 + 10, { al: 'center', sz: 28, c: '#1a1208' }); }); g.fillStyle = '#ffd24a'; g.fillRect(x0, y0 + bw + 10, (bw * 4 + 18) * Math.max(0, qte.t / 6), 8);
           qrects.length = 0; QK.forEach((c, i2) => { const rx = x0 + i2 * (bw + 6), ry = y0 + bw + 30; qrects.push([rx, ry, bw, bw, c]); g.fillStyle = '#3a6a9a'; g.fillRect(rx, ry, bw, bw); txt(QL(c), rx + bw / 2, ry + bw / 2 + 10, { al: 'center', sz: 26, c: '#fff' }); }); txt('キー：Space=A　X=B　C=X　V=Y　／　画面のボタンも押せます', W / 2, y0 + bw * 2 + 52, { al: 'center', sz: 13, c: '#e8dcc0' }); } else qrects.length = 0;
         if (esc) { txt(`宝箱 ${kgot}/${NEED}　出口：${exitP.open ? '2か所に出現！全員の位置が見える' : 'まだ現れない'}`, W / 2, 74, { al: 'center', sz: 15, c: exitP.open ? '#9affb0' : '#ffe070' });
-          if (exitP.open && MY.role === 'h' && alive(MY)) for (const e of exitP.list) { const [ax, ay] = pj(MY.x, 1, MY.z), [bx, by] = pj(e.x, 1, e.z), l = Math.hypot(bx - ax, by - ay) || 1; if (l > 120) txt('出口 ➤', ax + (bx - ax) / l * 120, ay + (by - ay) / l * 120, { al: 'center', sz: 20, b: 1, c: '#9affb0' }); } }
+          if (MY.role === 'h' && alive(MY)) for (const e of (exitP.open ? exitP.list : []).concat(exitP.extra ? [exitP.extra] : [])) { const [ax, ay] = pj(MY.x, 1, MY.z), [bx, by] = pj(e.x, 1, e.z), l = Math.hypot(bx - ax, by - ay) || 1; if (l > 120) txt('出口 ➤', ax + (bx - ax) / l * 120, ay + (by - ay) / l * 120, { al: 'center', sz: 20, b: 1, c: '#9affb0' }); } }
         const qn = alive(MY) && !(MY.role === 's' && phase === 'hide') ? near(MY.x, MY.z, 2.4) : null;
         const hint = MY.role === 's' ? `A／Space：叩く（置物を叩くと体力-1）　${MY.form ? 'B／X：鬼の姿に戻る　' : qn ? `B／X：${KIND[qn.kind]}に化ける　` : ''}移動：矢印／WASD／スティック` : alive(MY) ? `${qn ? `A／Space：${KIND[qn.kind]}に化ける　` : ''}${MY.form ? 'B／X：人に戻る　' : ''}移動：矢印／WASD／スティック` : '';
         txt(hint, W / 2, H - BO - 16, { al: 'center', sz: 14 });
