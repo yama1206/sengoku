@@ -56,6 +56,7 @@
     const list = LB.mem.map((x, i) => `<div class="m">${LB.team ? `<b style="color:${TEAM[i % 2].c}">${TEAM[i % 2].n}</b> ` : ''}${esc(x.name)}${x.id === LB.leader ? '（リーダー）' : ''}</div>`).join('');
     e.innerHTML = `<div><h2>${d.name}</h2><div class="d">${esc(d.desc)}</div><div>参加者 ${n}/${d.max}人${LB.team ? '（チーム戦：交互に赤・白）' : ''}${d.mode ? `　勝ち方：${LB.mode === 'big' ? '大物（いちばん大きい魚）' : '数（釣った数）'}` : ''}</div>${list}
       <div style="margin-top:8px">${LB.lead ? `<button data-a="inv">同じ町の人を誘う</button>${d.team ? `<button data-a="team">${LB.team ? '個人戦にする' : 'チーム戦にする'}</button>` : ''}${d.mode ? '<button data-a="mode">勝ち方を変える</button>' : ''}${n >= 2 ? '<button data-a="go">出発する</button>' : ''}<button data-a="solo">ひとりで練習（報酬なし）</button>` : '<div class="d">リーダーが出発すると始まります</div>'}<button data-a="close">${LB.lead ? 'やめる' : '抜ける'}</button></div></div>`;
+    try { if (typeof setFocus === 'function') setFocus(e, currentFocus(e)); } catch (er) {} // 2.69.2 作り直してもコントローラーの選択を保つ
     e.onclick = (ev) => {
       const b = ev.target.closest('button[data-a]'); if (!b || !LB) return; const a = b.dataset.a;
       if (a === 'inv') { const to = ENV.others().map((x) => x.id); send(to, { k: 'inv', g: LB.g, rid: LB.rid, nm: ENV.name(), team: LB.team, mode: LB.mode }); b.textContent = to.length ? `${to.length}人に声をかけた` : '同じ町にほかの人がいません'; }

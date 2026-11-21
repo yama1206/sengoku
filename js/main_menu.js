@@ -196,7 +196,8 @@ function openSub(kind) {
   G.sub = kind; $('mSubT').textContent = kind === 'inv' ? '持っている物資' : kind === 'busho' ? '武将一覧' : '兵士図鑑'; $('mSubB').innerHTML = kind === 'inv' ? invHtml(m) : kind === 'busho' ? bushoHtml() : zukanHtml(m); $('mSubB').scrollTop = 0;
   SGK.AUDIO.sfx('open'); setFocus($('gameMenu'), $('mSubBack'));
 }
-function menuBack() { if (!$('mSub').classList.contains('hidden')) { if (G.sub === 'inv') toggleMenu(false); else { $('mSub').classList.add('hidden'); $('mMain').classList.remove('hidden'); setFocus($('gameMenu'), $('mZukan')); } return; } if (!$('mSet').classList.contains('hidden')) { $('mSet').classList.add('hidden'); $('mMain').classList.remove('hidden'); setFocus($('gameMenu'), $('mSettings')); } else toggleMenu(false); }
+function menuBack() { { const pt = document.getElementById('ptBox') || document.getElementById('ptRes'); if (pt) { const bs = menuButtons(pt); if (bs.length) bs[bs.length - 1].click(); return; } } // 2.69.2 みんなで遊ぶの窓：Bで閉じる（いちばん後ろのボタン＝閉じる・やめる）
+  if (!$('mSub').classList.contains('hidden')) { if (G.sub === 'inv') toggleMenu(false); else { $('mSub').classList.add('hidden'); $('mMain').classList.remove('hidden'); setFocus($('gameMenu'), $('mZukan')); } return; } if (!$('mSet').classList.contains('hidden')) { $('mSet').classList.add('hidden'); $('mMain').classList.remove('hidden'); setFocus($('gameMenu'), $('mSettings')); } else toggleMenu(false); }
 // ---------- 設定（音・表示／操作説明：地図／操作説明：戦闘） ----------
 const PADS = {
   xbox: { name: 'Xbox系', k: { A: 'A', B: 'B', X: 'X', Y: 'Y', LB: 'LB', RB: 'RB', L3: 'L3（左スティック押し込み）', BACK: 'BACK', START: 'START' } },

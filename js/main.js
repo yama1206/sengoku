@@ -58,6 +58,7 @@ const focusMem = {};
 function activeMenuNotBattle() { const m = activeMenu(); return m && m !== $('battle'); }
 function activeMenu() {
   if (G.mode === 'title') return $('mSet').parentNode === $('title') && !$('mSet').classList.contains('hidden') ? $('mSet') : !$('mapPanel').classList.contains('hidden') ? $('mapPanel') : !$('createPanel').classList.contains('hidden') ? $('createPanel') : !$('carryPanel').classList.contains('hidden') ? $('carryPanel') : !$('slotPanel').classList.contains('hidden') ? $('slotPanel') : !$('friendPanel').classList.contains('hidden') ? $('friendPanel') : !$('namePanel').classList.contains('hidden') ? $('namePanel') : $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
+  { const pt = document.getElementById('ptBox') || document.getElementById('ptRes'); if (pt) return pt; } // 2.69.2 「みんなで遊ぶ」の部屋・結果の窓もコントローラーで操作できるように
   if (!$('gameMenu').classList.contains('hidden')) return $('gameMenu');
   if (!$('char').classList.contains('hidden')) return $('char');
   if (!$('town').classList.contains('hidden')) return $('town');
