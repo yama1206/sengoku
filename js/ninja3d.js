@@ -476,7 +476,7 @@
   }
   const charMat = () => (charMat.m || (charMat.m = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, side: T.DoubleSide })));
   const SKIN = [0.6, 0.39, 0.255];
-  function paint(mesh, tint, hood, hat) { // 肌の色をそろえ、服（と頭巾）を tint に染める。hat：陣笠・兜の白い所を黒漆に（soldier3d.js と同じ）
+  function paint(mesh, tint, hood, hat, skinC) { // 2.101.9 skinC：肌の色を変える（かくれんぼの妖怪） // 肌の色をそろえ、服（と頭巾）を tint に染める。hat：陣笠・兜の白い所を黒漆に（soldier3d.js と同じ）
     const geo = mesh.geometry, C = geo.attributes.color; if (!C) return;
     geo.computeBoundingBox(); const bb = geo.boundingBox, PY = geo.attributes.position, yTop = bb.min.y + (bb.max.y - bb.min.y) * 0.84;
     const names = mesh.skeleton.bones.map((b) => b.name.replace(/^mixamorig:?/, ''));
@@ -486,7 +486,7 @@
     for (let i = 0; i < C.count; i++) {
       const r = C.getX(i), g = C.getY(i), b = C.getZ(i), lum = 0.299 * r + 0.587 * g + 0.114 * b, bn = boneOf(i);
       const skin = r >= 0.6 && r <= 0.9 && g >= 0.48 && g <= 0.7 && b >= 0.28 && b <= 0.5 && r - g > 0.07 && g - b > 0.08;
-      if (skin && !/Hand|Thumb|Index|Middle|Ring|Pinky/.test(bn)) { C.setXYZ(i, SKIN[0], SKIN[1], SKIN[2]); continue; }
+      if (skin && (skinC || !/Hand|Thumb|Index|Middle|Ring|Pinky/.test(bn))) { const sc = skinC || SKIN; C.setXYZ(i, sc[0], sc[1], sc[2]); continue; }
       if (hat && PY.getY(i) > yTop) { const lo = Math.min(r, g, b), hi = Math.max(r, g, b); if (lo > 0.3 && hi - lo < 0.25 * hi) { C.setXYZ(i, 0.05, 0.05, 0.058); continue; } }
       if (!tint) continue;
       const cl = (mask && mask[i]) || (hood && (/Head|Neck/.test(bn) || /Hand|Thumb|Index|Middle|Ring|Pinky|Foot|Toe|Leg/.test(bn)));
@@ -499,7 +499,7 @@
     const R = MD.rigs[rig], root = cloneSk(R.gl.scene), bones = {}, ch0 = [];
     root.traverse((x) => {
       if (x.isBone) bones[x.name.replace(/^mixamorig:?/, '')] = x;
-      if (x.isMesh) { x.geometry = x.geometry.clone(); if (x.isSkinnedMesh && SGK.SOLD3D && SGK.SOLD3D.fixArmWeights) { ch0.push(x); } x.material = charMat(); x.castShadow = true; x.receiveShadow = false; x.frustumCulled = false; if (x.isSkinnedMesh && (o.tint || o.hood || true)) paint(x, o.tint ? new T.Color(o.tint) : null, o.hood, rig === 't2' || rig === 't3'); }
+      if (x.isMesh) { x.geometry = x.geometry.clone(); if (x.isSkinnedMesh && SGK.SOLD3D && SGK.SOLD3D.fixArmWeights) { ch0.push(x); } x.material = charMat(); x.castShadow = true; x.receiveShadow = false; x.frustumCulled = false; if (x.isSkinnedMesh && (o.tint || o.hood || true)) paint(x, o.tint ? new T.Color(o.tint) : null, o.hood, rig === 't2' || rig === 't3', o.skin); }
     });
     root.updateMatrixWorld(true); if (rig !== 't1') for (const x of ch0) SGK.SOLD3D.fixArmWeights(x); // 2.30.1 腰の帯が腕に付いてこないように
     const mixer = new T.AnimationMixer(root), acts = {};
@@ -667,6 +667,8 @@
   // 2.57.0 テスト用：城の守り（曲者の人数 n）
   N3.testDef = (k, ck, night, kai, sk, n) => N3.start({ def: { n: n || 2 }, q: { k, sk: sk || 'mitsu', whoName: '某', id: 'tdef' + Math.random() }, d: { ck, night: !!night, kai: kai || 0, guards: 3 + (kai || 0) + 3, lv: 2 }, tools: { kemuri: 3, makibishi: 3, fukiya: 5, kaginawa: 1 } }, (r) => { if (SGK.toast) SGK.toast(JSON.stringify(r)); else console.log('守りの結果', r); });
   N3.dbg = () => st; // 確かめる用
+  // 2.101.9 ほかの遊び（かくれんぼ）からも、骨入りの人のモデルと動きを使えるように
+  N3.mdl = { load: () => { T = window.THREE; return loadModels(); }, ready: () => MD.ready, mk: (rig, o) => mkChar(rig, o), play: (ch, n, o) => play(ch, n, o), tick: (ch, dt) => tick(ch, dt, null) };
   N3.night = () => !!(st ? st.night : N3.wantNight); // 2.24.1 夜の任務は専用の曲（audio.js の ninja_night）
   function setup(opt) {
     const q = opt.q, d = opt.d, R = rngOf(opt.seed || q.id || 'x'), E = eff(), shadow = !!E.sh, night = !!d.night;

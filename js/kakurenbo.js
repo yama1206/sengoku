@@ -157,6 +157,50 @@
     else { for (const x of [-0.14, 0.14]) g.add(part(G('oh', () => new THREE.ConeGeometry(0.07, 0.25, 6)), M(0xf2e8c8), x, hy + 0.3, 0)); const c = part(G('oc', () => new THREE.CylinderGeometry(0.08, 0.14, 1.3, 8)), M(0x4a3a2a), 0.5, 0.8, 0.1); c.rotation.z = -0.3; g.add(c); g.add(part(G('ok', () => new THREE.SphereGeometry(0.16, 8, 6)), M(0x2a2a2a), 0.65, 1.4, 0.1)); }
     return g;
   }
+  /* 2.101.9 骨入りのモデル（忍び任務・合戦と同じ人の体）で作る見た目。歩く・走る・立つの動きつき。
+     読み込めないとき（古い端末など）は上の mkHuman / mkYokai の見た目のまま。
+     服の色は TINT、肌の色は SKINC（妖怪）、角・くちばし・帽子などは ACC（骨に付ける。位置は「その骨からの、世界の向きでのずれ」） */
+  const MDL = () => (SGK.NINJA3D && SGK.NINJA3D.mdl) || null;
+  const TINT = { ninja: 0x23232b, shonin: 0x7a5a3a, miko: 0xf2f2f2, kodomo: 0xe0b43c, kariudo: 0x4f6a3a, sou: 0x4a3a6a, geinin: 0xd8503c, dorobo: 0x3a4a5a, kenzan: 0x2a3f6a,
+    tengu: 0x7a2a2a, kappa: 0x3a6a44, yuki: 0xdfeaf6, neko: 0x5a3a7a, oni: 0x4a3a2a };
+  const SKINC = { tengu: [0.8, 0.26, 0.2], kappa: [0.32, 0.64, 0.36], yuki: [0.93, 0.96, 1.0], neko: [0.58, 0.44, 0.7], oni: [0.84, 0.25, 0.18] };
+  const HGT = { kodomo: 1.25, yuki: 1.9, tengu: 1.95, oni: 2.0, kappa: 1.6, neko: 1.8 }; // 背の高さ（ほかは 1.68）
+  const ACC = { // [骨, 形, 色, ずれ[x,y,z], 回転[x,y,z]]（x＝右、y＝上、z＝前。頭の骨は首の付け根あたり）
+    shonin: [['Head', () => new THREE.CylinderGeometry(0.1, 0.27, 0.16, 12), 0xc9a45a, [0, 0.27, 0]]],
+    miko: [['Head', () => new THREE.BoxGeometry(0.2, 0.08, 0.06), 0xc8402f, [0, 0.14, -0.13]], ['Head', () => new THREE.BoxGeometry(0.16, 0.42, 0.05), 0x1a1612, [0, -0.08, -0.12]]],
+    kariudo: [['Head', () => new THREE.SphereGeometry(0.15, 12, 8, 0, 6.3, 0, 1.3), 0x7a5a2a, [0, 0.12, 0]]],
+    sou: [['Spine2', () => new THREE.TorusGeometry(0.15, 0.025, 6, 14), 0xe0b43c, [0, -0.05, 0.14], [0.3, 0, 0]]],
+    kenzan: [['Head', () => new THREE.ConeGeometry(0.36, 0.2, 14), 0x25252b, [0, 0.27, 0]], ['RightHand', () => new THREE.CylinderGeometry(0.025, 0.025, 1.3, 6), 0x8a6a3a, [0, 0.1, 0]]],
+    dorobo: [['Spine2', () => new THREE.SphereGeometry(0.24, 8, 6), 0xc8b080, [0, -0.05, -0.24]]],
+    geinin: [['Head', () => new THREE.ConeGeometry(0.18, 0.34, 8), 0xe0b43c, [0, 0.33, 0]]],
+    tengu: [['Head', () => new THREE.ConeGeometry(0.06, 0.32, 8), 0xd8503c, [0, 0.07, 0.2], [Math.PI / 2, 0, 0]], ['Head', () => new THREE.CylinderGeometry(0.08, 0.1, 0.1, 8), 0x1a1a1a, [0, 0.27, 0.02]],
+      ['Spine2', () => new THREE.BoxGeometry(1.3, 0.6, 0.06), 0x2a2a2a, [0, 0, -0.2], [0.15, 0, 0]]],
+    kappa: [['Head', () => new THREE.CylinderGeometry(0.14, 0.14, 0.04, 12), 0xdfe8d8, [0, 0.24, 0]], ['Head', () => new THREE.ConeGeometry(0.06, 0.14, 6), 0xe0b43c, [0, 0.06, 0.16], [Math.PI / 2, 0, 0]],
+      ['Spine2', () => new THREE.SphereGeometry(0.3, 10, 8), 0x2f6a38, [0, -0.08, -0.2]]],
+    yuki: [['Head', () => new THREE.SphereGeometry(0.15, 12, 8, 0, 6.3, 0, 1.5), 0x14141c, [0, 0.11, -0.01]], ['Head', () => new THREE.BoxGeometry(0.26, 0.7, 0.05), 0x14141c, [0, -0.25, -0.12]], ['Hips', () => new THREE.CylinderGeometry(0.3, 0.42, 0.1, 12), 0x6a9ac8, [0, -0.85, 0]]],
+    neko: [['Head', () => new THREE.ConeGeometry(0.06, 0.16, 4), 0x5a3a7a, [-0.08, 0.25, 0]], ['Head', () => new THREE.ConeGeometry(0.06, 0.16, 4), 0x5a3a7a, [0.08, 0.25, 0]],
+      ['Hips', () => new THREE.CylinderGeometry(0.03, 0.05, 0.65, 6), 0x5a3a7a, [-0.07, 0.1, -0.3], [-0.7, 0, 0]], ['Hips', () => new THREE.CylinderGeometry(0.03, 0.05, 0.65, 6), 0x5a3a7a, [0.07, 0.1, -0.3], [-0.7, 0, 0]]],
+    oni: [['Head', () => new THREE.ConeGeometry(0.05, 0.2, 6), 0xf2e8c8, [-0.07, 0.27, 0.03]], ['Head', () => new THREE.ConeGeometry(0.05, 0.2, 6), 0xf2e8c8, [0.07, 0.27, 0.03]],
+      ['RightHand', () => new THREE.CylinderGeometry(0.06, 0.11, 1.1, 8), 0x3a2a1a, [0, 0.35, 0.05]]],
+  };
+  function mkRig(role, K) {
+    const L = MDL(); if (!L || !L.ready()) return null;
+    try {
+      const hu = role === 'h', ch = L.mk('t1', { tint: TINT[K] || 0x6a5a3a, hood: K === 'ninja' || K === 'dorobo', skin: hu ? null : SKINC[K] || SKINC.oni });
+      const wrap = new THREE.Group(); wrap.add(ch.root); wrap.updateMatrixWorld(true);
+      const bb = new THREE.Box3().setFromObject(ch.root), h0 = bb.max.y - bb.min.y; if (h0 > 0.01) ch.root.scale.multiplyScalar((HGT[K] || 1.68) / h0);
+      wrap.updateMatrixWorld(true); const bb2 = new THREE.Box3().setFromObject(ch.root); ch.root.position.y -= bb2.min.y; wrap.updateMatrixWorld(true); // 足を地面に
+      const bp = new THREE.Vector3(), bq = new THREE.Quaternion(), bs = new THREE.Vector3();
+      for (const [bn, geo, c, off, rot] of ACC[K] || []) {
+        const b = ch.bones[bn] || ch.bones.Head; if (!b) continue; b.getWorldPosition(bp); b.getWorldQuaternion(bq); b.getWorldScale(bs);
+        const holder = new THREE.Group(), m = part(G('ra' + K + bn + off.join(), geo), M(c), 0, 0, 0); holder.add(m);
+        holder.position.copy(b.worldToLocal(bp.clone().add(new THREE.Vector3(off[0], off[1], off[2]))));
+        holder.quaternion.copy(bq.clone().invert().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(...(rot || [0, 0, 0])))));
+        holder.scale.setScalar(1 / (bs.x || 1)); b.add(holder);
+      }
+      return { grp: wrap, ch };
+    } catch (e) { console.warn('かくれんぼのモデルを作れませんでした', e); return null; }
+  }
   function house(S, x, z, w, d, h, wall, roof) {
     const g = new THREE.Group();
     g.add(part(new THREE.BoxGeometry(w, h, d), M(wall), 0, h / 2, 0));
@@ -377,10 +421,18 @@
     const cpuP = () => cpuIds.map((i) => P[i]), isHost = () => cpuIds.length > 0 && hids.find((i) => !env.gone[i]) === me, mine = (p) => p === MY || (!!p.cpu && isHost()); // CPUはリーダー（いなくなったら次の人）の端末が動かす
     const cpuH = () => (isHost() ? cpuP().filter((c) => c.role === 'h' && alive(c)) : []), lvOf = (c) => (c.role === 's' ? LS || LH : LH || LS);
     const look = (p) => { // 見た目（化けていれば置物、そうでなければ人）
-      const key = p.form ? p.form.k + p.form.v : 'p' + p.role + cho(p); if (key === p.key && p.grp) return; p.key = key;
-      if (p.grp) scene.remove(p.grp);
-      p.grp = p.form ? mkProp(p.form.k, p.form.v) : p.role === 's' ? mkYokai(cho(p)) : mkHuman(hex(col(p.id)), cho(p)); scene.add(p.grp);
+      const key = p.form ? p.form.k + p.form.v : 'p' + p.role + cho(p) + (rigOK ? 'r' : ''); if (key === p.key && p.grp) return; p.key = key;
+      if (p.grp) { scene.remove(p.grp); if (p.rig) p.rig.grp.traverse((x) => { if (x.isSkinnedMesh && x.geometry) x.geometry.dispose(); }); }
+      p.rig = !p.form && rigOK ? mkRig(p.role, cho(p)) : null; // 2.101.9 骨入りのモデル（読み込めていれば）
+      p.grp = p.form ? mkProp(p.form.k, p.form.v) : p.rig ? p.rig.grp : p.role === 's' ? mkYokai(cho(p)) : mkHuman(hex(col(p.id)), cho(p)); scene.add(p.grp);
     };
+    const anim = (p, dt) => { // 2.101.9 骨入りモデルの動き：走る・歩く（足が遅い時）・ひるむ・立つ
+      const r = p.rig; if (!r) return; const L = MDL(); if (!L) return;
+      const nm = p.stun > 0 ? 'hit' : p.mv ? (p.slowT > 0 || p.car ? 'walk' : 'run') : 'idle';
+      L.play(r.ch, nm, { speed: nm === 'run' && p.boost > 0 ? 1.25 : 1 }); L.tick(r.ch, dt);
+    };
+    let rigOK = false, disposed = false; // 2.101.9 骨入りのモデルを読み込む（読み終わったら、みんなの見た目を作り直す）
+    { const L = MDL(); if (L && THREE.GLTFLoader) L.load().then(() => { if (disposed) return; rigOK = true; if (cpu) { const rr = mkRig('s', 'oni'); if (rr) { scene.remove(cpu.grp); cpu.grp = rr.grp; cpu.rig = rr; scene.add(cpu.grp); } } }).catch((e) => console.warn('かくれんぼ：モデルを読めませんでした', e)); }
     const near = (x, z, r) => { let b = null, bd = r; for (const q of props) { const d = Math.hypot(q.x - x, q.z - z); if (d < bd) { bd = d; b = q; } } return b; };
     const moveBy = (p, dx, dz, r) => { const n = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.2)); for (let i = 0; i < n; i++) { const nx = p.x + dx / n, nz = p.z + dz / n; if (!blocked(nx, p.z, r)) p.x = nx; if (!blocked(p.x, nz, r)) p.z = nz; } }; // 2.89.3 細かく刻んで動かし、速くても壁をすり抜けない
     const wallBetween = (x0, z0, x1, z1) => { const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 0.3)); for (let i = 1; i < n; i++) { const x = x0 + (x1 - x0) * i / n, z = z0 + (z1 - z0) * i / n; for (const b of S.boxes) if (x > b[0] && x < b[2] && z > b[1] && z < b[3]) return true; } return false; };
@@ -740,8 +792,8 @@
             const dx = p.x - MY.x, dz = p.z - MY.z, dd = Math.hypot(dx, dz), k = Math.max(0, 1 - dd / 32); if (k <= 0) return; SGK.AUDIO.foot && SGK.AUDIO.foot(k * k, dd > 0.5 ? (dx * RT2[0] + dz * RT2[1]) / dd : 0); };
           if (!done) { for (const id of ids) if (P[id].role === 's') foot(P[id]); if (cpu) foot(cpu); } }
         // 絵に反映
-        for (const id of ids) { const p = P[id]; if (p.role === 'h' && !p.form) { /* 人 */ } look(p); const gp = p.grp; if (!gp) continue; gp.visible = !p.out && !p.esc; p.bob += dt * (p.mv ? 9 : 0); const hop = p.mv ? Math.abs(Math.sin(p.bob)) * (p.form ? 0.22 : 0.08) : 0; gp.position.set(p.x, hop, p.z); gp.rotation.y = Math.atan2(p.fx, p.fz); }
-        if (cpu) { cpu.grp.position.set(cpu.x, 0, cpu.z); cpu.grp.rotation.y = Math.atan2(cpu.fx, cpu.fz); }
+        for (const id of ids) { const p = P[id]; if (p.role === 'h' && !p.form) { /* 人 */ } look(p); const gp = p.grp; if (!gp) continue; gp.visible = !p.out && !p.esc; p.bob += dt * (p.mv ? 9 : 0); const hop = p.rig ? 0 : p.mv ? Math.abs(Math.sin(p.bob)) * (p.form ? 0.22 : 0.08) : 0; gp.position.set(p.x, hop, p.z); gp.rotation.y = Math.atan2(p.fx, p.fz); if (p.rig && gp.visible) anim(p, dt); }
+        if (cpu) { cpu.grp.position.set(cpu.x, 0, cpu.z); cpu.grp.rotation.y = Math.atan2(cpu.fx, cpu.fz); anim(cpu, dt); }
         if (view === 'fp') { if (act && MY.stun <= 0 && !(MY.role === 'h' && MY.form && o.mv === 'none')) { MY.fx = Math.sin(cyaw); MY.fz = Math.cos(cyaw); } if (MY.grp) MY.grp.visible = false; }
         camX += (MY.x - camX) * Math.min(1, dt * 6); camZ += (MY.z - camZ) * Math.min(1, dt * 6);
         // 印
@@ -817,7 +869,7 @@
         if (MY.stun > 0) { g.fillStyle = 'rgba(255,0,0,0.18)'; g.fillRect(0, 0, W, H); }
         if (stick.on) { g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 3; g.beginPath(); g.arc(stick.x0, stick.y0, 50, 0, 7); g.stroke(); g.beginPath(); g.arc(stick.x0 + stick.x * 50, stick.y0 + stick.y * 50, 20, 0, 7); g.fillStyle = 'rgba(255,255,255,.45)'; g.fill(); }
       },
-      dispose() { removeEventListener('resize', fitCam); removeEventListener('keydown', qk); cv.removeEventListener('pointerdown', qp); cv.removeEventListener('pointerdown', ip); cv.removeEventListener('pointerdown', dd); cv.removeEventListener('pointermove', dm); removeEventListener('pointerup', du); removeEventListener('pointercancel', du); cv.removeEventListener('pointerdown', pd); cv.removeEventListener('pointermove', pm); removeEventListener('pointerup', pu); removeEventListener('pointercancel', pu); removeEventListener('touchend', tall, true); removeEventListener('touchcancel', tall, true); removeEventListener('blur', blr); try { rd.dispose(); } catch (e) {} if (c3.parentNode) c3.parentNode.removeChild(c3); },
+      dispose() { disposed = true; removeEventListener('resize', fitCam); removeEventListener('keydown', qk); cv.removeEventListener('pointerdown', qp); cv.removeEventListener('pointerdown', ip); cv.removeEventListener('pointerdown', dd); cv.removeEventListener('pointermove', dm); removeEventListener('pointerup', du); removeEventListener('pointercancel', du); cv.removeEventListener('pointerdown', pd); cv.removeEventListener('pointermove', pm); removeEventListener('pointerup', pu); removeEventListener('pointercancel', pu); removeEventListener('touchend', tall, true); removeEventListener('touchcancel', tall, true); removeEventListener('blur', blr); try { rd.dispose(); } catch (e) {} if (c3.parentNode) c3.parentNode.removeChild(c3); },
     };
     return game;
   };
