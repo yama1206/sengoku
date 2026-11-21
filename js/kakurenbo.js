@@ -365,6 +365,7 @@
     const applyRescue = (i) => { const c = cages[i]; if (!c || !c.id) return; const id = c.id, h = P[id], late = c.t < CAGE_T / 2; c.id = null; if (h) { h.cage = null; if (late) h.weak = true; if (id === me) { MY.hh = 50; MY.inv = 2; MY.pan = 3; say(late ? '救助された！ただし半分を過ぎた…次に吊るされたらすぐ負け' : '救助された！次に吊るされても、また45秒耐えられる'); } else say(`${nm(id)}が救助された！`); } SGK.AUDIO.sfx('coin'); };
     const hurt = (p) => { if (cho(p) !== 'oni') p.hp--; p.stun = cho(p) === 'kappa' ? 0.4 : 1; FX.push({ x: p.x, z: p.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('gbLose'); if (p === MY) { tell({ k: 'hl', id: me, hp: p.hp }); say(p.hp > 0 ? (cho(p) === 'oni' ? '外れ！ ただの置物だった' : '外れ！ ただの置物だった（体力-1）') : '体力がなくなった…'); } };
 
+    const applyBlock = () => { if (!exitP.extra) return; scene.remove(exitP.extra.m); exitP.extra = null; exitP.blocked = true; exitP.open = true; say('脱出口が塞がれた！普通の出口が現れた！'); SGK.AUDIO.sfx('hit'); };
     const game = {
       msg(from, m) {
         const p = P[m.id || from];
@@ -378,6 +379,7 @@
         else if (m.k === 'dc') { addDecoy(m.x, m.z, m.kd, m.v, m.rot); }
         else if (m.k === 'mk') { marks[m.id] = 6; }
         else if (m.k === 'kp') { const q = keys[m.i]; if (q && !q.got) { q.got = true; openCh(q); kgot++; say(`宝箱が開けられた（${kgot}/${NEED}）`); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が2か所に現れた！全員の位置が壁越しに見える！'); } } }
+        else if (m.k === 'xb') { applyBlock(); }
         else if (m.k === 'es') { const q = P[m.id]; if (q) { q.esc = true; say(`${nm(m.id)}が脱出した！`); SGK.AUDIO.sfx('gbWin'); } }
         else if (m.k === 'sk') {
           FX.push({ x: m.x + (m.s === 'yuki' || m.s === 'sou' ? 0 : m.fx * 2.5), z: m.z + (m.s === 'yuki' || m.s === 'sou' ? 0 : m.fz * 2.5), t: 0.5, bad: false, big: true });
@@ -452,12 +454,14 @@
         }
         if (esc) for (const e of exitP.list) e.m.visible = exitP.open;
         // 逃げる側が1人だけになったら、ランダムな位置に即使える脱出口が出る（位置は種から決めるので全員同じ）
-        if (esc && !solo && !exitP.extra && !done && ids.filter((i) => P[i].role0 === 'h').length >= 2 && hiders().length === 1) {
+        if (esc && !solo && !exitP.extra && !exitP.blocked && !done && ids.filter((i) => P[i].role0 === 'h').length >= 2 && hiders().length === 1) {
           const rr = mulberry((cfg.seed ^ 0x5a17) >>> 0); let x = 0, z = 0; for (let k = 0; k < 200; k++) { x = (rr() * 2 - 1) * (HX - 4); z = (rr() * 2 - 1) * (HZ - 4); if (!blocked(x, z, 2.5)) break; }
           const m = new THREE.Group(), gd = M(0xe0b43c); for (const px of [-1.8, 1.8]) m.add(part(G('tp', () => new THREE.CylinderGeometry(0.25, 0.3, 3.4, 10)), gd, px, 1.7, 0)); m.add(part(G('tk', () => new THREE.BoxGeometry(4.8, 0.32, 0.7)), M(0x2a2a2a), 0, 3.5, 0)); m.add(part(G('tn2', () => new THREE.BoxGeometry(3.8, 0.22, 0.34)), gd, 0, 2.8, 0));
           const bm = new THREE.Mesh(G('exb', () => new THREE.CylinderGeometry(1.5, 1.5, 6, 16, 1, true)), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide })); bm.position.y = 3; m.add(bm); m.position.set(x, 0, z); scene.add(m); exitP.extra = { x, z, m };
-          say('最後の1人に脱出口が現れた！（金色の鳥居）'); SGK.AUDIO.sfx('open');
+          say('最後の1人に脱出口が現れた！（金色の鳥居・鬼は近くに2秒いると塞げる）'); SGK.AUDIO.sfx('open');
         }
+        // 鬼が金色の脱出口の近くに2秒とどまると塞げる。塞ぐと普通の出口（2か所）が開く
+        if (esc && exitP.extra && MY.role === 's' && alive(MY) && phase === 'play' && MY.stun <= 0 && !MY.carry && Math.hypot(exitP.extra.x - MY.x, exitP.extra.z - MY.z) < 2.6) { MY.blkT = (MY.blkT || 0) + dt; if (MY.blkT >= 2) { MY.blkT = 0; tell({ k: 'xb' }); applyBlock(); } } else MY.blkT = 0;
         // 送る
         sendT -= dt; if (sendT <= 0 && !solo) { sendT = 0.1; tell({ k: 'hp', x: r2(MY.x), z: r2(MY.z), fx: r2(MY.fx), fz: r2(MY.fz), m: MY.mv, f: MY.form ? [MY.form.k, MY.form.v] : 0 }); }
         // ほかの人の位置をなめらかに
@@ -540,6 +544,7 @@
         else if (MY.cage != null) txt(`牢の中… あと${Math.max(0, Math.ceil(cages[MY.cage].t))}秒で完全に負け（仲間の救助を待つ）`, W / 2, H * 0.62, { al: 'center', sz: 18, c: '#e0b0ff' });
         if (MY.carry && MY.role === 's') txt(`${nm(MY.carry)}を担いでいる（あと${Math.max(0, Math.ceil(CARRY_T - MY.carryT))}秒）→ 牢へ運べ（紫の光の所）`, W / 2, H * 0.62, { al: 'center', sz: 18, c: '#ffd0a0' });
         if (rescuing != null) { const k = Math.min(1, MY.rsT / 1); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(W / 2 - 80, H * 0.66, 160, 14); g.fillStyle = '#9affb0'; g.fillRect(W / 2 - 78, H * 0.66 + 2, 156 * k, 10); txt('救助中…', W / 2, H * 0.66 - 6, { al: 'center', sz: 15, c: '#c8ffd0' }); }
+        if (MY.blkT > 0 && exitP.extra) { const k = Math.min(1, MY.blkT / 2); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(W / 2 - 80, H * 0.66, 160, 14); g.fillStyle = '#ffb060'; g.fillRect(W / 2 - 78, H * 0.66 + 2, 156 * k, 10); txt('脱出口を塞いでいる…', W / 2, H * 0.66 - 6, { al: 'center', sz: 15, c: '#ffd9a8' }); }
         if (esc && opening) { const k = Math.min(1, opening.pr / OPEN_W); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(W / 2 - 110, H * 0.7, 220, 16); g.fillStyle = '#ffd24a'; g.fillRect(W / 2 - 108, H * 0.7 + 2, 216 * k, 12); txt(qte ? '' : MY.olk > 0 ? '中断中…' : '宝箱を開けている…（動かない・化けない／12秒ごとに合図）', W / 2, H * 0.7 - 8, { al: 'center', sz: 15, c: '#ffe9a0' }); }
         if (qte) { const bw = 54, x0 = W / 2 - bw * 2 - 9, y0 = H * 0.42; g.fillStyle = 'rgba(0,0,0,.65)'; g.fillRect(x0 - 12, y0 - 40, bw * 4 + 54, bw + 74); txt('この順に押す！', W / 2, y0 - 18, { al: 'center', sz: 16, c: '#ffe9a0' }); qte.seq.forEach((c, i2) => { g.fillStyle = i2 < qte.i ? '#4aa84a' : i2 === qte.i ? '#f2c14e' : '#6a5a3a'; g.fillRect(x0 + i2 * (bw + 6), y0, bw, bw); txt(QL(c), x0 + i2 * (bw + 6) + bw / 2, y0 + bw / 2 + 10, { al: 'center', sz: 28, c: '#1a1208' }); }); g.fillStyle = '#ffd24a'; g.fillRect(x0, y0 + bw + 10, (bw * 4 + 18) * Math.max(0, qte.t / 4), 8);
           qrects.length = 0; QK.forEach((c, i2) => { const rx = x0 + i2 * (bw + 6), ry = y0 + bw + 30; qrects.push([rx, ry, bw, bw, c]); g.fillStyle = '#3a6a9a'; g.fillRect(rx, ry, bw, bw); txt(QL(c), rx + bw / 2, ry + bw / 2 + 10, { al: 'center', sz: 26, c: '#fff' }); }); txt('キー：Space=A　X=B　C=X　V=Y　／　画面のボタンも押せます', W / 2, y0 + bw * 2 + 52, { al: 'center', sz: 13, c: '#e8dcc0' }); } else qrects.length = 0;
