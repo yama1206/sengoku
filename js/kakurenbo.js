@@ -262,7 +262,7 @@
     const chOf0 = (id, r) => { const m = (cfg.mem || []).find((x) => x.id === id), c = m && m.ch && m.ch[r]; return HD.CH[r].some((x) => x.k === c) ? c : HD.CH[r][0].k; };
     order.forEach((id, i) => {
       const sk = i < nSk, [x, z] = sk ? [(i - (nSk - 1) / 2) * 2, HZ - 6] : free(0.6);
-      P[id] = { id, role: sk ? 's' : 'h', role0: sk ? 's' : 'h', x, z, tx: x, tz: z, fx: 0, fz: -1, form: null, mv: 0, hp: 3, out: false, caught: 0, stun: 0, cd: 0, fcd: 0, grp: null, key: '', bob: 0, chh: chOf0(id, 'h'), chs: chOf0(id, 's'), sk: 0, boost: 0, freeze: 0, slowT: 0, olk: 0, hh: 100, inv: 0, pan: 0, car: null, carry: null, cage: null, rsT: 0, shield: false, arrowT: 0 };
+      P[id] = { id, role: sk ? 's' : 'h', role0: sk ? 's' : 'h', x, z, tx: x, tz: z, fx: 0, fz: -1, form: null, mv: 0, hp: 3, out: false, caught: 0, stun: 0, cd: 0, fcd: 0, grp: null, key: '', bob: 0, chh: chOf0(id, 'h'), chs: chOf0(id, 's'), sk: 0, boost: 0, freeze: 0, slowT: 0, olk: 0, hh: 100, inv: 0, pan: 0, car: null, carry: null, cage: null, rsT: 0, hangs: 0, weak: false, shield: false, arrowT: 0 };
     });
     const cho = (p) => (p.role === 'h' ? p.chh : p.chs), chN = (p) => (HD.CH[p.role].find((x) => x.k === cho(p)) || HD.CH[p.role][0]).n, marks = {};
     const cpu = solo ? { id: '__cpu', x: 0, z: HZ - 6, fx: 0, fz: -1, cd: 1.5, tgt: null, grp: mkYokai('oni'), mv: 0 } : null; if (cpu) scene.add(cpu.grp);
@@ -352,8 +352,11 @@
       const p = P[id]; if (!p || p.role !== 'h') return; p.form = null; if (p.car && P[p.car]) P[p.car].carry = null; p.car = null; p.cage = null; cages.forEach((c) => { if (c.id === id) c.id = null; }); p.caught0 = true; if (o.cau === 'out') p.out = true; else { p.role = 's'; p.hp = 3; }
       if (P[by]) P[by].caught++; say(`${nm(id)}が見つかった！`); SGK.AUDIO.sfx('hit');
     };
-    const applyCage = (i, id, by) => { const c = cages[i], h = P[id]; if (!c || !h || c.id) return; c.id = id; c.t = CAGE_T; c.by = by; h.car = null; h.cage = i; if (P[by]) P[by].carry = null; if (id === me) { MY.x = c.x; MY.z = c.z; say('牢に入れられた…仲間の救助を待て'); } else say(`${nm(id)}が牢に入れられた`); SGK.AUDIO.sfx('open'); };
-    const applyRescue = (i) => { const c = cages[i]; if (!c || !c.id) return; const id = c.id, h = P[id]; c.id = null; if (h) { h.cage = null; if (id === me) { MY.hh = 50; MY.inv = 2; MY.pan = 3; say('救助された！'); } else say(`${nm(id)}が救助された！`); } SGK.AUDIO.sfx('coin'); };
+    const applyCage = (i, id, by) => { const c = cages[i], h = P[id]; if (!c || !h || c.id) return; h.car = null; if (P[by]) P[by].carry = null;
+      const instant = h.weak || h.hangs >= 2; h.hangs++; h.weak = false; // 2.82.0 3回目、または前に半分を過ぎてから救助された人は、吊るされたらすぐ負け
+      if (instant) { if (id === me) { say(h.hangs >= 3 ? '3回目…もう耐えられない！' : '前の消耗で、耐えられない！'); caught(me, by); tell({ k: 'hc', id: me, by }); } else say(`${nm(id)}は吊るされてすぐ力尽きた…`); return; }
+      c.id = id; c.t = CAGE_T; c.by = by; h.cage = i; if (id === me) { MY.x = c.x; MY.z = c.z; say('牢に入れられた…仲間の救助を待て'); } else say(`${nm(id)}が牢に入れられた`); SGK.AUDIO.sfx('open'); };
+    const applyRescue = (i) => { const c = cages[i]; if (!c || !c.id) return; const id = c.id, h = P[id], late = c.t < CAGE_T / 2; c.id = null; if (h) { h.cage = null; if (late) h.weak = true; if (id === me) { MY.hh = 50; MY.inv = 2; MY.pan = 3; say(late ? '救助された！ただし半分を過ぎた…次に吊るされたらすぐ負け' : '救助された！次に吊るされても、また45秒耐えられる'); } else say(`${nm(id)}が救助された！`); } SGK.AUDIO.sfx('coin'); };
     const hurt = (p) => { if (cho(p) !== 'oni') p.hp--; p.stun = cho(p) === 'kappa' ? 0.4 : 1; FX.push({ x: p.x, z: p.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('gbLose'); if (p === MY) { tell({ k: 'hl', id: me, hp: p.hp }); say(p.hp > 0 ? (cho(p) === 'oni' ? '外れ！ ただの置物だった' : '外れ！ ただの置物だった（体力-1）') : '体力がなくなった…'); } };
 
     const game = {
