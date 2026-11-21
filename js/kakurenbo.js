@@ -292,7 +292,7 @@
       const cg = new THREE.Group(), wd = M(0x6b4a2a); cg.add(part(G('cgb', () => new THREE.BoxGeometry(2, 0.15, 2)), M(0x4a3018), 0, 0.08, 0)); cg.add(part(G('cgr', () => new THREE.BoxGeometry(2.3, 0.15, 2.3)), wd, 0, 2.2, 0));
       for (let j = 0; j < 8; j++) { const a = j / 8 * 6.283; cg.add(part(G('cgp', () => new THREE.BoxGeometry(0.12, 2.1, 0.12)), wd, Math.cos(a) * 0.9, 1.1, Math.sin(a) * 0.9)); }
       const bm = new THREE.Mesh(G('cgl', () => new THREE.CylinderGeometry(0.15, 0.15, 7, 8)), new THREE.MeshBasicMaterial({ color: 0xb060ff, transparent: true, opacity: 0.3, depthWrite: false })); bm.position.y = 3.5; cg.add(bm);
-      cg.position.set(q.x, 0, q.z); scene.add(cg); S.circs.push([q.x, q.z, 1.1]); cages.push({ x: q.x, z: q.z, id: null, t: 0, by: null, m: cg });
+      cg.position.set(q.x, 0, q.z); scene.add(cg); cages.push({ x: q.x, z: q.z, id: null, t: 0, by: null, m: cg });
     }
     // 役割（同じ種で全員同じ）
     const order = hids.slice(); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
