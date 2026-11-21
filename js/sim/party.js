@@ -18,7 +18,10 @@
       money = Math.round((200 + acc * acc * 1300) * [0.7, 1, 1.4][df]); fame = acc >= 0.95 && df >= 1 ? 1 : 0; msg = `囃子合わせ（合わせぐあい${Math.round(acc * 100)}%）`;
     } else if (c.game === 'hide') { // 2.70.0 かくれんぼ？：隠れきる・全員見つける（探す側は見つけた人数も）
       const win = c.win ? 1 : 0, cnt = Math.max(0, Math.min(9, c.cnt | 0)), ws = Math.max(1, Math.min(9, c.ws | 0)); // 2.87.0 勝った逃げる側は4貫を山分け、勝った鬼側は5貫
-      money = win ? (c.role === 's' ? 5000 : Math.floor(4000 / ws)) : 450 + (c.role === 's' ? cnt * 150 : 0); fame = win ? 1 : 0; msg = `かくれんぼ？${win ? '（勝ち）' : '（負け）'}`;
+      if (c.role !== 's' && c.ex) { // 2.88.0 脱出モードの逃げる側：全員(4人)脱出か3人脱出は1貫ずつ、2人なら脱出1.5貫・捕まった1貫、1人だけなら脱出2.5貫・捕まった0.5貫（人数が違うときは割合で同じ段階）
+        const N = Math.max(1, Math.min(9, c.nh | 0)), E = Math.max(0, Math.min(N, c.ne | 0)), mine = c.esc ? 1 : 0;
+        money = E === 0 ? 450 : E * 4 >= N * 3 ? 1000 : E * 2 >= N ? (mine ? 1500 : 1000) : (mine ? 2500 : 500);
+      } else money = win ? (c.role === 's' ? 5000 : Math.floor(4000 / ws)) : 450 + (c.role === 's' ? cnt * 150 : 0); fame = win ? 1 : 0; msg = `かくれんぼ？${win ? '（勝ち）' : '（負け）'}`;
     } else if (c.game === 'kemari') { // 2.62.0 蹴鞠：続けた回数（みんなの）と自分が蹴った数
       const cnt = Math.max(0, Math.min(999, c.cnt | 0)), mine = Math.max(0, Math.min(cnt + 1, c.kicks | 0));
       money = Math.min(2000, cnt * 25 + mine * 15); fame = cnt >= 40 ? 1 : 0; msg = `蹴鞠で${cnt}回続けた（自分は${mine}回蹴った）`;
