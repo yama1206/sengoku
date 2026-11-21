@@ -12,12 +12,13 @@
   const FM = (SIM.FARM = {});
   // draw＝収穫で痩せる土の肥え（負なら肥える）
   FM.CROPS = {
-    rice: { name: '米', item: 'rice', months: [4, 5, 6], days: 100, yield: 6, seed: 10, draw: 12 },
-    mugi: { name: '麦', item: 'mugi', months: [10, 11], days: 150, yield: 5, seed: 8, draw: 10 },
-    daizu: { name: '大豆', item: 'daizu', months: [5, 6, 7], days: 90, yield: 4, seed: 15, draw: -15 },
-    daikon: { name: '大根', item: 'daikon', months: [8, 9], days: 60, yield: 6, seed: 5, draw: 8 },
-    cotton: { name: '木綿', item: 'cotton', months: [4, 5], days: 120, yield: 3, seed: 40, draw: 15 },
-    tea: { name: '茶', item: 'tea', months: [3, 4], days: 200, yield: 2, seed: 80, draw: 6 },
+    // 2.101.4 育つ日数は最長でも1週間（7日）に
+    rice: { name: '米', item: 'rice', months: [4, 5, 6], days: 6, yield: 6, seed: 10, draw: 12 },
+    mugi: { name: '麦', item: 'mugi', months: [10, 11], days: 7, yield: 5, seed: 8, draw: 10 },
+    daizu: { name: '大豆', item: 'daizu', months: [5, 6, 7], days: 5, yield: 4, seed: 15, draw: -15 },
+    daikon: { name: '大根', item: 'daikon', months: [8, 9], days: 4, yield: 6, seed: 5, draw: 8 },
+    cotton: { name: '木綿', item: 'cotton', months: [4, 5], days: 6, yield: 3, seed: 40, draw: 15 },
+    tea: { name: '茶', item: 'tea', months: [3, 4], days: 7, yield: 2, seed: 80, draw: 6 },
   };
   FM.TOOLS = [{ name: '鍬', cost: 0, mul: 1 }, { name: '備中鍬', cost: 3000, mul: 0.75 }, { name: '牛馬の鋤', cost: 12000, mul: 0.5 }];
   FM.SUIRO = [{ name: 'なし', cost: 0, max: 6 }, { name: '小さな用水', cost: 4000, max: 8 }, { name: '用水路', cost: 10000, max: 10 }, { name: '堰と溜池', cost: 25000, max: 12 }];
@@ -25,7 +26,7 @@
   FM.tendCost = 0.02; // 手入れ・草取り・虫取り・水やり 1枚の体力
   FM.reapCost = 0.03; // 収穫1枚の体力
   FM.minHp = 0.15;
-  FM.tendGap = 5; // 手入れできる間隔（日）
+  FM.tendGap = 1; // 手入れできる間隔（日）（2.101.4 作物が1週間以内で育つので、毎日できるように）
   FM.careMax = 4;
   FM.careMul = (c) => 0.7 + 0.15 * c; // 手入れの段階→収穫の倍率（0〜4で0.7〜1.3）
   FM.soil0 = 60; FM.koeUp = 25; // 開墾したての土の肥え・肥やし1つで肥える量

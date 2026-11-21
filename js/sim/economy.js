@@ -209,10 +209,11 @@
       const a = L[i], b = L[j]; if (!a || !b) continue;
       for (const k in I()) {
         const ta = target(a, k), tb = target(b, k), ra = a.stock[k] / ta, rb = b.stock[k] / tb;
-        if (Math.abs(ra - rb) < 0.4) continue; // 近い拠点どうしの融通は控えめ（地域ごとの値段の差を残す）
+        const fd = I()[k].food > 0; // 2.101.4 食料は流れやすく（村であふれて捨てる前に、足りない町・城へ回す）
+        if (Math.abs(ra - rb) < (fd ? 0.1 : 0.4)) continue; // 近い拠点どうしの融通は控えめ（地域ごとの値段の差を残す）
         const [hi, lo, th, tl] = ra > rb ? [a, b, ta, tb] : [b, a, tb, ta];
         if (SIM.inWar(w, lo)) continue; // 1.6.90 囲まれている城には流れ込まない
-        const q = Math.min(hi.stock[k] * 0.05, Math.abs(ra - rb) * Math.min(th, tl) * 0.05);
+        const rt = fd ? 0.2 : 0.05, q = Math.min(hi.stock[k] * rt, Math.abs(ra - rb) * Math.min(th, tl) * rt);
         hi.stock[k] -= q; lo.stock[k] += q;
       }
     }
