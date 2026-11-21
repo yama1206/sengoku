@@ -120,7 +120,7 @@
   }
   function startRoom(solo) {
     const seed = (Math.random() * 1e9) | 0, mem = (solo ? [LB.mem[0]] : LB.mem).map((x, i) => ({ id: x.id, name: x.name, tm: i % 2, ch: x.ch || null, vol: !!x.vol }));
-    const cfg = { g: LB.g, seed, mem, team: !solo && LB.team, lead: LB.leader, solo, mode: LB.mode, o: LB.o };
+    const cfg = { g: LB.g, seed, mem, team: !solo && LB.team, lead: LB.leader, solo, mode: LB.mode, o: LB.o, rid: LB.rid };
     if (!solo) send(memIds(), { k: 'go', rid: LB.rid, cfg });
     closeLobby(false); startGame(cfg);
   }
@@ -161,6 +161,21 @@
     if (a && !padA) IN.aT = 1; if (b && !padB) IN.bT = 1; padB = b; if (l && !padL) IN.lT = 1; if (r && !padR) IN.rT = 1; { const cc = hk ? pr(hk.pc) : !!(gp.buttons[3] && gp.buttons[3].pressed); if (cc && !padC) IN.cT = 1; padC = cc; } padA = a; padL = l; padR = r; IN.pa = a; IN.pb = b; IN.pu = y < -0.5 || !!(gp.buttons[12] && gp.buttons[12].pressed);
     return { x, y };
   }
+  function backToRoom(cfg, gone) { // 2.99.5 遊びが終わったら町の窓を開け直し、その遊びの部屋（最初の画面）へ戻る
+    try { if (typeof openTown === 'function') openTown(true); } catch (er) {}
+    if (!ENV || LB || !GAMES[cfg.g]) return; const me = ENV.me();
+    const base = { g: cfg.g, team: !!cfg.team, mode: cfg.mode || 'big', o: cfg.o || (GAMES[cfg.g].opts ? defOpts() : null) };
+    if (cfg.solo || !cfg.rid) { LB = Object.assign(base, { rid: me + '-' + Date.now(), lead: true, leader: me, mem: [{ id: me, name: ENV.name(), ch: myCh() }] }); }
+    else if (cfg.lead === me) { // リーダー：同じ部屋をそのまま開き直す（途中で抜けた人は外す）。戻ってきた人は「参加する」を送り直してくる
+      LB = Object.assign(base, { rid: cfg.rid, lead: true, leader: me, mem: cfg.mem.filter((x) => x.id === me || !(gone && gone[x.id])).map((x) => ({ id: x.id, name: x.name, ch: x.id === me ? myCh() : x.ch || null, vol: !!x.vol })) });
+      pushMem();
+    } else { // 参加していた人：同じ部屋に戻り、リーダーへ「参加する」を送る
+      LB = Object.assign(base, { rid: cfg.rid, lead: false, leader: cfg.lead, mem: [] });
+      const jn = () => send([cfg.lead], { k: 'join', rid: cfg.rid, nm: ENV.name(), cs: myCh() }); jn();
+      let tr = 0; const jt = setInterval(() => { /* リーダーがまだ遊びの中かもしれないので、名簿が届くまで送り直す（最大1分） */ if (!LB || LB.lead || LB.rid !== cfg.rid || LB.mem.some((x) => x.id === me) || ++tr > 40) { clearInterval(jt); return; } jn(); }, 1500);
+    }
+    addCss(); drawLobby();
+  }
   function startGame(cfg) {
     try { const tw = document.getElementById('town'); if (tw && !tw.classList.contains('hidden') && typeof openTown === 'function') openTown(false); } catch (er) {} // 2.69.4 遊びを始める時に町の窓を閉じる
     if (RUN || !GAMES[cfg.g]) return; addCss(); bindKeys();
@@ -176,7 +191,7 @@
     cv.addEventListener('pointermove', ptr); cv.addEventListener('pointerdown', (e) => { ptr(e); if (cfg.g === 'archery' || cfg.g === 'cart') IN.click = 1; else if (cfg.g === 'fish' || cfg.g === 'kemari') IN.aT = 1; });
     const env = { cfg, me, ids: cfg.mem.map((x) => x.id), names: Object.fromEntries(cfg.mem.map((x) => [x.id, x.name])), tm: Object.fromEntries(cfg.mem.map((x) => [x.id, x.tm])), others: cfg.mem.map((x) => x.id).filter((id) => id !== me), cv, g2, finished: false, gone: {}, IN, send, pal: PAL, text: drawText };
     const game = { race: raceGame, archery: archeryGame, cart: cartGame, fish: fishGame, kemari: kemariGame, hayashi: hayashiGame, hide: (e) => SGK.HIDE.make(e) }[cfg.g](env);
-    let raf = 0, last = performance.now(); const stop = () => { cancelAnimationFrame(raf); removeEventListener('resize', onR); try { if (game.dispose) game.dispose(); } catch (er) {} root.remove(); RUN = null; for (const k of ['l', 'r', 'u', 'd', 'a', 'b', 'c']) IN[k] = 0; };
+    let raf = 0, last = performance.now(); const stop = () => { cancelAnimationFrame(raf); removeEventListener('resize', onR); try { if (game.dispose) game.dispose(); } catch (er) {} root.remove(); RUN = null; for (const k of ['l', 'r', 'u', 'd', 'a', 'b', 'c']) IN[k] = 0; backToRoom(cfg, env.gone); };
     RUN = { g: cfg.g, on: (from, m) => { if (m.k === 'quit') { env.gone[from] = 1; } if (game.msg) game.msg(from, m); } };
     env.end = (res) => { if (env.finished) return; env.finished = true; showResult(env, res, () => stop()); };
     root.querySelector('button[data-a="quit"]').onclick = () => { send(env.others, { k: 'quit' }); stop(); };
