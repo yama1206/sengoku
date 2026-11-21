@@ -175,7 +175,6 @@
         flat(S, 172, 8, 0, 1, 0xb8a47a); const XR = [-45, 0, 45]; for (const x of XR) flat(S, 6, 92, x, 0, 0xb8a47a);
         const W = [7, 6, 8, 6, 9, 7, 6, 8], C = [0xe6dcc0, 0xd9c8a0, 0xcfbf98], ok = (x) => XR.every((r) => Math.abs(x - r) > 6);
         for (const [z, k0] of [[-42, 0], [42, 3], [-11, 5], [13, 2], [-26, 1], [28, 4]]) { let x = -81, k = k0; while (x < 80) { const w = W[k % W.length]; if (ok(x + w / 2) && hh(x * 3 + z) > 0.12) house(S, x + w / 2, z, w, 4, 3 + (k % 3) * 0.2, C[k % 3], 0x3a3f46); x += w + 1.5 + hh(x + z) * 3; k++; } }
-        for (const [x, z] of [[-22, 6], [22, 6], [70, -20], [-70, 20], [0, -34]]) { S.circs.push([x, z, 0.5]); S.scene.add(part(new THREE.CylinderGeometry(0.5, 0.5, 1.2, 8), M(0x6a4a2a), x, 0.6, z)); } // 井戸（仮）
       } },
     castle: { name: '城下', HX: 80, HZ: 50, gnd: 0x8a8575, n: 340, kinds: ['crate', 'barrel', 'jar', 'stone', 'rock', 'bale', 'sack', 'cart', 'firewood', 'cask', 'drum', 'bench', 'sign', 'lantern', 'shrine', 'bush', 'stump', 'haystack'],
       build(S) {
@@ -240,6 +239,17 @@
       return false;
     };
     const free = (r) => { for (let i = 0; i < 200; i++) { const x = (rng() * 2 - 1) * (HX - 2), z = (rng() * 2 - 1) * (HZ - 2); if (!blocked(x, z, r)) return [x, z]; } return [0, 0]; };
+    // 井戸（決まった位置に5か所。最後の1人になったとき、どれか1つの蓋が開いて脱出口になる）
+    const wells = [];
+    [[-0.55, -0.35], [0.55, -0.35], [-0.65, 0.4], [0.65, 0.4], [0, 0.05]].forEach(([ax, az], i) => {
+      let wx = ax * HX, wz = az * HZ; for (let k = 0; k < 150 && blocked(wx, wz, 2.2); k++) { const a = hh(i * 31 + k) * 6.283, r = 1.5 + k * 0.4; wx = ax * HX + Math.cos(a) * r; wz = az * HZ + Math.sin(a) * r; }
+      const wg = new THREE.Group(); wg.add(part(G('wl1', () => new THREE.CylinderGeometry(0.95, 1.0, 0.9, 16)), M(0x8a8a82), 0, 0.45, 0));
+      const inner = part(G('wl2', () => new THREE.CylinderGeometry(0.7, 0.7, 0.02, 16)), new THREE.MeshLambertMaterial({ color: 0x1a1a22 }), 0, 0.88, 0); wg.add(inner);
+      const lid = new THREE.Group(); lid.add(part(G('wl3', () => new THREE.CylinderGeometry(0.98, 0.98, 0.12, 16)), M(0x7a5a2a), 0, 0, 0)); lid.add(part(G('wl4', () => new THREE.BoxGeometry(1.7, 0.06, 0.18)), M(0x4a3018), 0, 0.09, 0)); lid.position.set(0, 0.96, 0); wg.add(lid);
+      const beam = new THREE.Mesh(G('wlb', () => new THREE.CylinderGeometry(0.8, 0.8, 7, 16, 1, true)), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide })); beam.position.y = 3.5; beam.visible = false; wg.add(beam);
+      wg.position.set(wx, 0, wz); scene.add(wg); S.circs.push([wx, wz, 1.0]); wells.push({ x: wx, z: wz, lid, inner, beam });
+    });
+    const setWell = (w, on) => { w.lid.position.set(on ? 1.5 : 0, on ? 0.2 : 0.96, 0); w.lid.rotation.z = on ? -1.0 : 0; w.beam.visible = on; w.inner.material.color.setHex(on ? 0x6ad0ff : 0x1a1a22); };
     // 置物（本物）
     const props = [];
     for (let i = 0; i < stg.n; i++) {
@@ -366,7 +376,7 @@
     const applyRescue = (i) => { const c = cages[i]; if (!c || !c.id) return; const id = c.id, h = P[id], late = c.t < CAGE_T / 2; c.id = null; if (h) { h.cage = null; if (late) h.weak = true; if (id === me) { MY.hh = 50; MY.inv = 2; MY.pan = 3; say(late ? '救助された！ただし半分を過ぎた…次に吊るされたらすぐ負け' : '救助された！次に吊るされても、また45秒耐えられる'); } else say(`${nm(id)}が救助された！`); } SGK.AUDIO.sfx('coin'); };
     const hurt = (p) => { if (cho(p) !== 'oni') p.hp--; p.stun = cho(p) === 'kappa' ? 0.4 : 1; FX.push({ x: p.x, z: p.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('gbLose'); if (p === MY) { tell({ k: 'hl', id: me, hp: p.hp }); say(p.hp > 0 ? (cho(p) === 'oni' ? '外れ！ ただの置物だった' : '外れ！ ただの置物だった（体力-1）') : '体力がなくなった…'); } };
 
-    const applyBlock = () => { if (!exitP.extra) return; scene.remove(exitP.extra.m); exitP.extra = null; exitP.blocked = true; exitP.open = true; say('脱出口が塞がれた！普通の出口が現れた！'); SGK.AUDIO.sfx('hit'); };
+    const applyBlock = () => { if (!exitP.extra) return; setWell(exitP.extra.w, false); exitP.extra = null; exitP.blocked = true; exitP.open = true; say('井戸の蓋が閉じられた！普通の出口が現れた！'); SGK.AUDIO.sfx('hit'); };
     const game = {
       msg(from, m) {
         const p = P[m.id || from];
@@ -456,12 +466,10 @@
         if (esc) for (const e of exitP.list) e.m.visible = exitP.open;
         // 逃げる側が1人だけになったら、ランダムな位置に即使える脱出口が出る（位置は種から決めるので全員同じ）
         if (esc && !solo && !exitP.extra && !exitP.blocked && !done && ids.filter((i) => P[i].role0 === 'h').length >= 2 && hiders().length === 1) {
-          const rr = mulberry((cfg.seed ^ 0x5a17) >>> 0); let x = 0, z = 0; for (let k = 0; k < 200; k++) { x = (rr() * 2 - 1) * (HX - 4); z = (rr() * 2 - 1) * (HZ - 4); if (!blocked(x, z, 2.5)) break; }
-          const m = new THREE.Group(), gd = M(0xe0b43c); for (const px of [-1.8, 1.8]) m.add(part(G('tp', () => new THREE.CylinderGeometry(0.25, 0.3, 3.4, 10)), gd, px, 1.7, 0)); m.add(part(G('tk', () => new THREE.BoxGeometry(4.8, 0.32, 0.7)), M(0x2a2a2a), 0, 3.5, 0)); m.add(part(G('tn2', () => new THREE.BoxGeometry(3.8, 0.22, 0.34)), gd, 0, 2.8, 0));
-          const bm = new THREE.Mesh(G('exb', () => new THREE.CylinderGeometry(1.5, 1.5, 6, 16, 1, true)), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide })); bm.position.y = 3; m.add(bm); m.position.set(x, 0, z); scene.add(m); exitP.extra = { x, z, m };
-          say('最後の1人に脱出口が現れた！（金色の鳥居・鬼は近くに2秒いると塞げる）'); SGK.AUDIO.sfx('open');
+          const rr = mulberry((cfg.seed ^ 0x5a17) >>> 0), w = wells[Math.floor(rr() * wells.length)]; setWell(w, true); exitP.extra = { x: w.x, z: w.z, w };
+          say('最後の1人に脱出口が現れた！井戸の蓋が開いた（鬼は近くに2秒いると蓋を閉じられる）'); SGK.AUDIO.sfx('open');
         }
-        // 鬼が金色の脱出口の近くに2秒とどまると塞げる。塞ぐと普通の出口（2か所）が開く
+        // 鬼が開いた井戸の近くに2秒とどまると蓋を閉じられる。閉じると普通の出口（2か所）が開く
         if (esc && exitP.extra && MY.role === 's' && alive(MY) && phase === 'play' && MY.stun <= 0 && !MY.carry && Math.hypot(exitP.extra.x - MY.x, exitP.extra.z - MY.z) < 2.6) { MY.blkT = (MY.blkT || 0) + dt; if (MY.blkT >= 2) { MY.blkT = 0; tell({ k: 'xb' }); applyBlock(); } } else MY.blkT = 0;
         // 送る
         sendT -= dt; if (sendT <= 0 && !solo) { sendT = 0.1; tell({ k: 'hp', x: r2(MY.x), z: r2(MY.z), fx: r2(MY.fx), fz: r2(MY.fz), m: MY.mv, f: MY.form ? [MY.form.k, MY.form.v] : 0 }); }
@@ -545,7 +553,7 @@
         else if (MY.cage != null) txt(`牢の中… あと${Math.max(0, Math.ceil(cages[MY.cage].t))}秒で完全に負け（仲間の救助を待つ）`, W / 2, H * 0.62, { al: 'center', sz: 18, c: '#e0b0ff' });
         if (MY.carry && MY.role === 's') txt(`${nm(MY.carry)}を担いでいる（あと${Math.max(0, Math.ceil(CARRY_T - MY.carryT))}秒）→ 牢へ運べ（紫の光の所）`, W / 2, H * 0.62, { al: 'center', sz: 18, c: '#ffd0a0' });
         if (rescuing != null) { const k = Math.min(1, MY.rsT / 1); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(W / 2 - 80, H * 0.66, 160, 14); g.fillStyle = '#9affb0'; g.fillRect(W / 2 - 78, H * 0.66 + 2, 156 * k, 10); txt('救助中…', W / 2, H * 0.66 - 6, { al: 'center', sz: 15, c: '#c8ffd0' }); }
-        if (MY.blkT > 0 && exitP.extra) { const k = Math.min(1, MY.blkT / 2); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(W / 2 - 80, H * 0.66, 160, 14); g.fillStyle = '#ffb060'; g.fillRect(W / 2 - 78, H * 0.66 + 2, 156 * k, 10); txt('脱出口を塞いでいる…', W / 2, H * 0.66 - 6, { al: 'center', sz: 15, c: '#ffd9a8' }); }
+        if (MY.blkT > 0 && exitP.extra) { const k = Math.min(1, MY.blkT / 2); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(W / 2 - 80, H * 0.66, 160, 14); g.fillStyle = '#ffb060'; g.fillRect(W / 2 - 78, H * 0.66 + 2, 156 * k, 10); txt('井戸の蓋を閉めている…', W / 2, H * 0.66 - 6, { al: 'center', sz: 15, c: '#ffd9a8' }); }
         if (esc && opening) { const k = Math.min(1, opening.pr / OPEN_W); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(W / 2 - 110, H * 0.7, 220, 16); g.fillStyle = '#ffd24a'; g.fillRect(W / 2 - 108, H * 0.7 + 2, 216 * k, 12); txt(qte ? '' : MY.olk > 0 ? '中断中…' : '宝箱を開けている…（動かない・化けない／12秒ごとに合図）', W / 2, H * 0.7 - 8, { al: 'center', sz: 15, c: '#ffe9a0' }); }
         if (qte) { const bw = 54, x0 = W / 2 - bw * 2 - 9, y0 = H * 0.42; g.fillStyle = 'rgba(0,0,0,.65)'; g.fillRect(x0 - 12, y0 - 40, bw * 4 + 54, bw + 74); txt('この順に押す！', W / 2, y0 - 18, { al: 'center', sz: 16, c: '#ffe9a0' }); qte.seq.forEach((c, i2) => { g.fillStyle = i2 < qte.i ? '#4aa84a' : i2 === qte.i ? '#f2c14e' : '#6a5a3a'; g.fillRect(x0 + i2 * (bw + 6), y0, bw, bw); txt(QL(c), x0 + i2 * (bw + 6) + bw / 2, y0 + bw / 2 + 10, { al: 'center', sz: 28, c: '#1a1208' }); }); g.fillStyle = '#ffd24a'; g.fillRect(x0, y0 + bw + 10, (bw * 4 + 18) * Math.max(0, qte.t / 4), 8);
           qrects.length = 0; QK.forEach((c, i2) => { const rx = x0 + i2 * (bw + 6), ry = y0 + bw + 30; qrects.push([rx, ry, bw, bw, c]); g.fillStyle = '#3a6a9a'; g.fillRect(rx, ry, bw, bw); txt(QL(c), rx + bw / 2, ry + bw / 2 + 10, { al: 'center', sz: 26, c: '#fff' }); }); txt('キー：Space=A　X=B　C=X　V=Y　／　画面のボタンも押せます', W / 2, y0 + bw * 2 + 52, { al: 'center', sz: 13, c: '#e8dcc0' }); } else qrects.length = 0;
