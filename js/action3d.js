@@ -986,6 +986,7 @@
     // 1.6.65 動きながらの攻撃は、足は歩く・走る（low）、上半身だけ攻撃の動き
     const low = mv >= 0.4 ? { nm: mv < 3.6 ? 'walk' : 'run', t: ph, loop: true } : null;
     const hit = (k) => ({ nm: atk, t: W.a + (W.b - W.a) * Math.min(1, Math.max(0, k)), loop: false, atk: true, low });
+    if (s.cu > 0.05 && S3.tiers[0] && S3.tiers[0].rows.climb_ladder) return { nm: 'climb_ladder', t: nowS * 1.3, loop: true }; // 2.69.1 壁を登る間は梯子を登る動き
     if (s.hero && s.sw) return hit(1 - Math.max(0, s.sw.t) / (s.sw.d || 0.18));
     if (s.hero && s.hold && (atk === 'bow' || atk === 'spear')) return { nm: atk, t: atk === 'bow' ? W.pk : W.a, loop: false, atk: true, low };
     const a = s.at ? (nowS - s.at) / (wk === 'gun' || wk === 'bow' ? 0.5 : 0.4) : 9;

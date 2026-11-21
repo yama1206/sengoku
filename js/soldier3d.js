@@ -227,10 +227,14 @@
   S.load = function (THREE, scene, cap, done) {
     if (S.loading || !THREE || !THREE.GLTFLoader) return; S.loading = true; T = THREE;
     const L = new T.GLTFLoader(), get = (u) => new Promise((ok, ng) => L.load(S.PATH + u, ok, undefined, ng));
-    Promise.all([get('soldier_anims.glb'), ...[1, 2, 3, 4].map((i) => get(`soldier_t${i}_rig.glb`)), get('equip/horse_brown.glb'), get('equip/horse_white.glb'), ...WEPS.map((n) => get(`equip/${n}.glb`))]).then((g) => {
+    Promise.all([get('soldier_anims.glb'), ...[1, 2, 3, 4].map((i) => get(`soldier_t${i}_rig.glb`)), get('equip/horse_brown.glb'), get('equip/horse_white.glb'), ...WEPS.map((n) => get(`equip/${n}.glb`)), get('ninja_anims.glb').catch(() => null)]).then((g) => {
       const an = g[0]; let aHip = 0;
       an.scene.traverse((o) => { if (!aHip && /Hips$/.test(o.name)) aHip = o.position.length(); });
       const clips = an.animations.map((c) => [c.name, c]);
+      { /* 2.69.1 忍びの梯子登りの動き（ninja_anims.glb）を、壁を登る時にも使う。体の上がりは消して、その場で登る */
+        const ng = g[7 + WEPS.length], lc = ng && ng.animations.find((c) => c.name === 'climb_ladder');
+        if (lc) { const cc = lc.clone(); for (const tr of cc.tracks) if (/Hips\.position$/.test(tr.name)) { const v = Float32Array.from(tr.values), n = v.length / 3; if (n > 1) for (let i = 0; i < n; i++) for (let a = 0; a < 3; a++) v[i * 3 + a] -= (v[(n - 1) * 3 + a] - v[a]) * i / (n - 1); tr.values = v; } clips.push(['climb_ladder', cc]); }
+      }
       for (let i = 0; i < 4; i++) {
         let h = 0; g[1 + i].scene.traverse((o) => { if (!h && o.isBone && /Hips$/.test(o.name)) h = o.position.length(); });
         const bk = bake(g[1 + i], clips, h && aHip ? h / aHip : 1, i > 0);
