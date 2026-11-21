@@ -110,6 +110,7 @@
     return { x, y };
   }
   function startGame(cfg) {
+    try { const tw = document.getElementById('town'); if (tw && !tw.classList.contains('hidden') && typeof openTown === 'function') openTown(false); } catch (er) {} // 2.69.4 遊びを始める時に町の窓を閉じる
     if (RUN || !GAMES[cfg.g]) return; addCss(); bindKeys();
     const root = box('ptGame'); root.innerHTML = '<canvas></canvas><div class="tb"><button data-a="quit">やめる</button></div><div class="pad pl"></div><div class="pad pr"></div>';
     const cv = root.querySelector('canvas'), g2 = cv.getContext('2d'), me = ENV.me();

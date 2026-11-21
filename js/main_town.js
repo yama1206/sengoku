@@ -358,7 +358,7 @@ setInterval(() => {
 $('townBody').addEventListener('click', (e) => {
   const lb = e.target.closest('button[data-look]'); if (lb) return lookAt(lb.dataset.look, lb.dataset.job);
   const lx = e.target.closest('button[data-lookxy]'); if (lx) { const [x, y] = lx.dataset.lookxy.split(',').map(Number); openTown(false); R.cam.follow = false; R.cam.x = x; R.cam.y = y; G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; return; }
-  const pb = e.target.closest('button[data-party]'); if (pb) { openTown(false); SGK.PARTY.openLobby(pb.dataset.party); return; } // 2.42.0
+  const pb = e.target.closest('button[data-party]'); if (pb) { SGK.PARTY.openLobby(pb.dataset.party); return; } /* 2.69.4 町の窓は開けたまま（やめるで遊びを選ぶ画面へ戻る。遊びを始める時に閉じる） */ // 2.42.0
   const nj = e.target.closest('button[data-nj]'); // 0.77.0 忍び込む
   if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; if (N.pvp && N.pvp.here) { command({ type: 'ninPvpGo' }); toast('守りの忍びと対戦します…', 2000); return; } openTown(false); startNinja(N, null); return; } // 2.57.1 守る人がいれば対戦
   const nd = e.target.closest('button[data-njdef]'); // 2.57.0 城の守り
