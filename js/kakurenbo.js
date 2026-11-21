@@ -12,6 +12,10 @@
     { k: 'st', n: '舞台', v: [['street', '町の通り'], ['castle', '城下'], ['yashiki', '屋敷の庭'], ['rooms', '大きな屋敷（部屋がたくさん）']] },
     { k: 'mv', n: '化けたあとの動き', v: [['slow', 'ゆっくり動ける'], ['none', '動けない']] },
     { k: 'cau', n: '見つかったら', v: [['seek', '探す側に回る'], ['out', 'その回は終わり']] },
+    { k: 'on', n: '鬼の人数', v: [['1', '1人'], ['2', '2人']] }, // 2.96.0
+    { k: 'hn', n: '逃げる側の人数', v: [['4', '4人'], ['5', '5人'], ['6', '6人'], ['7', '7人'], ['8', '8人']] }, // 2.96.0 足りない分はCPUが加わる（CPUありのとき）
+    { k: 'cpS', n: '鬼のCPU', v: [['off', 'なし'], ['1', 'よわい'], ['2', 'ふつう'], ['3', 'つよい']] }, // 2.95.0 立候補した人がいなければ、鬼をCPUがやる
+    { k: 'cpH', n: '逃げる側のCPU', v: [['off', 'なし'], ['1', 'よわい'], ['2', 'ふつう'], ['3', 'つよい']] }, // 2.95.0 逃げる側が4人になるまでCPUが加わる
   ];
   /* 2.71.0 キャラ（見た目＋パッシブ＋アクティブ）。逃げる側は人間、鬼は日本の妖怪。数値は仮
      キャラの足し方：①ここ（HD.CH）に { k, n, pa（パッシブの説明）, ac（アクティブの説明）, cd（待ち時間・秒） } を足す
@@ -217,9 +221,9 @@
     } catch (e) { return ''; }
   };
   HD.make = function (env) {
-    const { cfg, me, ids, cv, g2: g, IN, send } = env;
-    const o = Object.assign({ st: 'street', sk: 1, mv: 'slow', wn: 'time', cau: 'seek' }, cfg.o || {}), stg = STAGES[o.st] || STAGES.street;
-    const solo = ids.length < 2, rng = mulberry((cfg.seed ^ 0x2f6e2b1) >>> 0), HX = stg.HX, HZ = stg.HZ;
+    const { cfg, me, ids: hids, cv, g2: g, IN, send } = env;
+    const o = Object.assign({ st: 'street', sk: 1, mv: 'slow', wn: 'time', cau: 'seek', cpS: 'off', cpH: 'off', on: '1', hn: '4' }, cfg.o || {}), stg = STAGES[o.st] || STAGES.street;
+    const LS = +o.cpS || 0, LH = +o.cpH || 0, solo = hids.length < 2 && !(LS > 0 || LH > 0), rng = mulberry((cfg.seed ^ 0x2f6e2b1) >>> 0), HX = stg.HX, HZ = stg.HZ;
     const root = cv.parentNode, T3 = THREE;
     // 3D の画面（絵は下の canvas、文字は上の canvas）
     const rd = new T3.WebGLRenderer({ antialias: true }); rd.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5)); rd.outputEncoding = T3.sRGBEncoding; rd.shadowMap.enabled = true;
@@ -270,20 +274,28 @@
       cg.position.set(q.x, 0, q.z); scene.add(cg); S.circs.push([q.x, q.z, 1.1]); cages.push({ x: q.x, z: q.z, id: null, t: 0, by: null, m: cg });
     }
     // 役割（同じ種で全員同じ）
-    const order = ids.slice(); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+    const order = hids.slice(); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
     { const isV = (i) => !!((cfg.mem || []).find((x) => x.id === i) || {}).vol, vo = order.filter(isV), rest = order.filter((i) => !isV(i)); order.length = 0; order.push(...vo, ...rest); } // 2.91.0 鬼は立候補した人からランダム（立候補がいなければ全員から）
-    const nSk = solo ? 0 : 1; // 2.77.0 鬼1人・逃げる側4人
+    // 2.96.0 鬼は1〜2人・逃げる側は4〜8人まで。人が足りない分は、CPUの設定があればCPUが入る
+    const ON = o.on === '2' ? 2 : 1, HN = clamp(+o.hn || 4, 4, 8), volOf = (i) => !!((cfg.mem || []).find((x) => x.id === i) || {}).vol;
+    const nHumOni = solo ? 0 : LS > 0 ? Math.min(ON, order.filter(volOf).length) : Math.min(ON, LH > 0 ? hids.length : hids.length - 1), nCpuOni = !solo && LS > 0 ? ON - nHumOni : 0;
+    const nFill = !solo && LH > 0 ? Math.max(0, HN - (hids.length - nHumOni)) : 0, nSk = nHumOni + nCpuOni;
+    const cpuIds = []; for (let k = 0; k < nCpuOni + nFill; k++) cpuIds.push('__c' + k);
+    const ids = hids.concat(cpuIds); cpuIds.forEach((c2, k) => { env.names[c2] = 'CPU' + (k + 1); });
+    const fullOrder = order.slice(0, nHumOni).concat(cpuIds.slice(0, nCpuOni), order.slice(nHumOni), cpuIds.slice(nCpuOni)), cpuCh = {};
+    cpuIds.forEach((c2) => { cpuCh[c2] = { h: HD.CH.h[Math.floor(rng() * HD.CH.h.length)].k, s: HD.CH.s[Math.floor(rng() * HD.CH.s.length)].k }; });
     const P = {}, col = (id) => env.pal[ids.indexOf(id) % env.pal.length], hex = (s) => parseInt(String(s).replace('#', ''), 16);
-    const chOf0 = (id, r) => { const m = (cfg.mem || []).find((x) => x.id === id), c = m && m.ch && m.ch[r]; return HD.CH[r].some((x) => x.k === c) ? c : HD.CH[r][0].k; };
-    order.forEach((id, i) => {
+    const chOf0 = (id, r) => { if (cpuCh[id]) return cpuCh[id][r]; const m = (cfg.mem || []).find((x) => x.id === id), c = m && m.ch && m.ch[r]; return HD.CH[r].some((x) => x.k === c) ? c : HD.CH[r][0].k; };
+    fullOrder.forEach((id, i) => {
       const sk = i < nSk, [x, z] = sk ? [(i - (nSk - 1) / 2) * 2, HZ - 6] : free(0.6);
       P[id] = { id, role: sk ? 's' : 'h', role0: sk ? 's' : 'h', x, z, tx: x, tz: z, fx: 0, fz: -1, form: null, mv: 0, hp: 3, out: false, caught: 0, stun: 0, cd: 0, fcd: 0, grp: null, key: '', bob: 0, chh: chOf0(id, 'h'), chs: chOf0(id, 's'), sk: 0, boost: 0, freeze: 0, slowT: 0, olk: 0, hh: 100, inv: 0, pan: 0, car: null, carry: null, carryT: 0, cage: null, rsT: 0, hangs: 0, weak: false, shield: false, arrowT: 0 };
     });
+    cpuIds.forEach((c2) => { P[c2].cpu = 1; });
     const cho = (p) => (p.role === 'h' ? p.chh : p.chs), chN = (p) => (HD.CH[p.role].find((x) => x.k === cho(p)) || HD.CH[p.role][0]).n, marks = {};
     const cpu = solo ? { id: '__cpu', x: 0, z: HZ - 6, fx: 0, fz: -1, cd: 1.5, tgt: null, grp: mkYokai('oni'), mv: 0 } : null; if (cpu) scene.add(cpu.grp);
     // 脱出モード：鍵が4つ、3つ集めると鳥居の出口が開く（出口に着いた人は脱出成功）
     // 2.78.0 合図はA/B/X/Y（コントローラーはPS配置：×=A ○=B □=X △=Y）
-    const esc = o.wn === 'escape', RND = esc ? 600 : ROUND, NK = 7, NEED = 5, OPEN_W = 80, EXIT_W = 20, keys = [], exitP = { open: false, list: [] }; let kgot = 0, exM = null, exBeam = null, opening = null, rescuing = null, qte = null, qtT = 0, pdir = null; const QK = ['a', 'b', 'x', 'y'], qq = [], padPrev = [], qrects = []; let padOn = false; const QL = (c) => (padOn ? { a: '×', b: '○', x: '□', y: '△' }[c] : c.toUpperCase()); const openCh = (q) => { if (q.lid) q.lid.rotation.x = -1.9; if (q.beam) q.beam.visible = false; };
+    const esc = o.wn === 'escape', RND = esc ? 600 : ROUND, NK = 11, NEED = 7, OPEN_W = 80, EXIT_W = 20, keys = [], exitP = { open: false, list: [] }; let kgot = 0, exM = null, exBeam = null, opening = null, rescuing = null, qte = null, qtT = 0, pdir = null; const QK = ['a', 'b', 'x', 'y'], qq = [], padPrev = [], qrects = []; let padOn = false; const QL = (c) => (padOn ? { a: '×', b: '○', x: '□', y: '△' }[c] : c.toUpperCase()); const openCh = (q) => { if (q.lid) q.lid.rotation.x = -1.9; if (q.beam) q.beam.visible = false; };
     if (esc) {
       for (let i = 0; i < NK; i++) { let q = null; for (const th of [16, 11, 7]) for (let k = 0; k < 60 && !q; k++) { const [x, z] = free(1); if (z < HZ - 7 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > th)) q = { x, z }; } if (!q) { const [x, z] = free(1); q = { x, z }; } q.got = false; const gk = new THREE.Group(), GD = new THREE.MeshLambertMaterial({ color: 0xf2c14e, emissive: 0x806010 }); gk.add(part(G('chb', () => new THREE.BoxGeometry(1.2, 0.7, 0.75)), M(0x7a4a22), 0, 0.35, 0)); const lid = new THREE.Group(); lid.position.set(0, 0.7, -0.37); const lm = part(G('chl', () => new THREE.CylinderGeometry(0.375, 0.375, 1.2, 12, 1, false, 0, Math.PI)), M(0x8a5a2a), 0, 0, 0.37); lm.rotation.z = Math.PI / 2; lm.rotation.y = Math.PI / 2; lid.add(lm); gk.add(lid); q.lid = lid; for (const x of [-0.45, 0.45]) gk.add(part(G('chg', () => new THREE.BoxGeometry(0.1, 0.75, 0.8)), GD, x, 0.37, 0)); gk.add(part(G('chk', () => new THREE.BoxGeometry(0.2, 0.22, 0.08)), GD, 0, 0.6, 0.4)); const bm = new THREE.Mesh(G('kyl', () => new THREE.CylinderGeometry(0.1, 0.1, 3, 8)), new THREE.MeshBasicMaterial({ color: 0xffe070, transparent: true, opacity: 0.35, depthWrite: false })); bm.position.y = 1.9; gk.add(bm); q.beam = bm; q.pr = 0; { const ef = new THREE.LineSegments(new THREE.EdgesGeometry(G('chf', () => new THREE.BoxGeometry(1.8, 1.4, 1.4))), new THREE.LineBasicMaterial({ color: 0xff2a2a, depthTest: false, transparent: true })), ff = new THREE.Mesh(G('chf', () => new THREE.BoxGeometry(1.8, 1.4, 1.4)), new THREE.MeshBasicMaterial({ color: 0xff2a2a, depthTest: false, transparent: true, opacity: 0.22 })); const fr = new THREE.Group(); fr.add(ef, ff); fr.position.y = 0.55; fr.renderOrder = 999; ef.renderOrder = ff.renderOrder = 999; fr.visible = false; gk.add(fr); q.frame = fr; } gk.position.set(q.x, 0, q.z); scene.add(gk); q.m = gk; gk.rotation.y = hh(keys.length + 9) * 6.28; keys.push(q); }
       for (const sgn of [-1, 1]) { let e = null; for (let k = 0; k < 120 && !e; k++) { const [x, z] = free(2.5); if (x * sgn > HX * 0.4 && keys.every((y) => Math.hypot(y.x - x, y.z - z) > 5) && exitP.list.every((o2) => Math.hypot(o2.x - x, o2.z - z) > HX * 1.1)) e = { x, z }; } if (!e) { const [x, z] = free(2.5); e = { x, z }; } exitP.list.push(e); }
@@ -311,6 +323,8 @@
     const alive = (p) => p && !p.out && !p.esc && !env.gone[p.id];
     const hiders = () => ids.map((i) => P[i]).filter((p) => alive(p) && p.role === 'h');
     const seekers = () => ids.map((i) => P[i]).filter((p) => alive(p) && p.role === 's' && p.hp > 0);
+    const cpuP = () => cpuIds.map((i) => P[i]), isHost = () => cpuIds.length > 0 && hids.find((i) => !env.gone[i]) === me, mine = (p) => p === MY || (!!p.cpu && isHost()); // CPUはリーダー（いなくなったら次の人）の端末が動かす
+    const cpuH = () => (isHost() ? cpuP().filter((c) => c.role === 'h' && alive(c)) : []), lvOf = (c) => (c.role === 's' ? LS || LH : LH || LS);
     const look = (p) => { // 見た目（化けていれば置物、そうでなければ人）
       const key = p.form ? p.form.k + p.form.v : 'p' + p.role + cho(p); if (key === p.key && p.grp) return; p.key = key;
       if (p.grp) scene.remove(p.grp);
@@ -342,8 +356,8 @@
     const tell = (m) => send(env.others, m);
     // 叩く
     const strike = (p, big) => {
-      if (p.cd > 0 || p.stun > 0 || (p === MY && MY.carry)) return; p.cd = 0.8; if (p.form) { p.form = null; p.fcd = 0.5; } const R = big ? R_BIG : R_HIT, off = big ? 1.5 : 1.2, x = p.x + p.fx * off, z = p.z + p.fz * off; FX.push({ x, z, t: 0.25, bad: false, big }); SGK.AUDIO.sfx(big ? 'hit' : 'slash');
-      if (p === MY) { tell({ k: 'hs', id: me, x: r2(x), z: r2(z), r: R }); pend = { t: 0.5, x, z, R, ok: false }; }
+      if (p.cd > 0 || p.stun > 0 || p.carry) return; p.cd = 0.8; if (p.form) { p.form = null; p.fcd = 0.5; } const R = big ? R_BIG : R_HIT, off = big ? 1.5 : 1.2, x = p.x + p.fx * off, z = p.z + p.fz * off; FX.push({ x, z, t: 0.25, bad: false, big }); SGK.AUDIO.sfx(big ? 'hit' : 'slash');
+      if (p === MY || p.cpu) { const hm = { k: 'hs', id: p.id, x: r2(x), z: r2(z), r: R }; tell(hm); const pe = { t: 0.5, x, z, R, ok: false }; if (p === MY) pend = pe; else p.pend = pe; if (isHost()) { if (p !== MY) takeHit(MY, hm); for (const c of cpuH()) takeHit(c, hm); } }
     };
     const addDecoy = (x, z, kd, v, rot) => { const q = { x, z, kind: kd, v, rot, dc: 1, m: mkProp(kd, v) }; q.m.position.set(x, 0, z); q.m.rotation.y = rot; scene.add(q.m); props.push(q); };
     const addTrap = (tid, x, z) => { const m = new THREE.Mesh(G('trg', () => new THREE.RingGeometry(0.35, 0.75, 14)), new THREE.MeshBasicMaterial({ color: 0x6b3a1a, side: THREE.DoubleSide })); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.07, z); scene.add(m); traps.push({ tid, x, z, m }); };
@@ -359,7 +373,7 @@
       else if (ch === 'dorobo') { MY.boost = 4; say('逃げ足！'); }
       else if (ch === 'kariudo') { const tid = me + ':' + Math.floor(t * 10); addTrap(tid, MY.x, MY.z); tell({ k: 'tr', tid, x: r2(MY.x), z: r2(MY.z) }); say('罠を置いた'); SGK.AUDIO.sfx('carve'); }
       else if (ch === 'geinin') { let x = MY.x + fx * 7, z = MY.z + fz * 7; for (let k = 7; k > 0 && blocked(x, z, 0.4); k -= 1) { x = MY.x + fx * k; z = MY.z + fz * k; } nzo = { x, z, t: 5 }; tell({ k: 'ns', x: r2(x), z: r2(z) }); say('声まねをした'); SGK.AUDIO.sfx('news'); }
-      else if (ch === 'tengu' || ch === 'kappa' || ch === 'yuki' || ch === 'sou' || ch === 'kenzan') { tell({ k: 'sk', s: ch === 'kenzan' ? 'zeni' : ch, id: me, x: r2(MY.x), z: r2(MY.z), fx: r2(fx), fz: r2(fz) }); FX.push({ x: MY.x + (ch === 'yuki' || ch === 'sou' ? 0 : fx * 2.5), z: MY.z + (ch === 'yuki' || ch === 'sou' ? 0 : fz * 2.5), t: 0.5, bad: false, big: true }); SGK.AUDIO.sfx(ch === 'yuki' || ch === 'sou' ? 'zawa' : 'bow'); say(ch === 'tengu' ? '羽ばたき！' : ch === 'kappa' ? '水かけ！' : ch === 'yuki' ? '吹雪！' : ch === 'kenzan' ? '銭投げ！' : '読経…'); }
+      else if (ch === 'tengu' || ch === 'kappa' || ch === 'yuki' || ch === 'sou' || ch === 'kenzan') { { const sm = { k: 'sk', s: ch === 'kenzan' ? 'zeni' : ch, id: me, x: r2(MY.x), z: r2(MY.z), fx: r2(fx), fz: r2(fz) }; tell(sm); if (isHost()) cpuSk(sm); } FX.push({ x: MY.x + (ch === 'yuki' || ch === 'sou' ? 0 : fx * 2.5), z: MY.z + (ch === 'yuki' || ch === 'sou' ? 0 : fz * 2.5), t: 0.5, bad: false, big: true }); SGK.AUDIO.sfx(ch === 'yuki' || ch === 'sou' ? 'zawa' : 'bow'); say(ch === 'tengu' ? '羽ばたき！' : ch === 'kappa' ? '水かけ！' : ch === 'yuki' ? '吹雪！' : ch === 'kenzan' ? '銭投げ！' : '読経…'); }
       else if (ch === 'neko') { MY.arrowT = 5; say('においをかぎつけた…'); }
       else if (ch === 'oni') { MY.cd = 0; strike(MY, true); }
       if (ok) MY.sk = def.cd;
@@ -370,20 +384,178 @@
     };
     const applyCage = (i, id, by) => { const c = cages[i], h = P[id]; if (!c || !h || c.id) return; h.car = null; if (P[by]) P[by].carry = null;
       const instant = h.weak || h.hangs >= 2; h.hangs++; h.weak = false; // 2.82.0 3回目、または前に半分を過ぎてから救助された人は、吊るされたらすぐ負け
-      if (instant) { if (id === me) { say(h.hangs >= 3 ? '3回目…もう耐えられない！' : '前の消耗で、耐えられない！'); caught(me, by); tell({ k: 'hc', id: me, by }); } else say(`${nm(id)}は吊るされてすぐ力尽きた…`); return; }
-      c.id = id; c.t = CAGE_T; c.by = by; h.cage = i; if (id === me) { MY.x = c.x; MY.z = c.z; say('牢に入れられた…仲間の救助を待て'); } else say(`${nm(id)}が牢に入れられた`); SGK.AUDIO.sfx('open'); };
-    const applyRelease = (id) => { const h = P[id]; if (!h || !h.car) return; if (P[h.car]) P[h.car].carry = null; h.car = null; if (id === me) { MY.hh = 30; MY.inv = 2; MY.pan = 3; say('鬼の手をふりほどいた！逃げろ！'); } else say(`${nm(id)}が鬼の手をふりほどいた！`); };
-    const applyRescue = (i) => { const c = cages[i]; if (!c || !c.id) return; const id = c.id, h = P[id], late = c.t < CAGE_T / 2; c.id = null; if (h) { h.cage = null; if (late) h.weak = true; if (id === me) { MY.hh = 50; MY.inv = 2; MY.pan = 3; say(late ? '救助された！ただし半分を過ぎた…次に吊るされたらすぐ負け' : '救助された！次に吊るされても、また45秒耐えられる'); } else say(`${nm(id)}が救助された！`); } SGK.AUDIO.sfx('coin'); };
-    const hurt = (p) => { if (cho(p) !== 'oni') p.hp--; p.stun = cho(p) === 'kappa' ? 0.4 : 1; FX.push({ x: p.x, z: p.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('gbLose'); if (p === MY) { tell({ k: 'hl', id: me, hp: p.hp }); say(p.hp > 0 ? (cho(p) === 'oni' ? '外れ！ ただの置物だった' : '外れ！ ただの置物だった（体力-1）') : '体力がなくなった…'); } };
+      if (instant) { if (mine(h)) { if (h === MY) say(h.hangs >= 3 ? '3回目…もう耐えられない！' : '前の消耗で、耐えられない！'); else say(`${nm(id)}は吊るされてすぐ力尽きた…`); caught(id, by); tell({ k: 'hc', id, by }); } else say(`${nm(id)}は吊るされてすぐ力尽きた…`); return; }
+      c.id = id; c.t = CAGE_T; c.by = by; h.cage = i; if (mine(h)) { h.x = c.x; h.z = c.z; if (h === MY) say('牢に入れられた…仲間の救助を待て'); else say(`${nm(id)}が牢に入れられた`); } else say(`${nm(id)}が牢に入れられた`); SGK.AUDIO.sfx('open'); };
+    const applyRelease = (id) => { const h = P[id]; if (!h || !h.car) return; if (P[h.car]) P[h.car].carry = null; h.car = null; if (mine(h)) { h.hh = 30; h.inv = 2; h.pan = 3; if (h === MY) say('鬼の手をふりほどいた！逃げろ！'); else say(`${nm(id)}が鬼の手をふりほどいた！`); } else say(`${nm(id)}が鬼の手をふりほどいた！`); };
+    const applyRescue = (i) => { const c = cages[i]; if (!c || !c.id) return; const id = c.id, h = P[id], late = c.t < CAGE_T / 2; c.id = null; if (h) { h.cage = null; if (late) h.weak = true; if (mine(h)) { h.hh = 50; h.inv = 2; h.pan = 3; if (h === MY) say(late ? '救助された！ただし半分を過ぎた…次に吊るされたらすぐ負け' : '救助された！次に吊るされても、また45秒耐えられる'); else say(`${nm(id)}が救助された！`); } else say(`${nm(id)}が救助された！`); } SGK.AUDIO.sfx('coin'); };
+    const hurt = (p) => { if (cho(p) !== 'oni') p.hp--; p.stun = cho(p) === 'kappa' ? 0.4 : 1; FX.push({ x: p.x, z: p.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('gbLose'); if (mine(p)) { tell({ k: 'hl', id: p.id, hp: p.hp }); if (p === MY) say(p.hp > 0 ? (cho(p) === 'oni' ? '外れ！ ただの置物だった' : '外れ！ ただの置物だった（体力-1）') : '体力がなくなった…'); } };
 
     const rush = () => esc && (exitP.list.some((e) => e.opened) || !!exitP.extra); // 脱出口が開いている間は、鬼は一撃でダウン・足が少し速い
     const applyBlock = () => { if (!exitP.extra) return; setWell(exitP.extra.w, false); exitP.extra = null; exitP.blocked = true; exitP.open = true; say('井戸の蓋が閉じられた！普通の出口が現れた！'); SGK.AUDIO.sfx('hit'); };
+
+    // ===== 2.95.0 CPU（リーダー側の端末が動かして、位置などを全員に送る。強さ：1=よわい 2=ふつう 3=つよい）=====
+    let NG = null, hosted = false;
+    const gInit = () => { if (NG) return NG; const w = Math.ceil(HX * 2), h = Math.ceil(HZ * 2), b = new Uint8Array(w * h); for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) b[j * w + i] = blocked(-HX + i + 0.5, -HZ + j + 0.5, 0.55) ? 1 : 0; return (NG = { w, h, b }); };
+    const pathTo = (x0, z0, x1, z1) => { // 幅1の升目で道を探す（壁・建物をよける）
+      const { w, h, b } = gInit(), ci = (x) => clamp(Math.floor(x + HX), 0, w - 1), cj = (z) => clamp(Math.floor(z + HZ), 0, h - 1);
+      const s = cj(z0) * w + ci(x0), gi = ci(x1), gj = cj(z1), gl = gj * w + gi; if (s === gl) return [[x1, z1]];
+      const par = new Int32Array(w * h).fill(-2), q = [s]; par[s] = -1; let end = -1;
+      for (let qi = 0; qi < q.length; qi++) {
+        const c = q[qi], cx = c % w, cz = (c / w) | 0;
+        if (c === gl || (b[gl] && Math.abs(cx - gi) <= 1 && Math.abs(cz - gj) <= 1)) { end = c; break; }
+        for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dz) continue; const nx = cx + dx, nz = cz + dz; if (nx < 0 || nz < 0 || nx >= w || nz >= h) continue; const n = nz * w + nx; if (par[n] !== -2 || b[n]) continue;
+          if (dx && dz && (b[cz * w + nx] || b[nz * w + cx])) continue; par[n] = c; q.push(n);
+        }
+      }
+      if (end < 0) return [[x1, z1]];
+      const pts = []; for (let c = end; c >= 0 && c !== s; c = par[c]) pts.push([-HX + (c % w) + 0.5, -HZ + ((c / w) | 0) + 0.5]);
+      pts.reverse(); pts.push([x1, z1]); return pts;
+    };
+    const cpuGo = (c, tx, tz, sp, dt, stop) => { // 目的地へ歩く（着いたら true）
+      const a = c.ai; if (Math.hypot(tx - c.x, tz - c.z) < stop) { c.mv = 0; return true; }
+      a.rp -= dt; if (!a.wp || a.rp <= 0 || Math.hypot(a.gx - tx, a.gz - tz) > 1.5) { a.wp = pathTo(c.x, c.z, tx, tz); a.gx = tx; a.gz = tz; a.rp = 1.2; a.wi = 0; }
+      while (a.wi < a.wp.length - 1 && Math.hypot(a.wp[a.wi][0] - c.x, a.wp[a.wi][1] - c.z) < 0.7) a.wi++;
+      const [wx, wz] = a.wp[Math.min(a.wi, a.wp.length - 1)], dx = wx - c.x, dz = wz - c.z, l = Math.hypot(dx, dz) || 1;
+      moveBy(c, dx / l * sp * dt, dz / l * sp * dt, c.role === 's' ? 0.6 : 0.4); c.fx = dx / l; c.fz = dz / l; c.mv = 1; return false;
+    };
+    const seekSp = (c) => { let sp = c.form ? 2.8 : cho(c) === 'tengu' ? 6.0 : SP_S; if (c.carry) sp *= 0.85; if (rush()) sp *= 1.15; if (c.slowT > 0) sp *= 0.5; return sp * [0.8, 0.95, 1.08][lvOf(c) - 1]; };
+    const hidSp = (c) => { const k = cho(c); let sp = c.form ? (k === 'shonin' ? 3.2 : k === 'kariudo' ? 2.6 : SP_HS) : (k === 'kodomo' ? 5.0 : SP_H); if (c.pan > 0) sp *= 1.5; if (c.boost > 0) sp *= 1.6; if (k === 'kenzan' && cages.some((k2) => k2.id && k2.id !== c.id)) sp *= 1.4; if (seekers().some((q) => cho(q) === 'yuki' && Math.hypot(q.x - c.x, q.z - c.z) < 3.5)) sp *= 0.85; return sp * [0.88, 0.97, 1.05][lvOf(c) - 1]; };
+    // 鬼（探す側）のCPU
+    const seekBrain = (c, dt) => {
+      const a = c.ai, L = lvOf(c); c.mv = 0;
+      if (c.hp <= 0 || c.stun > 0 || c.freeze > 0 || phase === 'hide') return;
+      if (c.form) c.form = null;
+      for (const q of traps) if (Math.hypot(q.x - c.x, q.z - c.z) < 1.0) { c.stun = 2.5; tell({ k: 'tx', tid: q.tid, x: r2(q.x), z: r2(q.z), by: c.id }); scene.remove(q.m); traps.splice(traps.indexOf(q), 1); FX.push({ x: q.x, z: q.z, t: 0.5, bad: true }); SGK.AUDIO.sfx('hit'); return; }
+      if (c.carry) { // 担いだ人を牢へ運ぶ
+        c.carryT += dt; if (c.carryT >= CARRY_T) { const id = c.carry; tell({ k: 'cr', id }); applyRelease(id); return; }
+        let cg = -1, bd = 1e9; cages.forEach((k, i) => { if (!k.id) { const d = Math.hypot(k.x - c.x, k.z - c.z); if (d < bd) { bd = d; cg = i; } } });
+        if (cg >= 0) { if (bd < 1.8) { const id = c.carry; tell({ k: 'cg', i: cg, id, by: c.id }); applyCage(cg, id, c.id); } else cpuGo(c, cages[cg].x, cages[cg].z, seekSp(c), dt, 1.5); }
+        return;
+      }
+      if (exitP.extra && L >= 2) { const w = exitP.extra; if (Math.hypot(w.x - c.x, w.z - c.z) < 2.4) { c.blkT = (c.blkT || 0) + dt; if (c.blkT >= 2) { c.blkT = 0; tell({ k: 'xb' }); applyBlock(); } } else cpuGo(c, w.x, w.z, seekSp(c), dt, 2.2); return; } // 開いた井戸の蓋を閉じに行く
+      if (a.wait > 0) { a.wait -= dt; return; }
+      a.tk -= dt;
+      if (a.tk <= 0) {
+        a.tk = 0.4; const SR = [0, 4.5, 6.5, 9][L], MR = [0, 7, 10, 14][L], PC = [0, 0.06, 0.16, 0.35][L], VR = [0, 7, 11, 15][L]; let best = null, bd = 1e9;
+        for (const h of hiders()) {
+          if (h.cage != null || h.car) continue; const d = Math.hypot(h.x - c.x, h.z - c.z); if (d > 20) continue; let see = false;
+          if (esc && exitP.open && L >= 2) see = true; // 脱出口が開いたら全員の位置が見える
+          else if (!h.form && d < VR && !wallBetween(c.x, c.z, h.x, h.z)) see = true; // 人の姿のままなら見つかる
+          else if (h.mv && d < MR && !wallBetween(c.x, c.z, h.x, h.z)) see = true; // 動くと目立つ
+          else if (d < SR && Math.random() < PC) see = true; // 化けていても、近いと怪しまれる
+          if (see && d < bd) { bd = d; best = h; }
+        }
+        if (best) a.tg = { x: best.x, z: best.z, hard: 1, id: best.id };
+        else if (!a.tg || a.tg.hard) {
+          a.tg = null;
+          if (L >= 2 && bcT > 0 && beacon && (L === 3 || Math.random() < 0.5)) a.tg = { x: beacon.x, z: beacon.z, area: 1 }; // 物音のした方へ
+          else {
+            let cand = props.map((q, i) => [q, i]).filter((p2) => t - (a.seen[p2[1]] || -999) > [0, 20, 40, 80][L]); if (!cand.length) cand = props.map((q, i) => [q, i]);
+            if (L >= 2) cand.sort((p1, p2) => Math.hypot(p1[0].x - c.x, p1[0].z - c.z) - Math.hypot(p2[0].x - c.x, p2[0].z - c.z));
+            const pk = L === 1 ? cand[Math.floor(Math.random() * cand.length)] : cand[Math.floor(Math.random() * Math.min(cand.length, L === 2 ? 25 : 8))];
+            if (pk) a.tg = { x: pk[0].x, z: pk[0].z, i: pk[1] };
+          }
+        }
+      }
+      if (!a.tg) return;
+      const arrive = a.tg.hard ? 1.0 : 1.3, d = Math.hypot(a.tg.x - c.x, a.tg.z - c.z);
+      if (d > arrive) { cpuGo(c, a.tg.x, a.tg.z, seekSp(c), dt, arrive); return; }
+      const dx = a.tg.x - c.x, dz = a.tg.z - c.z, l = Math.hypot(dx, dz) || 1; c.fx = dx / l; c.fz = dz / l; c.mv = 0;
+      if (a.tg.hard) { if (c.cd <= 0) { strike(c); a.wait = [0, 1.2, 0.6, 0.15][L]; } }
+      else { a.seen[a.tg.i] = t; if (a.tg.i != null && Math.random() < [0, 0.5, 0.3, 0.1][L] && c.cd <= 0) { strike(c); a.wait = 0.9; } else a.wait = 0.5; a.tg = null; } // 怪しまれていない置物は、強いほど叩かず通り過ぎる
+    };
+    // 逃げる側のCPU
+    const cpuEscape = (c) => { c.esc = true; const m = { k: 'es', id: c.id }; tell(m); game.msg(c.id, m); };
+    const hideBrain = (c, dt) => {
+      const a = c.ai, L = lvOf(c), play = phase === 'play'; c.mv = 0;
+      if (c.car) { const cr = P[c.car]; if (cr) { c.x = cr.x; c.z = cr.z; } return; }
+      if (c.cage != null) { const k = cages[c.cage]; c.x = k.x; c.z = k.z; if (k.t <= 0 && !done) { const by = k.by; caught(c.id, by); tell({ k: 'hc', id: c.id, by }); } return; }
+      if (c.stun > 0 || c.freeze > 0) return;
+      let od = 1e9, on = null; for (const s of seekers()) { const d = Math.hypot(s.x - c.x, s.z - c.z); if (d < od) { od = d; on = s; } }
+      const face = on && od > 0.1 ? ((c.x - on.x) * on.fx + (c.z - on.z) * on.fz) / od : 0;
+      const danger = play && !!on && (od < [0, 1.6, 2.2, 2.6][L] || (L >= 2 && od < (L === 3 ? 6.5 : 4.5) && face > 0.7)); // 強いほど、鬼がこちらへ向かってくるのを早く察して逃げる
+      const dd = (e) => Math.hypot(e.x - c.x, e.z - c.z), nearest = (arr) => arr.reduce((b, e) => (!b || dd(e) < dd(b) ? e : b), null);
+      const pickHide = () => { // 隠れる場所：強いほど大きな置物（受けるダメージが少ない）を選ぶ
+        const sz = (q) => SZ[q.kind] || 'M', ok = props.filter((q) => !q.dc && (!on || Math.hypot(q.x - on.x, q.z - on.z) > 10) && dd(q) < (L === 1 ? 45 : 35));
+        let pool = L === 3 ? ok.filter((q) => sz(q) === 'L') : L === 2 ? ok.filter((q) => sz(q) !== 'S') : ok; if (!pool.length) pool = ok; const q = pool[Math.floor(Math.random() * pool.length)]; return q ? { x: q.x, z: q.z } : null;
+      };
+      const hidePlace = () => { a.dst = pickHide(); a.tries = 0; a.job = 'hide'; };
+      const stand = (x, z, st) => cpuGo(c, x, z, hidSp(c), dt, st);
+      if (danger && a.job !== 'hide') { c.form = null; a.qT = 0; a.flee = 1; hidePlace(); }
+      if (a.job === 'hide') {
+        if (c.form) { a.job = 'still'; return; }
+        if (!a.dst) hidePlace(); if (!a.dst) { a.job = 'still'; return; }
+        if (stand(a.dst.x, a.dst.z, 1.4)) {
+          if (a.lazy && !a.flee) { a.job = 'still'; return; } // よわいCPUは、ときどき化けずに立っているだけ
+          if (c.fcd <= 0 && near(c.x, c.z, 2.4)) { const q = near(c.x, c.z, 2.4); c.form = { k: q.kind, v: q.v }; c.fcd = 0.8; a.job = 'still'; a.flee = 0; a.cool = 2; }
+          else { a.tries++; if (a.tries > 3) a.job = 'still'; else if (c.fcd <= 0) a.dst = pickHide(); }
+        }
+        return;
+      }
+      if (a.job === 'still') {
+        if (!play) return; a.cool = (a.cool || 0) - dt; if (a.cool > 0) return; a.cool = 1;
+        if (L >= 2 && od > (L === 3 ? 7 : 10)) { const i = cages.findIndex((k) => k.id && k.id !== c.id); if (i >= 0) { c.form = null; a.job = 'rescue'; a.ci = i; a.rs = 0; return; } } // 牢の仲間を助けに行く
+        if (esc && od > 9 && (a.bold || exitP.extra)) {
+          if (exitP.extra || (exitP.open && kgot >= NEED)) { c.form = null; a.job = 'exit'; return; }
+          const q = nearest(keys.filter((k) => !k.got && (!on || Math.hypot(k.x - on.x, k.z - on.z) > 8))); if (q) { c.form = null; a.job = 'chest'; a.qi = keys.indexOf(q); a.qT = 0; }
+        }
+        return;
+      }
+      if (a.job === 'chest') { // 宝箱を開ける（12秒ごとの合図は、強さに応じて失敗する）
+        const q = keys[a.qi]; if (!q || q.got) { hidePlace(); return; }
+        if (stand(q.x, q.z, 1.2)) { a.qT += dt; if (a.qT >= 12) { a.qT = 0; if (Math.random() < [0, 0.5, 0.25, 0.08][L]) { c.olk = 1; const qm = { k: 'qf', id: c.id, x: r2(q.x), z: r2(q.z) }; tell(qm); game.msg(c.id, qm); } else q.pr += 4; } } else a.qT = 0;
+        return;
+      }
+      if (a.job === 'exit') {
+        if (exitP.extra) { const w = exitP.extra; if (stand(w.x, w.z, 1.2)) cpuEscape(c); return; }
+        if (!exitP.open) { hidePlace(); return; }
+        const op = nearest(exitP.list.filter((e) => e.opened)); if (op) { if (stand(op.x, op.z, 1.2)) cpuEscape(c); return; }
+        const e = nearest(exitP.list); if (e) stand(e.x, e.z, 1.8); return;
+      }
+      if (a.job === 'rescue') {
+        const k = cages[a.ci]; if (!k || !k.id || (on && od < 5)) { hidePlace(); return; }
+        if (stand(k.x, k.z, 1.4)) { a.rs += dt; if (a.rs >= 1) { a.rs = 0; tell({ k: 'rs', i: a.ci }); applyRescue(a.ci); hidePlace(); } } else a.rs = 0;
+      }
+    };
+    const cpuTick = (dt) => {
+      if (!hosted) { hosted = true; for (const c of cpuP()) { c.x = c.tx; c.z = c.tz; } }
+      for (const c of cpuP()) {
+        if (!alive(c)) continue;
+        if (!c.ai) c.ai = { tk: 0, rp: 0, wi: 0, wp: null, tg: null, wait: 0, seen: [], job: 'hide', dst: null, bold: Math.random() < [0, 0.35, 0.65, 0.95][lvOf(c) - 1], lazy: lvOf(c) === 1 && Math.random() < 0.25, qT: 0, tries: 0, rs: 0, cool: 0 };
+        if (c.pend) { c.pend.t -= dt; if (c.pend.t <= 0) { if (!c.pend.ok && near(c.pend.x, c.pend.z, c.pend.R || R_HIT)) hurt(c); c.pend = null; } }
+        if (c.role === 'h') hideBrain(c, dt); else seekBrain(c, dt);
+        c.tx = c.x; c.tz = c.z;
+      }
+    };
+    // 隠れる側が叩かれたときの判定。自分の分は自分の端末、CPUの分はリーダーの端末が決める
+    const takeHit = (v, m) => {
+      const mn = v === MY, sy = (s) => { if (mn) say(s); };
+      if (!(v.role === 'h' && alive(v) && phase !== 'end' && !(P[m.id] && wallBetween(P[m.id].x, P[m.id].z, v.x, v.z)) && Math.hypot(m.x - v.x, m.z - v.z) < (m.r || R_HIT) * (cho(v) === 'kodomo' ? 0.78 : 1))) return;
+      const d1 = { k: 'hc', id: v.id, by: m.id, d: 1 }; let shielded = false;
+      if (v.car || v.cage != null) tell(d1);
+      else if (v.shield) { v.shield = false; shielded = true; tell({ k: 'hb', by: m.id }); sy('お札が鬼の一撃を防いだ！'); SGK.AUDIO.sfx('open'); }
+      else if (v.inv > 0) tell(d1);
+      else {
+        v.hh -= rush() ? 999 : DMG[v.form ? SZ[v.form.k] || 'M' : 'H'];
+        if (v.hh <= 0) { v.hh = 0; v.car = m.id; v.form = null; if (P[m.id]) P[m.id].carry = v.id; FX.push({ x: v.x, z: v.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); sy('動けない！鬼に担がれた…'); tell({ k: 'hc', id: v.id, by: m.id, d: 1, dn: 1 }); }
+        else { v.inv = 1; v.pan = 3; FX.push({ x: v.x, z: v.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); sy(`ダメージ！ 体力${Math.round(v.hh)}　しばらく足が速い！`); tell(d1); }
+      }
+      const cb = P[m.id]; if (cb && cb.cpu && isHost() && cb.pend) { cb.pend.ok = true; if (shielded) cb.stun = 1.2; } // CPUの鬼に「当たった」と知らせる
+    };
+    const cpuSk = (m) => { // 人の技が、CPUにも効く
+      for (const c of cpuP()) {
+        if (!alive(c)) continue; const dx = c.x - m.x, dz = c.z - m.z, d = Math.hypot(dx, dz) || 0.01, dot = (dx * m.fx + dz * m.fz) / d;
+        if (c.role === 's') { if (m.s === 'zeni' && d < 8 && dot > 0.5) c.stun = 2; if (m.s === 'sou' && d < 6) c.slowT = 3; }
+        else if (cho(c) !== 'sou') { if (m.s === 'tengu' && d < 5.5 && dot > 0.4) { c.form = null; c.fcd = 3; } else if (m.s === 'kappa' && d < 6 && dot > 0.5) { marks[c.id] = 6; tell({ k: 'mk', id: c.id }); } else if (m.s === 'yuki' && d < 7) c.freeze = 3; }
+      }
+    };
     const game = {
       msg(from, m) {
         const p = P[m.id || from];
-        if (m.k === 'hp') { const q = P[from]; if (!q) return; q.tx = m.x; q.tz = m.z; q.fx = m.fx; q.fz = m.fz; q.mv = m.m; const f = m.f ? { k: m.f[0], v: m.f[1] } : null; q.form = f; }
-        else if (m.k === 'hs') { if (MY.role === 'h' && alive(MY) && phase !== 'end' && !(P[m.id] && wallBetween(P[m.id].x, P[m.id].z, MY.x, MY.z)) && Math.hypot(m.x - MY.x, m.z - MY.z) < (m.r || R_HIT) * (cho(MY) === 'kodomo' ? 0.78 : 1)) { if (MY.car || MY.cage != null) { tell({ k: 'hc', id: me, by: m.id, d: 1 }); } else if (MY.shield) { MY.shield = false; tell({ k: 'hb', by: m.id }); say('お札が鬼の一撃を防いだ！'); SGK.AUDIO.sfx('open'); } else if (MY.inv > 0) { tell({ k: 'hc', id: me, by: m.id, d: 1 }); } else { MY.hh -= rush() ? 999 : DMG[MY.form ? SZ[MY.form.k] || 'M' : 'H']; if (MY.hh <= 0) { MY.hh = 0; MY.car = m.id; MY.form = null; if (P[m.id]) P[m.id].carry = me; FX.push({ x: MY.x, z: MY.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); say('動けない！鬼に担がれた…'); tell({ k: 'hc', id: me, by: m.id, d: 1, dn: 1 }); } else { MY.inv = 1; MY.pan = 3; FX.push({ x: MY.x, z: MY.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); say(`ダメージ！ 体力${Math.round(MY.hh)}　しばらく足が速い！`); tell({ k: 'hc', id: me, by: m.id, d: 1 }); } } } }
-        else if (m.k === 'hb') { if (m.by === me) { MY.stun = 1.2; if (pend) pend.ok = true; say('お札にはじかれた！'); } }
+        if (m.k === 'hp') { const q = P[m.id || from]; if (!q || mine(q)) return; q.tx = m.x; q.tz = m.z; q.fx = m.fx; q.fz = m.fz; q.mv = m.m; const f = m.f ? { k: m.f[0], v: m.f[1] } : null; q.form = f; }
+        else if (m.k === 'hs') { takeHit(MY, m); if (isHost()) for (const c of cpuH()) takeHit(c, m); }
+        else if (m.k === 'hb') { if (m.by === me) { MY.stun = 1.2; if (pend) pend.ok = true; say('お札にはじかれた！'); } else if (isHost() && P[m.by] && P[m.by].cpu) { P[m.by].stun = 1.2; if (P[m.by].pend) P[m.by].pend.ok = true; } }
         else if (m.k === 'qf') { const q2 = P[m.id]; if (q2) q2.olk = 1; if (MY.role === 's' && alive(MY)) { nzo = { x: m.x, z: m.z, t: 4 }; FX.push({ x: m.x, z: m.z, t: 0.6, bad: true }); SGK.AUDIO.sfx('hit'); say('宝箱のほうで物音がした！'); } }
         else if (m.k === 'tr') { addTrap(m.tid, m.x, m.z); }
         else if (m.k === 'tx') { const i = traps.findIndex((q) => q.tid === m.tid); if (i >= 0) { scene.remove(traps[i].m); traps.splice(i, 1); } if (m.by) { FX.push({ x: m.x, z: m.z, t: 0.5, bad: true }); SGK.AUDIO.sfx('hit'); } }
@@ -402,8 +574,9 @@
             if (m.s === 'tengu' && d < 5.5 && dot > 0.4) { MY.form = null; MY.fcd = 3; say('天狗の風で姿があらわになった！'); }
             else if (m.s === 'kappa' && d < 6 && dot > 0.5) { marks[me] = 6; tell({ k: 'mk', id: me }); say('水をかけられた！しばらく光って見える'); }
             else if (m.s === 'yuki' && d < 7) { MY.freeze = 3; say('吹雪で動けない！'); } }
+          if (isHost()) cpuSk(m);
         }
-        else if (m.k === 'hc') { if (P[m.id] && P[m.id].role === 'h') { if (m.d) { if (m.dn) { const h = P[m.id], sk = P[m.by]; if (h && sk && sk.role === 's') { h.car = m.by; sk.carry = m.id; sk.carryT = 0; sk.form = null; h.form = null; if (m.by === me) say(`${nm(m.id)}を担いだ！牢へ運べ`); else if (m.id !== me) say(`${nm(m.id)}が担がれた！`); } } if (m.id !== me) { FX.push({ x: P[m.id].x, z: P[m.id].z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); } } else caught(m.id, m.by); } if (m.by === me && pend) pend.ok = true; }
+        else if (m.k === 'hc') { if (P[m.id] && P[m.id].role === 'h') { if (m.d) { if (m.dn) { const h = P[m.id], sk = P[m.by]; if (h && sk && sk.role === 's') { h.car = m.by; sk.carry = m.id; sk.carryT = 0; sk.form = null; h.form = null; if (m.by === me) say(`${nm(m.id)}を担いだ！牢へ運べ`); else if (m.id !== me) say(`${nm(m.id)}が担がれた！`); } } if (m.id !== me) { FX.push({ x: P[m.id].x, z: P[m.id].z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); } } else caught(m.id, m.by); } if (m.by === me && pend) pend.ok = true; { const cb = P[m.by]; if (cb && cb.cpu && isHost() && cb.pend) cb.pend.ok = true; } }
         else if (m.k === 'cg') { applyCage(m.i, m.id, m.by); }
         else if (m.k === 'cr') { applyRelease(m.id); }
         else if (m.k === 'rs') { applyRescue(m.i); }
@@ -475,11 +648,12 @@
         // 鬼が開いた井戸の近くに2秒とどまると蓋を閉じられる。閉じると普通の出口（2か所）が開く
         if (esc && exitP.extra && MY.role === 's' && alive(MY) && phase === 'play' && MY.stun <= 0 && !MY.carry && Math.hypot(exitP.extra.x - MY.x, exitP.extra.z - MY.z) < 2.6) { MY.blkT = (MY.blkT || 0) + dt; if (MY.blkT >= 2) { MY.blkT = 0; tell({ k: 'xb' }); applyBlock(); } } else MY.blkT = 0;
         // 送る
-        sendT -= dt; if (sendT <= 0 && !solo) { sendT = 0.1; tell({ k: 'hp', x: r2(MY.x), z: r2(MY.z), fx: r2(MY.fx), fz: r2(MY.fz), m: MY.mv, f: MY.form ? [MY.form.k, MY.form.v] : 0 }); }
+        sendT -= dt; if (sendT <= 0 && !solo) { sendT = 0.1; tell({ k: 'hp', x: r2(MY.x), z: r2(MY.z), fx: r2(MY.fx), fz: r2(MY.fz), m: MY.mv, f: MY.form ? [MY.form.k, MY.form.v] : 0 }); if (isHost()) for (const c of cpuP()) tell({ k: 'hp', id: c.id, x: r2(c.x), z: r2(c.z), fx: r2(c.fx), fz: r2(c.fz), m: c.mv, f: c.form ? [c.form.k, c.form.v] : 0 }); }
         // ほかの人の位置をなめらかに
-        for (const id of ids) { if (id === me) continue; const p = P[id]; p.x += (p.tx - p.x) * Math.min(1, dt * 12); p.z += (p.tz - p.z) * Math.min(1, dt * 12); }
+        for (const id of ids) { if (id === me || mine(P[id])) continue; const p = P[id]; p.x += (p.tx - p.x) * Math.min(1, dt * 12); p.z += (p.tz - p.z) * Math.min(1, dt * 12); }
         // 叩いた結果（ほかの人の「見つかった」が来なければ置物に当たっただけ）
         if (pend) { pend.t -= dt; if (pend.t <= 0) { if (!pend.ok && near(pend.x, pend.z, pend.R || R_HIT)) hurt(MY); pend = null; } }
+        if (isHost() && !done) cpuTick(dt); // 2.95.0 CPUを動かす
         // ひとり練習の見回り
         if (cpu && !done) {
           cpu.cd -= dt;
@@ -498,7 +672,7 @@
         // 終わり？
         if (!done) {
           const hs = hiders(), ss = seekers(); let over = null;
-          const escN = ids.filter((i) => P[i].esc).length, cgt = ids.filter((i) => P[i].caught0).length, nH0 = ids.filter((i) => P[i].role0 === 'h').length, WN = Math.min(3, nH0), ev = () => (cgt >= WN ? 's' : WN >= 2 && cgt === WN - 1 ? 'd' : escN > 0 ? 'h' : 's'); // 鬼が3人以上で勝ち・2人で引き分け
+          const escN = ids.filter((i) => P[i].esc).length, cgt = ids.filter((i) => P[i].caught0).length, nH0 = ids.filter((i) => P[i].role0 === 'h').length, WN = Math.min(nH0 <= 4 ? 3 : Math.ceil(nH0 * 0.75), nH0), ev = () => (cgt >= WN ? 's' : WN >= 2 && cgt === WN - 1 ? 'd' : escN > 0 ? 'h' : 's'); // 鬼が3人以上で勝ち・2人で引き分け
           if (esc && solo && MY.esc) over = 'h'; else if (esc && !solo && cgt >= WN) over = 's'; else if (esc && !solo && !hs.length) over = ev(); else if (!solo && !hs.length) over = 's'; else if (solo && (!alive(MY) || MY.role !== 'h')) over = 's'; else if (!solo && !ss.length && phase === 'play') over = 'h'; else if (t >= RND) over = esc ? 's' : 'h'; // 脱出モードは10分で、時間切れは鬼の勝ち
           if (over) { done = true; this.finish(over); }
         }
@@ -520,7 +694,7 @@
         const ini = MY.role0, hs = ids.filter((i) => P[i].role0 === 'h'), surv = (id) => !P[id].caught0 && !env.gone[id];
         const escN2 = ids.filter((i) => P[i].esc).length, winH = (id) => (esc ? (escN2 * 2 <= hs.length ? !!P[id].esc : over === 'h' || !!P[id].esc) : surv(id)), win = ini === 'h' ? winH(me) : over === 's', ws = hs.filter(winH).length; // 脱出できたのが半分以下なら、脱出できた人だけ勝ち
         const rows = ids.map((id) => { const p = P[id]; return `<b style="color:${col(id)}">${nm(id)}</b>（${(HD.CH[p.role0].find((x) => x.k === (p.role0 === 'h' ? p.chh : p.chs)) || {}).n}）　${p.role0 === 'h' ? (esc ? (p.esc ? '脱出成功！' : surv(id) ? '脱出できなかった' : '見つかった') : surv(id) ? '隠れきった！' : '見つかった') : `探す側：${p.caught}人見つけた`}`; });
-        env.end({ title: win ? (ini === 'h' ? (esc ? (P[me].esc ? '脱出成功！' : 'みんなの勝ち！') : '隠れきった！') : '全員見つけた！') : over === 'd' ? '引き分け！' : (ini === 'h' ? (P[me].caught0 ? '見つかってしまった…' : '脱出できなかった…') : '見つけきれなかった…'), rows, cmd: { type: 'partyResult', game: 'hide', n: ids.length, win: win ? 1 : 0, ws, ex: esc ? 1 : 0, ne: escN2, nh: hs.length, esc: P[me].esc ? 1 : 0, cnt: P[me].caught, role: ini } });
+        env.end({ title: win ? (ini === 'h' ? (esc ? (P[me].esc ? '脱出成功！' : 'みんなの勝ち！') : '隠れきった！') : '全員見つけた！') : over === 'd' ? '引き分け！' : (ini === 'h' ? (P[me].caught0 ? '見つかってしまった…' : '脱出できなかった…') : '見つけきれなかった…'), rows, cmd: { type: 'partyResult', game: 'hide', n: hids.length, win: win ? 1 : 0, ws, ex: esc ? 1 : 0, ne: escN2, nh: hs.length, esc: P[me].esc ? 1 : 0, cnt: P[me].caught, role: ini } });
       },
       draw() {
         setCam(); rd.render(scene, cam);
@@ -572,7 +746,7 @@
         const hint = MY.role === 's' ? `A／Space：叩く（置物を叩くと体力-1）　${MY.form ? 'B／X：鬼の姿に戻る　' : qn ? `B／X：${KIND[qn.kind]}に化ける　` : ''}移動：矢印／WASD／スティック` : alive(MY) ? `${qn ? `A／Space：${KIND[qn.kind]}に化ける　` : ''}${MY.form ? 'B／X：人に戻る　' : ''}移動：矢印／WASD／スティック` : '';
         txt(hint, W / 2, H - BO - 16, { al: 'center', sz: 14 });
         if (toastT > 0 && toast) txt(toast, W / 2, H * 0.28, { al: 'center', sz: 22, b: 1, c: '#ffe9a0' });
-        if (phase === 'hide') { const left = Math.ceil(HIDE_T - t); if (MY.role === 's') { g.fillStyle = 'rgba(0,0,0,0.9)'; g.fillRect(0, 0, W, H); txt(`目をつぶって数えています… ${left}`, W / 2, H / 2, { al: 'center', sz: 28, b: 1 }); } else txt(esc ? `隠れよう！（あと${left}秒）宝箱を5つ開けると離れた2か所に出口が現れる` : `隠れよう！（あと${left}秒）◆の付いた物の近くでAを押すと化けられる`, W / 2, H * 0.2, { al: 'center', sz: 20, b: 1, c: '#bff0c0' }); }
+        if (phase === 'hide') { const left = Math.ceil(HIDE_T - t); if (MY.role === 's') { g.fillStyle = 'rgba(0,0,0,0.9)'; g.fillRect(0, 0, W, H); txt(`目をつぶって数えています… ${left}`, W / 2, H / 2, { al: 'center', sz: 28, b: 1 }); } else txt(esc ? `隠れよう！（あと${left}秒）宝箱を7つ開けると離れた2か所に出口が現れる` : `隠れよう！（あと${left}秒）◆の付いた物の近くでAを押すと化けられる`, W / 2, H * 0.2, { al: 'center', sz: 20, b: 1, c: '#bff0c0' }); }
         if (MY.stun > 0) { g.fillStyle = 'rgba(255,0,0,0.18)'; g.fillRect(0, 0, W, H); }
         if (stick.on) { g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 3; g.beginPath(); g.arc(stick.x0, stick.y0, 50, 0, 7); g.stroke(); g.beginPath(); g.arc(stick.x0 + stick.x * 50, stick.y0 + stick.y * 50, 20, 0, 7); g.fillStyle = 'rgba(255,255,255,.45)'; g.fill(); }
       },
