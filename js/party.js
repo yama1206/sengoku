@@ -57,7 +57,7 @@
   const optTxt = (o) => SGK.HIDE.OPTS.map((op) => `${op.n}：${(op.v.find((x) => x[0] === o[op.k]) || op.v[0])[1]}`).join('　');
   function closeLobby(tell) { if (LB && tell && !LB.lead) send([LB.leader], { k: 'leave', rid: LB.rid }); if (LB && LB.lead) send(memIds(), { k: 'mem', rid: LB.rid, g: LB.g, mem: [], closed: 1 }); LB = null; const b = document.getElementById('ptBox'); if (b) b.remove(); }
   function pushMem() { if (LB && LB.lead) send(memIds(), { k: 'mem', rid: LB.rid, g: LB.g, mem: LB.mem, team: LB.team, mode: LB.mode, o: LB.o }); }
-  function vwGet() { let v = 'tp'; try { v = localStorage.getItem('sgk-hide-vw') || 'tp'; } catch (er) {} return v === 'fp' || v === 'qv' ? v : 'tp'; }
+  function vwGet() { let v = 'tp'; try { v = localStorage.getItem('sgk-hide-vw') || 'tp'; } catch (er) {} return v === 'fp' ? v : 'tp'; }
   function pickHtml() { // 2.73.0 キャラ一覧（見た目・パッシブ・アクティブを見比べる）
     const r = LB.pk, L = SGK.HIDE.CH[r], cur = myCh()[r];
     return `<div><h2>${r === 'h' ? '逃げる時のキャラ' : '鬼の時のキャラ'}</h2><div class="d">選ぶと決まります</div><div style="max-height:62vh;overflow:auto">${L.map((x) => { const im = SGK.HIDE.preview(r, x.k); return `<button data-a="pk:${x.k}" style="display:flex;gap:8px;align-items:center;${x.k === cur ? 'background:#a0702e;' : ''}">${im ? `<img src="${im}" width="60" height="75" style="flex:none">` : ''}<span><b>${x.n}</b>${x.k === cur ? '（いま選んでいる）' : ''}<br><span style="font-size:12px;color:#cdbf9a">パッシブ：${x.pa}<br>スキル：${x.ac}（${x.cd}秒）</span></span></button>`; }).join('')}</div><div><button data-a="pkx">もどる</button></div></div>`;
@@ -66,7 +66,7 @@
     if (!LB) return; const d = GAMES[LB.g], e = box('ptBox'), n = LB.mem.length;
     const list = LB.mem.map((x, i) => `<div class="m">${LB.team ? `<b style="color:${TEAM[i % 2].c}">${TEAM[i % 2].n}</b> ` : ''}${esc(x.name)}${x.id === LB.leader ? '（リーダー）' : ''}${d.opts && x.ch ? `<span style="font-size:12px;color:#cdbf9a">　逃げ：${chName('h', x.ch.h)}／鬼：${chName('s', x.ch.s)}</span>` : ''}</div>`).join('');
     e.innerHTML = LB.pk ? pickHtml() : `<div><h2>${d.name}</h2><div class="d">${esc(d.desc)}</div><div>参加者 ${n}/${d.max}人${LB.team ? '（チーム戦：交互に赤・白）' : ''}${d.opts && LB.o ? `<div style="font-size:13px;color:#cdbf9a">${optTxt(LB.o)}</div>` : ''}${d.mode ? `　勝ち方：${LB.mode === 'big' ? '大物（いちばん大きい魚）' : '数（釣った数）'}` : ''}</div>${list}
-      ${d.opts ? (() => { const c = myCh(), H = SGK.HIDE.CH, a = H.h.find((x) => x.k === c.h), b = H.s.find((x) => x.k === c.s); return `<div style="margin-top:6px;font-size:12px;color:#cdbf9a"><b>逃げる時：${a.n}</b>　${a.pa}／${a.ac}<br><b>鬼の時：${b.n}</b>　${b.pa}／${b.ac}</div><div><button data-a="ch:h">逃げる時のキャラを選ぶ</button><button data-a="ch:s">鬼の時のキャラを選ぶ</button><button data-a="vw">視点：${({ tp: '三人称（うしろから）', fp: '一人称', qv: '見下ろし（斜め上）' })[vwGet()]}（変える）</button></div>`; })() : ''}
+      ${d.opts ? (() => { const c = myCh(), H = SGK.HIDE.CH, a = H.h.find((x) => x.k === c.h), b = H.s.find((x) => x.k === c.s); return `<div style="margin-top:6px;font-size:12px;color:#cdbf9a"><b>逃げる時：${a.n}</b>　${a.pa}／${a.ac}<br><b>鬼の時：${b.n}</b>　${b.pa}／${b.ac}</div><div><button data-a="ch:h">逃げる時のキャラを選ぶ</button><button data-a="ch:s">鬼の時のキャラを選ぶ</button><button data-a="vw">視点：${({ tp: '三人称（うしろから）', fp: '一人称' })[vwGet()]}（変える）</button></div>`; })() : ''}
       <div style="margin-top:8px">${LB.lead ? `<button data-a="inv">同じ町の人を誘う</button>${d.team ? `<button data-a="team">${LB.team ? '個人戦にする' : 'チーム戦にする'}</button>` : ''}${d.mode ? '<button data-a="mode">勝ち方を変える</button>' : ''}${d.opts && LB.o ? SGK.HIDE.OPTS.map((op) => `<button data-a="o:${op.k}">${op.n}を変える</button>`).join('') : ''}${n >= 2 ? '<button data-a="go">出発する</button>' : ''}<button data-a="solo">ひとりで練習（報酬なし）</button>` : '<div class="d">リーダーが出発すると始まります</div>'}<button data-a="close">${LB.lead ? 'やめる' : '抜ける'}</button></div></div>`;
     try { if (typeof setFocus === 'function') setFocus(e, currentFocus(e)); } catch (er) {} // 2.69.2 作り直してもコントローラーの選択を保つ
     e.onclick = (ev) => {
@@ -76,7 +76,7 @@
       else if (a === 'mode') { LB.mode = LB.mode === 'big' ? 'num' : 'big'; pushMem(); drawLobby(); }
       else if (a.startsWith('o:') && LB.lead && LB.o) { const op = SGK.HIDE.OPTS.find((x) => x.k === a.slice(2)); if (op) { const i = op.v.findIndex((x) => x[0] === LB.o[op.k]); LB.o[op.k] = op.v[(i + 1) % op.v.length][0]; pushMem(); drawLobby(); } }
       else if (a === 'ch:h' || a === 'ch:s') { LB.pk = a.slice(3); drawLobby(); }
-      else if (a === 'vw') { const L2 = ['tp', 'fp', 'qv']; try { localStorage.setItem('sgk-hide-vw', L2[(L2.indexOf(vwGet()) + 1) % 3]); } catch (er) {} drawLobby(); }
+      else if (a === 'vw') { try { localStorage.setItem('sgk-hide-vw', vwGet() === 'tp' ? 'fp' : 'tp'); } catch (er) {} drawLobby(); }
       else if (a === 'pkx') { LB.pk = null; drawLobby(); }
       else if (a.startsWith('pk:') && LB.pk) { const r = LB.pk, c = myCh(); c[r] = a.slice(3); LB.pk = null; try { localStorage.setItem('sgk-hide-ch', JSON.stringify(c)); } catch (er) {} const x = LB.mem.find((y) => y.id === ENV.me()); if (x) x.ch = c; if (LB.lead) pushMem(); else send([LB.leader], { k: 'pick', rid: LB.rid, ch: c }); drawLobby(); }
       else if (a === 'go') startRoom(false);
