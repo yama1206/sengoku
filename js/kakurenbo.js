@@ -20,14 +20,14 @@
        部屋のキャラ選び（js/party.js）はこの一覧から自動で作られる */
   HD.CH = {
     h: [
-      { k: 'ninja', n: '忍者', pa: '音の合図で居場所がつかまれにくい', ac: '忍び足：前へ短く瞬間移動', cd: 12 },
-      { k: 'shonin', n: '商人', pa: '化けたあとも速く動ける', ac: '偽物：化けた物と同じ偽の置物をその場に出す（化けている時だけ）', cd: 20 },
-      { k: 'miko', n: '巫女', pa: '鬼が近づくと気配で分かる', ac: 'お札：鬼の叩きを1回だけ無効にする', cd: 25 },
-      { k: 'kodomo', n: '子ども', pa: '足が速く、叩かれにくい', ac: 'ダッシュ：3秒間とても速く走る', cd: 15 },
-      { k: 'kariudo', n: '狩人', pa: '化けたあとの動きが少し速い', ac: '罠：足元に罠を置く。鬼が踏むと2.5秒動けない（鬼には見えない）', cd: 20 },
-      { k: 'sou', n: '僧侶', pa: '天狗の風・河童の水・雪女の吹雪を受けない', ac: '読経：近くの鬼を3秒間、半分の速さにする', cd: 22 },
-      { k: 'dorobo', n: '泥棒', pa: '宝箱を開けるのが早い（1.5倍）', ac: '逃げ足：4秒間、足が速くなる', cd: 16 },
-      { k: 'geinin', n: '旅芸人', pa: 'すぐ別の物に化けかえられる', ac: '声まね：前の離れた所から物音を出して、鬼を引きつける', cd: 18 },
+      { k: 'ninja', n: '忍者', pa: '音の合図で居場所がつかまれにくい', ac: '忍び足：前へ短く瞬間移動', cd: 50 },
+      { k: 'shonin', n: '商人', pa: '化けたあとも速く動ける', ac: '偽物：化けた物と同じ偽の置物をその場に出す（化けている時だけ）', cd: 50 },
+      { k: 'miko', n: '巫女', pa: '鬼が近づくと気配で分かる', ac: 'お札：鬼の叩きを1回だけ無効にする', cd: 50 },
+      { k: 'kodomo', n: '子ども', pa: '足が速く、叩かれにくい', ac: 'ダッシュ：3秒間とても速く走る', cd: 50 },
+      { k: 'kariudo', n: '狩人', pa: '化けたあとの動きが少し速い', ac: '罠：足元に罠を置く。鬼が踏むと2.5秒動けない（鬼には見えない）', cd: 50 },
+      { k: 'sou', n: '僧侶', pa: '天狗の風・河童の水・雪女の吹雪を受けない', ac: '読経：近くの鬼を3秒間、半分の速さにする', cd: 50 },
+      { k: 'dorobo', n: '泥棒', pa: '宝箱を開けるのが早い（1.5倍）', ac: '逃げ足：4秒間、足が速くなる', cd: 50 },
+      { k: 'geinin', n: '旅芸人', pa: 'すぐ別の物に化けかえられる', ac: '声まね：前の離れた所から物音を出して、鬼を引きつける', cd: 50 },
     ],
     s: [
       { k: 'tengu', n: '天狗', pa: '足が速い', ac: '羽ばたき：前方に風を起こし、化けた人を人の姿に戻す', cd: 18 },
@@ -39,6 +39,9 @@
   };
   const mulberry = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v), r2 = (v) => Math.round(v * 100) / 100;
+  // 2.80.0 逃げる側の体力は100。化けた物が大きいほど受けるダメージは少なく、小さいほど大きい（人の姿は40）
+  const SZ = { cart: 'L', rock: 'L', haystack: 'L', shrine: 'L', barrel: 'L', cask: 'L', bench: 'L', crate: 'M', lantern: 'M', stone: 'M', jar: 'M', bale: 'M', firewood: 'M', sign: 'M', umbrella: 'M', bush: 'M', drum: 'M', bucket: 'S', stool: 'S', pot: 'S', tub: 'S', basket: 'S', stump: 'S', sack: 'S' };
+  const DMG = { L: 25, M: 34, S: 60, H: 40 }, SZN = { L: '大きい', M: 'ふつう', S: '小さい', H: 'ふつう' };
   const ROUND = 180, HIDE_T = 15, BEACON0 = 30, BEACON_EVERY = 22, R_HIT = 1.3, R_BIG = 3.2, SP_H = 4.2, SP_HS = 2.0, SP_S = 5.4; // 鬼の基本の速さは、逃げる側の基本（子ども5.0が最速）より速い
   const SQ = Math.SQRT1_2, RIGHT = [SQ, -SQ], FWD = [-SQ, -SQ]; // 画面の右・奥（カメラは (+,+,+) の斜め上から）
 
@@ -248,7 +251,7 @@
     const chOf0 = (id, r) => { const m = (cfg.mem || []).find((x) => x.id === id), c = m && m.ch && m.ch[r]; return HD.CH[r].some((x) => x.k === c) ? c : HD.CH[r][0].k; };
     order.forEach((id, i) => {
       const sk = i < nSk, [x, z] = sk ? [(i - (nSk - 1) / 2) * 2, HZ - 6] : free(0.6);
-      P[id] = { id, role: sk ? 's' : 'h', role0: sk ? 's' : 'h', x, z, tx: x, tz: z, fx: 0, fz: -1, form: null, mv: 0, hp: 3, out: false, caught: 0, stun: 0, cd: 0, fcd: 0, grp: null, key: '', bob: 0, chh: chOf0(id, 'h'), chs: chOf0(id, 's'), sk: 0, boost: 0, freeze: 0, slowT: 0, olk: 0, shield: false, arrowT: 0 };
+      P[id] = { id, role: sk ? 's' : 'h', role0: sk ? 's' : 'h', x, z, tx: x, tz: z, fx: 0, fz: -1, form: null, mv: 0, hp: 3, out: false, caught: 0, stun: 0, cd: 0, fcd: 0, grp: null, key: '', bob: 0, chh: chOf0(id, 'h'), chs: chOf0(id, 's'), sk: 0, boost: 0, freeze: 0, slowT: 0, olk: 0, hh: 100, inv: 0, pan: 0, shield: false, arrowT: 0 };
     });
     const cho = (p) => (p.role === 'h' ? p.chh : p.chs), chN = (p) => (HD.CH[p.role].find((x) => x.k === cho(p)) || HD.CH[p.role][0]).n, marks = {};
     const cpu = solo ? { id: '__cpu', x: 0, z: HZ - 6, fx: 0, fz: -1, cd: 1.5, tgt: null, grp: mkYokai('oni'), mv: 0 } : null; if (cpu) scene.add(cpu.grp);
@@ -344,7 +347,7 @@
       msg(from, m) {
         const p = P[m.id || from];
         if (m.k === 'hp') { const q = P[from]; if (!q) return; q.tx = m.x; q.tz = m.z; q.fx = m.fx; q.fz = m.fz; q.mv = m.m; const f = m.f ? { k: m.f[0], v: m.f[1] } : null; if (q.role === 'h') q.form = f; }
-        else if (m.k === 'hs') { if (MY.role === 'h' && alive(MY) && phase !== 'end' && Math.hypot(m.x - MY.x, m.z - MY.z) < (m.r || R_HIT) * (cho(MY) === 'kodomo' ? 0.78 : 1)) { if (MY.shield) { MY.shield = false; tell({ k: 'hb', by: m.id }); say('お札が鬼の一撃を防いだ！'); SGK.AUDIO.sfx('open'); } else { caught(me, m.id); tell({ k: 'hc', id: me, by: m.id }); } } }
+        else if (m.k === 'hs') { if (MY.role === 'h' && alive(MY) && phase !== 'end' && Math.hypot(m.x - MY.x, m.z - MY.z) < (m.r || R_HIT) * (cho(MY) === 'kodomo' ? 0.78 : 1)) { if (MY.shield) { MY.shield = false; tell({ k: 'hb', by: m.id }); say('お札が鬼の一撃を防いだ！'); SGK.AUDIO.sfx('open'); } else if (MY.inv > 0) { tell({ k: 'hc', id: me, by: m.id, d: 1 }); } else { MY.hh -= DMG[MY.form ? SZ[MY.form.k] || 'M' : 'H']; if (MY.hh <= 0) { caught(me, m.id); tell({ k: 'hc', id: me, by: m.id }); } else { MY.inv = 1; MY.pan = 3; FX.push({ x: MY.x, z: MY.z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); say(`ダメージ！ 体力${Math.round(MY.hh)}　しばらく足が速い！`); tell({ k: 'hc', id: me, by: m.id, d: 1 }); } } } }
         else if (m.k === 'hb') { if (m.by === me) { MY.stun = 1.2; if (pend) pend.ok = true; say('お札にはじかれた！'); } }
         else if (m.k === 'qf') { const q2 = P[m.id]; if (q2) q2.olk = 1; if (MY.role === 's' && alive(MY)) { nzo = { x: m.x, z: m.z, t: 4 }; FX.push({ x: m.x, z: m.z, t: 0.6, bad: true }); SGK.AUDIO.sfx('hit'); say('宝箱のほうで物音がした！'); } }
         else if (m.k === 'tr') { addTrap(m.tid, m.x, m.z); }
@@ -362,12 +365,12 @@
             else if (m.s === 'kappa' && d < 6 && dot > 0.5) { marks[me] = 6; tell({ k: 'mk', id: me }); say('水をかけられた！しばらく光って見える'); }
             else if (m.s === 'yuki' && d < 7) { MY.freeze = 3; say('吹雪で動けない！'); } }
         }
-        else if (m.k === 'hc') { if (P[m.id] && P[m.id].role === 'h') caught(m.id, m.by); if (m.by === me && pend) pend.ok = true; }
+        else if (m.k === 'hc') { if (P[m.id] && P[m.id].role === 'h') { if (m.d) { if (m.id !== me) { FX.push({ x: P[m.id].x, z: P[m.id].z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); } } else caught(m.id, m.by); } if (m.by === me && pend) pend.ok = true; }
         else if (m.k === 'hl') { if (p) p.hp = m.hp; }
       },
       update(dt) {
         t += dt; phase = t < HIDE_T ? 'hide' : 'play'; toastT -= dt;
-        for (const id of ids) { const p = P[id]; p.cd -= dt; p.stun -= dt; p.fcd -= dt; p.sk = Math.max(0, p.sk - dt); p.boost -= dt; p.freeze -= dt; p.slowT -= dt; p.olk -= dt; p.arrowT -= dt; }
+        for (const id of ids) { const p = P[id]; p.cd -= dt; p.stun -= dt; p.fcd -= dt; p.sk = Math.max(0, p.sk - dt); p.boost -= dt; p.freeze -= dt; p.slowT -= dt; p.olk -= dt; p.inv -= dt; p.pan -= dt; p.arrowT -= dt; }
         for (const k in marks) marks[k] -= dt;
         // 自分の操作
         { const gp = (navigator.getGamepads ? navigator.getGamepads() : []).find((x) => x && x.connected); if (gp && !qv && Math.abs(gp.axes[2]) > 0.2) cyaw -= gp.axes[2] * 2.6 * dt; }
@@ -379,7 +382,7 @@
           const dis = MY.role === 'h' && MY.form;
           if (!locked && MY.freeze <= 0 && ml > 0.05) {
             if (dis && o.mv === 'none') { const a = Math.atan2(MY.fx, MY.fz) - ix * 3 * dt; MY.fx = Math.sin(a); MY.fz = Math.cos(a); }
-            else { const c = cho(MY); let sp; if (MY.role === 's') { sp = c === 'tengu' ? 6.0 : SP_S; if (MY.slowT > 0) sp *= 0.5; } else { sp = dis ? (c === 'shonin' ? 3.2 : c === 'kariudo' ? 2.6 : SP_HS) : (c === 'kodomo' ? 5.0 : SP_H); if (MY.boost > 0) sp *= c === 'dorobo' ? 1.6 : 1.8; if (seekers().some((q) => q.id !== me && cho(q) === 'yuki' && Math.hypot(q.x - MY.x, q.z - MY.z) < 3.5)) sp *= 0.85; } moveBy(MY, wx / Math.max(1, ml) * sp * dt, wz / Math.max(1, ml) * sp * dt, 0.4); MY.fx = wx / ml; MY.fz = wz / ml; MY.mv = 1; }
+            else { const c = cho(MY); let sp; if (MY.role === 's') { sp = c === 'tengu' ? 6.0 : SP_S; if (MY.slowT > 0) sp *= 0.5; } else { sp = dis ? (c === 'shonin' ? 3.2 : c === 'kariudo' ? 2.6 : SP_HS) : (c === 'kodomo' ? 5.0 : SP_H); if (MY.pan > 0) sp *= 1.5; if (MY.boost > 0) sp *= c === 'dorobo' ? 1.6 : 1.8; if (seekers().some((q) => q.id !== me && cho(q) === 'yuki' && Math.hypot(q.x - MY.x, q.z - MY.z) < 3.5)) sp *= 0.85; } moveBy(MY, wx / Math.max(1, ml) * sp * dt, wz / Math.max(1, ml) * sp * dt, 0.4); MY.fx = wx / ml; MY.fz = wz / ml; MY.mv = 1; }
           }
           if (IN.aT && !qte) {
             if (MY.role === 's') { if (!locked) strike(MY); }
@@ -473,7 +476,8 @@
         const rem = Math.max(0, Math.ceil(ROUND - t)); txt(`${Math.floor(rem / 60)}:${String(rem % 60).padStart(2, '0')}`, W / 2, 30, { al: 'center', sz: 26, b: 1 });
         txt(`${stg.name}　${MY.role === 's' ? '探す側' : MY.esc ? '脱出成功（観戦）' : alive(MY) ? '隠れる側' : '見つかった（観戦）'}　隠れている：${solo ? (alive(MY) ? 1 : 0) : hiders().length}人`, W / 2, 52, { al: 'center', sz: 14 });
         if (MY.role === 's') txt('体力 ' + '●'.repeat(Math.max(0, MY.hp)) + '○'.repeat(Math.max(0, 3 - MY.hp)), 16, 30, { sz: 20, c: '#ff9a8a' });
-        else if (MY.form) txt(`いまの姿：${KIND[MY.form.k]}${o.mv === 'none' ? '（動けない・←→で向き）' : '（ゆっくり動ける）'}`, 16, 30, { sz: 16, c: '#ffe070' });
+        else if (MY.form) txt(`いまの姿：${KIND[MY.form.k]}（受けるダメージ：${SZN[SZ[MY.form.k] || 'M']}）${o.mv === 'none' ? '（動けない・←→で向き）' : '（ゆっくり動ける）'}　体力 ${Math.max(0, Math.round(MY.hh))}`, 16, 30, { sz: 16, c: '#ffe070' });
+        else if (MY.role === 'h' && alive(MY)) txt(`体力 ${Math.max(0, Math.round(MY.hh))}${MY.pan > 0 ? '　足が速い！' : ''}`, 16, 30, { sz: 18, c: '#ffe070' });
         // キャラ（パッシブ・アクティブ）
         { const def = HD.CH[MY.role].find((x) => x.k === cho(MY)) || HD.CH[MY.role][0], keyN = coarse ? 'スキルボタン' : 'E／Q／△(Y)';
           txt(`${def.n}　パッシブ：${def.pa}`, 16, H - 52, { sz: 13, c: '#cfe8ff' }); txt(`${keyN}：${def.ac.split('：')[0]}　${MY.sk > 0 ? `あと${Math.ceil(MY.sk)}秒` : '使える！'}`, 16, H - 34, { sz: 14, c: MY.sk > 0 ? '#aaa' : '#ffe070', b: MY.sk <= 0 });
