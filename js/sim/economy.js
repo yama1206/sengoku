@@ -67,7 +67,7 @@
   }
   SIM.ensurePlayer = (p) => { if (p.money == null) p.money = 10000; /* 1.6.91 はじめの所持金10貫 */ p.inv = p.inv || {}; p.quests = p.quests || []; if (p.fame == null) p.fame = 0; if (p.busy === undefined) p.busy = null; };
 
-  const pm = (s, k) => (s.prod[k] || 0) * (s.type === 'village' ? 0.6 : 1) * /* 1.6.24 村が増えたので村1つの生産は0.6倍 */ (SIM.prodMul ? SIM.prodMul(s) : 1) * (SIM.prodItemMul ? SIM.prodItemMul(s, k) : 1); // 0.71.0 政策・豊作凶作 // 0.41.0 投資で生産が増える
+  const pm = (s, k) => (s.prod[k] || 0) * (s.type === 'village' ? (k === 'rice' ? 0.78 : 0.6) : 1) * /* 2.98.7 村の米だけ1.3倍（0.6→0.78） */ /* 1.6.24 村が増えたので村1つの生産は0.6倍 */ (SIM.prodMul ? SIM.prodMul(s) : 1) * (SIM.prodItemMul ? SIM.prodItemMul(s, k) : 1); // 0.71.0 政策・豊作凶作 // 0.41.0 投資で生産が増える
   // 0.70.0 人が多い拠点ほどよく使う（人口の比の平方根で増える）
   const sz = (s) => s.size * Math.sqrt(SIM.popF ? SIM.popF(s) : 1);
   // 2.59.0 拠点の種類ごとの使う量（use があればそれ、なければ cons）と、城の守備兵が食べる米（40人で1日1俵）
