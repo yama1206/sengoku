@@ -398,7 +398,7 @@
             if (n > 0) q.pr += RATE[Math.min(4, n)] * dt; else q.pr = Math.max(0, q.pr - dt * 0.5);
             if (q.pr >= OPEN_W) { q.got = true; openCh(q); kgot++; tell({ k: 'kp', i }); say(`宝箱が開いて鍵を手に入れた（${kgot}/${NEED}）`); SGK.AUDIO.sfx('coin'); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が開いた！'); } }
           });
-          opening = n1 && !n1.got ? n1 : null; keys.forEach((q) => { if (q.frame) q.frame.visible = MY.role === 's' && !q.got; }); // 鬼には宝箱が�ワクで壁越しに見える
+          opening = n1 && !n1.got ? n1 : null; keys.forEach((q) => { if (q.frame) q.frame.visible = MY.role === 's' && !q.got; });
           if (opening && !qte) { qtT += dt; if (qtT >= 12) { qtT = 0; qte = { q: opening, seq: [0, 1, 2, 3].map(() => QK[Math.floor(Math.random() * 4)]), i: 0, t: 6 }; say('合図の順に押せ！'); } } else if (!qte) qtT = Math.max(0, qtT - dt);
           if (qte) {
             if (!act || qte.q.got || MY.stun > 0 || MY.role !== 'h' || Math.hypot(qte.q.x - MY.x, qte.q.z - MY.z) > 2.4) qte = null;
