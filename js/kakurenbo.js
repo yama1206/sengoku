@@ -777,7 +777,7 @@
         const KN = (k) => HD.kn(HD.keys().kb[k][0] || '?'), mvK = () => `${KN('u')}${KN('l')}${KN('d')}${KN('r')}／スティック`; const hint = MY.role === 's' ? `${KN('a')}：叩く（置物を叩くと体力-1）　${MY.form ? `${KN('b')}：鬼の姿に戻る　` : qn ? `${KN('b')}：${KIND[qn.kind]}に化ける　` : ''}移動：${mvK()}` : alive(MY) ? `${qn ? `${KN('a')}：${KIND[qn.kind]}に化ける　` : ''}${MY.form ? `${KN('b')}：人に戻る　` : ''}移動：${mvK()}` : '';
         if (chInfo && hint) txt(`操作：${hint}`, 22, 80 + 28 + 4 + 104, { sz: 13, c: '#e8dcc0' });
         if (toastT > 0 && toast) txt(toast, W / 2, H * 0.28, { al: 'center', sz: 22, b: 1, c: '#ffe9a0' });
-        if (phase === 'hide') { const left = Math.ceil(HIDE_T - t); if (MY.role === 's') { g.fillStyle = 'rgba(0,0,0,0.9)'; g.fillRect(0, 0, W, H); txt(`目をつぶって数えています… ${left}`, W / 2, H / 2, { al: 'center', sz: 28, b: 1 }); } else txt(esc ? `隠れよう！（あと${left}秒）宝箱を7つ開けると離れた2か所に出口が現れる` : `隠れよう！（あと${left}秒）◆の付いた物の近くでAを押すと化けられる`, W / 2, H * 0.2, { al: 'center', sz: 20, b: 1, c: '#bff0c0' }); }
+        if (phase === 'hide') { const left = Math.ceil(HIDE_T - t); if (MY.role === 's') { g.fillStyle = 'rgba(0,0,0,0.9)'; g.fillRect(0, 0, W, H); txt(`目をつぶって数えています… ${left}`, W / 2, H / 2, { al: 'center', sz: 28, b: 1 }); } else if (!esc) txt(`隠れよう！（あと${left}秒）◆の付いた物の近くでAを押すと化けられる`, W / 2, H * 0.2, { al: 'center', sz: 20, b: 1, c: '#bff0c0' }); }
         if (MY.stun > 0) { g.fillStyle = 'rgba(255,0,0,0.18)'; g.fillRect(0, 0, W, H); }
         if (stick.on) { g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 3; g.beginPath(); g.arc(stick.x0, stick.y0, 50, 0, 7); g.stroke(); g.beginPath(); g.arc(stick.x0 + stick.x * 50, stick.y0 + stick.y * 50, 20, 0, 7); g.fillStyle = 'rgba(255,255,255,.45)'; g.fill(); }
       },
