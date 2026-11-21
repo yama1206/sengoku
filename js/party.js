@@ -114,14 +114,14 @@
   function showInvite(from, m) {
     if (RUN || !GAMES[m.g]) return; addCss(); const e = box('ptInv'); clearTimeout(invT);
     e.innerHTML = `<b>${esc(m.nm)}</b>が『${GAMES[m.g].name}』${m.team ? '（チーム戦）' : ''}の仲間を募っています <button data-a="y">参加する</button><button data-a="n">閉じる</button>`;
-    e.onclick = (ev) => { const b = ev.target.closest('button[data-a]'); if (!b) return; e.remove(); if (b.dataset.a !== 'y') return; if (LB) closeLobby(true); LB = { g: m.g, rid: m.rid, lead: false, leader: from, mem: [], team: !!m.team, mode: m.mode || 'big', o: m.o || null }; send([from], { k: 'join', rid: m.rid, nm: ENV.name(), ch: myCh() }); drawLobby(); };
+    e.onclick = (ev) => { const b = ev.target.closest('button[data-a]'); if (!b) return; e.remove(); if (b.dataset.a !== 'y') return; if (LB) closeLobby(true); LB = { g: m.g, rid: m.rid, lead: false, leader: from, mem: [], team: !!m.team, mode: m.mode || 'big', o: m.o || null }; const jn = () => send([from], { k: 'join', rid: m.rid, nm: ENV.name(), ch: myCh() }); jn(); drawLobby(); let tr = 0; const jt = setInterval(() => { /* 2.98.6 リーダーの名簿に入れたか確かめ、届いていなければ「参加する」を送り直す */ if (!LB || LB.lead || LB.rid !== m.rid || LB.mem.length || ++tr > 6) { clearInterval(jt); return; } jn(); }, 1500); };
     invT = setTimeout(() => { if (e.parentNode) e.remove(); }, 60000);
   }
 
   PT.recv = (from, m) => {
     if (!ENV || !m) return;
     if (m.k === 'inv') return showInvite(from, m);
-    if (m.k === 'join') { if (LB && LB.lead && m.rid === LB.rid && LB.mem.length < GAMES[LB.g].max && !LB.mem.some((x) => x.id === from)) { LB.mem.push({ id: from, name: m.nm, ch: m.ch || null }); pushMem(); drawLobby(); } return; }
+    if (m.k === 'join') { if (LB && LB.lead && m.rid === LB.rid) { if (!LB.mem.some((x) => x.id === from) && LB.mem.length < GAMES[LB.g].max) { LB.mem.push({ id: from, name: m.nm, ch: m.ch || null }); drawLobby(); } if (LB.mem.some((x) => x.id === from)) pushMem(); /* 2.98.6 もう入っている人からの「参加する」でも名簿を送り直す */ } return; }
     if (m.k === 'pick') { if (LB && LB.lead && m.rid === LB.rid) { const x = LB.mem.find((y) => y.id === from); if (x) { if (m.ch) x.ch = m.ch; if (m.vol != null) x.vol = !!m.vol; pushMem(); drawLobby(); } } return; }
     if (m.k === 'leave') { if (LB && LB.lead && m.rid === LB.rid) { LB.mem = LB.mem.filter((x) => x.id !== from); pushMem(); drawLobby(); } return; }
     if (m.k === 'mem') { if (LB && !LB.lead && m.rid === LB.rid) { if (m.closed) { closeLobby(false); ENV.toast && ENV.toast('部屋がなくなりました'); } else { LB.mem = m.mem; LB.team = !!m.team; LB.mode = m.mode || 'big'; if (m.o) LB.o = m.o; drawLobby(); } } return; }
