@@ -10,7 +10,7 @@
   const GAMES = {
     race: { name: '馬の障害レース', max: 10, team: true, desc: '鬼の難しさの障害コース。ジャンプ＝A／Space（長押しで高く・すぐ離すと小さく）、ダッシュ＝↑／B（スタミナを使う）。高い柵は長押しで跳ぶ、枝の下は跳ばずにくぐる、大穴はダッシュで跳ばないと落ちて戻される、ぬかるみでは遅くなる' },
     archery: { name: '弓の的当て大会', max: 10, team: true, desc: '動く的を10本で射抜いて点を競う。風で矢が流れる。狙う＝マウス／矢印／スティック、射つ＝クリック／A／Space。金の的は2倍' },
-    fish: { name: '釣り大会', max: 10, team: true, mode: true, desc: '朝・昼・夕の3日間（1日40秒）で釣りくらべ。釣り方はいつもの釣りと同じ（浮きを投げる→アタリ→タイミング）。勝ち方は「いちばん大きい魚」か「釣った数」を選べます' },
+    fish: { name: '釣り大会', max: 10, team: true, mode: true, desc: '始めてからゲームの時間で1日のあいだ、それぞれ地図の川・湖・海へ出て、いつもの釣りで釣った魚でくらべる（拠点の中では釣れません）。勝ち方は「いちばん大きい魚」か「釣った数」を選べます。1日たつと順位と賞金が届きます' },
     hayashi: { name: '囃子合わせ', max: 5, team: false, desc: '和楽器のリズム遊び。太鼓・鼓・篠笛・三味線・鉦から楽器を選び、みんなで一つの曲を合わせる。流れてくる譜を下の線で打つ（赤＝F・J・Space、白＝D・K。画面では左右に赤と白のボタン）。自分のパートは叩いた音で鳴る' },
     hide: { name: 'かくれんぼ？', max: 10, team: false, opts: true, desc: '隠れる側は木箱・樽・壺などの置物に化けて、探す側から逃げ切る。隠れる側：Aで近くの物に化ける、Bで人に戻る。逃げる側は体力100で、叩かれるとダメージを受けて少しのあいだ足が速くなる。体力がなくなると鬼に担がれて（15秒以内に運べないとふりほどかれる）牢（紫の光・マップに12個）に入れられ、45秒たつと完全に負けるが、仲間が牢に近づいて1秒で救助できる（残り時間が半分を過ぎてから救助されると、次に吊るされたらすぐ負け。半分より前なら、次もまた45秒耐えられる。3回目はすぐ負け）（化けた物が大きいほど受けるダメージは少なく、小さいほど大きい）。探す側：Aで叩く（本物の置物を叩くと体力が減る）、Bで近くの置物に化けることもできる（Aで叩くと正体を現す）。最初の15秒は探す側は目をつぶって動けない。ときどき音がして、だれかの近くが分かる。勝ち方は「宝箱の鍵を集めて脱出」。場面に11個ある宝箱のそばで動かずにいると少しずつ開き（1人だと約80秒、人数が増えるほど早い。化けたままでは開けられない）、12秒ごとに出る4つの合図（A・B・X・Yのボタン。コントローラーはPS配置で ×=A ○=B □=X △=Y）を時間内に順に押さないと1秒だけ開けられなくなり、鬼に宝箱の場所が知らされる（鬼には宝箱が赤い枠で壁越しにも見える）。7つ開けると離れた2か所に鳥居の出口が現れ（このとき全員の位置が壁越しに見える）、出口は動かずに20秒そばにいると開き（宝箱も出口も、途中でやめても進捗は残る）、開いた出口に着いた人が脱出成功になります。脱出口（出口や井戸）が開いている間は、鬼の叩きが一撃でダウンになり、足が少し速くなります。鬼が2人捕まえたら引き分け、3人以上で鬼の勝ちです。脱出できた逃げる側が半分以下のときは、脱出できた人だけが勝ちになります。逃げる側が1人だけになると、場面に5か所ある井戸のうちランダムな1つの蓋が開いて、すぐ使える脱出口になります。鬼がその井戸の近くに2秒とどまると蓋を閉じられて、閉じると普通の出口（2か所）が開きます。鬼は部屋で「鬼に立候補する」を押すと立候補でき、立候補がいなければ全員から、複数いれば立候補した人からランダムで決まります。脱出モードの制限時間は10分で、時間切れは鬼の勝ちです。賞金：鬼側が勝つと5貫。逃げる側（脱出モード）は、4人脱出か3人脱出なら全員1貫ずつ、2人脱出なら脱出した人1.5貫・捕まった人1貫、1人だけ脱出なら脱出した人2.5貫・捕まった人0.5貫です。逃げる側は◆の付いた物に化けられます。人数：参加は最大10人。鬼は1〜2人、逃げる側は4〜8人（部屋で選べます）。CPU：「鬼のCPU」を選ぶと、鬼の人数に足りない分（立候補した人が足りない分）をCPUがやります。「逃げる側のCPU」を選ぶと、決めた人数に足りない分だけCPUが加わります（強さは よわい・ふつう・つよい）。1人でも「ひとりで練習」でCPUと遊べます（報酬なし）。CPUはリーダーの端末が動かします。舞台・探す側の人数・化けたあとの動き・勝ち方・見つかったあとを選べます' },
     kemari: { name: '蹴鞠', max: 10, team: false, desc: '輪になって鞠を蹴り回す。鞠が自分に飛んできたら、足もとの輪に重なった瞬間に「蹴る」（クリック／タップ／A／Space）。続けるほど鞠は速くなる。毎月5日は大きな町で蹴鞠大会' },
@@ -120,6 +120,10 @@
     };
   }
   function startRoom(solo) {
+    if (LB.g === 'fish') { // 2.105.3 釣り大会は部屋で遊ばず、ゲームの時間で1日のあいだ各自が地図で釣った魚を数える（集計は sim/party.js の fishTaikai）
+      const mem = solo ? [LB.mem[0]] : LB.mem; ENV.cmd({ type: 'fishTaikai', ids: mem.map((x) => x.id), team: !solo && LB.team, mode: LB.mode });
+      if (!solo) send(memIds(), { k: 'go', rid: LB.rid, cfg: { g: 'fish' } }); closeLobby(false); fishToast(); return;
+    }
     const seed = (Math.random() * 1e9) | 0, mem = (solo ? [LB.mem[0]] : LB.mem).map((x, i) => ({ id: x.id, name: x.name, tm: i % 2, ch: x.ch || null, vol: !!x.vol }));
     const cfg = { g: LB.g, seed, mem, team: !solo && LB.team, lead: LB.leader, solo, mode: LB.mode, o: LB.o, rid: LB.rid };
     if (!solo) send(memIds(), { k: 'go', rid: LB.rid, cfg });
@@ -139,7 +143,7 @@
     if (m.k === 'pick') { if (LB && LB.lead && m.rid === LB.rid) { const x = LB.mem.find((y) => y.id === from); if (x) { if (m.cs) x.ch = m.cs; if (m.vol != null) x.vol = !!m.vol; pushMem(); drawLobby(); } } return; }
     if (m.k === 'leave') { if (LB && LB.lead && m.rid === LB.rid) { LB.mem = LB.mem.filter((x) => x.id !== from); pushMem(); drawLobby(); } return; }
     if (m.k === 'mem') { if (LB && !LB.lead && m.rid === LB.rid) { if (m.closed) { closeLobby(false); ENV.toast && ENV.toast('部屋がなくなりました'); } else { LB.mem = m.mem; LB.team = !!m.team; LB.mode = m.mode || 'big'; if (m.o) LB.o = m.o; drawLobby(); } } return; }
-    if (m.k === 'go') { if (LB && !LB.lead && m.rid === LB.rid && !RUN) { closeLobby(false); startGame(m.cfg); } return; }
+    if (m.k === 'go') { if (LB && !LB.lead && m.rid === LB.rid && !RUN) { closeLobby(false); if (m.cfg && m.cfg.g === 'fish') fishToast(); else startGame(m.cfg); } return; }
     if (RUN && RUN.on) RUN.on(from, m);
   };
 
@@ -177,6 +181,7 @@
     }
     addCss(); drawLobby();
   }
+  function fishToast() { try { const tw = document.getElementById('town'); if (tw && !tw.classList.contains('hidden') && typeof openTown === 'function') openTown(false); } catch (er) {} if (ENV.toast) ENV.toast('釣り大会が始まりました。1日のあいだ、川・湖・海で釣りをしましょう'); }
   function startGame(cfg) {
     try { const tw = document.getElementById('town'); if (tw && !tw.classList.contains('hidden') && typeof openTown === 'function') openTown(false); } catch (er) {} // 2.69.4 遊びを始める時に町の窓を閉じる
     if (RUN || !GAMES[cfg.g]) return; addCss(); bindKeys();
@@ -187,11 +192,11 @@
     const touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches), hold = (el, k) => { const on = (e) => { e.preventDefault(); if (!IN[k]) { if (k === 'a') { IN.aT = 1; IN.aAt = performance.now(); } if (k === 'b') { IN.bT = 1; IN.bAt = performance.now(); } if (k === 'c') IN.cT = 1; if (k === 'l') IN.lT = 1; if (k === 'r') IN.rT = 1; } IN[k] = 1; }, off = (e) => { e.preventDefault(); IN[k] = 0; }; el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointerleave', off); el.addEventListener('pointercancel', off); };
     const mkBtn = (host, txt, k) => { const b = document.createElement('button'); b.textContent = txt; host.appendChild(b); hold(b, k); };
     const pl = root.querySelector('.pl'), pr = root.querySelector('.pr');
-    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '使う', 'b'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { mkBtn(pl, 'ダッシュ', 'b'); mkBtn(pr, 'ジャンプ', 'a'); } else if (cfg.g === 'fish') mkBtn(pr, '釣る', 'a'); else if (cfg.g === 'hide') { mkBtn(pl, '戻る', 'b'); mkBtn(pl, 'スキル', 'c'); mkBtn(pr, '化ける\n叩く', 'a'); } else if (cfg.g === 'kemari') mkBtn(pr, '蹴る', 'a'); else if (cfg.g === 'hayashi') { /* 2.68.2 囃子合わせは自分でボタンを置く */ } else mkBtn(pr, '射つ', 'a'); }
+    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '使う', 'b'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { mkBtn(pl, 'ダッシュ', 'b'); mkBtn(pr, 'ジャンプ', 'a'); } else if (cfg.g === 'hide') { mkBtn(pl, '戻る', 'b'); mkBtn(pl, 'スキル', 'c'); mkBtn(pr, '化ける\n叩く', 'a'); } else if (cfg.g === 'kemari') mkBtn(pr, '蹴る', 'a'); else if (cfg.g === 'hayashi') { /* 2.68.2 囃子合わせは自分でボタンを置く */ } else mkBtn(pr, '射つ', 'a'); }
     const ptr = (e) => { const r = cv.getBoundingClientRect(); IN.mx = (e.clientX - r.left) * cv.width / r.width; IN.my = (e.clientY - r.top) * cv.height / r.height; };
-    cv.addEventListener('pointermove', ptr); cv.addEventListener('pointerdown', (e) => { ptr(e); if (cfg.g === 'archery' || cfg.g === 'cart') IN.click = 1; else if (cfg.g === 'fish' || cfg.g === 'kemari') IN.aT = 1; });
+    cv.addEventListener('pointermove', ptr); cv.addEventListener('pointerdown', (e) => { ptr(e); if (cfg.g === 'archery' || cfg.g === 'cart') IN.click = 1; else if (cfg.g === 'kemari') IN.aT = 1; });
     const env = { cfg, me, ids: cfg.mem.map((x) => x.id), names: Object.fromEntries(cfg.mem.map((x) => [x.id, x.name])), tm: Object.fromEntries(cfg.mem.map((x) => [x.id, x.tm])), others: cfg.mem.map((x) => x.id).filter((id) => id !== me), cv, g2, finished: false, gone: {}, IN, send, pal: PAL, text: drawText };
-    const game = { race: raceGame, archery: archeryGame, cart: cartGame, fish: fishGame, kemari: kemariGame, hayashi: hayashiGame, hide: (e) => SGK.HIDE.make(e) }[cfg.g](env);
+    const game = { race: raceGame, archery: archeryGame, cart: cartGame, kemari: kemariGame, hayashi: hayashiGame, hide: (e) => SGK.HIDE.make(e) }[cfg.g](env);
     let raf = 0, last = performance.now(); const stop = () => { cancelAnimationFrame(raf); removeEventListener('resize', onR); try { if (game.dispose) game.dispose(); } catch (er) {} root.remove(); RUN = null; for (const k of ['l', 'r', 'u', 'd', 'a', 'b', 'c']) IN[k] = 0; backToRoom(cfg, env.gone); };
     RUN = { g: cfg.g, on: (from, m) => { if (m.k === 'quit') { env.gone[from] = 1; } if (game.msg) game.msg(from, m); } };
     env.end = (res) => { if (env.finished) return; env.finished = true; showResult(env, res, () => stop()); };
@@ -379,65 +384,6 @@
         }
         env.ids.forEach((id, i) => drawText(g, `${nameOf(env, id)}　${S[id].sc}点${S[id].done ? '（終了）' : ''}`, W0 - 16, 30 + i * 20, { sz: 15, al: 'right', c: tcol(env, id) }));
         if (cfg.team) { const pts = [0, 0]; for (const id of env.ids) pts[env.tm[id]] += S[id].sc; drawText(g, `赤 ${pts[0]} ― 白 ${pts[1]}`, W0 / 2, H0 - 16, { sz: 20, b: 1, al: 'center' }); }
-        if (t < 0) drawText(g, String(Math.ceil(-t)), W0 / 2, H0 / 2, { sz: 90, b: 1, al: 'center' });
-      },
-    };
-  }
-
-  // =====================================================================
-  // 釣り大会：朝・昼・夕の3日間（1日40秒）。勝ち方は mode='big'（いちばん大きい魚）か 'num'（釣った数）
-  // =====================================================================
-  // いつもの釣り（gather.js の釣り場の場面）をそのまま使い、結果だけここで数える。魚は生き物図鑑（SGK.DATA.creatures）の魚から出る
-  function fishGame(env) {
-    const { cfg, me, g2: g, cv } = env, DAY = 40, DN = ['朝', '昼', '夕'], big = cfg.mode !== 'num';
-    const RW = { ありふれた: 10, 見かける: 6, 珍しい: 3, 稀少: 1.2, '幻のような': 0.4 }, LIST = ((SGK.DATA && SGK.DATA.creatures) || []).filter((c) => c.k === 'f'), TW = LIST.reduce((a, c) => a + (RW[c.r] || 1), 0);
-    const S = {}; for (const id of env.ids) S[id] = { n: 0, best: 0, bn: '', done: false }; const m0 = S[me];
-    let t = -2, busy = false, msg = '', msgT = 0, doneAt = null, dayShown = -1, over = false, catchImg = null; // 2.59.2 釣れた魚の絵（assets/creatures/〇〇.webp）
-    const IMG = {}; const fishImg = (id) => { if (!IMG[id]) { const im = new Image(); im.src = `assets/creatures/${id}.webp?v=${SGK.VERSION}`; IMG[id] = im; } return IMG[id]; };
-    const pick = () => { let r = Math.random() * TW; for (const c of LIST) { r -= RW[c.r] || 1; if (r <= 0) return c; } return LIST[0]; };
-    function cast() {
-      if (busy || !LIST.length || !SGK.GATHERUI || !SGK.GATHERUI.party) return; const sp = pick(), frac = (Math.random() + Math.random()) / 2; busy = true; catchImg = null; fishImg(sp.id); /* 先に読んでおく */
-      SGK.GATHERUI.party({ n: -1, k: 'f', id: sp.id, d: sp.d, r: sp.r, fr: frac }, (q) => {
-        busy = false; if (q < 0) { msg = 'やめた'; msgT = 1.5; return; }
-        const thr = ((SGK.DATA.gatherDiff || {})[sp.d] || { thr: 0.6 }).thr; if (q < thr) { msg = '逃げられた…'; msgT = 2; return; }
-        const sz = Math.round((sp.sz[0] + (sp.sz[1] - sp.sz[0]) * frac) * 10) / 10; m0.n++; const rec = sz > m0.best; if (rec) { m0.best = sz; m0.bn = sp.n; }
-        msg = `${sp.n}（${sz}cm）を釣った！${rec && m0.n > 1 ? ' 自己ベスト！' : ''}`; msgT = 3; catchImg = fishImg(sp.id); send(env.others, { k: 'f', n: m0.n, b: m0.best, bn: m0.bn });
-      });
-    }
-    function finishAll() {
-      if (over) return; over = true; if (SGK.GATHERUI && SGK.GATHERUI.stop) SGK.GATHERUI.stop();
-      const key = (x) => (big ? x.best : x.n), rk = env.ids.slice().sort((a, b) => key(S[b]) - key(S[a]) || S[b].n - S[a].n), n = rk.length, myRank = rk.indexOf(me) + 1; let team = null, rows = [];
-      const lab = (x) => (big ? (x.best ? `${x.bn} ${x.best}cm` : '釣れず') : `${x.n}匹`) + (big ? `（${x.n}匹）` : x.best ? `（最大 ${x.best}cm）` : '');
-      if (cfg.team) { const pts = [0, 0]; for (const id of env.ids) { const o = S[id], tt = env.tm[id]; pts[tt] = big ? Math.max(pts[tt], o.best) : pts[tt] + o.n; } const u = big ? 'cm' : '匹';
-        team = pts[0] === pts[1] ? 'draw' : (pts[0] > pts[1] ? 0 : 1) === env.tm[me] ? 'win' : 'lose'; rows.push(`<b>チーム戦（${big ? '各チームの最大' : '合計'}）　赤 ${pts[0]}${u} ― 白 ${pts[1]}${u}　${pts[0] === pts[1] ? '引き分け' : pts[0] > pts[1] ? '赤の勝ち' : '白の勝ち'}</b>`); }
-      rk.forEach((id, i) => rows.push(`${i + 1}位　<b style="color:${tcol(env, id)}">${esc(nameOf(env, id))}</b>　${lab(S[id])}`));
-      env.end({ title: cfg.team ? (team === 'win' ? 'チームの勝ち！' : team === 'lose' ? 'チームの負け…' : '引き分け') : `${myRank}位`, rows, cmd: { type: 'partyResult', game: 'fish', n, rank: myRank, team } });
-    }
-    return {
-      msg(from, m) { const o = S[from]; if (!o) return; if (m.k === 'f') { o.n = m.n; o.best = m.b; o.bn = m.bn; } else if (m.k === 'done') { o.n = m.n; o.best = m.b; o.bn = m.bn; o.done = true; } },
-      update(dt) {
-        t += dt; if (t < 0) return; msgT -= dt;
-        const day = Math.min(2, Math.floor(t / DAY)); if (day !== dayShown) { dayShown = day; if (!busy) { msg = `${day + 1}日目（${DN[day]}）`; msgT = 2; } }
-        if (t >= DAY * 3) { if (!m0.done && !busy) { m0.done = true; doneAt = t; send(env.others, { k: 'done', n: m0.n, b: m0.best, bn: m0.bn }); } if (busy && t > DAY * 3 + 25 && SGK.GATHERUI.stop) SGK.GATHERUI.stop(); }
-        else if (!busy && IN.aT) cast();
-        const alive = env.ids.filter((id) => !env.gone[id]);
-        if (alive.every((id) => S[id].done) || t > DAY * 3 + 40) finishAll(); // 2.59.2 全員の最後の結果（done）がそろうまで待つ（前は自分が終わって15秒で決めていたので、相手の最後の1匹が入らず、二人とも1位になることがあった）。相手が釣りの途中なら+25秒で止まる
-      },
-      draw() {
-        const W0 = cv.width, H0 = cv.height, day = clamp(Math.floor(Math.max(0, t) / DAY), 0, 2), sky = ['#bfe3f5', '#8fcdf2', '#f4b27a'][day];
-        g.fillStyle = sky; g.fillRect(0, 0, W0, H0 * 0.45); g.fillStyle = '#6fae56'; g.fillRect(0, H0 * 0.38, W0, H0 * 0.1); g.fillStyle = '#3d7fb0'; g.fillRect(0, H0 * 0.48, W0, H0);
-        g.fillStyle = day === 2 ? '#ff9a3c' : '#fff6a0'; g.beginPath(); g.arc(W0 * (0.2 + day * 0.3), H0 * 0.14, 30, 0, 7); g.fill();
-        const rem = Math.max(0, DAY - (Math.max(0, t) - day * DAY)); drawText(g, `${day + 1}日目（${DN[day]}）　残り ${Math.ceil(rem)}秒`, 16, 30, { sz: 20, b: 1 }); bar(g, 16, 40, 160, 8, rem / DAY, '#f2c14e');
-        drawText(g, `${m0.n}匹　最大 ${m0.best ? m0.bn + ' ' + m0.best + 'cm' : '―'}`, 16, 74, { sz: 17 }); drawText(g, big ? '勝ち方：大物' : '勝ち方：数', 16, 98, { sz: 14, c: '#f2c14e' });
-        env.ids.forEach((id, i) => drawText(g, `${nameOf(env, id)}${S[id].done ? '（終了）' : ''}`, W0 - 16, 30 + i * 20, { sz: 15, al: 'right', c: tcol(env, id) })); // 2.60.5 ほかの人の釣果は結果発表まで見せない（名前と終わったかだけ）
-        if (msgT > 0 && catchImg && catchImg.complete && catchImg.naturalWidth) { // 2.59.2 釣れた魚の絵を、言葉の下に出す
-          const sc = Math.min(260 / catchImg.naturalWidth, (H0 * 0.32) / catchImg.naturalHeight), w = catchImg.naturalWidth * sc, h = catchImg.naturalHeight * sc;
-          g.save(); g.globalAlpha = Math.min(1, msgT * 2); g.fillStyle = 'rgba(255,248,230,.85)'; g.beginPath(); g.ellipse(W0 / 2, H0 * 0.38 + h / 2 + 10, w / 2 + 26, h / 2 + 18, 0, 0, 7); g.fill();
-          g.drawImage(catchImg, W0 / 2 - w / 2, H0 * 0.38 + 10, w, h); g.restore();
-        }
-        if (msgT <= 0) catchImg = null;
-        if (msgT > 0) drawText(g, msg, W0 / 2, H0 * 0.34, { sz: 30, b: 1, al: 'center' });
-        else if (!busy && t >= 0 && t < DAY * 3) drawText(g, 'A／Space／タップで釣りを始める', W0 / 2, H0 * 0.6, { sz: 20, al: 'center' });
         if (t < 0) drawText(g, String(Math.ceil(-t)), W0 / 2, H0 / 2, { sz: 90, b: 1, al: 'center' });
       },
     };

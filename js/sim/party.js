@@ -30,6 +30,42 @@
     SIM.say(p.id, `${msg}。賞金${SIM.money(money)}${fame ? `・名声+${fame}` : ''}`);
   };
 
+  // ---- 2.105.3 釣り大会：町の「みんなで遊ぶ」で始め、ゲームの時間で1日のあいだ、参加者がそれぞれ地図で釣った魚（gatherEnd）を数える ----
+  const FT = (SIM.FISHT = { MIN: 1440 });
+  C.fishTaikai = (w, p, c) => {
+    if (!c || p.battle) return;
+    const ids = [...new Set([p.id, ...(Array.isArray(c.ids) ? c.ids : [])].map(String))].filter((id) => w.players[id]).slice(0, 10);
+    const all = (w.fishTaikai = w.fishTaikai || {}), id = 'ft' + p.id + '-' + w.time.min;
+    const T = (all[id] = { id, ids, tm: Object.fromEntries(ids.map((x, i) => [x, i % 2])), team: !!c.team && ids.length >= 2, mode: c.mode === 'num' ? 'num' : 'big', end: w.time.min + FT.MIN, rec: {} });
+    for (const x of ids) { const q = w.players[x]; q.fishT = T.id; SIM.say(x, `釣り大会が始まりました（${T.mode === 'big' ? 'いちばん大きい魚' : '釣った数'}で競う${T.team ? '・チーム戦' : ''}、${ids.length}人）。ゲームの時間で1日のあいだ、川・湖・海で釣った魚が数えられます${ids.length < 2 ? '（ひとりなので賞金はありません）' : ''}`); }
+  };
+  SIM.fishTaikaiCatch = (w, p, name, size) => { // 釣れたとき（sim/creatures.js の gatherEnd から）
+    const T = p.fishT && w.fishTaikai && w.fishTaikai[p.fishT]; if (!T || w.time.min >= T.end || !T.ids.includes(p.id)) return;
+    const e = (T.rec[p.id] = T.rec[p.id] || { n: 0, best: 0, bn: '' }); e.n++; if (size > e.best) { e.best = size; e.bn = name; }
+  };
+  const ftBoard = (w, T) => { const big = T.mode === 'big', key = (x) => (big ? x.best : x.n); return T.ids.map((id) => ({ id, name: w.players[id] ? w.players[id].name : '？', tm: T.tm[id], ...(T.rec[id] || { n: 0, best: 0, bn: '' }) })).sort((a, b) => key(b) - key(a) || (big ? b.n - a.n : b.best - a.best)); };
+  SIM.systems.push(function fishTaikai(w) {
+    const all = w.fishTaikai; if (!all) return;
+    for (const id in all) {
+      const T = all[id]; if (w.time.min < T.end) continue; delete all[id];
+      const b = ftBoard(w, T), n = b.length, big = T.mode === 'big', u = big ? 'cm' : '匹', lab = (x) => (big ? (x.best ? `${x.bn} ${x.best}cm` : '釣れず') : `${x.n}匹`);
+      let team = null, head = '';
+      if (T.team) { const pts = [0, 0]; for (const x of b) pts[x.tm] = big ? Math.max(pts[x.tm], x.best) : pts[x.tm] + x.n; team = pts[0] === pts[1] ? -1 : pts[0] > pts[1] ? 0 : 1; head = `チーム戦 赤 ${pts[0]}${u} ― 白 ${pts[1]}${u}（${team < 0 ? '引き分け' : team === 0 ? '赤の勝ち' : '白の勝ち'}）。`; }
+      const list = b.map((x, i) => `${i + 1}位 ${x.name}（${lab(x)}）`).join('、');
+      b.forEach((x, i) => {
+        const q = w.players[x.id]; if (!q) return; if (q.fishT === T.id) q.fishT = null;
+        let money = 0, fame = 0;
+        if (n >= 2 && (x.n > 0 || T.team)) {
+          if (T.team) { const k = team < 0 ? 1 : team === x.tm ? 0 : 2; money = [1200, 700, 400][k]; fame = k === 0 ? 1 : 0; }
+          else { money = TBL[Math.min(9, i)]; fame = i === 0 ? 2 : i === 1 ? 1 : 0; }
+          money = Math.round(money * (n === 2 ? 0.6 : 1) / 10) * 10; q.money += money; q.fame = (q.fame || 0) + fame;
+        }
+        SIM.say(x.id, `釣り大会が終わりました。${head}${T.team ? '' : `あなたは${i + 1}位（${lab(x)}）。`}${money ? `賞金${SIM.money(money)}${fame ? `・名声+${fame}` : ''}。` : ''}順位：${list}`);
+      });
+    }
+  });
+  { const bp = SIM.privateState; SIM.privateState = (w, pid) => { const r = bp(w, pid), p = w.players[pid]; if (!r || !p || !r.me) return r; const T = p.fishT && w.fishTaikai && w.fishTaikai[p.fishT]; r.me.fishT = T ? { left: Math.max(0, T.end - w.time.min), mode: T.mode, team: T.team, board: ftBoard(w, T).map((x) => ({ name: x.name, tm: x.tm, n: x.n, best: x.best, bn: x.bn })) } : null; return r; }; }
+
   // ---- 2.62.0 蹴鞠大会：毎月5日、大きな町で。5日に始めた蹴鞠（2人以上）の続けた回数で競い、8日に順位を出して賞金と称号 ----
   const KM = (SIM.KEMARI = { DAY: 5, PRIZE: [10000, 5000, 3000], MIN: 10 });
   const dayIdx = (w) => { const st = SGK.DATA.start; return Math.floor((st.minute + w.time.min) / 1440) + (st.month - 1) * 30 + (st.day - 1); };

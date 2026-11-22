@@ -77,6 +77,7 @@
     return (D.creatures || []).filter((c) => c.k === kind && c.pl.some((p) => tags.has(p)) && (c.rg ? rg.band >= c.rg[0] && rg.band <= c.rg[1] : c.only.includes(rg.name)) && c.t.includes(dp));
   };
 
+  const inBase = (w, p) => !!(p.at && p.tx == null && SIM.settlement && SIM.settlement(w, p.at)); // 2.105.3 拠点（城・町・村）の中では釣りはできない
   SIM.GATHER_PAY = 0.5; // 2.61.3 魚・虫を捕ったときにもらえるお金の倍率（半分に）
   SIM.GATHER_HP = 10; // 釣り・虫取りの1回で使う体力（2.61.4 割合ではなく体力の値で10。最大の体力が多い人ほど多くできる）
   // ---- 命令 ----
@@ -85,6 +86,7 @@
     if (p.busy) return say(p.id, `${p.busy.label}の最中です`);
     if (p.tx != null) return say(p.id, '歩いている最中は始められません。立ち止まってください');
     if (SIM.isSea(p.x, p.y)) return;
+    if (kind === 'f' && inBase(w, p)) return say(p.id, '拠点の中では釣りはできません。外に出てからにしてください'); // 2.105.3
     // 2.37.0 挑戦した時点で体力を使う（釣り・虫取り）。体力が足りないときは始められない
     const mx = Math.max(1, Math.round(SIM.TROOPS.hero.hp * ((SIM.unitMods(w, p.id, 'hero') || {}).hm || 1))), hp0 = p.hpFrac == null ? 1 : p.hpFrac, cost = SIM.GATHER_HP / mx; // 体力の値（地図の「体力 35/35」と同じ）で10
     if (hp0 * mx < SIM.GATHER_HP - 0.01) return say(p.id, '体力が足りません。少し休んでから（自宅で休めば早く戻ります）');
@@ -94,12 +96,16 @@
     if (!list.length) { p.gat = null; p.gatLast = { n, ok: false, k: kind, txt: kind === 'f' ? 'ここでは、いまの時間に釣れる魚がいないようです' : 'ここでは、いまの時間に捕れる虫がいないようです' }; return; }
     const sp = SIM.gatherRoll(w, list);
     if (!sp) { p.gat = null; p.gatLast = { n, ok: false, k: kind, txt: kind === 'f' ? '何も掛からなかった…（ここには珍しい魚しかいないようです）' : '何も見つからなかった…（ここには珍しい虫しかいないようです）' }; return; }
-    const u = (SIM.rand(w) + SIM.rand(w)) / 2, frac = u, size = kind === 'f' ? Math.round((sp.sz[0] + (sp.sz[1] - sp.sz[0]) * frac) * 10) / 10 : Math.round(sp.sz[0] + (sp.sz[1] - sp.sz[0]) * frac);
-    p.gat = { n, k: kind, id: sp.id, size, frac, at: Date.now() };
+    const mk = (s2) => { const frac = (SIM.rand(w) + SIM.rand(w)) / 2, size = kind === 'f' ? Math.round((s2.sz[0] + (s2.sz[1] - s2.sz[0]) * frac) * 10) / 10 : Math.round(s2.sz[0] + (s2.sz[1] - s2.sz[0]) * frac); return { id: s2.id, size, frac }; };
+    const m0 = mk(sp);
+    p.gat = { n, k: kind, id: m0.id, size: m0.size, frac: m0.frac, at: Date.now() };
+    // 2.105.3 釣りの魚影はどれも本物の魚（別の影はなし）。狙って掛かった影の魚が釣れる（gatherEnd の pick）
+    if (kind === 'f') { const fs = [m0]; for (let i = 0; i < 3; i++) { const s2 = SIM.gatherRoll(w, list); if (s2) fs.push(mk(s2)); } p.gat.fs = fs; }
   };
   const monthIdx = (w) => { const st = D.start; return Math.floor((st.minute + w.time.min) / 1440 / 30) + (st.month - 1); };
   C.gatherEnd = (w, p, c) => {
-    const g = p.gat; if (!g || +c.n !== g.n) return; p.gat = null;
+    const g0 = p.gat; if (!g0 || +c.n !== g0.n) return; p.gat = null;
+    const pk = g0.fs && g0.fs[Math.floor(+c.pick) || 0], g = pk ? { ...g0, id: pk.id, size: pk.size, frac: pk.frac } : g0; // 2.105.3 掛かった魚影の魚
     const sp = byId(g.id), q = +c.q, dif = DIFF[sp.d] || DIFF.普通, verb = g.k === 'f' ? '釣る' : '捕る';
     if (!(q >= 0) || Date.now() - g.at > 120000) return void (p.gatLast = { n: g.n, ok: false, k: g.k, txt: 'やめました' });
     if (q < dif.thr) return void (p.gatLast = { n: g.n, ok: false, k: g.k, txt: g.k === 'f' ? '逃げられた…' : '逃げられた…', hint: sp.r === '幻のような' || sp.r === '稀少' ? '大物の気配がした' : '' });
@@ -109,6 +115,7 @@
     const mi = monthIdx(w), zm = (p.zmon = p.zmon || {}), mm = (zm[mi] = zm[mi] || { n: 0 }); mm.n++; // 大会のための月ごとの記録（一番大きかった物）
     const key = g.k === 'f' ? 'f' : 'b'; if (!mm[key] || g.frac > mm[key][2]) mm[key] = [g.id, g.size, Math.round(g.frac * 1000) / 1000]; for (const k of Object.keys(zm)) if (+k < mi - 3) delete zm[k];
     const unit = g.k === 'f' ? 'cm' : 'mm';
+    if (g.k === 'f' && SIM.fishTaikaiCatch) SIM.fishTaikaiCatch(w, p, sp.n, g.size); // 2.105.3 釣り大会に数える
     p.gatLast = { n: g.n, ok: true, k: g.k, id: g.id, name: sp.n, size: g.size, unit, gain, isNew, rec: rec && !isNew, r: sp.r, txt: `${sp.n}（${g.size}${unit}）を${g.k === 'f' ? '釣った' : '捕まえた'}！` };
     say(p.id, `${sp.n}（${g.size}${unit}）を${g.k === 'f' ? '釣り' : '捕まえ'}ました！ +${SIM.money(gain)}${isNew ? '　図鑑に載りました' : ''}`);
   };
@@ -132,11 +139,12 @@
     const r = basePriv(w, pid), p = w.players[pid]; if (!r || !p) return r;
     let sp = null;
     if (p.tx == null && !SIM.isSea(p.x, p.y) && !p.busy) {
-      const key = `${Math.round(p.x * 2)},${Math.round(p.y * 2)},${SIM.month(w)},${daypart(w)}`, ch = cache[pid];
-      if (ch && ch.key === key) sp = ch.v; else { const tg = [...SIM.spotTags(w, p.x, p.y)]; sp = { f: SIM.spotCreatures(w, p.x, p.y, 'f').length, b: SIM.spotCreatures(w, p.x, p.y, 'b').length, tags: tg, rg: SIM.regionOf(p.x, p.y).name, dp: daypart(w) }; cache[pid] = { key, v: sp }; }
+      const ib = inBase(w, p);
+      const key = `${ib ? 1 : 0},${Math.round(p.x * 2)},${Math.round(p.y * 2)},${SIM.month(w)},${daypart(w)}`, ch = cache[pid];
+      if (ch && ch.key === key) sp = ch.v; else { const tg = [...SIM.spotTags(w, p.x, p.y)]; sp = { f: ib ? 0 : SIM.spotCreatures(w, p.x, p.y, 'f').length, b: SIM.spotCreatures(w, p.x, p.y, 'b').length, tags: tg, rg: SIM.regionOf(p.x, p.y).name, dp: daypart(w) }; cache[pid] = { key, v: sp }; }
     }
     r.me.spot = sp; r.me.zukan = p.zukan || {};
-    r.me.gat = p.gat ? { n: p.gat.n, k: p.gat.k, d: (byId(p.gat.id) || {}).d, r: (byId(p.gat.id) || {}).r, fr: p.gat.frac, cm: p.gat.k === 'f' ? p.gat.size : null /* 2.60.6 魚影の大きさ用 */, bite: 1800 + ((p.gat.n * 7919) % 2600), lk: p.gat.k === 'b' ? BUGLOOK[p.gat.id] || ['fly', 'butterfly', '#e8e0c8'] : null } : null;
+    r.me.gat = p.gat ? { fs: p.gat.fs ? p.gat.fs.map((f) => { const s2 = byId(f.id) || {}; return { d: s2.d, r: s2.r, fr: f.frac, cm: f.size }; }) : null, n: p.gat.n, k: p.gat.k, d: (byId(p.gat.id) || {}).d, r: (byId(p.gat.id) || {}).r, fr: p.gat.frac, cm: p.gat.k === 'f' ? p.gat.size : null /* 2.60.6 魚影の大きさ用 */, bite: 1800 + ((p.gat.n * 7919) % 2600), lk: p.gat.k === 'b' ? BUGLOOK[p.gat.id] || ['fly', 'butterfly', '#e8e0c8'] : null } : null;
     r.me.gatLast = p.gatLast || null;
     return r;
   };
