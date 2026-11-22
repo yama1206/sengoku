@@ -955,7 +955,7 @@ function infoHTML(me){
  let c=null,u=null;
  if(ui.sel)c=me.hand.find(x=>x.uid===ui.sel);
  else if(ui.selU){u=find(ui.selU);c=u&&u.card;}
- else if(ui.info)c=ui.info;
+ else if(ui.info){c=ui.info;if(ui.infoU){const x=find(ui.infoU);if(x&&x.card.uid===c.uid)u=x;}}
  if(!c)return '<span class="dim">札を押すと詳しく出ます</span>';
  return `<img class="dart" src="${imgPath(c)}" onerror="this.remove()" alt=""><b style="color:${IDEO[c.i].c}">【${IDEO[c.i].n}】${c.n}</b> ${TL[c.t]} 費え${c.c}${c.t==='u'?' 兵力'+(u?power(u):c.p):''}<br>${desc(c)||'(効果なし)'}${u&&u.weapon?`<br><b>装備中: ${u.weapon.n}</b>`:''}`;
 }
@@ -1386,15 +1386,19 @@ async function onClick(a,id){
  if(ui.modal){if(a==='mb'){const m=ui.modal;ui.modal=null;render();m.res(m.btns[+id].v);}return;}
  if(G.over){if(a==='again'&&!G.pvp){startGame(myDeck);}else if(a==='toTitle'){if(G.pvp){NET=null;G=null;}screen='title';render();}return;}
  if(ui.pick){
-  if(a==='myunit'||a==='enemyunit'){const u=find(+id);if(u&&ui.pick.ids.includes(u.uid)){const pk=ui.pick;ui.pick=null;render();pk.res(u);}}
+  if(a==='myunit'||a==='enemyunit'){const u=find(+id);if(u&&ui.pick.ids.includes(u.uid)){const pk=ui.pick;ui.pick=null;render();pk.res(u);}else if(u){ui.info=u.card;ui.infoU=u.uid;render();}}
+  else if(a==='field'){ui.info=findField(+id);ui.infoU=null;render();}
+  else if(a==='hand'){const c=G.P[0].hand.find(x=>x.uid===+id);if(c){ui.info=c;ui.infoU=null;render();}}
   return;
  }
  const me=G.P[0];
  if(a==='menu'){const r=await modal(G.pvp?'手合わせを抜けますか?(相手の勝ちになります)':'表紙に戻りますか?(対戦は破棄されます)',[{l:'戻る',v:true},{l:'続ける',v:false}]);if(r){if(G&&G.pvp)netQuit();G=null;screen='title';render();}return;}
- if(a==='mana'){ui.info=findMana(+id);ui.sel=ui.selU=null;render();return;}
+ if(a==='mana'){ui.info=findMana(+id);ui.infoU=null;ui.sel=ui.selU=null;render();return;}
  if(ui.busy){
-  if(a==='myunit'||a==='enemyunit'){const u=find(+id);if(u){ui.info=u.card;ui.sel=null;render();}}
-  else if(a==='field'){ui.info=findField(+id);ui.sel=null;render();}
+  // 2.106.15 相手の番でも、表向きの札（場の武将・城・姫・自分の手札）を押すと詳しく見られる。ゲームは動かない
+  if(a==='myunit'||a==='enemyunit'){const u=find(+id);if(u){ui.info=u.card;ui.infoU=u.uid;ui.sel=ui.selU=null;render();}}
+  else if(a==='field'){ui.info=findField(+id);ui.infoU=null;ui.sel=ui.selU=null;render();}
+  else if(a==='hand'){const c=me.hand.find(x=>x.uid===+id);if(c){ui.info=c;ui.infoU=null;ui.sel=ui.selU=null;render();}}
   return;
  }
  if(G.guest&&['charge','cast','enemyunit','eface','end'].includes(a)){guestAct(a,id);return;} // 受けた側は操作をホストへ送るだけ
