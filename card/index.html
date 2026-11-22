@@ -1041,6 +1041,7 @@ async function onClick(a,id){
  if(a==='rules'){ui.rules=true;render();return;}
  if(a==='rulesClose'){ui.rules=false;render();return;}
  if(a==='toastClose'){loginMsg='';render();return;}
+ if(a==='exitEmbed'){parentSend({t:'close'});return;} // 天下往来の遊戯屋から出る
  if(pk){
   if(a==='tearNow')tearDone();
   else if(a==='skip'){pk.stage=pk.all?'pksum':'summary';render();}
@@ -1049,7 +1050,6 @@ async function onClick(a,id){
   else if(a==='allSum'){pk.stage='summary';pk.big=null;render();}
   else if(a==='again'){const n=pk.n||1;const res=pk.pack.id==='test'?testPull():buyPack(pk.pack,n);if(res){pk=mkPk(pk.pack,res,n);render();}}
   else if(a==='packEnd'){pk=null;render();}
-  else if(a==='exitEmbed')parentSend({t:'close'});
   else if(a==='bigcard'){pk.big=+id;render();}
   else if(a==='bigClose'){pk.big=null;render();}
   return;
