@@ -161,21 +161,21 @@ const VERSION='0.23';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
- so:{n:'創',c:'#e0b341',who:'織田信長・豊臣秀吉',d:'ドロー・武器が得意。新しい力で手数を稼ぐ'},
+ so:{n:'創',c:'#e0b341',who:'織田信長・豊臣秀吉',d:'札引き・武器が得意。新しい力で手数を稼ぐ'},
  gi:{n:'義',c:'#4a8fe7',who:'上杉謙信',d:'守りと城門が得意。堅く守って粘り勝つ'},
- bu:{n:'武',c:'#e0524f',who:'武田信玄',d:'突撃と高パワー。力で押し切る'},
+ bu:{n:'武',c:'#e0524f',who:'武田信玄',d:'突撃と高い兵力。力で押し切る'},
  bo:{n:'謀',c:'#a477e0',who:'毛利元就・竹中半兵衛',d:'妨害と奇策。相手の動きを崩す'},
  ni:{n:'耐',c:'#4cae6a',who:'徳川家康',d:'兵糧を増やし、耐えて後半に勝つ'},
- ne:{n:'汎',c:'#9aa0a6',who:'足軽・兵士',d:'どの思想のデッキにも入れられる共通カード(思想の数に数えない・どの兵糧でも出せる)'}
+ ne:{n:'汎',c:'#9aa0a6',who:'足軽・兵士',d:'どの思想の陣立てにも入れられる共通札(思想の数に数えない・どの兵糧でも出せる)'}
 };
 const TL={u:'武将',w:'武器',p:'姫',c:'城',x:'奇襲'};
 const KW={rush:'突',guard:'守',double:'連'};
-const KWN={rush:'突撃(登場したターンから攻撃できる)',guard:'守(相手が城門を攻撃した時、代わりに戦える)',double:'連破(城門を2枚破る)'};
-// ===== カード定義 =====
-// シリーズ単位で定義する。カードIDは「シリーズID_思想_連番」で自動採番(例: base_so_01)。
-// 画像は img/カードID.png を置くと自動で表示される(無ければ色枠だけ)。個別指定は {img:'パス'}。
+const KWN={rush:'突撃(登場した手番から攻撃できる)',guard:'守(相手が城門を攻撃した時、代わりに戦える)',double:'連破(城門を2枚破る)'};
+// ===== 札定義 =====
+// シリーズ単位で定義する。札IDは「シリーズID_思想_連番」で自動採番(例: base_so_01)。
+// 画像は img/札ID.png を置くと自動で表示される(無ければ色枠だけ)。個別指定は {img:'パス'}。
 // 新シリーズは series/xxx.js に defineSeries('set2','第2弾',mk=>{ mk(...); }); と書き、下の SERIES_FILES に追加する。
-// 初期カード(base)はガチャ対象外。ガチャで出る版は、時代別シリーズ({era:'..'}付き)のカードだけ。種類ごとの版は下の表(武将=SR、姫と大名=SR/SSR、城と奇襲=R、武器=N。大名は個別に pr:['SR','SSR'] を付ける)。
+// 初期札(base)はガチャ対象外。ガチャで出る版は、時代別シリーズ({era:'..'}付き)の札だけ。種類ごとの版は下の表(武将=SR、姫と大名=SR/SSR、城と奇襲=R、武器=N。大名は個別に pr:['SR','SSR'] を付ける)。
 const PRINTS_ADD={u:['SR'],p:['SR','SSR'],c:['R'],w:['N'],x:['R']};
 const SERIES=[],CARDS=[];
 const availIdeos=()=>Object.keys(IDEO).filter(k=>k!=='ne'&&CARDS.filter(c=>c.i===k).length>=12);
@@ -188,7 +188,7 @@ function defineSeries(id,name,fn,opts){
   s.cards.push(card);CARDS.push(card);});
 }
 const baseImg=c=>c.img||`img/${c.id}.png`;
-// 版(レアリティ)ごとの画像: 初期カードのNは ID.png、それ以外は ID_sr.png のように置く。無ければ ID.png、それも無ければ色枠のみ
+// 版(レアリティ)ごとの画像: 初期札のNは ID.png、それ以外は ID_sr.png のように置く。無ければ ID.png、それも無ければ色枠のみ
 const printImg=(c,r)=>(c.series==='base'&&r==='N')?baseImg(c):`img/${c.id}_${r.toLowerCase()}.png`;
 const imgPath=c=>printImg(c,displayRarity(c));
 function imgFb(el,fb){if(el.dataset.f||el.getAttribute('src')===fb){el.remove();}else{el.dataset.f=1;el.src=fb;}}
@@ -273,7 +273,7 @@ mk('ni','p','築山殿',3,0,1,{ps:'hatsu',h:'matsudaira'});
 mk('ni','c','岡崎城',5,0,1,{ps:'guardAll',h:'matsudaira'});
 mk('ni','w','厭離穢土の旗',2,0,1,{w:{pow:1000,k:'guard'},h:'matsudaira'});
 mk('ni','x','大高城兵糧入れ',3,0,2,{e:[{t:'ramp',n:1},{t:'draw',n:1}],h:'matsudaira'});
-// 汎(思想なし・どのデッキにも入る共通カード。ガチャで出る)
+// 汎(思想なし・どの陣立てにも入る共通札。ガチャで出る)
 mk('ne','u','足軽',1,1000,3,{pr:['N']});
 mk('ne','u','弓足軽',2,1500,3,{pr:['N'],k:['guard']});
 mk('ne','u','鉄砲足軽',3,2500,3,{pr:['R'],e:[{t:'kill',max:2000}]});
@@ -350,19 +350,19 @@ mk('ni','w','肥前の大身槍',2,0,1,{w:{pow:1000,tie:true},h:'ryuzoji'});
 mk('ni','x','今山の夜襲',3,0,2,{e:[{t:'tapSkip'}],h:'ryuzoji'});
 },{era:'1560年代 中国・九州'});
 
-// ===== スターターデッキ(無料で1回だけ受け取れる。受け取ると、そのカードが手に入りデッキに設定される) =====
+// ===== 初陣組(無料で1回だけ受け取れる。受け取ると、その札が手に入り陣立てに設定される) =====
 const STARTERS=[
- {id:'st_oda',name:'織田家スターター',sub:'桶狭間の奇襲で一気に攻める',series:'e1560',house:'oda'},
- {id:'st_imagawa',name:'今川家スターター',sub:'知略と同盟で盤石に戦う',series:'e1560',house:'imagawa'},
- {id:'st_matsudaira',name:'松平家スターター',sub:'耐えて兵糧を貯め、後半に勝つ',series:'e1560',house:'matsudaira'},
- {id:'st_uesugi',name:'上杉家スターター',sub:'守りを固めて関東管領へ',series:'e1560',house:'uesugi'},
- {id:'st_takeda',name:'武田家スターター',sub:'突撃で城門を破り続ける',series:'e1560',house:'takeda'},
- {id:'st_hojo',name:'北条家スターター',sub:'堅く守り、相手の動きを封じる',series:'e1560',house:'hojo'},
- {id:'st_mouri',name:'毛利家スターター',sub:'調略と知略で中国を制す',series:'e1560w',house:'mouri'},
- {id:'st_amago',name:'尼子家スターター',sub:'難攻不落の月山富田城で粘る',series:'e1560w',house:'amago'},
- {id:'st_otomo',name:'大友家スターター',sub:'南蛮の力で手数を稼ぐ',series:'e1560w',house:'otomo'},
- {id:'st_shimazu',name:'島津家スターター',sub:'薩摩の突撃で押し切る',series:'e1560w',house:'shimazu'},
- {id:'st_ryuzoji',name:'龍造寺家スターター',sub:'耐えて兵糧を貯め、肥前を握る',series:'e1560w',house:'ryuzoji'}
+ {id:'st_oda',name:'織田家の初陣組',sub:'桶狭間の奇襲で一気に攻める',series:'e1560',house:'oda'},
+ {id:'st_imagawa',name:'今川家の初陣組',sub:'知略と同盟で盤石に戦う',series:'e1560',house:'imagawa'},
+ {id:'st_matsudaira',name:'松平家の初陣組',sub:'耐えて兵糧を貯め、後半に勝つ',series:'e1560',house:'matsudaira'},
+ {id:'st_uesugi',name:'上杉家の初陣組',sub:'守りを固めて関東管領へ',series:'e1560',house:'uesugi'},
+ {id:'st_takeda',name:'武田家の初陣組',sub:'突撃で城門を破り続ける',series:'e1560',house:'takeda'},
+ {id:'st_hojo',name:'北条家の初陣組',sub:'堅く守り、相手の動きを封じる',series:'e1560',house:'hojo'},
+ {id:'st_mouri',name:'毛利家の初陣組',sub:'調略と知略で中国を制す',series:'e1560w',house:'mouri'},
+ {id:'st_amago',name:'尼子家の初陣組',sub:'難攻不落の月山富田城で粘る',series:'e1560w',house:'amago'},
+ {id:'st_otomo',name:'大友家の初陣組',sub:'南蛮の力で手数を稼ぐ',series:'e1560w',house:'otomo'},
+ {id:'st_shimazu',name:'島津家の初陣組',sub:'薩摩の突撃で押し切る',series:'e1560w',house:'shimazu'},
+ {id:'st_ryuzoji',name:'龍造寺家の初陣組',sub:'耐えて兵糧を貯め、肥前を握る',series:'e1560w',house:'ryuzoji'}
 ];
 function starterDeck(st){
  const d={};
@@ -377,30 +377,30 @@ function claimStarter(id){
 }
 const FXD={
  draw:e=>`山札から${e.n}枚引く`,ramp:e=>`山札の上${e.n}枚を兵糧にする`,shield:e=>`山札の上${e.n}枚を城門に加える`,
- tapE:()=>'相手の武将1体を横にする',kill:e=>`相手の${e.tapped?'横向きの':''}武将1体を破壊`+(e.max?`(パワー${e.max}以下)`:''),
- bounce:()=>'相手の武将1体を手札に戻す',discard:e=>`相手の手札をランダムに${e.n}枚捨てさせる`,
+ tapE:()=>'相手の武将1体を横にする',kill:e=>`相手の${e.tapped?'横向きの':''}武将1体を破壊`+(e.max?`(兵力${e.max}以下)`:''),
+ bounce:()=>'相手の武将1体を手札に戻す',discard:e=>`相手の手札を無作為に${e.n}枚捨てさせる`,
  breakS:e=>`相手の城門を${e.n}枚破る`,tapAll:()=>'相手の武将すべてを横にする',
  drawIfFewer:()=>'自分の手札が相手より少なければ1枚引く',retWeapon:()=>'自分の場の武器1枚を手札に戻す',
  toMana:()=>'手札から1枚を兵糧に置く',
- pumpTemp:e=>`自分の武将1体にパワー+${e.pow}`+(e.kw?`と【${KWN[e.kw]}】`:'')+'を与える(ターン終了まで)',
- peekDiscard:()=>'相手の手札を見て、1枚選んで捨てさせる',tapSkip:()=>'相手の武将1体を横にし、次のアンタップを1回飛ばす'
+ pumpTemp:e=>`自分の武将1体に兵力+${e.pow}`+(e.kw?`と【${KWN[e.kw]}】`:'')+'を与える(手番の終わりまで)',
+ peekDiscard:()=>'相手の手札を見て、1枚選んで捨てさせる',tapSkip:()=>'相手の武将1体を横にし、次に縦に戻すのを1回飛ばす'
 };
-const PSD={drawStart:'自分のターン開始時、1枚引く',aura:'味方の武将すべてパワー+1000',rushAll:'味方の武将すべてに突撃を与える',
- guardAll:'味方の武将すべてに守を与える',rampStart:'自分のターン開始時、山札の上を兵糧にする',
- sap:'自分のターン開始時、相手の手札が4枚以上なら1枚捨てさせる',refill:'自分のターン開始時、城門が4枚以下なら山札から1枚加える',
- chacha:'自分のターン開始時、自分の場に武器があれば1枚引く',guardAura:'味方の守を持つ武将すべてパワー+1000',
- rushDraw:'味方の突撃を持つ武将が城門を破ったとき、1枚引く(1ターンに1回)',atkAura:'味方の武将が攻撃している間、パワー+1000',
- nene:'自分のターン開始時、相手の手札が自分より多ければ1枚引く',gateLimit:'相手が城門(本丸)を攻撃できるのは、1ターンに2回まで',
- hatsu:'自分のターン開始時、自分の兵糧が相手より少なければ山札の上を兵糧にする',
- deathDraw:'味方の武将が戦闘で破壊されるたび、1枚引く(1ターンに1回)',kasuga:'自分の城門が破られたとき、山札の上を城門に加える(1ターンに1回)'};
+const PSD={drawStart:'自分の手番の始め、1枚引く',aura:'味方の武将すべて兵力+1000',rushAll:'味方の武将すべてに突撃を与える',
+ guardAll:'味方の武将すべてに守を与える',rampStart:'自分の手番の始め、山札の上を兵糧にする',
+ sap:'自分の手番の始め、相手の手札が4枚以上なら1枚捨てさせる',refill:'自分の手番の始め、城門が4枚以下なら山札から1枚加える',
+ chacha:'自分の手番の始め、自分の場に武器があれば1枚引く',guardAura:'味方の守を持つ武将すべて兵力+1000',
+ rushDraw:'味方の突撃を持つ武将が城門を破ったとき、1枚引く(1手番に1回)',atkAura:'味方の武将が攻撃している間、兵力+1000',
+ nene:'自分の手番の始め、相手の手札が自分より多ければ1枚引く',gateLimit:'相手が城門(本丸)を攻撃できるのは、1手番に2回まで',
+ hatsu:'自分の手番の始め、自分の兵糧が相手より少なければ山札の上を兵糧にする',
+ deathDraw:'味方の武将が戦闘で破壊されるたび、1枚引く(1手番に1回)',kasuga:'自分の城門が破られたとき、山札の上を城門に加える(1手番に1回)'};
 function desc(c){
  const a=[];
  c.k.forEach(k=>a.push('【'+KWN[k]+'】'));
- if(c.blockBonus)a.push(`守として戦うとき、パワー+${c.blockBonus}。`);
+ if(c.blockBonus)a.push(`守として戦うとき、兵力+${c.blockBonus}。`);
  if(c.surviveShield)a.push('戦闘で生き残り、自分の城門が1枚以下なら山札の上を城門に加える。');
- if(c.killBreak)a.push('自分のターン中、戦闘で相手の武将を破壊したとき、相手の城門を1枚破る(1ターンに1回)。');
+ if(c.killBreak)a.push('自分の手番中、戦闘で相手の武将を破壊したとき、相手の城門を1枚破る(1手番に1回)。');
  if(c.deathRamp)a.push('戦闘で破壊されたとき、山札の上を兵糧にする。');
- if(c.w){const b=[];if(c.w.pow)b.push(`パワー+${c.w.pow}`);if(c.w.k)b.push(`【${KWN[c.w.k]}】`);if(c.w.tie)b.push('戦闘でパワーが同じなら相手だけ破壊される');if(c.w.drawAtk)b.push('攻撃するたび1枚引く(自分のターン中1回)');a.push('味方の武将1体に装備: '+b.join('、')+'。(武将が場を離れると墓地へ)');}
+ if(c.w){const b=[];if(c.w.pow)b.push(`兵力+${c.w.pow}`);if(c.w.k)b.push(`【${KWN[c.w.k]}】`);if(c.w.tie)b.push('戦闘で兵力が同じなら相手だけ破壊される');if(c.w.drawAtk)b.push('攻撃するたび1枚引く(自分の手番中1回)');a.push('味方の武将1体に装備: '+b.join('、')+'。(武将が場を離れると墓地へ)');}
  if(c.ps)a.push(PSD[c.ps]+'。');
  if(c.e.length){const lab={u:'登場時:',w:'装備時:',p:'設置時:',c:'設置時:',x:'使用時:'}[c.t];a.push(lab+c.e.map(e=>FXD[e.t](e)).join('、')+'。');}
  if(c.t==='x')a.push('(城門から手札に加わる時は、無料で発動もできる)');
@@ -413,14 +413,14 @@ const ui={sel:null,selU:null,info:null,pick:null,modal:null,busy:true,rules:fals
 // ===== ガチャ設定(価格・確率・ポイントはここを変えるだけで調整できる) =====
 const GACHA={
  coin:'石高',pt:'軍功',cards:5,guarantee:'R',
- packCost:100, // 1パックの価格(シリーズに {packCost:..} を付ければ個別指定)
+ packCost:100, // 1包みの価格(シリーズに {packCost:..} を付ければ個別指定)
  rates:{N:50,R:30,SR:15,SSR:5},
  dismantle:{N:1,R:3,SR:10,SSR:30},exchange:{N:10,R:30,SR:100,SSR:300},
  reward:{win:50,lose:20,login:100,initial:5000} // initial: 今だけ5000(元は500)。既存セーブには下の GRANT_NOW で差額を1回だけ配る
 };
 // ===== 天下往来の「遊戯屋」に埋め込まれたとき(?embed=1)：お金は天下往来の所持金(文)とつなぐ =====
 const EMBED=/[?&]embed/.test(location.search||'')&&window.parent!==window;
-if(EMBED){GACHA.coin='文';GACHA.packCost=500;GACHA.reward={win:250,lose:100,login:0,initial:0};} // 1パック500文。勝てば250文・負けても100文
+if(EMBED){GACHA.coin='文';GACHA.packCost=500;GACHA.reward={win:250,lose:100,login:0,initial:0};} // 1包み500文。勝てば250文・負けても100文
 function parentSend(o){try{window.parent.postMessage(Object.assign({sgkCard:1},o),'*');}catch(e){}}
 let walletAt=0;
 function coinChange(d){SV.coin+=d;if(EMBED&&d){walletAt=Date.now();parentSend({t:'pay',d});}}
@@ -437,7 +437,7 @@ const cardById=id=>CARDS.find(c=>c.id===id);
 const printKey=(c,r)=>c.id+'|'+r;
 const printCount=(c,r)=>SV.prints[printKey(c,r)]||0;
 const sumPrints=c=>(c.pr||[]).reduce((a,r)=>a+printCount(c,r),0);
-// 所持枚数: 初期カードは通常版3枚+ガチャで得た版。追加カードはガチャで得た版の合計
+// 所持枚数: 初期札は通常版3枚+ガチャで得た版。追加札はガチャで得た版の合計
 const ownedOf=c=>c.series==='base'?MAX_COPY+sumPrints(c):sumPrints(c);
 function displayRarity(c){
  const own=(c.pr||[]).filter(r=>printCount(c,r)>0).sort((a,b)=>RORD.indexOf(b)-RORD.indexOf(a));
@@ -450,7 +450,7 @@ function deckValid(d){
  if(deckTotal(d)!==DECK_SIZE||deckIdeos(d).length>2)return false;
  return Object.keys(d).every(k=>{const c=cardById(k);return c&&d[k]>=0&&d[k]<=Math.min(MAX_COPY,ownedOf(c));});
 }
-// 指定した思想のカードを1枚ずつ順に足していき、36枚にする(all=trueなら所持に関係なく3枚まで。CPU用)
+// 指定した思想の札を1枚ずつ順に足していき、36枚にする(all=trueなら所持に関係なく3枚まで。CPU用)
 function autoDeck(idl,all){
  const cap=c=>Math.min(MAX_COPY,all?MAX_COPY:ownedOf(c));
  const pool=shuffle(CARDS.filter(c=>(idl.includes(c.i)||c.i==='ne')&&cap(c)>0));const d={};let n=0;
@@ -469,8 +469,8 @@ function loadSave(){
  const today=new Date().toDateString();
  if(SV.lastLogin!==today){
   SV.lastLogin=today;
-  if(fresh)loginMsg=EMBED?'遊戯屋へようこそ!まずはカードショップでスターターデッキを受け取ろう!':`はじめに${GACHA.coin}${GACHA.reward.initial}を進呈します。まずはカードショップでスターターデッキを受け取ろう!`;
-  else if(!EMBED){SV.coin+=GACHA.reward.login;loginMsg=`ログインボーナス ${GACHA.coin} +${GACHA.reward.login}`;}
+  if(fresh)loginMsg=EMBED?'遊戯屋へようこそ!まずは札屋で初陣組を受け取ろう!':`はじめに${GACHA.coin}${GACHA.reward.initial}を進呈します。まずは札屋で初陣組を受け取ろう!`;
+  else if(!EMBED){SV.coin+=GACHA.reward.login;loginMsg=`参上の褒美 ${GACHA.coin} +${GACHA.reward.login}`;}
   if(grantMsg)loginMsg+='<br>'+grantMsg;
   saveSave();
  }else if(grantMsg){loginMsg=grantMsg;saveSave();}
@@ -483,7 +483,7 @@ function rollRarity(min){
  let x=Math.random()*tot;for(let i=st;i<4;i++){x-=GACHA.rates[RORD[i]];if(x<0)return RORD[i];}
  return RORD[3];
 }
-// パック = era(時代)を持つシリーズ。シリーズを追加するとパックも増える
+// 包み = era(時代)を持つシリーズ。シリーズを追加すると包みも増える
 const gachaPacks=()=>SERIES.filter(s=>s.era).map(s=>({id:s.id,name:s.name,era:s.era,cost:s.packCost||GACHA.packCost,color:s.color||'#d4a94a'}));
 function pullPack(pack){
  const pool=[];for(const c of CARDS){if(c.series!==pack.id)continue;for(const r of(c.pr||[]))pool.push({c,r});}
@@ -504,19 +504,19 @@ function buyPack(pack,n){
  const res=[];for(let i=0;i<n;i++)res.push(...pullPack(pack));if(!res.length)return null;
  coinChange(-pack.cost*n);const seen={};
  for(const x of res){const k=printKey(x.c,x.r);const cur=SV.prints[k]||0;x.isNew=!(cur>0)&&!seen[k];seen[k]=1;
-  if(cur>=MAX_COPY){x.auto=GACHA.dismantle[x.r];SV.pt+=x.auto;} // 同じカードは3枚まで。超えた分は自動で分解して軍功にする
+  if(cur>=MAX_COPY){x.auto=GACHA.dismantle[x.r];SV.pt+=x.auto;} // 同じ札は3枚まで。超えた分は自動で分解して軍功にする
   else SV.prints[k]=cur+1;}
  saveSave();return res;
 }
 // 演出確認用(URLに ?test を付けた時だけショップに出る。無料・保存されない)
 const DEMO=typeof location!=='undefined'&&/[?&]test/.test(location.search||'');
-const TESTPACK={id:'test',name:'演出テストパック',cost:0,color:'#888'};
+const TESTPACK={id:'test',name:'演出試しの包み',cost:0,color:'#888'};
 function testPull(){
  const out=[];
  for(let n=0;n<GACHA.cards;n++){const need=n===GACHA.cards-1&&!out.some(x=>x.r!=='N');out.push({c:CARDS[Math.floor(Math.random()*CARDS.length)],r:rollRarity(need?GACHA.guarantee:null),isNew:Math.random()<0.5});}
  return out;
 }
-// 分解できるのは重複分のみ(各版1枚は残す)。デッキに必要な枚数も残す
+// 分解できるのは重複分のみ(各版1枚は残す)。陣立てに必要な枚数も残す
 function maxDismantle(c,r){return Math.max(0,Math.min(printCount(c,r)-1,ownedOf(c)-(myDeck[c.id]||0)));}
 function dismantle(c,r,k){k=Math.min(k,maxDismantle(c,r));if(k<=0)return 0;SV.prints[printKey(c,r)]-=k;SV.pt+=GACHA.dismantle[r]*k;saveSave();return k;}
 function exchange(c,r){const cost=GACHA.exchange[r];if(printCount(c,r)>=MAX_COPY)return 'max';if(SV.pt<cost)return false;SV.pt-=cost;SV.prints[printKey(c,r)]=printCount(c,r)+1;saveSave();return true;}
@@ -525,7 +525,7 @@ function loadExtra(){SERIES_FILES.forEach(f=>{const s=document.createElement('sc
 const opp=p=>G.P[1-p.idx];
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
 function log(m){G.log.push(m);if(G.log.length>80)G.log.shift();}
-const once=k=>{if(G.once[k])return false;G.once[k]=1;return true;}; // 1ターンに1回の管理(ターン開始でリセット)
+const once=k=>{if(G.once[k])return false;G.once[k]=1;return true;}; // 1手番に1回の管理(手番の始めでリセット)
 const hasPs=(p,s)=>p.fields.some(c=>c.ps===s);
 const countPs=(p,s)=>p.fields.filter(c=>c.ps===s).length;
 const hasKw=(u,k)=>!!(u.kws.includes(k)||(u.weapon&&u.weapon.w.k===k)||u.mods.some(m=>m.kw===k)||(k==='rush'&&hasPs(u.owner,'rushAll'))||(k==='guard'&&hasPs(u.owner,'guardAll')));
@@ -568,7 +568,7 @@ function fxUseful(p,c){
 }
 function payMana(p,c){
  const un=p.mana.filter(m=>!m.tapped);
- if(c.i==='ne'){for(let k=0;k<c.c;k++)un[k].tapped=true;return;} // 汎用カードはどの兵糧でも払える
+ if(c.i==='ne'){for(let k=0;k<c.c;k++)un[k].tapped=true;return;} // 汎用札はどの兵糧でも払える
  const f=un.find(m=>m.card.i===c.i);f.tapped=true;
  const rest=un.filter(m=>m!==f).sort((a,b)=>(a.card.i===c.i)-(b.card.i===c.i));
  for(let k=0;k<c.c-1;k++)rest[k].tapped=true;
@@ -588,7 +588,7 @@ function pickChargeCard(p,list){
 }
 async function chooseCard(p,list,msg,forOpp){
  if(p.ai)return forOpp?list.slice().sort((a,b)=>b.c-a.c)[0]:pickChargeCard(p,list);
- return modal(msg,list.map(c=>({l:`${IDEO[c.i].n} ${c.n} (${TL[c.t]} コスト${c.c}${c.t==='u'?' パワー'+c.p:''})`,v:c})));
+ return modal(msg,list.map(c=>({l:`${IDEO[c.i].n} ${c.n} (${TL[c.t]} 費え${c.c}${c.t==='u'?' 兵力'+c.p:''})`,v:c})));
 }
 
 // ===== effects =====
@@ -606,10 +606,10 @@ async function applyFx(p,e){
   case 'breakS':await breakShields(null,d,e.n);break;
   case 'drawIfFewer':if(p.hand.length<d.hand.length){draw(p,1);log('手札が少ないので1枚引いた');}break;
   case 'retWeapon':{const c=p.units.filter(u=>u.weapon);if(c.length){const u=await choose(p,c,'武器を手札に戻す武将を選んでください');p.hand.push(u.weapon);log(`${u.weapon.n}を手札に戻した`);u.weapon=null;}break;}
-  case 'toMana':{if(p.hand.length){const c=await chooseCard(p,p.hand,'兵糧に置くカードを選んでください',false);p.hand=p.hand.filter(x=>x!==c);p.mana.push({card:c,tapped:false});log(`${p.name}は手札から兵糧を置いた`);}break;}
+  case 'toMana':{if(p.hand.length){const c=await chooseCard(p,p.hand,'兵糧に置く札を選んでください',false);p.hand=p.hand.filter(x=>x!==c);p.mana.push({card:c,tapped:false});log(`${p.name}は手札から兵糧を置いた`);}break;}
   case 'pumpTemp':{if(p.units.length){const u=await choose(p,p.units,'強化する味方の武将を選んでください');u.mods.push({pow:e.pow,kw:e.kw,till:G.turnNo});log(`${u.card.n}が一時的に強化された`);}break;}
-  case 'peekDiscard':{if(d.hand.length){const c=await chooseCard(p,d.hand,`相手の手札です。捨てさせるカードを選んでください`,true);d.hand=d.hand.filter(x=>x!==c);d.grave.push(c);log(`${d.name}の${c.n}を捨てさせた`);}break;}
-  case 'tapSkip':{if(d.units.length){const u=await choose(p,d.units,'横にする相手の武将を選んでください');u.tapped=true;u.skipUntap=true;log(`${u.card.n}を横にした(次のアンタップを飛ばす)`);}break;}
+  case 'peekDiscard':{if(d.hand.length){const c=await chooseCard(p,d.hand,`相手の手札です。捨てさせる札を選んでください`,true);d.hand=d.hand.filter(x=>x!==c);d.grave.push(c);log(`${d.name}の${c.n}を捨てさせた`);}break;}
+  case 'tapSkip':{if(d.units.length){const u=await choose(p,d.units,'横にする相手の武将を選んでください');u.tapped=true;u.skipUntap=true;log(`${u.card.n}を横にした(次に縦に戻すのを飛ばす)`);}break;}
  }
  render();
 }
@@ -704,9 +704,9 @@ async function startTurn(i){
  if(G.over)return;
  G.cur=i;G.turnNo++;G.once={};const p=G.P[i],d=G.P[1-i];
  p.mana.forEach(m=>m.tapped=false);
- p.units.forEach(u=>{if(u.skipUntap)u.skipUntap=false;else u.tapped=false;u.sick=false;}); // 影縫い: 次のアンタップ1回を飛ばす
+ p.units.forEach(u=>{if(u.skipUntap)u.skipUntap=false;else u.tapped=false;u.sick=false;}); // 影縫い: 次に縦に戻すの1回を飛ばす
  p.charged=false;p.faceAtks=0;
- log(`── ターン${G.turnNo} ${p.name} ──`);
+ log(`── 第${G.turnNo}手 ${p.name} ──`);
  if(G.turnNo>1){if(!p.deck.length){win(d,`${p.name}の山札が尽きた`);return;}draw(p,1);}
  for(const c of p.fields.slice()){
   if(c.ps==='drawStart')draw(p,1);
@@ -723,7 +723,7 @@ async function startTurn(i){
 }
 async function endTurn(){
  if(G.over)return;ui.busy=true;ui.sel=ui.selU=null;
- G.P.forEach(q=>q.units.forEach(u=>{u.mods=u.mods.filter(m=>m.till>G.turnNo);})); // 「ターン終了まで」の効果を消す
+ G.P.forEach(q=>q.units.forEach(u=>{u.mods=u.mods.filter(m=>m.till>G.turnNo);})); // 「手番の終わりまで」の効果を消す
  render();await startTurn(1-G.cur);
 }
 
@@ -788,19 +788,19 @@ function infoHTML(me){
  if(ui.sel)c=me.hand.find(x=>x.uid===ui.sel);
  else if(ui.selU){u=find(ui.selU);c=u&&u.card;}
  else if(ui.info)c=ui.info;
- if(!c)return '<span class="dim">カードをタップすると詳細が出ます</span>';
- return `<img class="dart" src="${imgPath(c)}" onerror="this.remove()" alt=""><b style="color:${IDEO[c.i].c}">【${IDEO[c.i].n}】${c.n}</b> ${TL[c.t]} コスト${c.c}${c.t==='u'?' パワー'+(u?power(u):c.p):''}<br>${desc(c)||'(効果なし)'}${u&&u.weapon?`<br><b>装備中: ${u.weapon.n}</b>`:''}`;
+ if(!c)return '<span class="dim">札を押すと詳しく出ます</span>';
+ return `<img class="dart" src="${imgPath(c)}" onerror="this.remove()" alt=""><b style="color:${IDEO[c.i].c}">【${IDEO[c.i].n}】${c.n}</b> ${TL[c.t]} 費え${c.c}${c.t==='u'?' 兵力'+(u?power(u):c.p):''}<br>${desc(c)||'(効果なし)'}${u&&u.weapon?`<br><b>装備中: ${u.weapon.n}</b>`:''}`;
 }
 function titleHTML(){
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
- <div class="title"><h1>戦国思想録</h1><p>— 武将と思想のカードバトル —</p>
- <div class="dim" style="margin-bottom:10px">${GACHA.coin} ${SV.coin}</div><button class="big" data-a="play">対戦開始</button><button class="big" data-a="toEdit" style="background:#3a2b1f">デッキ編成</button><button class="big" data-a="toShop" style="background:#3a2b1f">カードショップ</button><button class="big" data-a="toList" style="background:#2b2118">カード一覧</button><button class="big" data-a="rules" style="background:#2b2118">遊び方</button>${EMBED?'<button class="big" data-a="exitEmbed" style="background:#5a1f1f">遊戯屋を出る</button>':''}</div>`;
+ <div class="title"><h1>戦国思想録</h1><p>— 武将と思想の札合戦 —</p>
+ <div class="dim" style="margin-bottom:10px">${GACHA.coin} ${SV.coin}</div><button class="big" data-a="play">対戦開始</button><button class="big" data-a="toEdit" style="background:#3a2b1f">陣立て</button><button class="big" data-a="toShop" style="background:#3a2b1f">札屋</button><button class="big" data-a="toList" style="background:#2b2118">札目録</button><button class="big" data-a="rules" style="background:#2b2118">遊び方</button>${EMBED?'<button class="big" data-a="exitEmbed" style="background:#5a1f1f">遊戯屋を出る</button>':''}</div>`;
 }
 function listHTML(){
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
- <div style="padding-top:44px"><h2 style="color:var(--gold);margin:0 0 4px">カード一覧</h2>
- <div class="dim" style="font-size:12px">画像は img/カードID.png に置くと表示されます(縦長3:4推奨)</div>
- ${SERIES.map(s=>`<h3 style="margin:14px 0 2px">${s.name} <span class="dim" style="font-size:12px">(${s.id}・${s.cards.length}種)</span></h3>`+s.cards.map(c=>`<div class="lr"><img src="${imgPath(c)}" onerror="this.outerHTML='<div class=\\'ph\\' style=\\'--c:${IDEO[c.i].c}\\'></div>'" alt=""><div><b style="color:${IDEO[c.i].c}">【${IDEO[c.i].n}】${c.n}</b> ${TL[c.t]} コスト${c.c}${c.t==='u'?' パワー'+c.p:''}<br><code>${c.id}</code><br>${desc(c)}</div></div>`).join('')).join('')}
+ <div style="padding-top:44px"><h2 style="color:var(--gold);margin:0 0 4px">札目録</h2>
+ <div class="dim" style="font-size:12px">画像は img/札ID.png に置くと表示されます(縦長3:4推奨)</div>
+ ${SERIES.map(s=>`<h3 style="margin:14px 0 2px">${s.name} <span class="dim" style="font-size:12px">(${s.id}・${s.cards.length}種)</span></h3>`+s.cards.map(c=>`<div class="lr"><img src="${imgPath(c)}" onerror="this.outerHTML='<div class=\\'ph\\' style=\\'--c:${IDEO[c.i].c}\\'></div>'" alt=""><div><b style="color:${IDEO[c.i].c}">【${IDEO[c.i].n}】${c.n}</b> ${TL[c.t]} 費え${c.c}${c.t==='u'?' 兵力'+c.p:''}<br><code>${c.id}</code><br>${desc(c)}</div></div>`).join('')).join('')}
  <button data-a="toTitle" style="width:100%;margin-top:12px">戻る</button></div>`;
 }
 function editHTML(){
@@ -809,11 +809,11 @@ function editHTML(){
  const row=c=>{const n=myDeck[c.id]||0,cap=Math.min(MAX_COPY,ownedOf(c)),col=IDEO[c.i].c;
   return `<div class="er" style="--c:${col}"><div class="cb">${c.c}</div><div class="tx"><b>${c.n}</b> <span style="color:${col}">${IDEO[c.i].n}</span> ${TL[c.t]}${c.t==='u'?' '+c.p:''}<br><span class="dim">${desc(c)||'(効果なし)'}</span></div><div class="ctr"><button data-a="dec" data-id="${c.id}" ${n?'':'disabled'}>−</button><span>${n}/${cap}</span><button data-a="inc" data-id="${c.id}" ${n>=cap?'disabled':''}>＋</button></div></div>`;};
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
- <div style="padding-top:40px"><div class="ehead"><b style="color:var(--gold)">デッキ編成</b> <span class="${tot===DECK_SIZE?'okc':'ngc'}">${tot}/${DECK_SIZE}枚</span> 思想: ${ide.map(i=>`<span style="color:${IDEO[i].c}">${IDEO[i].n}</span>`).join(' ')||'なし'}</div>
+ <div style="padding-top:40px"><div class="ehead"><b style="color:var(--gold)">陣立て</b> <span class="${tot===DECK_SIZE?'okc':'ngc'}">${tot}/${DECK_SIZE}枚</span> 思想: ${ide.map(i=>`<span style="color:${IDEO[i].c}">${IDEO[i].n}</span>`).join(' ')||'なし'}</div>
  <div class="dim" style="font-size:11px">${DECK_SIZE}枚・同名${MAX_COPY}枚まで・思想は2つまで</div>
  <div class="msg2">${editMsg}</div>
  <div>${['all',...Object.keys(IDEO)].map(k=>`<span class="sc ${editFilter===k?'on':''}" data-a="ef" data-id="${k}">${k==='all'?'全て':IDEO[k].n}</span>`).join('')}<span class="sc ${editAll?'on':''}" data-a="eall">未所持も表示</span></div>
- <div class="acts"><button data-a="auto">自動構成</button><button data-a="clear">クリア</button></div>
+ <div class="acts"><button data-a="auto">自動構成</button><button data-a="clear">空にする</button></div>
  ${list.map(row).join('')}
  <div class="acts" style="position:sticky;bottom:0;background:#120f0d;padding:8px 0"><button data-a="save" ${ok?'':'disabled'} style="flex:1;background:#5a3a1c">保存して戻る</button><button data-a="discard">破棄して戻る</button></div></div>`;
 }
@@ -830,13 +830,13 @@ function gameHTML(){
   if(c){
    acts+=`<button data-a="charge" ${me.charged?'disabled':''}>兵糧にする</button>`;
    acts+=`<button data-a="cast" ${canCast(me,c)?'':'disabled'}>${c.t==='u'?'召喚':'使う'}</button>`;
-  }else if(su)acts+='<div class="msg">攻撃先: 相手の城門か、横向きの武将をタップ</div>';
-  acts+='<button data-a="end" style="margin-left:auto">ターン終了</button>';
+  }else if(su)acts+='<div class="msg">攻撃先: 相手の城門か、横向きの武将を押す</div>';
+  acts+='<button data-a="end" style="margin-left:auto">手番を終える</button>';
  }
  let ov='';
  if(ui.modal)ov=`<div class="ov"><div class="mb">${ui.modal.msg.replace(/\n/g,'<br>')}${ui.modal.btns.map((b,i)=>`<button data-a="mb" data-id="${i}">${b.l}</button>`).join('')}</div></div>`;
- else if(G.over){const w=G.over.winner===me;ov=`<div class="ov"><div class="mb"><div class="res">${w?'勝利!':'敗北…'}</div><div style="text-align:center">${G.over.why}</div>${G.reward?`<div style="text-align:center;color:var(--gold);margin-top:6px">${GACHA.coin} +${G.reward}</div>`:''}<button data-a="again">もう一度</button><button data-a="toTitle">タイトルへ</button></div></div>`;}
- return `<div class="top"><span>ターン${G.turnNo}・${G.cur===0?'あなたの番':'相手の番'}</span><button data-a="menu">☰</button></div>
+ else if(G.over){const w=G.over.winner===me;ov=`<div class="ov"><div class="mb"><div class="res">${w?'勝利!':'敗北…'}</div><div style="text-align:center">${G.over.why}</div>${G.reward?`<div style="text-align:center;color:var(--gold);margin-top:6px">${GACHA.coin} +${G.reward}</div>`:''}<button data-a="again">もう一度</button><button data-a="toTitle">表紙へ</button></div></div>`;}
+ return `<div class="top"><span>第${G.turnNo}手・${G.cur===0?'あなたの番':'相手の番'}</span><button data-a="menu">☰</button></div>
  <div class="zone"><div class="pinfo"><b>相手</b> 手札${en.hand.length} 山札${en.deck.length} 思想:${G.cpuIds.map(i=>IDEO[i].n).join('')}<span>${en.mana.map(mTile).join('')}</span></div>
  <div class="row">${fieldChips(en)}</div>
  <button class="face ${faceHl?'hl':''}" data-a="eface">${en.shields.length?`城門 ×${en.shields.length}`:'本丸を攻める!'}</button>
@@ -851,16 +851,16 @@ function gameHTML(){
 }
 function rulesHTML(){
  return `<div class="ov"><div class="mb"><b style="color:var(--gold)">遊び方</b><br>
- ・デッキは36枚(同名3枚まで・思想2つまで)。デッキ編成画面で組めます。<br>
+ ・陣立ては36枚(同名3枚まで・思想2つまで)。陣立ての画面で組めます。<br>
  ・勝利条件: 相手の城門(5枚)をすべて破り、本丸に攻撃を当てる。<br>
- ・毎ターン: 1枚引く → 手札1枚を兵糧にする(任意・1回) → カードを使う → 武将で攻撃。<br>
- ・コストは兵糧を横にして支払う。使うカードと同じ思想の兵糧が最低1枚必要。<br>
- ・武将は登場したターンは攻撃できない(突撃を除く)。攻撃すると横になる。<br>
+ ・毎手番: 1枚引く → 手札1枚を兵糧にする(任意・1回) → 札を使う → 武将で攻撃。<br>
+ ・費えは兵糧を横にして支払う。使う札と同じ思想の兵糧が最低1枚必要。<br>
+ ・武将は登場した手番は攻撃できない(突撃を除く)。攻撃すると横になる。<br>
  ・武器は味方の武将1体に装備して場に残ります。武将が場を離れると武器は墓地へ。1体に装備できるのは1枚で、入れ替えると古い武器は墓地へ。<br>
- ・カードショップで石高を使ってパックを開け、新しいカードを集められます。
- ・攻撃先は相手の城門か、横向きの武将。パワーが高い方が勝ち、同じなら相打ち。<br>
- ・城門は山札の上5枚(裏向き)。破られたカードは手札に入る。<br>
- ・奇襲は通常のカードとして、自分のターンにコストを払って使える。城門から出た時は、無料で発動するか、手札に加えて温存するかを選べる。<br>
+ ・札屋で石高を使って包みを開け、新しい札を集められます。
+ ・攻撃先は相手の城門か、横向きの武将。兵力が高い方が勝ち、同じなら相打ち。<br>
+ ・城門は山札の上5枚(裏向き)。破られた札は手札に入る。<br>
+ ・奇襲は通常の札として、自分の手番に費えを払って使える。城門から出た時は、無料で発動するか、手札に加えて温存するかを選べる。<br>
  ・守を持つ武将は、城門への攻撃を代わりに受けられる。<br>
  <button data-a="rulesClose">閉じる</button></div></div>`;
 }
@@ -904,19 +904,19 @@ function thump(t,f,dur,vol,dest){
  o.connect(g);g.connect(dest);o.start(t);o.stop(t+dur+0.05);
 }
 function audOk(){return AUD.ctx&&AUD.on;}
-// パックを破る音(紙を裂く音+きらめき)
+// 包みを破る音(紙を裂く音+きらめき)
 function sfxTear(){
  if(!audOk())return;const t=AUD.ctx.currentTime+0.01,d=AUD.sfx;
  noiseBurst(t,0.38,900,5200,0.7,d);noiseBurst(t+0.05,0.3,2500,7000,0.3,d);
  thump(t+0.3,140,0.25,0.5,d);
  [88,93,96,100].forEach((m,i)=>tone(t+0.32+i*0.06,m,0.5,'sine',0.14,d,true));
 }
-// カードをめくる音
+// 札をめくる音
 function sfxFlip(){
  if(!audOk())return;const t=AUD.ctx.currentTime+0.01,d=AUD.sfx;
  noiseBurst(t,0.14,2600,900,0.35,d);tone(t+0.05,84,0.18,'triangle',0.1,d,false);
 }
-// カードが出た時の音。レア度が高いほど豪華にする
+// 札が出た時の音。レア度が高いほど豪華にする
 function sfxRare(r){
  if(!audOk())return;const t=AUD.ctx.currentTime+0.02,d=AUD.sfx;
  if(r==='R'){[79,86].forEach((m,i)=>tone(t+i*0.12,m,0.7,'sine',0.22,d,true));return;}
@@ -970,7 +970,7 @@ function audSetOn(on){
  const b=document.getElementById('sndbtn');if(b)b.textContent=on?'♪':'×';
 }
 if(typeof document!=='undefined'){
- const mk=()=>{if(document.getElementById('sndbtn'))return;const b=document.createElement('button');b.id='sndbtn';b.textContent=AUD.on?'♪':'×';b.title='音のオン・オフ';
+ const mk=()=>{if(document.getElementById('sndbtn'))return;const b=document.createElement('button');b.id='sndbtn';b.textContent=AUD.on?'♪':'×';b.title='音を出す・止める';
   b.style.cssText='position:fixed;right:8px;bottom:8px;z-index:95;width:40px;height:40px;border-radius:50%;font-size:18px;padding:0;opacity:.85';
   b.addEventListener('click',e=>{e.stopPropagation();audResume();audSetOn(!AUD.on);});document.body.appendChild(b);};
  if(document.body)mk();else document.addEventListener('DOMContentLoaded',mk);
@@ -991,11 +991,11 @@ function render(){
  const lg=document.getElementById('log');if(lg)lg.scrollTop=lg.scrollHeight;
 }
 
-// ===== カードショップ =====
+// ===== 札屋 =====
 function sparks(n,col){let h='';for(let i=0;i<n;i++)h+=`<i class="sp" style="left:${Math.random()*100}%;top:${Math.random()*100}%;animation-delay:${(Math.random()*1.2).toFixed(2)}s;background:${col}"></i>`;return h;}
 function cardFace(c,r,isNew,auto){
  const col=IDEO[c.i].c;
- return `<div class="cf r-${r} t-${c.t}" style="--c:${col}"><div class="cfa"><span>${IDEO[c.i].n}</span>${artTag(c,r)}</div><div class="cft"><span class="cfc">${c.c}</span><b>${c.n}</b></div><div class="cfi">${TL[c.t]}${c.t==='u'?'  パワー'+c.p:''}</div><div class="cfd">${desc(c)}</div><span class="cfr rt-${r}">${r}</span>${isNew?'<span class="cfn">NEW</span>':''}${auto?`<span class="cfn" style="background:#6b6b6b">3枚所持→分解 ${GACHA.pt}+${auto}</span>`:''}<div class="foil"></div></div>`;
+ return `<div class="cf r-${r} t-${c.t}" style="--c:${col}"><div class="cfa"><span>${IDEO[c.i].n}</span>${artTag(c,r)}</div><div class="cft"><span class="cfc">${c.c}</span><b>${c.n}</b></div><div class="cfi">${TL[c.t]}${c.t==='u'?'  兵力'+c.p:''}</div><div class="cfd">${desc(c)}</div><span class="cfr rt-${r}">${r}</span>${isNew?'<span class="cfn">NEW</span>':''}${auto?`<span class="cfn" style="background:#6b6b6b">3枚所持→分解 ${GACHA.pt}+${auto}</span>`:''}<div class="foil"></div></div>`;
 }
 const stkT=t=>`translateY(${(t*16).toFixed(1)}px) scale(${(1-t*0.03).toFixed(3)})`;
 const sumCards=p=>p.all||p.cards;
@@ -1023,19 +1023,19 @@ function nextPack(){
 function packHTML(){
  const p=pk,col=p.pack.color||'#d4a94a';let inner='';
  if(p.stage==='tear'){
-  inner=`<div class="pk-title">${p.pack.name}</div><div class="pack" id="pack" style="--c:${col}"><div class="packtop" id="ptop"><div class="tearfill" id="tearfill"></div><span class="tearhint">▶ 右へなぞって開封</span></div><div class="packbody"><div class="plogo">戦国思想録</div><div class="pname">${p.pack.name}${p.pack.era?'<br><span style="font-size:13px">'+p.pack.era+'</span>':''}</div></div><div class="burst"></div></div><button data-a="tearNow" style="margin-top:20px">タップで開ける</button>`;
+  inner=`<div class="pk-title">${p.pack.name}</div><div class="pack" id="pack" style="--c:${col}"><div class="packtop" id="ptop"><div class="tearfill" id="tearfill"></div><span class="tearhint">▶ 右へなぞって開封</span></div><div class="packbody"><div class="plogo">戦国思想録</div><div class="pname">${p.pack.name}${p.pack.era?'<br><span style="font-size:13px">'+p.pack.era+'</span>':''}</div></div><div class="burst"></div></div><button data-a="tearNow" style="margin-top:20px">押して開ける</button>`;
  }else if(p.stage==='multi'){
   const per=GACHA.cards,tops=[];for(let i=0;i<p.n;i++){const cs=p.all.slice(i*per,i*per+per);let g='N';for(const x of cs)if(RORD.indexOf(x.r)>RORD.indexOf(g))g=x.r;tops.push(g);}
-  inner=`<div class="pkbadge">10連</div><div class="pk-title">${p.pack.name} 10連</div><div class="mgrid" id="mgrid" style="--c:${col}">${tops.map((g,i)=>`<div class="mpk g-${g}" data-i="${i}"><div class="mt"></div><span>戦国<br>思想録</span></div>`).join('')}</div><div id="mgo"><button data-a="multiGo">タップで10パックを開ける</button></div><div class="mflash" id="mflash"></div>`;
+  inner=`<div class="pkbadge">10連</div><div class="pk-title">${p.pack.name} 10連</div><div class="mgrid" id="mgrid" style="--c:${col}">${tops.map((g,i)=>`<div class="mpk g-${g}" data-i="${i}"><div class="mt"></div><span>戦国<br>思想録</span></div>`).join('')}</div><div id="mgo"><button data-a="multiGo">押して10包みを開ける</button></div><div class="mflash" id="mflash"></div>`;
  }else if(p.stage==='pksum'){
   const last=p.pi>=p.n-1;
-  inner=`<div class="pkbadge">パック ${p.pi+1}/${p.n}</div><div class="pk-title">パック ${p.pi+1} の結果</div><div class="sumgrid" style="max-width:540px">${p.cards.map((x,k)=>`<div class="smw" data-a="bigcard" data-id="${k}"><div class="smi">${cardFace(x.c,x.r,x.isNew,x.auto)}</div></div>`).join('')}</div><div class="pk-hint" style="margin:0 0 12px">カードをタップすると、大きなイラストが見られます</div><div class="acts" style="justify-content:center"><button data-a="nextPack">${last?'全部の結果へ':'次のパック ▶'}</button>${last?'':'<button data-a="allSum">まとめて結果へ</button>'}</div>`;
+  inner=`<div class="pkbadge">包み ${p.pi+1}/${p.n}</div><div class="pk-title">包み ${p.pi+1} の結果</div><div class="sumgrid" style="max-width:540px">${p.cards.map((x,k)=>`<div class="smw" data-a="bigcard" data-id="${k}"><div class="smi">${cardFace(x.c,x.r,x.isNew,x.auto)}</div></div>`).join('')}</div><div class="pk-hint" style="margin:0 0 12px">札を押すと、大きな絵が見られます</div><div class="acts" style="justify-content:center"><button data-a="nextPack">${last?'全部の結果へ':'次の包み ▶'}</button>${last?'':'<button data-a="allSum">まとめて結果へ</button>'}</div>`;
  }else if(p.stage==='reveal'){
-  inner=`${p.n===10?`<div class="pkbadge">パック ${p.pi+1}/${p.n}</div>`:''}<div class="pk-title">${p.n===10?'カード ':''}${p.idx+1} / ${p.cards.length}</div><div class="stage" id="stage">${p.cards.slice(p.idx).map((x,j)=>`<div class="stk" data-j="${j}" style="z-index:${50-j};transform:${stkT(j)}">${cardFace(x.c,x.r,x.isNew,x.auto)}</div>`).join('')}</div><div class="pk-hint">上にスワイプして1枚ずつめくる(ゆっくりずらすと下のカードが見えます)</div><button data-a="skip">スキップ</button>`;
+  inner=`${p.n===10?`<div class="pkbadge">包み ${p.pi+1}/${p.n}</div>`:''}<div class="pk-title">${p.n===10?'札 ':''}${p.idx+1} / ${p.cards.length}</div><div class="stage" id="stage">${p.cards.slice(p.idx).map((x,j)=>`<div class="stk" data-j="${j}" style="z-index:${50-j};transform:${stkT(j)}">${cardFace(x.c,x.r,x.isNew,x.auto)}</div>`).join('')}</div><div class="pk-hint">上へはらって1枚ずつめくる(ゆっくりずらすと下の札が見えます)</div><button data-a="skip">飛ばす</button>`;
  }else{
-  const sc=sumCards(p);inner=`<div class="pk-title">開封結果</div><div class="sumgrid" ${sc.length>5?'style="max-width:540px"':''}>${sc.map((x,k)=>`<div class="smw" data-a="bigcard" data-id="${k}"><div class="smi">${cardFace(x.c,x.r,x.isNew,x.auto)}</div></div>`).join('')}</div><div class="pk-hint" style="margin:0 0 12px">カードをタップすると、大きなイラストが見られます</div><div class="acts" style="justify-content:center"><button data-a="again" ${SV.coin>=p.pack.cost*(p.n||1)?'':'disabled'}>${(p.n||1)>1?'もう'+p.n+'連':'もう1パック'}(${p.pack.cost*(p.n||1)}${GACHA.coin})</button><button data-a="packEnd">閉じる</button></div>`;
+  const sc=sumCards(p);inner=`<div class="pk-title">開封結果</div><div class="sumgrid" ${sc.length>5?'style="max-width:540px"':''}>${sc.map((x,k)=>`<div class="smw" data-a="bigcard" data-id="${k}"><div class="smi">${cardFace(x.c,x.r,x.isNew,x.auto)}</div></div>`).join('')}</div><div class="pk-hint" style="margin:0 0 12px">札を押すと、大きな絵が見られます</div><div class="acts" style="justify-content:center"><button data-a="again" ${SV.coin>=p.pack.cost*(p.n||1)?'':'disabled'}>${(p.n||1)>1?'もう'+p.n+'連':'もう1包み'}(${p.pack.cost*(p.n||1)}${GACHA.coin})</button><button data-a="packEnd">閉じる</button></div>`;
  }
- const bl=p.stage==='summary'?sumCards(p):p.cards;if((p.stage==='summary'||p.stage==='pksum')&&p.big!=null&&bl[p.big]){const x=bl[p.big];inner+=`<div class="bigov" style="--c:${IDEO[x.c.i].c}" data-a="bigClose"><img src="${printImg(x.c,x.r)}" onerror="imgFb(this,'${baseImg(x.c)}')" alt=""><div class="bn">【${IDEO[x.c.i].n}】${x.c.n} <span class="rt-${x.r}">${x.r}</span></div><div class="bh">タップで閉じる</div></div>`;}
+ const bl=p.stage==='summary'?sumCards(p):p.cards;if((p.stage==='summary'||p.stage==='pksum')&&p.big!=null&&bl[p.big]){const x=bl[p.big];inner+=`<div class="bigov" style="--c:${IDEO[x.c.i].c}" data-a="bigClose"><img src="${printImg(x.c,x.r)}" onerror="imgFb(this,'${baseImg(x.c)}')" alt=""><div class="bn">【${IDEO[x.c.i].n}】${x.c.n} <span class="rt-${x.r}">${x.r}</span></div><div class="bh">押すと閉じる</div></div>`;}
  return `<div class="packov"><div class="pkin">${inner}</div></div>`;
 }
 let drag=null,sdrag=null;
@@ -1047,7 +1047,7 @@ function tearDone(){
  try{navigator.vibrate&&navigator.vibrate(40);}catch(e){}
  setTimeout(()=>{if(!pk)return;pk.stage='reveal';pk.idx=0;pk.flipped=false;render();setTimeout(arriveFx,60);},900);
 }
-// 上のカードを指に追従させ、下のカードを少しずつ繰り上げる
+// 上の札を指に追従させ、下の札を少しずつ繰り上げる
 function layoutStack(dy){
  const st=document.getElementById('stage');if(!st)return;
  const p=Math.min(1,-dy/170);
@@ -1063,7 +1063,7 @@ function flingTop(){
  if(!pk||pk.stage!=='reveal'||pk.anim)return;pk.anim=true;settleStack(true);sfxFlip();
  setTimeout(()=>{if(!pk)return;pk.idx++;pk.anim=false;if(pk.idx>=pk.cards.length)pk.stage=pk.all?'pksum':'summary';render();setTimeout(arriveFx,60);},300);
 }
-// カードが一番上に来た時の演出(SR/SSR)
+// 札が一番上に来た時の演出(SR/SSR)
 function arriveFx(){
  if(!pk||pk.stage!=='reveal')return;const x=pk.cards[pk.idx];if(!x||pk.fxFor===pk.idx)return;pk.fxFor=pk.idx;
  const st=document.getElementById('stage');if(!st)return;
@@ -1090,22 +1090,22 @@ function shopHTML(){
  if(shopTab==='pack'){
   const packs=gachaPacks();
   body=STARTERS.filter(st=>!SV.starters[st.id]).map(st=>{const got=false;return `<div class="pcard" style="--c:#c0392b"><div class="pcl"><b>${st.name}</b><div class="dim" style="font-size:12px">${st.sub}<br>12種×3枚=36枚・無料(1回のみ)</div></div><button data-a="starter" data-id="${st.id}" ${got?'disabled':''}>${got?'受取済':'受け取る'}</button></div>`;}).join('')+(packs.length?packs.map(p=>{let tot=0,have=0;for(const c of CARDS.filter(c=>c.series===p.id))for(const r of(c.pr||[])){tot++;if(printCount(c,r)>0)have++;}
-   return `<div class="pcard" style="--c:${p.color}"><div class="pcl"><b>${p.name}</b><div class="dim" style="font-size:12px">${p.era} ・ 収集 ${have}/${tot}</div></div><button data-a="buy" data-id="${p.id}" ${SV.coin>=p.cost?'':'disabled'}>${p.cost}${GACHA.coin}<br>開封</button><button data-a="buy10" data-id="${p.id}" ${SV.coin>=p.cost*10?'':'disabled'} style="margin-left:6px">${p.cost*10}${GACHA.coin}<br>10連</button></div>`;}).join(''):'<div class="dim" style="margin:14px 0">時代別パックは準備中です</div>')
-  +(DEMO?`<div class="pcard" style="--c:#888"><div class="pcl"><b>演出テスト</b><div class="dim" style="font-size:12px">無料・保存されません</div></div><button data-a="buy" data-id="test">開封</button></div>`:'')
-  +`<div class="dim" style="font-size:12px;line-height:1.6;margin-top:8px">パックは時代ごとにあります。1パック${GACHA.cards}枚・最後の1枚は${GACHA.guarantee}以上確定<br>排出率: ${RORD.map(r=>`${r} ${GACHA.rates[r]}%`).join(' / ')}<br>${GACHA.coin}は対戦(勝利+${GACHA.reward.win}・敗北+${GACHA.reward.lose})とログイン(+${GACHA.reward.login})で入手</div>`;
+   return `<div class="pcard" style="--c:${p.color}"><div class="pcl"><b>${p.name}</b><div class="dim" style="font-size:12px">${p.era} ・ 収集 ${have}/${tot}</div></div><button data-a="buy" data-id="${p.id}" ${SV.coin>=p.cost?'':'disabled'}>${p.cost}${GACHA.coin}<br>開封</button><button data-a="buy10" data-id="${p.id}" ${SV.coin>=p.cost*10?'':'disabled'} style="margin-left:6px">${p.cost*10}${GACHA.coin}<br>10連</button></div>`;}).join(''):'<div class="dim" style="margin:14px 0">時代ごとの包みは準備中です</div>')
+  +(DEMO?`<div class="pcard" style="--c:#888"><div class="pcl"><b>演出試し</b><div class="dim" style="font-size:12px">無料・保存されません</div></div><button data-a="buy" data-id="test">開封</button></div>`:'')
+  +`<div class="dim" style="font-size:12px;line-height:1.6;margin-top:8px">包みは時代ごとにあります。1包み${GACHA.cards}枚・最後の1枚は${GACHA.guarantee}以上確定<br>排出率: ${RORD.map(r=>`${r} ${GACHA.rates[r]}%`).join(' / ')}<br>${GACHA.coin}は対戦(勝利+${GACHA.reward.win}・敗北+${GACHA.reward.lose})と参上(+${GACHA.reward.login})で入手</div>`;
  }else{
-  body=`<div class="dim" style="font-size:12px;margin:4px 0">${shopTab==='coll'?'同じカードは3枚まで持てて、超えた分は自動で分解して軍功になります。ここでは3枚以下のカードも分解できます(各版1枚とデッキ使用分は残ります)':'軍功で好きな版と交換できます'}</div><div>${['all',...Object.keys(IDEO)].map(k=>`<span class="sc ${collFilter===k?'on':''}" data-a="cf" data-id="${k}">${k==='all'?'全思想':IDEO[k].n}</span>`).join('')}</div><div>${['all',...RORD].map(k=>`<span class="sc ${collRar===k?'on':''}" data-a="cr" data-id="${k}">${k==='all'?'全レア':k}</span>`).join('')}</div>`+printRows(shopTab);
+  body=`<div class="dim" style="font-size:12px;margin:4px 0">${shopTab==='coll'?'同じ札は3枚まで持てて、超えた分は自動で分解して軍功になります。ここでは3枚以下の札も分解できます(各版1枚と陣立て使用分は残ります)':'軍功で好きな版と交換できます'}</div><div>${['all',...Object.keys(IDEO)].map(k=>`<span class="sc ${collFilter===k?'on':''}" data-a="cf" data-id="${k}">${k==='all'?'全思想':IDEO[k].n}</span>`).join('')}</div><div>${['all',...RORD].map(k=>`<span class="sc ${collRar===k?'on':''}" data-a="cr" data-id="${k}">${k==='all'?'全部':k}</span>`).join('')}</div>`+printRows(shopTab);
  }
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div><div style="padding-top:40px">
- <div class="ehead"><b style="color:var(--gold)">カードショップ</b> <span class="coinb">${GACHA.coin} ${SV.coin}</span> <span class="coinb">${GACHA.pt} ${SV.pt}</span></div>
- <div>${[['pack','パック'],['coll','所持・分解'],['trade','交換']].map(([k,n])=>`<span class="sc ${shopTab===k?'on':''}" data-a="stab" data-id="${k}">${n}</span>`).join('')}</div>
+ <div class="ehead"><b style="color:var(--gold)">札屋</b> <span class="coinb">${GACHA.coin} ${SV.coin}</span> <span class="coinb">${GACHA.pt} ${SV.pt}</span></div>
+ <div>${[['pack','包み'],['coll','所持・分解'],['trade','交換']].map(([k,n])=>`<span class="sc ${shopTab===k?'on':''}" data-a="stab" data-id="${k}">${n}</span>`).join('')}</div>
  <div class="msg2">${shopMsg}</div>${body}<button data-a="toTitle" style="width:100%;margin-top:12px">戻る</button>${shopBigHTML()}</div>`;
 }
-// カード一覧をタップした時の大きなイラスト。持っているカードは明るく、持っていないカードは暗く表示する
+// 札目録を押すした時の大きな絵。持っている札は明るく、持っていない札は暗く表示する
 function shopBigHTML(){
  if(!shopBig)return '';const [cid,r]=shopBig.split('|'),c=cardById(cid);if(!c)return '';
  const n=printCount(c,r);
- return `<div class="bigov" style="--c:${IDEO[c.i].c}" data-a="shopbigClose"><img src="${printImg(c,r)}" onerror="imgFb(this,'${baseImg(c)}')" style="${n?'':'filter:brightness(.25) grayscale(.5)'}" alt=""><div class="bn">【${IDEO[c.i].n}】${c.n} <span class="rt-${r}">${r}</span></div><div class="bh">${n?`所持 ${n}枚`:'未所持'}　・　タップで閉じる</div></div>`;
+ return `<div class="bigov" style="--c:${IDEO[c.i].c}" data-a="shopbigClose"><img src="${printImg(c,r)}" onerror="imgFb(this,'${baseImg(c)}')" style="${n?'':'filter:brightness(.25) grayscale(.5)'}" alt=""><div class="bn">【${IDEO[c.i].n}】${c.n} <span class="rt-${r}">${r}</span></div><div class="bh">${n?`所持 ${n}枚`:'未所持'}　・　押すと閉じる</div></div>`;
 }
 const toastHTML=()=>`<div class="ov"><div class="mb" style="text-align:center">${loginMsg}<button data-a="toastClose">OK</button></div></div>`;
 
@@ -1129,7 +1129,7 @@ async function onClick(a,id){
   return;
  }
  if(screen==='title'){
-  if(a==='play'){if(deckValid(myDeck))startGame(myDeck);else{screen='edit';editMsg='デッキが36枚になっていません。カードがない時は、カードショップでスターターデッキを受け取ろう';render();}}
+  if(a==='play'){if(deckValid(myDeck))startGame(myDeck);else{screen='edit';editMsg='陣立てが36枚になっていません。札がない時は、札屋で初陣組を受け取ろう';render();}}
   else if(a==='toEdit'){screen='edit';editMsg='';render();}
   else if(a==='toList'){screen='list';render();}
   else if(a==='toShop'){screen='shop';shopMsg='';render();}
@@ -1145,7 +1145,7 @@ async function onClick(a,id){
   else if(a==='pideo')packIdeo=id;
   else if(a==='cf')collFilter=id;
   else if(a==='cr')collRar=id;
-  else if(a==='starter'){shopMsg=claimStarter(id)?'スターターデッキを受け取り、デッキに設定しました':'';}
+  else if(a==='starter'){shopMsg=claimStarter(id)?'初陣組を受け取り、陣立てに設定しました':'';}
   else if(a==='buy10'){const pack=gachaPacks().find(p=>p.id===id);const res=pack&&buyPack(pack,10);if(res){pk=mkPk(pack,res,10);shopMsg='';}else shopMsg=`${GACHA.coin}が足りません`;}
   else if(a==='buy'){const pack=id==='test'?TESTPACK:gachaPacks().find(p=>p.id===id);const res=pack&&(id==='test'?testPull():buyPack(pack));if(res){pk={pack,cards:res,stage:'tear',idx:0,flipped:false};shopMsg='';}else shopMsg=`${GACHA.coin}が足りません`;}
   else if(a==='dsel'){const i=id.lastIndexOf('~'),k=id.slice(0,i),dl=+id.slice(i+1),[c,r]=split(k);disSel[k]=Math.max(0,Math.min(maxDismantle(c,r),(disSel[k]||0)+dl));}
@@ -1160,7 +1160,7 @@ async function onClick(a,id){
   else if(a==='inc'&&c){
    const ide=deckIdeos(myDeck);editMsg='';
    if(deckTotal(myDeck)>=DECK_SIZE)editMsg=`${DECK_SIZE}枚までです`;
-   else if(cur>=Math.min(MAX_COPY,ownedOf(c)))editMsg=`同名カードは${MAX_COPY}枚までです`;
+   else if(cur>=Math.min(MAX_COPY,ownedOf(c)))editMsg=`同名札は${MAX_COPY}枚までです`;
    else if(c.i!=='ne'&&!ide.includes(c.i)&&ide.length>=2)editMsg='思想は2つまでです';
    else myDeck[c.id]=cur+1;
   }
@@ -1179,7 +1179,7 @@ async function onClick(a,id){
   return;
  }
  const me=G.P[0];
- if(a==='menu'){const r=await modal('タイトルに戻りますか?(対戦は破棄されます)',[{l:'戻る',v:true},{l:'続ける',v:false}]);if(r){G=null;screen='title';render();}return;}
+ if(a==='menu'){const r=await modal('表紙に戻りますか?(対戦は破棄されます)',[{l:'戻る',v:true},{l:'続ける',v:false}]);if(r){G=null;screen='title';render();}return;}
  if(ui.busy){
   if(a==='myunit'||a==='enemyunit'){const u=find(+id);if(u){ui.info=u.card;ui.sel=null;render();}}
   else if(a==='field'){ui.info=findField(+id);ui.sel=null;render();}
@@ -1213,7 +1213,7 @@ if(typeof document!=='undefined'){
  });
  const pend=()=>{
   if(drag){const p=drag.p;drag=null;if(p<1){if(p>=0.7)setTear(1);else setTear(0,true);}}
-  else if(sdrag){const dy=sdrag.dy;sdrag=null;if(dy<=-90||dy>-6)flingTop();else settleStack(false);} // 少しだけ動かして離すと戻る。タップでも次へ
+  else if(sdrag){const dy=sdrag.dy;sdrag=null;if(dy<=-90||dy>-6)flingTop();else settleStack(false);} // 少しだけ動かして離すと戻る。押しても次へ
  };
  document.addEventListener('pointerup',pend);document.addEventListener('pointercancel',pend);
  loadSave();loadExtra();render();
