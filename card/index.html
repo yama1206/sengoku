@@ -215,7 +215,7 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 <body>
 <div id="app"></div>
 <script>
-const VERSION='0.30';
+const VERSION='0.31';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -316,8 +316,8 @@ mk('so','u','太原雪斎',4,3000,2,{e:[{t:'draw',n:1},{t:'shield',n:1}],h:'imag
 mk('so','u','今川義元',6,6000,1,{pr:['SR','SSR'],e:[{t:'killAll',max:2000}],h:'imagawa'});
 mk('so','p','寿桂尼',4,0,1,{ps:'drawStart',h:'imagawa'});
 mk('so','c','今川館',4,0,1,{ps:'deathDraw',h:'imagawa'});
-mk('so','w','海道の弓',3,0,1,{w:{pow:1000,drawAtk:true},h:'imagawa'});
-mk('so','x','駿河の備え',3,0,2,{e:[{t:'shield',n:1},{t:'draw',n:1}],h:'imagawa'});
+mk('so','w','海道の弓',2,0,1,{w:{pow:1000,drawAtk:true},h:'imagawa'});
+mk('so','x','駿河の備え',3,0,2,{e:[{t:'shield',n:2},{t:'draw',n:1}],h:'imagawa'});
 // 耐(松平家)
 mk('ni','u','阿部正勝',2,1000,3,{e:[{t:'draw',n:1}],h:'matsudaira'});
 mk('ni','u','平岩親吉',2,1000,3,{k:['guard'],h:'matsudaira'});
