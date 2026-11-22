@@ -215,7 +215,7 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 <body>
 <div id="app"></div>
 <script>
-const VERSION='0.25';
+const VERSION='0.27';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -255,24 +255,24 @@ const artTag=(c,r)=>`<img class="art" src="${printImg(c,r||displayRarity(c))}" o
 defineSeries('e1560','1560年代 桶狭間と関東',mk=>{
 // 創(織田家・桶狭間)
 mk('so','u','木下藤吉郎',2,1000,3,{k:['rush'],e:[{t:'draw',n:1}]});
-mk('so','u','丹羽長秀',4,4000,2,{e:[{t:'draw',n:1}]});
+mk('so','u','丹羽長秀',4,3000,2,{e:[{t:'draw',n:1}]});
 mk('so','u','佐久間盛重',2,1000,3,{e:[{t:'draw',n:1}]});
-mk('so','u','毛利新助',2,2000,3,{k:['rush']});
-mk('so','u','服部小平太',3,3000,2,{e:[{t:'tapE'}]});
-mk('so','u','池田恒興',3,3000,2,{k:['rush']});
-mk('so','u','柴田勝家',5,6000,2,{killBreak:true});
+mk('so','u','毛利新助',2,1000,3,{k:['rush']});
+mk('so','u','服部小平太',3,2000,2,{e:[{t:'tapE'}]});
+mk('so','u','池田恒興',3,2000,2,{k:['rush']});
+mk('so','u','柴田勝家',5,4000,2,{killBreak:true});
 mk('so','u','織田信長【桶狭間】',6,6000,1,{pr:['SR','SSR'],k:['rush'],e:[{t:'kill',max:4000}]});
 mk('so','p','帰蝶',4,0,1,{ps:'rampStart'});
 mk('so','c','清洲城',4,0,1,{ps:'aura'});
 mk('so','w','三間槍',2,0,1,{w:{pow:1000,tie:true}});
 mk('so','x','田楽狭間の強襲',3,0,2,{e:[{t:'kill',tapped:true}]});
 // 義(上杉家・関東管領)
-mk('gi','u','斎藤朝信',1,1000,3,{k:['guard']});
+mk('gi','u','斎藤朝信',1,0,3,{k:['guard']});
 mk('gi','p','綾姫',4,0,1,{ps:'refill'});
-mk('gi','u','色部勝長',2,2000,3,{k:['guard'],blockBonus:2000});
-mk('gi','u','本庄繁長',3,3000,2,{k:['guard'],blockBonus:1000});
-mk('gi','u','中条藤資',3,3000,2,{k:['guard']});
-mk('gi','u','上杉憲政',3,1000,2,{e:[{t:'shield',n:1}]});
+mk('gi','u','色部勝長',2,1000,3,{k:['guard'],blockBonus:2000});
+mk('gi','u','本庄繁長',3,2000,2,{k:['guard'],blockBonus:1000});
+mk('gi','u','中条藤資',3,2000,2,{k:['guard']});
+mk('gi','u','上杉憲政',3,2000,2,{e:[{t:'shield',n:1}]});
 mk('gi','u','直江景綱',4,3000,2,{e:[{t:'draw',n:1}]});
 mk('gi','u','上杉政虎【関東管領】',6,6000,1,{pr:['SR','SSR'],k:['double'],e:[{t:'draw',n:1},{t:'shield',n:1}]});
 mk('gi','c','厩橋城',5,0,1,{ps:'guardAura'});
@@ -280,13 +280,13 @@ mk('gi','w','越後の長柄',2,0,1,{w:{k:'guard',tie:true}});
 mk('gi','x','関東管領就任',4,0,2,{e:[{t:'shield',n:2}]});
 mk('gi','x','小田原城包囲',5,0,2,{e:[{t:'tapAll'}]});
 // 武(武田家)
-mk('bu','u','武田義信',2,2000,3,{k:['rush'],h:'takeda'});
-mk('bu','u','馬場信春',2,3000,3,{h:'takeda'});
-mk('bu','u','山県昌景',3,3000,2,{k:['rush'],h:'takeda'});
-mk('bu','u','高坂昌信',3,3000,2,{e:[{t:'pumpTemp',pow:1000,kw:'rush'}],h:'takeda'});
+mk('bu','u','武田義信',2,1000,3,{k:['rush'],h:'takeda'});
+mk('bu','u','馬場信春',2,2000,3,{h:'takeda'});
+mk('bu','u','山県昌景',3,2000,2,{k:['rush'],h:'takeda'});
+mk('bu','u','高坂昌信',3,2000,2,{e:[{t:'pumpTemp',pow:1000,kw:'rush'}],h:'takeda'});
 mk('bu','u','真田幸隆',3,2000,2,{e:[{t:'tapE'}],h:'takeda'});
 mk('bu','u','山本勘助',4,3000,2,{e:[{t:'peekDiscard'}],h:'takeda'});
-mk('bu','u','内藤昌豊',4,4000,2,{killBreak:true,h:'takeda'});
+mk('bu','u','内藤昌豊',4,3000,2,{killBreak:true,h:'takeda'});
 mk('bu','u','武田信玄',6,7000,1,{pr:['SR','SSR'],e:[{t:'kill',max:4000}],h:'takeda'});
 mk('bu','p','三条夫人',3,0,1,{ps:'aura',h:'takeda'});
 mk('bu','c','躑躅ヶ崎館',6,0,1,{ps:'rushAll',h:'takeda'});
@@ -294,12 +294,12 @@ mk('bu','w','風林火山の旗',2,0,1,{w:{pow:1000,k:'rush'},h:'takeda'});
 mk('bu','x','啄木鳥戦法',4,0,2,{e:[{t:'breakS',n:1}],h:'takeda'});
 // 謀(北条家)
 mk('bo','u','風魔小太郎',2,1000,3,{e:[{t:'tapE'}],h:'hojo'});
-mk('bo','u','大道寺政繁',2,2000,3,{k:['guard'],h:'hojo'});
+mk('bo','u','大道寺政繁',2,1000,3,{k:['guard'],h:'hojo'});
 mk('bo','u','北条氏政',3,2000,2,{e:[{t:'draw',n:1}],h:'hojo'});
-mk('bo','u','北条幻庵',3,1000,2,{e:[{t:'peekDiscard'}],h:'hojo'});
-mk('bo','u','遠山綱景',3,3000,2,{k:['guard'],h:'hojo'});
+mk('bo','u','北条幻庵',3,2000,2,{e:[{t:'peekDiscard'}],h:'hojo'});
+mk('bo','u','遠山綱景',3,2000,2,{k:['guard'],h:'hojo'});
 mk('bo','u','松田憲秀',4,3000,2,{e:[{t:'kill',max:4000,tapped:true}],h:'hojo'});
-mk('bo','u','北条綱成',4,4000,2,{k:['guard'],blockBonus:2000,h:'hojo'});
+mk('bo','u','北条綱成',4,3000,2,{k:['guard'],blockBonus:2000,h:'hojo'});
 mk('bo','u','北条氏康',6,6000,1,{pr:['SR','SSR'],k:['guard'],e:[{t:'draw',n:1},{t:'discard',n:1}],h:'hojo'});
 mk('bo','p','瑞渓院',4,0,1,{ps:'nene',h:'hojo'});
 mk('bo','c','小田原城',5,0,1,{ps:'gateLimit',h:'hojo'});
@@ -307,10 +307,10 @@ mk('bo','w','黄八幡の旗',2,0,1,{w:{pow:1000,tie:true},h:'hojo'});
 mk('bo','x','河越夜戦',3,0,2,{e:[{t:'tapSkip'}],h:'hojo'});
 // 創(今川家)
 mk('so','u','今川氏真',2,1000,3,{e:[{t:'draw',n:1}],h:'imagawa'});
-mk('so','u','鵜殿長照',2,2000,3,{k:['guard'],h:'imagawa'});
-mk('so','u','岡部元信',3,3000,2,{surviveShield:true,h:'imagawa'});
+mk('so','u','鵜殿長照',2,1000,3,{k:['guard'],h:'imagawa'});
+mk('so','u','岡部元信',3,2000,2,{surviveShield:true,h:'imagawa'});
 mk('so','u','朝比奈泰朝',3,3000,2,{h:'imagawa'});
-mk('so','u','松井宗信',3,3000,2,{k:['rush'],h:'imagawa'});
+mk('so','u','松井宗信',3,2000,2,{k:['rush'],h:'imagawa'});
 mk('so','u','関口親永',4,3000,2,{e:[{t:'shield',n:1}],h:'imagawa'});
 mk('so','u','太原雪斎',4,3000,2,{e:[{t:'draw',n:1},{t:'shield',n:1}],h:'imagawa'});
 mk('so','u','今川義元',6,5000,1,{pr:['SR','SSR'],e:[{t:'draw',n:1},{t:'ramp',n:1}],h:'imagawa'});
@@ -320,12 +320,12 @@ mk('so','w','海道の弓',3,0,1,{w:{pow:1000,drawAtk:true},h:'imagawa'});
 mk('so','x','甲相駿三国同盟',3,0,2,{e:[{t:'shield',n:1},{t:'draw',n:1}],h:'imagawa'});
 // 耐(松平家)
 mk('ni','u','阿部正勝',2,1000,3,{e:[{t:'draw',n:1}],h:'matsudaira'});
-mk('ni','u','平岩親吉',2,2000,3,{k:['guard'],h:'matsudaira'});
-mk('ni','u','石川数正',3,3000,2,{e:[{t:'draw',n:1}],h:'matsudaira'});
+mk('ni','u','平岩親吉',2,1000,3,{k:['guard'],h:'matsudaira'});
+mk('ni','u','石川数正',3,2000,2,{e:[{t:'draw',n:1}],h:'matsudaira'});
 mk('ni','u','大久保忠世',3,3000,2,{h:'matsudaira'});
 mk('ni','u','服部半蔵',3,2000,2,{e:[{t:'tapE'}],h:'matsudaira'});
 mk('ni','u','鳥居元忠',4,3000,2,{k:['guard'],deathRamp:true,h:'matsudaira'});
-mk('ni','u','酒井忠次',4,4000,2,{e:[{t:'ramp',n:1}],h:'matsudaira'});
+mk('ni','u','酒井忠次',4,3000,2,{e:[{t:'ramp',n:1}],h:'matsudaira'});
 mk('ni','u','松平元康',6,6000,1,{pr:['SR','SSR'],k:['guard'],e:[{t:'ramp',n:1},{t:'shield',n:1}],h:'matsudaira'});
 mk('ni','p','築山殿',3,0,1,{ps:'hatsu',h:'matsudaira'});
 mk('ni','c','岡崎城',5,0,1,{ps:'guardAll',h:'matsudaira'});
@@ -333,9 +333,9 @@ mk('ni','w','厭離穢土の旗',2,0,1,{w:{pow:1000,k:'guard'},h:'matsudaira'});
 mk('ni','x','大高城兵糧入れ',3,0,2,{e:[{t:'ramp',n:1},{t:'draw',n:1}],h:'matsudaira'});
 // 汎(思想なし・どの陣立てにも入る共通札。ガチャで出る)
 mk('ne','u','足軽',1,1000,3,{pr:['N']});
-mk('ne','u','弓足軽',2,1500,3,{pr:['N'],k:['guard']});
-mk('ne','u','鉄砲足軽',3,2500,3,{pr:['R'],e:[{t:'kill',max:2000}]});
-mk('ne','u','騎馬武者',4,3500,3,{pr:['R'],k:['rush']});
+mk('ne','u','弓足軽',2,1000,3,{pr:['N'],k:['guard']});
+mk('ne','u','鉄砲足軽',3,2000,3,{pr:['R'],e:[{t:'kill',max:2000}]});
+mk('ne','u','騎馬武者',4,3000,3,{pr:['R'],k:['rush']});
 },{era:'1560年代 桶狭間と関東'});
 for(const c of CARDS)if(c.series==='e1560'&&!c.h)c.h={so:'oda',gi:'uesugi'}[c.i];
 
@@ -343,11 +343,11 @@ for(const c of CARDS)if(c.series==='e1560'&&!c.h)c.h={so:'oda',gi:'uesugi'}[c.i]
 defineSeries('e1560w','1560年代 中国・九州',mk=>{
 // 謀(毛利家・中国の覇者)
 mk('bo','u','志道広良',2,1000,3,{e:[{t:'draw',n:1}],h:'mouri'});
-mk('bo','u','宍戸隆家',2,2000,3,{k:['guard'],h:'mouri'});
+mk('bo','u','宍戸隆家',2,1000,3,{k:['guard'],h:'mouri'});
 mk('bo','u','福原貞俊',3,2000,2,{e:[{t:'peekDiscard'}],h:'mouri'});
-mk('bo','u','乃美宗勝',3,3000,2,{e:[{t:'tapE'}],h:'mouri'});
-mk('bo','u','熊谷信直',3,3000,2,{k:['guard'],h:'mouri'});
-mk('bo','u','吉川元春',4,4000,2,{killBreak:true,h:'mouri'});
+mk('bo','u','乃美宗勝',3,2000,2,{e:[{t:'tapE'}],h:'mouri'});
+mk('bo','u','熊谷信直',3,2000,2,{k:['guard'],h:'mouri'});
+mk('bo','u','吉川元春',4,3000,2,{killBreak:true,h:'mouri'});
 mk('bo','u','小早川隆景',4,3000,2,{e:[{t:'bounce'}],h:'mouri'});
 mk('bo','u','毛利元就【中国の覇者】',6,5000,1,{pr:['SR','SSR'],e:[{t:'tapE'},{t:'peekDiscard'}],h:'mouri'});
 mk('bo','p','妙玖',4,0,1,{ps:'sap',h:'mouri'});
@@ -356,11 +356,11 @@ mk('bo','w','焙烙火矢',2,0,1,{w:{pow:1000,tie:true},h:'mouri'});
 mk('bo','x','調略',3,0,2,{e:[{t:'bounce'}],h:'mouri'});
 // 義(尼子家・月山富田城)
 mk('gi','u','秋上宗信',2,1000,3,{k:['guard'],h:'amago'});
-mk('gi','u','宇山久兼',2,2000,3,{k:['guard'],blockBonus:2000,h:'amago'});
+mk('gi','u','宇山久兼',2,1000,3,{k:['guard'],blockBonus:2000,h:'amago'});
 mk('gi','u','立原久綱',3,2000,2,{e:[{t:'shield',n:1}],h:'amago'});
-mk('gi','u','湯原春綱',3,3000,2,{k:['guard'],h:'amago'});
-mk('gi','u','牛尾幸清',3,3000,2,{k:['guard'],blockBonus:1000,h:'amago'});
-mk('gi','u','山中鹿之助【七難八苦】',4,4000,2,{k:['guard'],blockBonus:2000,h:'amago'});
+mk('gi','u','湯原春綱',3,2000,2,{k:['guard'],h:'amago'});
+mk('gi','u','牛尾幸清',3,2000,2,{k:['guard'],blockBonus:1000,h:'amago'});
+mk('gi','u','山中鹿之助【七難八苦】',4,3000,2,{k:['guard'],blockBonus:2000,h:'amago'});
 mk('gi','u','尼子義久',4,3000,2,{e:[{t:'draw',n:1}],h:'amago'});
 mk('gi','u','尼子晴久【月山富田城】',6,6000,1,{pr:['SR','SSR'],k:['guard'],e:[{t:'draw',n:1},{t:'shield',n:1}],h:'amago'});
 mk('gi','p','京極の姫',4,0,1,{ps:'refill',h:'amago'});
@@ -374,7 +374,7 @@ mk('so','u','臼杵鑑速',3,2000,2,{e:[{t:'draw',n:1}],h:'otomo'});
 mk('so','u','吉岡長増',3,2000,2,{e:[{t:'drawIfFewer'}],h:'otomo'});
 mk('so','u','吉弘鑑理',3,3000,2,{h:'otomo'});
 mk('so','u','田原親賢',4,3000,2,{e:[{t:'retWeapon'}],h:'otomo'});
-mk('so','u','戸次鑑連',4,4000,2,{k:['rush'],h:'otomo'});
+mk('so','u','戸次鑑連',4,3000,2,{k:['rush'],h:'otomo'});
 mk('so','u','大友宗麟【豊後の王】',6,5000,1,{pr:['SR','SSR'],e:[{t:'draw',n:1},{t:'ramp',n:1}],h:'otomo'});
 mk('so','p','奈多夫人',4,0,1,{ps:'chacha',h:'otomo'});
 mk('so','c','臼杵城',5,0,1,{e:[{t:'draw',n:1},{t:'toMana'}],h:'otomo'});
@@ -382,12 +382,12 @@ mk('so','w','国崩し',4,0,1,{w:{pow:2000},h:'otomo'});
 mk('so','x','南蛮貿易',3,0,2,{e:[{t:'draw',n:1},{t:'ramp',n:1}],h:'otomo'});
 // 武(島津家・薩摩の突撃)
 mk('bu','u','島津家久',2,1000,3,{k:['rush'],h:'shimazu'});
-mk('bu','u','島津歳久',2,2000,3,{k:['rush'],h:'shimazu'});
-mk('bu','u','新納忠元',3,3000,2,{k:['rush'],h:'shimazu'});
+mk('bu','u','島津歳久',2,1000,3,{k:['rush'],h:'shimazu'});
+mk('bu','u','新納忠元',3,2000,2,{k:['rush'],h:'shimazu'});
 mk('bu','u','北郷時久',3,3000,2,{h:'shimazu'});
 mk('bu','u','伊集院忠棟',3,2000,2,{e:[{t:'tapE'}],h:'shimazu'});
-mk('bu','u','島津貴久',4,4000,2,{killBreak:true,h:'shimazu'});
-mk('bu','u','島津義久',4,4000,2,{e:[{t:'pumpTemp',pow:1000,kw:'rush'}],h:'shimazu'});
+mk('bu','u','島津貴久',4,3000,2,{killBreak:true,h:'shimazu'});
+mk('bu','u','島津義久',4,3000,2,{e:[{t:'pumpTemp',pow:1000,kw:'rush'}],h:'shimazu'});
 mk('bu','u','島津義弘【鬼島津】',6,6000,1,{pr:['SR','SSR'],k:['rush'],killBreak:true,h:'shimazu'});
 mk('bu','p','実窓夫人',4,0,1,{ps:'atkAura',h:'shimazu'});
 mk('bu','c','内城',5,0,1,{ps:'aura',h:'shimazu'});
@@ -395,12 +395,12 @@ mk('bu','w','種子島',2,0,1,{w:{pow:1000,k:'rush'},h:'shimazu'});
 mk('bu','x','釣り野伏せ',4,0,2,{e:[{t:'kill',max:5000}],h:'shimazu'});
 // 耐(龍造寺家・肥前の熊)
 mk('ni','u','成松信勝',2,1000,3,{e:[{t:'draw',n:1}],h:'ryuzoji'});
-mk('ni','u','円城寺信胤',2,2000,3,{k:['guard'],h:'ryuzoji'});
+mk('ni','u','円城寺信胤',2,1000,3,{k:['guard'],h:'ryuzoji'});
 mk('ni','u','百武賢兼',3,3000,2,{h:'ryuzoji'});
-mk('ni','u','木下昌直',3,3000,2,{e:[{t:'draw',n:1}],h:'ryuzoji'});
-mk('ni','u','龍造寺信周',3,3000,2,{k:['guard'],h:'ryuzoji'});
+mk('ni','u','木下昌直',3,2000,2,{e:[{t:'draw',n:1}],h:'ryuzoji'});
+mk('ni','u','龍造寺信周',3,2000,2,{k:['guard'],h:'ryuzoji'});
 mk('ni','u','龍造寺長信',3,2000,2,{e:[{t:'tapE'}],h:'ryuzoji'});
-mk('ni','u','鍋島直茂',4,4000,2,{e:[{t:'ramp',n:1}],h:'ryuzoji'});
+mk('ni','u','鍋島直茂',4,3000,2,{e:[{t:'ramp',n:1}],h:'ryuzoji'});
 mk('ni','u','龍造寺隆信【肥前の熊】',6,6000,1,{pr:['SR','SSR'],k:['guard'],e:[{t:'ramp',n:1},{t:'draw',n:1}],h:'ryuzoji'});
 mk('ni','p','慶誾尼',4,0,1,{ps:'hatsu',h:'ryuzoji'});
 mk('ni','c','村中城',5,0,1,{ps:'guardAura',h:'ryuzoji'});
@@ -475,14 +475,14 @@ const ui={sel:null,selU:null,info:null,pick:null,modal:null,busy:true,rules:fals
 // ===== ガチャ設定(価格・確率・ポイントはここを変えるだけで調整できる) =====
 const GACHA={
  coin:'石高',pt:'軍功',cards:5,guarantee:'R',
- packCost:100, // 1包みの価格(シリーズに {packCost:..} を付ければ個別指定)
+ sen:'戦銭',senRate:300,packCost:1, // 1包みは戦銭1枚(シリーズに {packCost:..} を付ければ個別指定)。石高/文300=戦銭1(戻せない)
  rates:{N:50,R:30,SR:15,SSR:5},
  dismantle:{N:1,R:3,SR:10,SSR:30},exchange:{N:10,R:30,SR:100,SSR:300},
  reward:{win:50,lose:20,login:100,initial:5000} // initial: 今だけ5000(元は500)。既存セーブには下の GRANT_NOW で差額を1回だけ配る
 };
 // ===== 天下往来の「遊戯屋」に埋め込まれたとき(?embed=1)：お金は天下往来の所持金(文)とつなぐ =====
 const EMBED=/[?&]embed/.test(location.search||'')&&window.parent!==window;
-if(EMBED){GACHA.coin='文';GACHA.packCost=500;GACHA.reward={win:250,lose:100,login:0,initial:0};} // 1包み500文。勝てば250文・負けても100文
+if(EMBED){GACHA.coin='文';GACHA.reward={win:250,lose:100,login:0,initial:0};} // 勝てば250文・負けても100文。包みは戦銭で開ける
 function parentSend(o){try{window.parent.postMessage(Object.assign({sgkCard:1},o),'*');}catch(e){}}
 let walletAt=0;
 function coinChange(d){SV.coin+=d;if(EMBED&&d){walletAt=Date.now();parentSend({t:'pay',d});}}
@@ -613,7 +613,7 @@ function saveSave(){SV.deck=myDeck;try{localStorage.setItem(SAVE_KEY,JSON.string
 function loadSave(){
  let s={};try{s=JSON.parse(localStorage.getItem(SAVE_KEY)||'null')||{};}catch(e){s={};}
  const fresh=!('coin' in s);
- SV={deck:s.deck||{},coin:fresh?GACHA.reward.initial:(s.coin||0),pt:s.pt||0,prints:s.prints||{},lastLogin:s.lastLogin||'',starters:s.starters||{},grants:s.grants||{}};
+ SV={sen:s.sen||0,deck:s.deck||{},coin:fresh?GACHA.reward.initial:(s.coin||0),pt:s.pt||0,prints:s.prints||{},lastLogin:s.lastLogin||'',starters:s.starters||{},grants:s.grants||{}};
  let grantMsg='';
  if(!SV.grants[GRANT_NOW.id]){SV.grants[GRANT_NOW.id]=1;if(!fresh&&!EMBED){SV.coin+=GRANT_NOW.coin;grantMsg=`初期配布の増額分として${GACHA.coin}+${GRANT_NOW.coin}を進呈しました。`;}}
  for(const k of Object.keys(SV.prints)){const n=SV.prints[k];if(n>MAX_COPY){const r=k.split('|')[1];SV.pt+=(GACHA.dismantle[r]||0)*(n-MAX_COPY);SV.prints[k]=MAX_COPY;}} // 3枚を超えて持っていた分は分解
@@ -621,7 +621,7 @@ function loadSave(){
  const today=new Date().toDateString();
  if(SV.lastLogin!==today){
   SV.lastLogin=today;
-  if(fresh)loginMsg=EMBED?'遊戯屋へようこそ!まずは札屋で初陣組を受け取ろう!':`はじめに${GACHA.coin}${GACHA.reward.initial}を進呈します。まずは札屋で初陣組を受け取ろう!`;
+  if(fresh)loginMsg=EMBED?'遊戯屋へようこそ!まずは札売り場で初陣組を受け取ろう!':`はじめに${GACHA.coin}${GACHA.reward.initial}を進呈します。まずは札売り場で初陣組を受け取ろう!`;
   else if(!EMBED){SV.coin+=GACHA.reward.login;loginMsg=`参上の褒美 ${GACHA.coin} +${GACHA.reward.login}`;}
   if(grantMsg)loginMsg+='<br>'+grantMsg;
   saveSave();
@@ -629,6 +629,10 @@ function loadSave(){
 }
 // 今だけの追加配布(1回だけ)。止めたい時は coin を0にする
 const GRANT_NOW={id:'init5000',coin:4500};
+// 記念の戦銭。札売り場に「受け取る」が出る(1回だけ)。新しい記念を足す時はここに1行足す
+const SEN_GIFTS=[{id:'sen_new1',n:30,name:'新札追加記念'}];
+function exchangeSen(n){const cost=GACHA.senRate*n;if(n<1||SV.coin<cost)return false;coinChange(-cost);SV.sen+=n;saveSave();return true;}
+function claimGift(id){const g=SEN_GIFTS.find(x=>x.id===id);if(!g||SV.grants[g.id])return false;SV.grants[g.id]=1;SV.sen+=g.n;saveSave();return g;}
 // ----- ガチャ -----
 function rollRarity(min){
  const st=min?RORD.indexOf(min):0;let tot=0;for(let i=st;i<4;i++)tot+=GACHA.rates[RORD[i]];
@@ -652,9 +656,9 @@ function pullPack(pack){
 }
 function buyPack(pack,n){
  n=n||1;
- if(SV.coin<pack.cost*n)return null;
+ if(SV.sen<pack.cost*n)return null;
  const res=[];for(let i=0;i<n;i++)res.push(...pullPack(pack));if(!res.length)return null;
- coinChange(-pack.cost*n);const seen={};
+ SV.sen-=pack.cost*n;const seen={};
  for(const x of res){const k=printKey(x.c,x.r);const cur=SV.prints[k]||0;x.isNew=!(cur>0)&&!seen[k];seen[k]=1;
   if(cur>=MAX_COPY){x.auto=GACHA.dismantle[x.r];SV.pt+=x.auto;} // 同じ札は3枚まで。超えた分は自動で分解して軍功にする
   else SV.prints[k]=cur+1;}
@@ -979,8 +983,8 @@ function infoHTML(me){
 function titleHTML(){
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
  ${shopStage('いらっしゃいませー！ 包みを開けるのも、陣立てを組むのも、手合わせも、ここでどうぞ♪')}
- <div class="title"><div class="whead"><span class="wname">戦国思想録</span><span class="coinb">${GACHA.coin} ${SV.coin}</span></div><div class="dim" style="text-align:left;margin-bottom:8px">— 武将と思想の札合戦 —</div>
- <button class="big main" data-a="play">対戦開始</button>${EMBED?'<button class="big" data-a="toPvp">人と手合わせ</button>':''}<button class="big" data-a="toEdit">陣立て</button><button class="big" data-a="toShop">札屋</button><button class="big" data-a="toList">札目録</button><button class="big" data-a="rules">遊び方</button>${EMBED?'<button class="big" data-a="exitEmbed">遊戯屋を出る</button>':''}</div>`;
+ <div class="title"><div class="whead"><span class="wname">戦国思想録</span><span class="coinb">${GACHA.sen} ${SV.sen}</span><span class="coinb">${GACHA.coin} ${SV.coin}</span></div><div class="dim" style="text-align:left;margin-bottom:8px">— 武将と思想の札合戦 —</div>
+ <button class="big main" data-a="play">対戦開始</button>${EMBED?'<button class="big" data-a="toPvp">人と手合わせ</button>':''}<button class="big" data-a="toEdit">陣立て</button><button class="big" data-a="toShop">札売り場</button><button class="big" data-a="toList">札目録</button><button class="big" data-a="rules">遊び方</button>${EMBED?'<button class="big" data-a="exitEmbed">遊戯屋を出る</button>':''}</div>`;
 }
 // 天下往来の町の画面と同じ形：店の絵・看板娘の立ち絵・吹き出し
 function shopStage(line){return `<div class="tstage"><img class="who" src="../assets/town/yugi_p.png" onerror="this.remove()" alt=""><div class="say"><b>遊戯屋の看板娘</b>${line}</div></div>`;}
@@ -1085,7 +1089,7 @@ function rulesHTML(){
  ・費えは兵糧を横にして支払う。使う札と同じ思想の兵糧が最低1枚必要。<br>
  ・武将は登場した手番は攻撃できない(突撃を除く)。攻撃すると横になる。<br>
  ・武器は味方の武将1体に装備して場に残ります。武将が場を離れると武器は墓地へ。1体に装備できるのは1枚で、入れ替えると古い武器は墓地へ。<br>
- ・札屋で石高を使って包みを開け、新しい札を集められます。
+ ・札売り場で戦銭を使って包みを開け、新しい札を集められます。
  ・攻撃先は相手の城門か、横向きの武将。兵力が高い方が勝ち、同じなら相打ち。<br>
  ・城門は山札の上5枚(裏向き)。破られた札は手札に入る。<br>
  ・奇襲は通常の札として、自分の手番に費えを払って使える。城門から出た時は、無料で発動するか、手札に加えて温存するかを選べる。<br>
@@ -1222,7 +1226,7 @@ function render(){
  if(typeof padRefresh==='function')padRefresh();
 }
 
-// ===== 札屋 =====
+// ===== 札売り場 =====
 function sparks(n,col){let h='';for(let i=0;i<n;i++)h+=`<i class="sp" style="left:${Math.random()*100}%;top:${Math.random()*100}%;animation-delay:${(Math.random()*1.2).toFixed(2)}s;background:${col}"></i>`;return h;}
 function cardFace(c,r,isNew,auto){
  const col=IDEO[c.i].c;
@@ -1264,7 +1268,7 @@ function packHTML(){
  }else if(p.stage==='reveal'){
   inner=`${p.n===10?`<div class="pkbadge">包み ${p.pi+1}/${p.n}</div>`:''}<div class="pk-title">${p.n===10?'札 ':''}${p.idx+1} / ${p.cards.length}</div><div class="stage" id="stage">${p.cards.slice(p.idx).map((x,j)=>`<div class="stk" data-j="${j}" style="z-index:${50-j};transform:${stkT(j)}">${cardFace(x.c,x.r,x.isNew,x.auto)}</div>`).join('')}</div><div class="pk-hint">上へはらって1枚ずつめくる(ゆっくりずらすと下の札が見えます)</div><button data-a="skip">飛ばす</button>`;
  }else{
-  const sc=sumCards(p);inner=`<div class="pk-title">開封結果</div><div class="sumgrid" ${sc.length>5?'style="max-width:540px"':''}>${sc.map((x,k)=>`<div class="smw" data-a="bigcard" data-id="${k}"><div class="smi">${cardFace(x.c,x.r,x.isNew,x.auto)}</div></div>`).join('')}</div><div class="pk-hint" style="margin:0 0 12px">札を押すと、大きな絵が見られます</div><div class="acts" style="justify-content:center"><button data-a="again" ${SV.coin>=p.pack.cost*(p.n||1)?'':'disabled'}>${(p.n||1)>1?'もう'+p.n+'連':'もう1包み'}(${p.pack.cost*(p.n||1)}${GACHA.coin})</button><button data-a="packEnd">閉じる</button></div>`;
+  const sc=sumCards(p);inner=`<div class="pk-title">開封結果</div><div class="sumgrid" ${sc.length>5?'style="max-width:540px"':''}>${sc.map((x,k)=>`<div class="smw" data-a="bigcard" data-id="${k}"><div class="smi">${cardFace(x.c,x.r,x.isNew,x.auto)}</div></div>`).join('')}</div><div class="pk-hint" style="margin:0 0 12px">札を押すと、大きな絵が見られます</div><div class="acts" style="justify-content:center"><button data-a="again" ${SV.sen>=p.pack.cost*(p.n||1)?'':'disabled'}>${(p.n||1)>1?'もう'+p.n+'連':'もう1包み'}(${p.pack.cost*(p.n||1)}${GACHA.sen})</button><button data-a="packEnd">閉じる</button></div>`;
  }
  const bl=p.stage==='summary'?sumCards(p):p.cards;if((p.stage==='summary'||p.stage==='pksum')&&p.big!=null&&bl[p.big]){const x=bl[p.big];inner+=`<div class="bigov" style="--c:${IDEO[x.c.i].c}" data-a="bigClose"><img src="${printImg(x.c,x.r)}" onerror="imgFb(this,'${baseImg(x.c)}')" alt=""><div class="bn">【${IDEO[x.c.i].n}】${x.c.n} <span class="rt-${x.r}">${RN[x.r]}</span></div><div class="bh">押すと閉じる</div></div>`;}
  return `<div class="packov"><div class="pkin">${inner}</div></div>`;
@@ -1320,15 +1324,15 @@ function shopHTML(){
  let body='';
  if(shopTab==='pack'){
   const packs=gachaPacks();
-  body=freeStarters().filter(st=>!SV.starters[st.id]).map(st=>{const got=false;return `<div class="pcard" style="--c:#c0392b"><div class="pcl"><b>${st.name}</b><div class="dim" style="font-size:12px">${st.sub}<br>12種×3枚=36枚・無料(1回のみ)</div></div><button data-a="starter" data-id="${st.id}" ${got?'disabled':''}>${got?'受取済':'受け取る'}</button></div>`;}).join('')+(packs.length?packs.map(p=>{let tot=0,have=0;for(const c of CARDS.filter(c=>c.series===p.id))for(const r of(c.pr||[])){tot++;if(printCount(c,r)>0)have++;}
-   return `<div class="pcard" style="--c:${p.color}"><div class="pcl"><b>${p.name}</b><div class="dim" style="font-size:12px">${p.era} ・ 収集 ${have}/${tot}</div></div><button data-a="buy" data-id="${p.id}" ${SV.coin>=p.cost?'':'disabled'}>${p.cost}${GACHA.coin}<br>開封</button><button data-a="buy10" data-id="${p.id}" ${SV.coin>=p.cost*10?'':'disabled'} style="margin-left:6px">${p.cost*10}${GACHA.coin}<br>10連</button></div>`;}).join(''):'<div class="dim" style="margin:14px 0">時代ごとの包みは準備中です</div>')
+  body=SEN_GIFTS.filter(g=>!SV.grants[g.id]).map(g=>`<div class="pcard" style="--c:#e0b341"><div class="pcl"><b>${g.name}</b><div class="dim" style="font-size:12px">${GACHA.sen}${g.n}枚を進呈・1回のみ</div></div><button data-a="gift" data-id="${g.id}">受け取る</button></div>`).join('')+`<div class="pcard" style="--c:#888"><div class="pcl"><b>${GACHA.sen}に替える</b><div class="dim" style="font-size:12px">${GACHA.senRate}${GACHA.coin}→${GACHA.sen}1枚・戻せません</div></div><button data-a="sen" data-id="1" ${SV.coin>=GACHA.senRate?'':'disabled'}>1枚<br>${GACHA.senRate}${GACHA.coin}</button><button data-a="sen" data-id="10" ${SV.coin>=GACHA.senRate*10?'':'disabled'} style="margin-left:6px">10枚<br>${GACHA.senRate*10}${GACHA.coin}</button></div>`+freeStarters().filter(st=>!SV.starters[st.id]).map(st=>{const got=false;return `<div class="pcard" style="--c:#c0392b"><div class="pcl"><b>${st.name}</b><div class="dim" style="font-size:12px">${st.sub}<br>12種×3枚=36枚・無料(1回のみ)</div></div><button data-a="starter" data-id="${st.id}" ${got?'disabled':''}>${got?'受取済':'受け取る'}</button></div>`;}).join('')+(packs.length?packs.map(p=>{let tot=0,have=0;for(const c of CARDS.filter(c=>c.series===p.id))for(const r of(c.pr||[])){tot++;if(printCount(c,r)>0)have++;}
+   return `<div class="pcard" style="--c:${p.color}"><div class="pcl"><b>${p.name}</b><div class="dim" style="font-size:12px">${p.era} ・ 収集 ${have}/${tot}</div></div><button data-a="buy" data-id="${p.id}" ${SV.sen>=p.cost?'':'disabled'}>${p.cost}${GACHA.sen}<br>開封</button><button data-a="buy10" data-id="${p.id}" ${SV.sen>=p.cost*10?'':'disabled'} style="margin-left:6px">${p.cost*10}${GACHA.sen}<br>10連</button></div>`;}).join(''):'<div class="dim" style="margin:14px 0">時代ごとの包みは準備中です</div>')
   +(DEMO?`<div class="pcard" style="--c:#888"><div class="pcl"><b>演出試し</b><div class="dim" style="font-size:12px">無料・保存されません</div></div><button data-a="buy" data-id="test">開封</button></div>`:'')
-  +`<div class="dim" style="font-size:12px;line-height:1.6;margin-top:8px">包みは時代ごとにあります。1包み${GACHA.cards}枚・最後の1枚は${RN[GACHA.guarantee]}以上確定<br>出る割合: ${RORD.map(r=>`${RN[r]} ${GACHA.rates[r]}%`).join(' / ')}<br>${GACHA.coin}は対戦(勝利+${GACHA.reward.win}・敗北+${GACHA.reward.lose})と参上(+${GACHA.reward.login})で入手</div>`;
+  +`<div class="dim" style="font-size:12px;line-height:1.6;margin-top:8px">包みは時代ごとにあります。1包み${GACHA.cards}枚・最後の1枚は${RN[GACHA.guarantee]}以上確定<br>出る割合: ${RORD.map(r=>`${RN[r]} ${GACHA.rates[r]}%`).join(' / ')}<br>${GACHA.coin}は対戦(勝利+${GACHA.reward.win}・敗北+${GACHA.reward.lose})${EMBED?'':'と参上(+'+GACHA.reward.login+')'}で入手。${GACHA.senRate}${GACHA.coin}で${GACHA.sen}1枚に替えられます(戦銭は${GACHA.coin}に戻せません)</div>`;
  }else{
   body=`<div class="dim" style="font-size:12px;margin:4px 0">${shopTab==='coll'?'同じ札は3枚まで持てて、超えた分は自動で分解して軍功になります。ここでは3枚以下の札も分解できます(各版1枚と陣立て使用分は残ります)':'軍功で好きな版と交換できます'}</div><div>${['all',...Object.keys(IDEO)].map(k=>`<span class="sc ${collFilter===k?'on':''}" data-a="cf" data-id="${k}">${k==='all'?'全思想':IDEO[k].n}</span>`).join('')}</div><div>${['all',...RORD].map(k=>`<span class="sc ${collRar===k?'on':''}" data-a="cr" data-id="${k}">${k==='all'?'全部':RN[k]}</span>`).join('')}</div>`+printRows(shopTab);
  }
- return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>${shopStage(shopTab==='pack'?'包みはひとつ'+(gachaPacks()[0]?gachaPacks()[0].cost:GACHA.packCost)+GACHA.coin+'です。何が出るかはお楽しみ♪':shopTab==='coll'?'余った札は分解して、軍功にできますよ':'軍功がたまったら、好きな札と交換しますね')}<div style="padding-top:4px">
- <div class="ehead"><b style="color:var(--gold)">札屋</b> <span class="coinb">${GACHA.coin} ${SV.coin}</span> <span class="coinb">${GACHA.pt} ${SV.pt}</span></div>
+ return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>${shopStage(shopTab==='pack'?'包みはひとつ'+(gachaPacks()[0]?gachaPacks()[0].cost:GACHA.packCost)+GACHA.sen+'です。何が出るかはお楽しみ♪':shopTab==='coll'?'余った札は分解して、軍功にできますよ':'軍功がたまったら、好きな札と交換しますね')}<div style="padding-top:4px">
+ <div class="ehead"><b style="color:var(--gold)">札売り場</b> <span class="coinb">${GACHA.sen} ${SV.sen}</span> <span class="coinb">${GACHA.coin} ${SV.coin}</span> <span class="coinb">${GACHA.pt} ${SV.pt}</span></div>
  <div>${[['pack','包み'],['coll','所持・分解'],['trade','交換']].map(([k,n])=>`<span class="sc ${shopTab===k?'on':''}" data-a="stab" data-id="${k}">${n}</span>`).join('')}</div>
  <div class="msg2">${shopMsg}</div>${body}<button data-a="toTitle" style="width:100%;margin-top:12px">戻る</button>${shopBigHTML()}</div>`;
 }
@@ -1368,7 +1372,7 @@ async function onClick(a,id){
  }
  if(screen==='title'){
   if(a==='toPvp'){screen='pvp';pvpMsg='';render();return;}
-  if(a==='play'){if(deckValid(myDeck))startGame(myDeck);else{screen='edit';editMsg='陣立てが36枚になっていません。札がない時は、札屋で初陣組を受け取ろう';render();}}
+  if(a==='play'){if(deckValid(myDeck))startGame(myDeck);else{screen='edit';editMsg='陣立てが36枚になっていません。札がない時は、札売り場で初陣組を受け取ろう';render();}}
   else if(a==='toEdit'){screen='edit';editMsg='';render();}
   else if(a==='toList'){screen='list';render();}
   else if(a==='toShop'){screen='shop';shopMsg='';render();}
@@ -1392,8 +1396,10 @@ async function onClick(a,id){
   else if(a==='cf')collFilter=id;
   else if(a==='cr')collRar=id;
   else if(a==='starter'){shopMsg=claimStarter(id)?'初陣組を受け取り、陣立てに設定しました':'';}
-  else if(a==='buy10'){const pack=gachaPacks().find(p=>p.id===id);const res=pack&&buyPack(pack,10);if(res){pk=mkPk(pack,res,10);shopMsg='';}else shopMsg=`${GACHA.coin}が足りません`;}
-  else if(a==='buy'){const pack=id==='test'?TESTPACK:gachaPacks().find(p=>p.id===id);const res=pack&&(id==='test'?testPull():buyPack(pack));if(res){pk={pack,cards:res,stage:'tear',idx:0,flipped:false};shopMsg='';}else shopMsg=`${GACHA.coin}が足りません`;}
+  else if(a==='gift'){const g=claimGift(id);shopMsg=g?`${g.name}で${GACHA.sen}${g.n}枚を受け取りました!`:'';}
+  else if(a==='sen'){const n=+id;shopMsg=exchangeSen(n)?`${GACHA.coin}${GACHA.senRate*n}を${GACHA.sen}${n}枚に替えました`:`${GACHA.coin}が足りません`;}
+  else if(a==='buy10'){const pack=gachaPacks().find(p=>p.id===id);const res=pack&&buyPack(pack,10);if(res){pk=mkPk(pack,res,10);shopMsg='';}else shopMsg=`${GACHA.sen}が足りません`;}
+  else if(a==='buy'){const pack=id==='test'?TESTPACK:gachaPacks().find(p=>p.id===id);const res=pack&&(id==='test'?testPull():buyPack(pack));if(res){pk={pack,cards:res,stage:'tear',idx:0,flipped:false};shopMsg='';}else shopMsg=`${GACHA.sen}が足りません`;}
   else if(a==='dsel'){const i=id.lastIndexOf('~'),k=id.slice(0,i),dl=+id.slice(i+1),[c,r]=split(k);disSel[k]=Math.max(0,Math.min(maxDismantle(c,r),(disSel[k]||0)+dl));}
   else if(a==='dis'){const [c,r]=split(id);const k=dismantle(c,r,disSel[id]||0);disSel[id]=0;shopMsg=k?`${c.n}(${RN[r]})を${k}枚分解して${GACHA.pt}+${k*GACHA.dismantle[r]}`:'';}
   else if(a==='trade'){const [c,r]=split(id);const ex=exchange(c,r);shopMsg=ex==='max'?`${c.n}(${RN[r]})はすでに${MAX_COPY}枚持っています`:ex?`${c.n}(${RN[r]})と交換しました`:`${GACHA.pt}が足りません`;}

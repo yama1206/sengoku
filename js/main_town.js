@@ -268,7 +268,7 @@ function renderTown() {
       }
     }
   } else if (sec === 'yugi') { // 2.102.0 遊戯屋
-    html += `<div class="card"><div><b>遊戯屋に入る</b><br><span class="muted">札遊び「戦国思想録」。札の包みを買って札を集め、陣立てを組んで遊べます。包みの代金と勝負の賞金は、天下往来のお金（文）でやりとりします（1包み500文）。いまは店の者が相手をします</span></div><button id="yg-open" data-act="yugiOpen">入る</button></div>`;
+    html += `<div class="card"><div><b>遊戯屋に入る</b><br><span class="muted">札遊び「戦国思想録」。札の包みを買って札を集め、陣立てを組んで遊べます。勝負の賞金は天下往来のお金（文）で受け取り、包みは「戦銭」1枚で開けます（300文で戦銭1枚に替えられます。戦銭は文に戻せません）。いまは店の者が相手をします</span></div><button id="yg-open" data-act="yugiOpen">入る</button></div>`;
   } else if (sec === 'gamble') {
     if (P.here && P.here.gamble && SGK.GAMBLEUI) html += `<div class="card"><div><b>賭場に入る</b><br><span class="muted">行灯の灯る部屋で、壺振りの丁半・賽の目増と四五六・馬くらべ・天正かるた・独楽回し（自分で削った独楽）・貝絵合わせ・絵双六</span></div><button id="gb-open" data-act="gbOpen">入る</button></div><details style="margin-top:6px"><summary class="muted">文字だけで遊ぶ</summary>${SGK.GAMBLE.html(P, G.gbSel, G.myPid)}</details>`; // 2.12.4
     else html += SGK.GAMBLE.html(P, G.gbSel, G.myPid);
