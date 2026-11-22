@@ -215,7 +215,7 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 <body>
 <div id="app"></div>
 <script>
-const VERSION='0.32';
+const VERSION='0.33';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -310,8 +310,8 @@ mk('so','u','今川氏真',2,1000,3,{e:[{t:'draw',n:1}],h:'imagawa'});
 mk('so','u','鵜殿長照',2,1000,3,{k:['guard'],h:'imagawa'});
 mk('so','u','岡部元信',3,2000,2,{surviveShield:true,h:'imagawa'});
 mk('so','u','朝比奈泰朝',3,3000,2,{h:'imagawa'});
-mk('so','u','松井宗信',3,2000,2,{k:['rush'],noBlock:true,h:'imagawa'});
-mk('so','u','関口親永',4,3000,2,{e:[{t:'shield',n:1}],h:'imagawa'});
+mk('so','u','松井宗信',3,2000,2,{k:['rush'],h:'imagawa'});
+mk('so','u','関口親永',4,3000,2,{noBlock:true,h:'imagawa'});
 mk('so','u','太原雪斎',4,3000,2,{e:[{t:'draw',n:1},{t:'shield',n:1}],h:'imagawa'});
 mk('so','u','今川義元',6,6000,1,{pr:['SR','SSR'],e:[{t:'killAll',max:2000}],h:'imagawa'});
 mk('so','p','寿桂尼',4,0,1,{ps:'drawStart',h:'imagawa'});
