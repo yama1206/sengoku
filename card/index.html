@@ -186,6 +186,13 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 .tstage .say b{color:#8a3b1c;display:block;font-size:12px}
 .whead{display:flex;justify-content:space-between;align-items:center;padding-top:10px;margin-bottom:6px}
 .wname{font-size:22px;color:var(--gold);letter-spacing:.1em}
+/* 2.106.13 兵糧の札を見せる・対戦の記録は左下のボタンで開く */
+.mrow{align-items:center;gap:3px}.mlab{font-size:11px;opacity:.75;margin-right:2px}
+.mc{font-size:10px;line-height:1.2;max-width:5.5em;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;border:1px solid var(--c);border-left:4px solid var(--c);border-radius:4px;padding:2px 4px;background:rgba(0,0,0,.35);cursor:pointer}
+.mc.t{opacity:.45;background:rgba(0,0,0,.6);transform:rotate(-6deg)}.mc.t::after{content:"横";margin-left:2px;font-size:9px;color:#ffb74a}
+.logbtn{position:fixed;left:8px;bottom:8px;z-index:15;padding:6px 12px;font-size:13px;opacity:.9}
+.logpop{position:fixed;left:8px;bottom:50px;z-index:16;width:min(340px,calc(100vw - 70px));background:rgba(24,20,15,.96);border:1px solid var(--line);border-radius:6px;padding:4px;box-shadow:0 4px 14px #000a}
+.logpop .log{height:auto;max-height:38vh;margin:0;border:none}
 </style>
 </head>
 <body>
@@ -899,6 +906,9 @@ function startGame(deckMap,auto,pvp){ // pvp={deck,name,me}：人との手合わ
 }
 
 // ===== render =====
+// 兵糧に置いた札：思想の色・名前・横向き(使った)が分かる小札。押すと詳しく出る
+function manaRow(p){if(!p.mana.length)return '<span class="dim">兵糧なし</span>';const up=p.mana.filter(m=>!m.tapped).length;return `<span class="mlab">兵糧 ${up}/${p.mana.length}</span>`+p.mana.map(m=>`<span class="mc ${m.tapped?'t':''}" style="--c:${IDEO[m.card.i].c}" data-a="mana" data-id="${m.card.uid}">${m.card.n}</span>`).join('');}
+function findMana(uid){for(const p of G.P){const m=p.mana.find(x=>x.card.uid===uid);if(m)return m.card;}return null;}
 function mTile(m){return `<i class="md ${m.tapped?'t':''}" style="background:${IDEO[m.card.i].c}"></i>`;}
 function unitTile(u,mine){
  const col=IDEO[u.card.i].c;let cls='u';
@@ -994,17 +1004,19 @@ function gameHTML(){
  if(ui.modal)ov=`<div class="ov"><div class="mb">${ui.modal.msg.replace(/\n/g,'<br>')}${ui.modal.btns.map((b,i)=>`<button data-a="mb" data-id="${i}">${b.l}</button>`).join('')}</div></div>`;
  else if(G.over){const w=G.over.winner===me;ov=`<div class="ov"><div class="mb"><div class="res">${w?'勝利!':'敗北…'}</div><div style="text-align:center">${G.over.why}</div>${G.reward?`<div style="text-align:center;color:var(--gold);margin-top:6px">${GACHA.coin} +${G.reward}</div>`:''}${G.pvp?'':'<button data-a="again">もう一度</button>'}<button data-a="toTitle">表紙へ</button></div></div>`;}
  return `<div class="top"><span>第${G.turnNo}手・${G.cur===0?'あなたの番':'相手の番'}</span></div>
- <div class="zone"><div class="pinfo"><b>相手</b> 手札${en.hand.length} 山札${en.deck.length} 思想:${G.cpuIds.map(i=>IDEO[i].n).join('')}<span>${en.mana.map(mTile).join('')}</span></div>
+ <div class="zone"><div class="pinfo"><b>相手</b> 手札${en.hand.length} 山札${en.deck.length} 思想:${G.cpuIds.map(i=>IDEO[i].n).join('')}</div>
+ <div class="row mrow">${manaRow(en)}</div>
  <div class="row">${fieldChips(en)}</div>
  <button class="face ${faceHl?'hl':''}" data-a="eface">${en.shields.length?`城門 ×${en.shields.length}`:'本丸を攻める!'}</button>
  <div class="row">${en.units.map(u=>unitTile(u,false)).join('')}</div></div>
- <div class="log" id="log">${G.log.slice(-8).join('<br>')}</div>
  <div class="zone"><div class="row">${me.units.map(u=>unitTile(u,true)).join('')}</div>
  <div class="row">${fieldChips(me)}</div>
- <div class="pinfo"><b>城門 ×${me.shields.length}</b> 山札${me.deck.length} <span>${me.mana.map(mTile).join('')}</span></div>
+ <div class="pinfo"><b>城門 ×${me.shields.length}</b> 山札${me.deck.length}</div>
+ <div class="row mrow">${manaRow(me)}</div>
  <div class="detail">${infoHTML(me)}</div>
  <div class="acts">${acts}</div>
- <div class="hand">${me.hand.map(c=>handTile(c,me)).join('')}</div></div>${ov}`;
+ <div class="hand">${me.hand.map(c=>handTile(c,me)).join('')}</div></div>
+ <button class="logbtn" data-a="logT">${ui.logOpen?'記録を閉じる':'記録'}</button>${ui.logOpen?`<div class="logpop" data-a="logT"><div class="log" id="log">${G.log.slice(-30).join('<br>')}</div></div>`:''}${ov}`;
 }
 function rulesHTML(){
  return `<div class="ov"><div class="mb"><b style="color:var(--gold)">遊び方</b><br>
@@ -1347,6 +1359,7 @@ async function onClick(a,id){
   render();return;
  }
  if(!G)return;
+ if(a==='logT'){ui.logOpen=!ui.logOpen;render();return;} // 対戦の記録は「記録」を押した時だけ左下に出す
  if(ui.modal){if(a==='mb'){const m=ui.modal;ui.modal=null;render();m.res(m.btns[+id].v);}return;}
  if(G.over){if(a==='again'&&!G.pvp){startGame(myDeck);}else if(a==='toTitle'){if(G.pvp){NET=null;G=null;}screen='title';render();}return;}
  if(ui.pick){
@@ -1355,6 +1368,7 @@ async function onClick(a,id){
  }
  const me=G.P[0];
  if(a==='menu'){const r=await modal(G.pvp?'手合わせを抜けますか?(相手の勝ちになります)':'表紙に戻りますか?(対戦は破棄されます)',[{l:'戻る',v:true},{l:'続ける',v:false}]);if(r){if(G&&G.pvp)netQuit();G=null;screen='title';render();}return;}
+ if(a==='mana'){ui.info=findMana(+id);ui.sel=ui.selU=null;render();return;}
  if(ui.busy){
   if(a==='myunit'||a==='enemyunit'){const u=find(+id);if(u){ui.info=u.card;ui.sel=null;render();}}
   else if(a==='field'){ui.info=findField(+id);ui.sel=null;render();}
