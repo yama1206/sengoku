@@ -154,6 +154,37 @@ button.big{width:100%;padding:14px;font-size:18px;margin:8px 0;background:#5a3a1
 .smw{width:101px;height:142px}.smi{transform:scale(.42);transform-origin:top left;width:240px;height:336px}
 .smi .cfd{display:none}.smi .cfa{height:62%}
 .res{font-size:44px;text-align:center;color:var(--gold);margin:6px 0}
+/* ===== 2.106.7 天下往来風の見た目：遊戯屋の店の絵を背景に、町の画面と同じ色・枠・ボタン・看板娘の立ち絵と吹き出し ===== */
+:root{--ink:#efe6cc;--gold:#f2c14e;--panel:rgba(24,20,15,.88);--line:#8a7448}
+html,body{background:#14110d}
+body{background:none;font-family:"Hiragino Sans","Yu Gothic UI",sans-serif}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(20,17,13,.45),rgba(20,17,13,.8)),url(../assets/town/shop.jpg) center/cover no-repeat}
+body[data-scr=game]::before{background:linear-gradient(rgba(20,17,13,.72),rgba(20,17,13,.9)),url(../assets/town/shop.jpg) center/cover no-repeat}
+h1,h2,h3,.title h1,.ehead b,.pk-title,.res,.wname{font-family:"Hiragino Mincho ProN","Yu Mincho",serif}
+#app{padding:8px 10px 56px}
+#app>div:not(.ov):not(.bigov):not(.packov):not(.ver):not(.tstage){background:var(--panel);border:1px solid var(--line);border-radius:6px;padding-left:12px;padding-right:12px;padding-bottom:12px;margin-top:6px}
+button{background:#2b241a;border:1px solid var(--line);border-radius:6px;color:var(--ink);cursor:pointer}
+button:hover:not(:disabled){background:#4a3c24;border-color:var(--gold);color:#fff;outline:2px solid var(--gold)}
+button.big{background:#2b241a;border:1px solid var(--line);font-size:17px;padding:12px;margin:5px 0;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;letter-spacing:.15em}
+button.big.main{background:#6b5428;border-color:var(--gold)}
+.sc{border:1px solid var(--line);border-radius:6px;background:#2b241a;padding:5px 11px;cursor:pointer}
+.sc.on{background:#6b5428;border-color:var(--gold);color:#fff}
+.zone{background:var(--panel);border:1px solid var(--line);border-radius:6px}
+.log,.detail{background:rgba(0,0,0,.45);border:1px solid #4a3d27;border-radius:6px}
+.mb{background:rgba(24,20,15,.96);border:1px solid var(--gold);border-radius:6px}
+.pcard{background:rgba(24,20,15,.7);border-radius:6px}
+.er,.lr{border-bottom:1px solid #4a3d27}
+.backfix{background:rgba(40,28,16,.92);border:2px solid #c9a35a;color:#f6e7c4;font-weight:bold}
+.ver{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:2px 2px 2px 8px}
+.top{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px;margin-right:80px}
+.title{padding-top:0}.title h1{font-size:34px;letter-spacing:.2em;text-shadow:0 3px 0 #000;margin:8px 0 2px}
+/* 町の絵の場面（看板娘と吹き出し） */
+.tstage{position:relative;height:230px;margin:40px -10px 0;overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:url(../assets/town/shop.jpg) center/cover no-repeat}
+.tstage .who{position:absolute;right:4%;top:7%;height:125%;pointer-events:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,.5))}
+.tstage .say{position:absolute;left:4%;bottom:12px;max-width:56%;background:rgba(250,244,228,.94);color:#2b2117;border-radius:10px;padding:8px 12px;font-size:13px;line-height:1.5;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.tstage .say b{color:#8a3b1c;display:block;font-size:12px}
+.whead{display:flex;justify-content:space-between;align-items:center;padding-top:10px;margin-bottom:6px}
+.wname{font-size:22px;color:var(--gold);letter-spacing:.1em}
 </style>
 </head>
 <body>
@@ -800,9 +831,12 @@ function infoHTML(me){
 }
 function titleHTML(){
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
- <div class="title"><h1>戦国思想録</h1><p>— 武将と思想の札合戦 —</p>
- <div class="dim" style="margin-bottom:10px">${GACHA.coin} ${SV.coin}</div><button class="big" data-a="play">対戦開始</button><button class="big" data-a="toEdit" style="background:#3a2b1f">陣立て</button><button class="big" data-a="toShop" style="background:#3a2b1f">札屋</button><button class="big" data-a="toList" style="background:#2b2118">札目録</button><button class="big" data-a="rules" style="background:#2b2118">遊び方</button>${EMBED?'<button class="big" data-a="exitEmbed" style="background:#5a1f1f">遊戯屋を出る</button>':''}</div>`;
+ ${shopStage('いらっしゃいませー！ 包みを開けるのも、陣立てを組むのも、手合わせも、ここでどうぞ♪')}
+ <div class="title"><div class="whead"><span class="wname">戦国思想録</span><span class="coinb">${GACHA.coin} ${SV.coin}</span></div><div class="dim" style="text-align:left;margin-bottom:8px">— 武将と思想の札合戦 —</div>
+ <button class="big main" data-a="play">対戦開始</button><button class="big" data-a="toEdit">陣立て</button><button class="big" data-a="toShop">札屋</button><button class="big" data-a="toList">札目録</button><button class="big" data-a="rules">遊び方</button>${EMBED?'<button class="big" data-a="exitEmbed">遊戯屋を出る</button>':''}</div>`;
 }
+// 天下往来の町の画面と同じ形：店の絵・看板娘の立ち絵・吹き出し
+function shopStage(line){return `<div class="tstage"><img class="who" src="../assets/town/yugi_p.png" onerror="this.remove()" alt=""><div class="say"><b>遊戯屋の看板娘</b>${line}</div></div>`;}
 function listHTML(){
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
  <div style="padding-top:44px"><h2 style="color:var(--gold);margin:0 0 4px">札目録</h2>
@@ -1013,7 +1047,7 @@ function render(){
  if(pk)h+=packHTML();
  if(loginMsg&&screen==='title'&&!pk)h+=toastHTML();
  h+=backHTML();
- app.innerHTML=h;
+ app.innerHTML=h;document.body.dataset.scr=screen;
  const lg=document.getElementById('log');if(lg)lg.scrollTop=lg.scrollHeight;
 }
 
@@ -1122,7 +1156,7 @@ function shopHTML(){
  }else{
   body=`<div class="dim" style="font-size:12px;margin:4px 0">${shopTab==='coll'?'同じ札は3枚まで持てて、超えた分は自動で分解して軍功になります。ここでは3枚以下の札も分解できます(各版1枚と陣立て使用分は残ります)':'軍功で好きな版と交換できます'}</div><div>${['all',...Object.keys(IDEO)].map(k=>`<span class="sc ${collFilter===k?'on':''}" data-a="cf" data-id="${k}">${k==='all'?'全思想':IDEO[k].n}</span>`).join('')}</div><div>${['all',...RORD].map(k=>`<span class="sc ${collRar===k?'on':''}" data-a="cr" data-id="${k}">${k==='all'?'全部':RN[k]}</span>`).join('')}</div>`+printRows(shopTab);
  }
- return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div><div style="padding-top:40px">
+ return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>${shopStage(shopTab==='pack'?'包みはひとつ'+(gachaPacks()[0]?gachaPacks()[0].cost:GACHA.packCost)+GACHA.coin+'です。何が出るかはお楽しみ♪':shopTab==='coll'?'余った札は分解して、軍功にできますよ':'軍功がたまったら、好きな札と交換しますね')}<div style="padding-top:4px">
  <div class="ehead"><b style="color:var(--gold)">札屋</b> <span class="coinb">${GACHA.coin} ${SV.coin}</span> <span class="coinb">${GACHA.pt} ${SV.pt}</span></div>
  <div>${[['pack','包み'],['coll','所持・分解'],['trade','交換']].map(([k,n])=>`<span class="sc ${shopTab===k?'on':''}" data-a="stab" data-id="${k}">${n}</span>`).join('')}</div>
  <div class="msg2">${shopMsg}</div>${body}<button data-a="toTitle" style="width:100%;margin-top:12px">戻る</button>${shopBigHTML()}</div>`;
