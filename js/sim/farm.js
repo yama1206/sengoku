@@ -45,10 +45,10 @@
 
   FM.devMul = (s) => 1 + Math.min(1, ((s && s.donated) || 0) / 30000); // 村への寄付で、村の発展が早くなる（最大2倍）
   // 家畜：買って育て、売るか村に寄付する。hunger＝1日に減る満腹、esa＝1回の餌、koe＝肥やしを出す間隔（日）
-  FM.ANIMALS = {
-    hen: { name: '鶏', cost: 150, days: 30, sell: 350, hunger: 12, esa: 1, egg: 0.8 },
-    cow: { name: '牛', cost: 1500, days: 150, sell: 4500, hunger: 10, esa: 3, koe: 2 },
-    horse: { name: '馬', cost: 3000, days: 240, sell: 9000, hunger: 10, esa: 3, koe: 3 },
+  FM.ANIMALS = { // 2.106.6 育つ日数を10分の1に（鶏30→3・牛150→15・馬240→24）
+    hen: { name: '鶏', cost: 150, days: 3, sell: 350, hunger: 12, esa: 1, egg: 0.8 },
+    cow: { name: '牛', cost: 1500, days: 15, sell: 4500, hunger: 10, esa: 3, koe: 2 },
+    horse: { name: '馬', cost: 3000, days: 24, sell: 9000, hunger: 10, esa: 3, koe: 3 },
   };
   FM.NAMES = {
     hen: ['おたま', 'こまち', 'ちよ', 'はな', 'きく', 'つる', 'もみじ', 'あずき', 'ごま', 'しろ', 'とさか', 'こはる'],
