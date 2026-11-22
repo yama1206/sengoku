@@ -12,7 +12,7 @@ body{margin:0;background:radial-gradient(circle at 50% 0,#2e2218,#0e0b09 70%);co
 button{font-family:inherit;color:var(--ink);background:#3a2b1f;border:1px solid var(--gold);border-radius:8px;padding:10px 14px;font-size:15px}
 button:disabled{opacity:.35}
 button.big{width:100%;padding:14px;font-size:18px;margin:8px 0;background:#5a3a1c}
-.ver{position:fixed;top:8px;right:8px;font-size:12px;display:flex;gap:6px;align-items:center;z-index:5}
+.ver{position:fixed;top:8px;left:8px;font-size:12px;display:flex;gap:6px;align-items:center;z-index:5}
 .ver button{padding:4px 10px;font-size:12px}
 .title{text-align:center;padding-top:80px}
 .title h1{font-size:38px;letter-spacing:6px;color:var(--gold);margin:10px 0 4px;text-shadow:0 0 18px #a5701e}
@@ -124,6 +124,8 @@ button.big{width:100%;padding:14px;font-size:18px;margin:8px 0;background:#5a3a1
 .smw{cursor:pointer}
 .bigov{position:fixed;inset:0;background:#000e;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px;box-sizing:border-box}
 .bigov img{max-width:92vw;max-height:76vh;border:4px solid var(--c);border-radius:14px;object-fit:contain;background:#111;box-shadow:0 0 24px #000}
+.backfix{position:fixed;top:8px;right:8px;z-index:90;padding:6px 16px;font-size:14px;background:#5a1f1f;box-shadow:0 2px 8px #000a}
+.bigov .bd{max-width:min(92vw,420px);font-size:13px;line-height:1.6;text-align:left;opacity:.9}
 .bigov .bn{font-size:18px;color:#f3e9d2;font-weight:bold}.bigov .bh{font-size:12px;opacity:.7}
 .cft{display:flex;gap:6px;align-items:center;padding:6px 8px;font-size:15px}
 .cfc{background:var(--c);color:#111;border-radius:50%;width:26px;height:26px;text-align:center;line-height:26px;font-weight:bold;flex:none}
@@ -433,7 +435,7 @@ const RN={N:'並',R:'上',SR:'特上',SSR:'極上'}; // 版の表示名(中の�
 const DECK_SIZE=36,MAX_COPY=3,SAVE_KEY=EMBED?'sengoku_card_embed_v1':'sengoku_card_v1';
 let SV={deck:{},coin:0,pt:0,prints:{},lastLogin:'',starters:{}};
 let myDeck={},editFilter='all',editAll=false,editMsg='';
-let shopBig=null,shopTab='pack',packIdeo='so',collFilter='all',collRar='all',disSel={},shopMsg='',pk=null,loginMsg='';
+let listBig=null,shopBig=null,shopTab='pack',packIdeo='so',collFilter='all',collRar='all',disSel={},shopMsg='',pk=null,loginMsg='';
 const cardById=id=>CARDS.find(c=>c.id===id);
 const printKey=(c,r)=>c.id+'|'+r;
 const printCount=(c,r)=>SV.prints[printKey(c,r)]||0;
@@ -801,9 +803,26 @@ function listHTML(){
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
  <div style="padding-top:44px"><h2 style="color:var(--gold);margin:0 0 4px">札目録</h2>
  <div class="dim" style="font-size:12px">画像は img/札ID.png に置くと表示されます(縦長3:4推奨)</div>
- ${SERIES.map(s=>`<h3 style="margin:14px 0 2px">${s.name} <span class="dim" style="font-size:12px">(${s.id}・${s.cards.length}種)</span></h3>`+s.cards.map(c=>`<div class="lr"><img src="${imgPath(c)}" onerror="this.outerHTML='<div class=\\'ph\\' style=\\'--c:${IDEO[c.i].c}\\'></div>'" alt=""><div><b style="color:${IDEO[c.i].c}">【${IDEO[c.i].n}】${c.n}</b> ${TL[c.t]} 費え${c.c}${c.t==='u'?' 兵力'+c.p:''}<br><code>${c.id}</code><br>${desc(c)}</div></div>`).join('')).join('')}
- <button data-a="toTitle" style="width:100%;margin-top:12px">戻る</button></div>`;
+ ${SERIES.map(s=>`<h3 style="margin:14px 0 2px">${s.name} <span class="dim" style="font-size:12px">(${s.id}・${s.cards.length}種)</span></h3>`+s.cards.map(c=>`<div class="lr" style="cursor:pointer" data-a="listbig" data-id="${c.id}"><img src="${imgPath(c)}" onerror="this.outerHTML='<div class=\\'ph\\' style=\\'--c:${IDEO[c.i].c}\\'></div>'" alt=""><div><b style="color:${IDEO[c.i].c}">【${IDEO[c.i].n}】${c.n}</b> ${TL[c.t]} 費え${c.c}${c.t==='u'?' 兵力'+c.p:''}<br><code>${c.id}</code><br>${desc(c)}</div></div>`).join('')).join('')}
+ <button data-a="toTitle" style="width:100%;margin-top:12px">戻る</button>${listBigHTML()}</div>`;
 }
+// 札目録で札を押した時の大きな絵
+function listBigHTML(){
+ const c=listBig&&cardById(listBig);if(!c)return '';
+ return `<div class="bigov" style="--c:${IDEO[c.i].c}" data-a="listbigClose"><img src="${imgPath(c)}" onerror="this.style.visibility='hidden'" alt=""><div class="bn">【${IDEO[c.i].n}】${c.n}</div><div class="bd">${TL[c.t]} 費え${c.c}${c.t==='u'?' 兵力'+c.p:''}${desc(c)?'<br>'+desc(c):''}</div><div class="bh">押すと閉じる</div></div>`;
+}
+// どの場面でも右上に出す戻るボタン。場面ごとに押した時の動きを変える
+function backAction(){
+ if(pk)return pk.big!=null?'bigClose':'packEnd';
+ if(ui.rules)return 'rulesClose';
+ if(screen==='title')return loginMsg?'toastClose':EMBED?'exitEmbed':'';
+ if(screen==='list')return listBig?'listbigClose':'toTitle';
+ if(screen==='shop')return shopBig?'shopbigClose':'toTitle';
+ if(screen==='edit')return 'editBack';
+ if(screen==='game'&&G)return ui.modal?'':G.over?'toTitle':'menu';
+ return '';
+}
+function backHTML(){const a=backAction();return a?`<button class="backfix" data-a="${a}">戻る</button>`:'';}
 function editHTML(){
  const tot=deckTotal(myDeck),ide=deckIdeos(myDeck),ok=deckValid(myDeck);
  const list=CARDS.filter(c=>(editFilter==='all'||c.i===editFilter)&&(editAll||ownedOf(c)>0||(myDeck[c.id]||0)>0));
@@ -837,7 +856,7 @@ function gameHTML(){
  let ov='';
  if(ui.modal)ov=`<div class="ov"><div class="mb">${ui.modal.msg.replace(/\n/g,'<br>')}${ui.modal.btns.map((b,i)=>`<button data-a="mb" data-id="${i}">${b.l}</button>`).join('')}</div></div>`;
  else if(G.over){const w=G.over.winner===me;ov=`<div class="ov"><div class="mb"><div class="res">${w?'勝利!':'敗北…'}</div><div style="text-align:center">${G.over.why}</div>${G.reward?`<div style="text-align:center;color:var(--gold);margin-top:6px">${GACHA.coin} +${G.reward}</div>`:''}<button data-a="again">もう一度</button><button data-a="toTitle">表紙へ</button></div></div>`;}
- return `<div class="top"><span>第${G.turnNo}手・${G.cur===0?'あなたの番':'相手の番'}</span><button data-a="menu">☰</button></div>
+ return `<div class="top"><span>第${G.turnNo}手・${G.cur===0?'あなたの番':'相手の番'}</span></div>
  <div class="zone"><div class="pinfo"><b>相手</b> 手札${en.hand.length} 山札${en.deck.length} 思想:${G.cpuIds.map(i=>IDEO[i].n).join('')}<span>${en.mana.map(mTile).join('')}</span></div>
  <div class="row">${fieldChips(en)}</div>
  <button class="face ${faceHl?'hl':''}" data-a="eface">${en.shields.length?`城門 ×${en.shields.length}`:'本丸を攻める!'}</button>
@@ -988,6 +1007,7 @@ function render(){
  if(ui.rules)h+=rulesHTML();
  if(pk)h+=packHTML();
  if(loginMsg&&screen==='title'&&!pk)h+=toastHTML();
+ h+=backHTML();
  app.innerHTML=h;
  const lg=document.getElementById('log');if(lg)lg.scrollTop=lg.scrollHeight;
 }
@@ -1136,7 +1156,12 @@ async function onClick(a,id){
   else if(a==='toShop'){screen='shop';shopMsg='';render();}
   return;
  }
- if(screen==='list'){if(a==='toTitle'){screen='title';render();}return;}
+ if(screen==='list'){
+  if(a==='listbig'){listBig=id;render();}
+  else if(a==='listbigClose'){listBig=null;render();}
+  else if(a==='toTitle'){listBig=null;screen='title';render();}
+  return;
+ }
  if(screen==='shop'){
   const split=k=>{const [cid,r]=k.split('|');return [cardById(cid),r];};
   if(a==='shopbig'){shopBig=id;}
@@ -1170,6 +1195,7 @@ async function onClick(a,id){
   else if(a==='auto'){const ide=deckIdeos(myDeck).slice(0,2);for(const k of shuffle(availIdeos()))if(ide.length<2&&!ide.includes(k))ide.push(k);myDeck=autoDeck(ide);editMsg='自動で構成しました';}
   else if(a==='save'){if(deckValid(myDeck)){saveSave();screen='title';editMsg='';}else editMsg='36枚・思想2つまでにしてください';}
   else if(a==='discard'){loadSave();screen='title';editMsg='';}
+  else if(a==='editBack'){if(deckValid(myDeck))saveSave();else loadSave();screen='title';editMsg='';} // 右上の戻る: 組めていれば保存、組めていなければ元に戻す
   render();return;
  }
  if(!G)return;
