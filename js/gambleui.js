@@ -3,7 +3,7 @@
 (function () {
   const UI = (SGK.GAMBLEUI = {}), G = SGK.GAMBLE, AU = () => SGK.AUDIO;
   const ART = 'assets/gamble/';
-  let el = null, tab = 'chouhan', P = null, myId = null, seen = {}, busy = {}, sel = 100, lastHtml = {};
+  let el = null, tab = 'chouhan', P = null, myId = null, seen = {}, busy = {}, sel = 100, touched = false, lastHtml = {};
   const sfx = (k) => { try { AU().sfx(k); } catch (e) {} };
   const money = (n) => SGK.SIM.money(n);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -100,7 +100,7 @@
 
   UI.open = (priv, id) => {
     if (el) UI.close();
-    P = priv; myId = id; seen = {}; busy = {}; lastHtml = {};
+    P = priv; myId = id; seen = {}; busy = {}; lastHtml = {}; sel = 100; touched = false;
     const gb = P && P.here && P.here.gamble; if (!gb) return;
     for (const g of ['chouhan', 'memashi', 'shigoro', 'uma', 'karuta']) seen[g] = gb[g].last ? gb[g].last.id : null; // 入る前の結果は流さない
     el = document.createElement('div'); el.id = 'gbHall';
@@ -116,18 +116,18 @@
   UI.update = (priv) => { if (!el) return; P = priv; const gb = P && P.here && P.here.gamble; if (!gb) return UI.close(); render(false); };
 
   function onClick(e) {
-    if (SGK.ASOBIUI && SGK.ASOBIUI.has(tab) && !e.target.closest('button[data-tab],button[data-sel],button[data-x]')) { if (SGK.ASOBIUI.click(e, P, sel, el.querySelector('#gbStage'))) return; } // 2.62.0 独楽・貝・双六
+    if (SGK.ASOBIUI && SGK.ASOBIUI.has(tab) && !e.target.closest('button[data-tab],button[data-add],button[data-x]')) { if (SGK.ASOBIUI.click(e, P, sel, el.querySelector('#gbStage'))) return; } // 2.62.0 独楽・貝・双六
     const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
     if (d.x) return UI.close();
     if (d.tab) { tab = d.tab; lastHtml = {}; render(true); return; }
-    if (d.sel) { sel = +d.sel; render(false); return; }
+    if (d.add != null) { sel = G.betStep(sel, d.add, touched, P && P.me ? P.me.money : 0); touched = true; render(false); return; } // 2.103.0 押すたびに足す
     if (d.cmd) { const c = { type: d.cmd, id: d.id }; if (d.kind != null) c.kind = d.kind; if (d.cmd === 'gbBet') c.qty = sel; SGK.cmd(c); sfx(d.cmd === 'gbBet' ? 'coin' : 'click'); }
   }
   const NAMES = { chouhan: '丁半', memashi: '目増', shigoro: '四五六', uma: '馬くらべ', karuta: '天正かるた', koma: '独楽回し', kai: '貝絵合わせ', sugoroku: '絵双六' }; // 2.62.0 独楽・貝・双六（asobiui.js）
   function render(full) {
     const gb = P.here.gamble, me = P.me;
     el.querySelector('#gbMoney').innerHTML = `${SGK.ICON ? SGK.ICON.html('coins', 20) : ''} ${money(me.money)}`;
-    el.querySelector('#gbBets').innerHTML = G.BETS.map((v) => `<button data-sel="${v}" class="${v === sel ? 'on' : ''}">${money(v)}</button>`).join('');
+    el.querySelector('#gbBets').innerHTML = `<b style="margin:0 6px">${money(sel)}</b>` + G.BETS.map((v) => `<button data-add="${v}">+${money(v)}</button>`).join('') + `<button data-add="-1">-100文</button><button data-add="0">戻す</button><button data-add="max">全額</button>`; // 2.103.0 押すたびに足す
     el.querySelector('#gbTabs').innerHTML = Object.entries(NAMES).map(([k, n]) => `<button data-tab="${k}" class="${k === tab ? 'on' : ''}">${n}</button>`).join('');
     const st = el.querySelector('#gbStage');
     if (SGK.ASOBIUI && SGK.ASOBIUI.has(tab)) { // 2.62.0

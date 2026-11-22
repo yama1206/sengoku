@@ -3,7 +3,17 @@
 (function () {
   const SIM = SGK.SIM, DATA = SGK.DATA;
   const G = (SGK.GAMBLE = {});
-  G.BETS = [10, 50, 100, 500, 1000, 3000, 5000]; // 2.60.2 3貫・5貫を足す
+  G.BETS = [100, 500, 1000, 3000, 5000, 10000]; // 2.60.2 3貫・5貫を足す／2.103.0 押すたびに足していく（足す額のボタン）
+  G.BET_MAX = 100000; // 2.103.0 掛け金の上限（100貫）
+  G.betValid = (n) => Number.isInteger(n) && n >= 10 && n <= G.BET_MAX; // 2.103.0 好きな額（10文以上・100貫まで）
+  // 2.103.0 ボタンの押し方：数字＝足す（最初の1回だけ今の額を置き換え）／-1＝いちばん小さい足し分(100文)を引く／0＝100文に戻す／max＝持ち金いっぱい
+  G.betStep = (cur, cmd, touched, money) => {
+    cur = G.betValid(cur) ? cur : 100;
+    if (cmd === '0') return 100;
+    if (cmd === 'max') return Math.max(10, Math.min(G.BET_MAX, Math.floor((money || 0) / 10) * 10));
+    if (cmd === '-1') return Math.max(100, cur - 100);
+    return Math.min(G.BET_MAX, (touched ? cur : 0) + (+cmd || 0));
+  };
   G.GAMES = {
     chouhan: { name: '丁半', rule: 'サイコロ2つの合計が偶数なら「丁」、奇数なら「半」。当たれば2倍。誰かが壺を開けると全員の勝負が決まります。' },
     memashi: { name: '目増', rule: '親と自分がサイコロを2つずつ振り、合計が大きい方の勝ち（勝てば2倍・同じなら賭け金が戻る）。' },
@@ -78,7 +88,7 @@
   SIM.commands.gbBet = (w, p, c) => {
     const T = ok(w, p, c); if (!T) return;
     const bet = +c.qty;
-    if (!G.BETS.includes(bet)) return;
+    if (!G.betValid(bet)) return;
     if (c.id === 'karuta' && T.phase !== 'bet') return SAY(p.id, 'いまは勝負の最中です。終わるまでお待ちを');
     if (T.bets[p.id]) return SAY(p.id, 'もう賭けています');
     if (c.id === 'chouhan' && c.kind !== 'even' && c.kind !== 'odd') return;
@@ -191,9 +201,9 @@
   G.css = '<style>.kcard{position:relative;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:38px;height:54px;margin:2px;border:2px solid;border-radius:5px;background:#f6ecd0;font-size:17px;line-height:1}.kcard small{font-size:11px}.kcard img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:3px}.gbdice{font-size:30px;letter-spacing:2px}</style>';
   G.html = (P, sel, myId) => {
     const gb = P.here.gamble, me = P.me; if (!gb) return '<div class="muted">賭場があるのは大きな町だけです</div>';
-    sel = G.BETS.includes(sel) ? sel : 100;
+    sel = G.betValid(sel) ? sel : 100;
     let h = G.css + `<div class="muted">所持金 ${money(me.money)}　<span class="muted">（同じ町にいる人と同じ卓で勝負できます）</span></div>`;
-    h += '<div class="row" style="margin:6px 0">掛け金：' + G.BETS.map((b) => `<button data-gbset="${b}" class="${b === sel ? 'on' : ''}">${SIM.money(b)}</button>`).join('') + '</div>';
+    h += `<div class="row" style="margin:6px 0">掛け金：<b>${SIM.money(sel)}</b>　` + G.BETS.map((b) => `<button data-gbadd="${b}">+${SIM.money(b)}</button>`).join('') + `<button data-gbadd="-1">-100文</button><button data-gbadd="0">100文に戻す</button><button data-gbadd="max">全額</button></div>`; // 2.103.0 押すたびに足す
     const last = (L) => (L ? `<div class="muted" style="margin-top:4px">前の勝負：${L.head}${L.by ? `（${L.by}が開けた）` : ''}<br>${L.lines.join('<br>')}</div>` : '');
     const who = (T) => (T.bets.length ? `卓：${T.bets.map((x) => `${x.name}${x.pick ? (x.pick === 'even' ? '[丁]' : '[半]') : ''}${SIM.money(x.bet)}`).join('、')}` : '卓：まだ誰も賭けていません');
     for (const g of ['chouhan', 'memashi', 'shigoro']) {

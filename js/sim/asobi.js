@@ -139,7 +139,7 @@
     if (p.busy) { SAY(p.id, `${p.busy.label}の最中です`); return null; }
     return { s, t: tableOf(w, s.id) };
   }
-  const betOk = (w, p, q) => { const bet = +q; if (!SGK.GAMBLE || !SGK.GAMBLE.BETS.includes(bet)) return 0; if (p.money < bet) { SAY(p.id, '持ち金が足りません'); return 0; } return bet; };
+  const betOk = (w, p, q) => { const bet = +q; if (!SGK.GAMBLE || !SGK.GAMBLE.betValid(bet)) return 0; if (p.money < bet) { SAY(p.id, '持ち金が足りません'); return 0; } return bet; };
   const seedOf = (w) => Math.floor(SIM.rand(w) * 2147483647);
 
   // ---- 独楽づくり ----

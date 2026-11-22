@@ -368,7 +368,7 @@ $('townBody').addEventListener('click', (e) => {
   if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; if (N.pvp && N.pvp.here) { command({ type: 'ninPvpGo' }); toast('守りの忍びと対戦します…', 2000); return; } openTown(false); startNinja(N, null); return; } // 2.57.1 守る人がいれば対戦
   const nd = e.target.closest('button[data-njdef]'); // 2.57.0 城の守り
   if (nd) { const N = G.priv && G.priv.me.nin; if (!N || !N.def || !N.def.at) return; openTown(false); startNinjaDef(N); return; }
-  const gs = e.target.closest('button[data-gbset]'); if (gs) { G.gbSel = +gs.dataset.gbset; townHtml = ''; renderTown(); return; } // 2.8.0 賭場の掛け金
+  const gs = e.target.closest('button[data-gbadd]'); if (gs) { G.gbSel = SGK.GAMBLE.betStep(G.gbSel, gs.dataset.gbadd, G.gbTouched, G.priv && G.priv.me.money); G.gbTouched = true; townHtml = ''; renderTown(); return; } // 2.8.0 賭場の掛け金（2.103.0 押すたびに足す）
   const b = e.target.closest('button[data-act]'); if (!b) return;
   if (b.dataset.act === 'smithPlay') { if (SGK.SMITHUI) SGK.SMITHUI.open(b.dataset.id, G.priv && G.priv.me); return; } // 2.29.0 鍛冶のミニゲーム
   if (b.dataset.act === 'yugiOpen') { if (SGK.YUGIUI) SGK.YUGIUI.open(G.priv); return; } // 2.102.0 遊戯屋
