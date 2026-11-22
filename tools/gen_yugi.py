@@ -19,6 +19,13 @@ DESC = (KIMONO + "the proprietress of a sengoku period card game parlor, cool be
         "black hair in a neat updo with one simple red hairpin, deep crimson and black kimono with a small gold plum blossom pattern, a dark purple haori draped over her shoulders, "
         "POSE: one hand on her hip and the other hand raised beside her face with the palm open in a welcoming gesture, empty hands, body turned slightly to the side, "
         "framed from the top of her head down to just below her knees")
+# 2.105.1 ユーザーの希望で可愛い感じの娘に（--cute）。リアル寄りを通すと大人びすぎるので、はじめからアニメ調で描く
+DESC_CUTE = ("a cute cheerful young japanese woman about 21 years old, an adult but youthful, the poster girl of a sengoku period card game parlor, "
+             "cute type: soft round face, big bright friendly eyes, small nose, rosy cheeks, a sweet happy open smile, "
+             "black hair in a high side ponytail tied with a red and gold cord, short bangs, "
+             "bright red kimono with a small yellow plum blossom pattern, a yellow obi, a tasuki sleeve cord, "
+             "POSE: leaning forward a little, one hand raised in a friendly wave and the other hand on her hip, empty hands, "
+             "framed from the top of her head down to just below her knees")
 
 
 def cut(raw):
@@ -33,16 +40,21 @@ def cut(raw):
 
 def main():
     a = sys.argv[1:]; n, base = 4, 2105
+    cute = "--cute" in a
+    if cute: a.remove("--cute")
     if "--seeds" in a: i = a.index("--seeds"); n = int(a[i + 1]); del a[i:i + 2]
     if "--base" in a: i = a.index("--base"); base = int(a[i + 1]); del a[i:i + 2]
     out = a[0]; os.makedirs(out, exist_ok=True)
     models = G.names(); rnd = random.Random(base)
     for _ in range(n):
-        seed = rnd.randrange(1, 2**31 - 1); stem = os.path.join(out, f"yugi_{seed}")
-        if not os.path.exists(stem + "_real.png"):
+        seed = rnd.randrange(1, 2**31 - 1); stem = os.path.join(out, f"yugi{'c' if cute else ''}_{seed}")
+        if cute and not os.path.exists(stem + "_raw.png"):
+            wf = G.workflow(DESC_CUTE + ". " + ANIME.replace("same pose, same clothes, same face shape and age, ", "").replace("plain pure white background", BGTXT), seed, *models, CW, CH)
+            with open(stem + "_raw.png", "xb") as f: f.write(G.run(wf))
+        if not cute and not os.path.exists(stem + "_real.png"):
             wf = G.workflow(DESC + REAL + ", " + BGTXT, seed, *models, CW, CH)
             with open(stem + "_real.png", "xb") as f: f.write(G.run(wf))
-        if not os.path.exists(stem + "_raw.png"):
+        if not cute and not os.path.exists(stem + "_raw.png"):
             data = img2img(Image.open(stem + "_real.png").convert("RGB"), DESC + ". " + ANIME.replace("plain pure white background", BGTXT), seed + 1, 0.65, models)
             with open(stem + "_raw.png", "xb") as f: f.write(data)
         if not os.path.exists(stem + ".png"):

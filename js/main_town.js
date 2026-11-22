@@ -41,7 +41,7 @@ function townStage(P, hs) {
   if (townTab === 'soncho' && h.soncho) return ['', 'soncho.jpg', `<img class="who" src="${TA}soncho_p.png">` + say(h.soncho.me ? '村の衆' : `村長 ${h.soncho.head}`, h.soncho.me ? '村長様、今日もよろしくお願いいたします' : me.nomin && h.soncho.mine ? 'おう、今日も精を出してくれよ。田んぼは待ってくれんでな' : '見ねえ顔だな。働き手ならいつでも歓迎するぞ')]; // 2.56.1 村長
   if (townTab === 'mise') return ['', 'shop.jpg', `<img class="who" src="${TA}merchant_p.png">` + say('店の番頭', me.shoka && me.shoka.own ? '旦那様、本日も商いに励みます' : '自分の店を持つのは、商人の夢でございます')]; // 2.56.0 自分の店
   if (townTab === 'minato') return ['', 'minato.jpg', say('湊の船問屋', '海の向こうとの商いなら、船と腕のいい船乗りが要りますぜ')]; // 2.55.0 湊
-  if (townTab === 'yugi') return ['', 'shop.jpg', `<img class="who" src="${TA}yugi_p.png">` + say('遊戯屋の女将', 'いらっしゃいませ。戦国思想録の札なら、包みを開けるのも手合わせも、ここでどうぞ')]; // 2.102.0 遊戯屋（2.105.0 女将の絵を新しく）
+  if (townTab === 'yugi') return ['', 'shop.jpg', `<img class="who" src="${TA}yugi_p.png">` + say('遊戯屋の看板娘', 'いらっしゃいませー！戦国思想録の札、包みを開けるのも手合わせも、ここでどうぞ♪')]; // 2.102.0 遊戯屋（2.105.1 可愛い看板娘の絵に）
   if (townTab === 'gamble') return ['', '../gamble/den.jpg', `<img class="who" src="${TA}boss4.png">` + say('賭場の胴元', 'おう、遊んでいくかい。運も腕のうちだぜ')];
   if (townTab === 'talk') { // 2.13.1 茶屋：大きな町には娘がいる
     if (mu) return ['', 'chaya.jpg', `<img class="who" src="${TA}${mu.img}.png">` + say(`${mu.name}　<span class="heart">${'♥'.repeat(mu.wife ? 5 : mu.st)}${'♡'.repeat(mu.wife ? 0 : 4 - mu.st)}</span>`, (G.muSay && G.muSay[0] === mu.id && performance.now() - G.muSay[2] < 6000) ? G.muSay[1] : mu.line)];

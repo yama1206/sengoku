@@ -429,6 +429,7 @@ window.addEventListener('message',e=>{
  if(m.t==='wallet'&&typeof m.money==='number'&&Date.now()-walletAt>2000&&m.money!==SV.coin){SV.coin=m.money;if(!pk&&(screen==='title'||screen==='shop'))render();}
 });
 const RORD=['N','R','SR','SSR'];
+const RN={N:'並',R:'上',SR:'特上',SSR:'極上'}; // 版の表示名(中の名前は N/R/SR/SSR のまま)
 const DECK_SIZE=36,MAX_COPY=3,SAVE_KEY=EMBED?'sengoku_card_embed_v1':'sengoku_card_v1';
 let SV={deck:{},coin:0,pt:0,prints:{},lastLogin:'',starters:{}};
 let myDeck={},editFilter='all',editAll=false,editMsg='';
@@ -995,7 +996,7 @@ function render(){
 function sparks(n,col){let h='';for(let i=0;i<n;i++)h+=`<i class="sp" style="left:${Math.random()*100}%;top:${Math.random()*100}%;animation-delay:${(Math.random()*1.2).toFixed(2)}s;background:${col}"></i>`;return h;}
 function cardFace(c,r,isNew,auto){
  const col=IDEO[c.i].c;
- return `<div class="cf r-${r} t-${c.t}" style="--c:${col}"><div class="cfa"><span>${IDEO[c.i].n}</span>${artTag(c,r)}</div><div class="cft"><span class="cfc">${c.c}</span><b>${c.n}</b></div><div class="cfi">${TL[c.t]}${c.t==='u'?'  兵力'+c.p:''}</div><div class="cfd">${desc(c)}</div><span class="cfr rt-${r}">${r}</span>${isNew?'<span class="cfn">NEW</span>':''}${auto?`<span class="cfn" style="background:#6b6b6b">3枚所持→分解 ${GACHA.pt}+${auto}</span>`:''}<div class="foil"></div></div>`;
+ return `<div class="cf r-${r} t-${c.t}" style="--c:${col}"><div class="cfa"><span>${IDEO[c.i].n}</span>${artTag(c,r)}</div><div class="cft"><span class="cfc">${c.c}</span><b>${c.n}</b></div><div class="cfi">${TL[c.t]}${c.t==='u'?'  兵力'+c.p:''}</div><div class="cfd">${desc(c)}</div><span class="cfr rt-${r}">${RN[r]}</span>${isNew?'<span class="cfn">新</span>':''}${auto?`<span class="cfn" style="background:#6b6b6b">3枚所持→分解 ${GACHA.pt}+${auto}</span>`:''}<div class="foil"></div></div>`;
 }
 const stkT=t=>`translateY(${(t*16).toFixed(1)}px) scale(${(1-t*0.03).toFixed(3)})`;
 const sumCards=p=>p.all||p.cards;
@@ -1035,7 +1036,7 @@ function packHTML(){
  }else{
   const sc=sumCards(p);inner=`<div class="pk-title">開封結果</div><div class="sumgrid" ${sc.length>5?'style="max-width:540px"':''}>${sc.map((x,k)=>`<div class="smw" data-a="bigcard" data-id="${k}"><div class="smi">${cardFace(x.c,x.r,x.isNew,x.auto)}</div></div>`).join('')}</div><div class="pk-hint" style="margin:0 0 12px">札を押すと、大きな絵が見られます</div><div class="acts" style="justify-content:center"><button data-a="again" ${SV.coin>=p.pack.cost*(p.n||1)?'':'disabled'}>${(p.n||1)>1?'もう'+p.n+'連':'もう1包み'}(${p.pack.cost*(p.n||1)}${GACHA.coin})</button><button data-a="packEnd">閉じる</button></div>`;
  }
- const bl=p.stage==='summary'?sumCards(p):p.cards;if((p.stage==='summary'||p.stage==='pksum')&&p.big!=null&&bl[p.big]){const x=bl[p.big];inner+=`<div class="bigov" style="--c:${IDEO[x.c.i].c}" data-a="bigClose"><img src="${printImg(x.c,x.r)}" onerror="imgFb(this,'${baseImg(x.c)}')" alt=""><div class="bn">【${IDEO[x.c.i].n}】${x.c.n} <span class="rt-${x.r}">${x.r}</span></div><div class="bh">押すと閉じる</div></div>`;}
+ const bl=p.stage==='summary'?sumCards(p):p.cards;if((p.stage==='summary'||p.stage==='pksum')&&p.big!=null&&bl[p.big]){const x=bl[p.big];inner+=`<div class="bigov" style="--c:${IDEO[x.c.i].c}" data-a="bigClose"><img src="${printImg(x.c,x.r)}" onerror="imgFb(this,'${baseImg(x.c)}')" alt=""><div class="bn">【${IDEO[x.c.i].n}】${x.c.n} <span class="rt-${x.r}">${RN[x.r]}</span></div><div class="bh">押すと閉じる</div></div>`;}
  return `<div class="packov"><div class="pkin">${inner}</div></div>`;
 }
 let drag=null,sdrag=null;
@@ -1069,7 +1070,7 @@ function arriveFx(){
  const st=document.getElementById('stage');if(!st)return;
  sfxRare(x.r);
  if(x.r==='SR'||x.r==='SSR'){
-  st.insertAdjacentHTML('beforeend',`<div class="fx fx-${x.r}">${sparks(x.r==='SSR'?28:14,x.r==='SSR'?'#fff':'#ffe27a')}<div class="rtext">${x.r}!</div></div>`);
+  st.insertAdjacentHTML('beforeend',`<div class="fx fx-${x.r}">${sparks(x.r==='SSR'?28:14,x.r==='SSR'?'#fff':'#ffe27a')}<div class="rtext">${RN[x.r]}!</div></div>`);
   if(x.r==='SSR'){st.insertAdjacentHTML('beforeend','<div class="flash"></div>');try{navigator.vibrate&&navigator.vibrate([60,40,120]);}catch(e){}}
  }
 }
@@ -1081,7 +1082,7 @@ function printRows(mode){
   const n=printCount(c,r),k=printKey(c,r),col=IDEO[c.i].c,m=maxDismantle(c,r);let ctl='';
   if(mode==='coll'){const sel=Math.min(disSel[k]||0,m);ctl=m>0?`<div class="ctr"><button data-a="dsel" data-id="${k}~-1">−</button><span>${sel}</span><button data-a="dsel" data-id="${k}~1">＋</button><button data-a="dis" data-id="${k}" ${sel?'':'disabled'}>分解<br>+${sel*GACHA.dismantle[r]}</button></div>`:'';}
   else{const cost=GACHA.exchange[r];ctl=`<button data-a="trade" data-id="${k}" ${SV.pt>=cost&&n<MAX_COPY?'':'disabled'}>${cost}${GACHA.pt}<br>交換</button>`;}
-  return `<div class="er ${n?'':'unown'}" style="--c:${col};cursor:pointer" data-a="shopbig" data-id="${k}"><div class="th" style="--c:${col}"><span>${IDEO[c.i].n}</span><img src="${printImg(c,r)}" onerror="imgFb(this,'${baseImg(c)}')" alt=""></div><div class="tx"><b>${c.n}</b> <span class="rt rt-${r}">${r}</span> <span style="color:${col}">${IDEO[c.i].n}</span> ${TL[c.t]}<br><span class="dim">所持 ${n}${mode==='coll'&&n?` ・分解可 ${m}`:''}</span></div>${ctl}</div>`;
+  return `<div class="er ${n?'':'unown'}" style="--c:${col};cursor:pointer" data-a="shopbig" data-id="${k}"><div class="th" style="--c:${col}"><span>${IDEO[c.i].n}</span><img src="${printImg(c,r)}" onerror="imgFb(this,'${baseImg(c)}')" alt=""></div><div class="tx"><b>${c.n}</b> <span class="rt rt-${r}">${RN[r]}</span> <span style="color:${col}">${IDEO[c.i].n}</span> ${TL[c.t]}<br><span class="dim">所持 ${n}${mode==='coll'&&n?` ・分解可 ${m}`:''}</span></div>${ctl}</div>`;
  }).join('');
 }
 function shopHTML(){
@@ -1092,9 +1093,9 @@ function shopHTML(){
   body=STARTERS.filter(st=>!SV.starters[st.id]).map(st=>{const got=false;return `<div class="pcard" style="--c:#c0392b"><div class="pcl"><b>${st.name}</b><div class="dim" style="font-size:12px">${st.sub}<br>12種×3枚=36枚・無料(1回のみ)</div></div><button data-a="starter" data-id="${st.id}" ${got?'disabled':''}>${got?'受取済':'受け取る'}</button></div>`;}).join('')+(packs.length?packs.map(p=>{let tot=0,have=0;for(const c of CARDS.filter(c=>c.series===p.id))for(const r of(c.pr||[])){tot++;if(printCount(c,r)>0)have++;}
    return `<div class="pcard" style="--c:${p.color}"><div class="pcl"><b>${p.name}</b><div class="dim" style="font-size:12px">${p.era} ・ 収集 ${have}/${tot}</div></div><button data-a="buy" data-id="${p.id}" ${SV.coin>=p.cost?'':'disabled'}>${p.cost}${GACHA.coin}<br>開封</button><button data-a="buy10" data-id="${p.id}" ${SV.coin>=p.cost*10?'':'disabled'} style="margin-left:6px">${p.cost*10}${GACHA.coin}<br>10連</button></div>`;}).join(''):'<div class="dim" style="margin:14px 0">時代ごとの包みは準備中です</div>')
   +(DEMO?`<div class="pcard" style="--c:#888"><div class="pcl"><b>演出試し</b><div class="dim" style="font-size:12px">無料・保存されません</div></div><button data-a="buy" data-id="test">開封</button></div>`:'')
-  +`<div class="dim" style="font-size:12px;line-height:1.6;margin-top:8px">包みは時代ごとにあります。1包み${GACHA.cards}枚・最後の1枚は${GACHA.guarantee}以上確定<br>排出率: ${RORD.map(r=>`${r} ${GACHA.rates[r]}%`).join(' / ')}<br>${GACHA.coin}は対戦(勝利+${GACHA.reward.win}・敗北+${GACHA.reward.lose})と参上(+${GACHA.reward.login})で入手</div>`;
+  +`<div class="dim" style="font-size:12px;line-height:1.6;margin-top:8px">包みは時代ごとにあります。1包み${GACHA.cards}枚・最後の1枚は${RN[GACHA.guarantee]}以上確定<br>出る割合: ${RORD.map(r=>`${RN[r]} ${GACHA.rates[r]}%`).join(' / ')}<br>${GACHA.coin}は対戦(勝利+${GACHA.reward.win}・敗北+${GACHA.reward.lose})と参上(+${GACHA.reward.login})で入手</div>`;
  }else{
-  body=`<div class="dim" style="font-size:12px;margin:4px 0">${shopTab==='coll'?'同じ札は3枚まで持てて、超えた分は自動で分解して軍功になります。ここでは3枚以下の札も分解できます(各版1枚と陣立て使用分は残ります)':'軍功で好きな版と交換できます'}</div><div>${['all',...Object.keys(IDEO)].map(k=>`<span class="sc ${collFilter===k?'on':''}" data-a="cf" data-id="${k}">${k==='all'?'全思想':IDEO[k].n}</span>`).join('')}</div><div>${['all',...RORD].map(k=>`<span class="sc ${collRar===k?'on':''}" data-a="cr" data-id="${k}">${k==='all'?'全部':k}</span>`).join('')}</div>`+printRows(shopTab);
+  body=`<div class="dim" style="font-size:12px;margin:4px 0">${shopTab==='coll'?'同じ札は3枚まで持てて、超えた分は自動で分解して軍功になります。ここでは3枚以下の札も分解できます(各版1枚と陣立て使用分は残ります)':'軍功で好きな版と交換できます'}</div><div>${['all',...Object.keys(IDEO)].map(k=>`<span class="sc ${collFilter===k?'on':''}" data-a="cf" data-id="${k}">${k==='all'?'全思想':IDEO[k].n}</span>`).join('')}</div><div>${['all',...RORD].map(k=>`<span class="sc ${collRar===k?'on':''}" data-a="cr" data-id="${k}">${k==='all'?'全部':RN[k]}</span>`).join('')}</div>`+printRows(shopTab);
  }
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div><div style="padding-top:40px">
  <div class="ehead"><b style="color:var(--gold)">札屋</b> <span class="coinb">${GACHA.coin} ${SV.coin}</span> <span class="coinb">${GACHA.pt} ${SV.pt}</span></div>
@@ -1105,7 +1106,7 @@ function shopHTML(){
 function shopBigHTML(){
  if(!shopBig)return '';const [cid,r]=shopBig.split('|'),c=cardById(cid);if(!c)return '';
  const n=printCount(c,r);
- return `<div class="bigov" style="--c:${IDEO[c.i].c}" data-a="shopbigClose"><img src="${printImg(c,r)}" onerror="imgFb(this,'${baseImg(c)}')" style="${n?'':'filter:brightness(.25) grayscale(.5)'}" alt=""><div class="bn">【${IDEO[c.i].n}】${c.n} <span class="rt-${r}">${r}</span></div><div class="bh">${n?`所持 ${n}枚`:'未所持'}　・　押すと閉じる</div></div>`;
+ return `<div class="bigov" style="--c:${IDEO[c.i].c}" data-a="shopbigClose"><img src="${printImg(c,r)}" onerror="imgFb(this,'${baseImg(c)}')" style="${n?'':'filter:brightness(.25) grayscale(.5)'}" alt=""><div class="bn">【${IDEO[c.i].n}】${c.n} <span class="rt-${r}">${RN[r]}</span></div><div class="bh">${n?`所持 ${n}枚`:'未所持'}　・　押すと閉じる</div></div>`;
 }
 const toastHTML=()=>`<div class="ov"><div class="mb" style="text-align:center">${loginMsg}<button data-a="toastClose">OK</button></div></div>`;
 
@@ -1149,8 +1150,8 @@ async function onClick(a,id){
   else if(a==='buy10'){const pack=gachaPacks().find(p=>p.id===id);const res=pack&&buyPack(pack,10);if(res){pk=mkPk(pack,res,10);shopMsg='';}else shopMsg=`${GACHA.coin}が足りません`;}
   else if(a==='buy'){const pack=id==='test'?TESTPACK:gachaPacks().find(p=>p.id===id);const res=pack&&(id==='test'?testPull():buyPack(pack));if(res){pk={pack,cards:res,stage:'tear',idx:0,flipped:false};shopMsg='';}else shopMsg=`${GACHA.coin}が足りません`;}
   else if(a==='dsel'){const i=id.lastIndexOf('~'),k=id.slice(0,i),dl=+id.slice(i+1),[c,r]=split(k);disSel[k]=Math.max(0,Math.min(maxDismantle(c,r),(disSel[k]||0)+dl));}
-  else if(a==='dis'){const [c,r]=split(id);const k=dismantle(c,r,disSel[id]||0);disSel[id]=0;shopMsg=k?`${c.n}(${r})を${k}枚分解して${GACHA.pt}+${k*GACHA.dismantle[r]}`:'';}
-  else if(a==='trade'){const [c,r]=split(id);const ex=exchange(c,r);shopMsg=ex==='max'?`${c.n}(${r})はすでに${MAX_COPY}枚持っています`:ex?`${c.n}(${r})と交換しました`:`${GACHA.pt}が足りません`;}
+  else if(a==='dis'){const [c,r]=split(id);const k=dismantle(c,r,disSel[id]||0);disSel[id]=0;shopMsg=k?`${c.n}(${RN[r]})を${k}枚分解して${GACHA.pt}+${k*GACHA.dismantle[r]}`:'';}
+  else if(a==='trade'){const [c,r]=split(id);const ex=exchange(c,r);shopMsg=ex==='max'?`${c.n}(${RN[r]})はすでに${MAX_COPY}枚持っています`:ex?`${c.n}(${RN[r]})と交換しました`:`${GACHA.pt}が足りません`;}
   render();return;
  }
  if(screen==='edit'){
