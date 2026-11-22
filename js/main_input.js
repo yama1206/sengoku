@@ -235,6 +235,7 @@ function drawCross(x, y, col) {
 }
 function pollPad(dt) {
   if (SGK.MINEUI && SGK.MINEUI.isOpen()) return [0, 0]; if (SGK.GATHERUI && SGK.GATHERUI.isOpen()) return [0, 0]; // 2.27.0 釣り場の画面 // 2.25.0 採掘の画面ではコントローラーを採掘に使う
+  if (SGK.YUGIUI && SGK.YUGIUI.isOpen()) { for (let i = 0; i < 20; i++) padPrev[i] = true; return [0, 0]; } // 2.106.12 遊戯屋（戦国思想録）は札の画面がコントローラーを読む。閉じた時に押していたボタンを数えない
   if (SGK.PARTY && SGK.PARTY.current && SGK.PARTY.current()) return [0, 0]; // 2.99.2 みんなで遊ぶの最中はコントローラーで地図を動かさない
   if ((SGK.NINJA && SGK.NINJA.on) || (SGK.NINJA3D && SGK.NINJA3D.on)) return [0, 0]; // 0.77.0 潜入中
   // 0.63.1 PCで別の機器（仮想コントローラーなど）が先に並ぶと使えなくなるので、最後に触ったコントローラーを使う（なければ標準配置のもの）

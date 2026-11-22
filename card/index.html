@@ -175,6 +175,7 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 .pcard{background:rgba(24,20,15,.7);border-radius:6px}
 .er,.lr{border-bottom:1px solid #4a3d27}
 .backfix{background:rgba(40,28,16,.92);border:2px solid #c9a35a;color:#f6e7c4;font-weight:bold}
+.gpf{outline:3px solid #ffe27a!important;outline-offset:2px;box-shadow:0 0 14px #ffe27acc!important}
 .ver{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:2px 2px 2px 8px}
 .top{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px;margin-right:80px}
 .title{padding-top:0}.title h1{font-size:34px;letter-spacing:.2em;text-shadow:0 3px 0 #000;margin:8px 0 2px}
@@ -190,7 +191,7 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 <body>
 <div id="app"></div>
 <script>
-const VERSION='0.23';
+const VERSION='0.24';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -1147,6 +1148,7 @@ function render(){
  h+=backHTML();
  app.innerHTML=h;document.body.dataset.scr=screen;
  const lg=document.getElementById('log');if(lg)lg.scrollTop=lg.scrollHeight;
+ if(typeof padRefresh==='function')padRefresh();
 }
 
 // ===== 札屋 =====
@@ -1391,6 +1393,82 @@ if(typeof document!=='undefined'){
  };
  document.addEventListener('pointerup',pend);document.addEventListener('pointercancel',pend);
  loadSave();loadExtra();render();
+}
+// ===== コントローラー(0.24): 十字キー・左スティックで選ぶ、Aで押す、Bで戻る、LB/RBでタブ、Yで手番を終える、右スティックで送る =====
+const PAD={key:null,prev:null,on:false,dir:'',t0:0,tl:0,idx:-1};
+function padVis(e){return e.getClientRects().length>0&&getComputedStyle(e).visibility!=='hidden';}
+function padLayer(){const app=document.getElementById('app');return app.querySelector('.bigov')||app.querySelector('.packov')||[...app.querySelectorAll('.ov')].pop()||app;}
+function padItems(){const L=padLayer();const els=[...(L.matches('[data-a]')?[L]:[]),...L.querySelectorAll('[data-a],button')];
+ return els.filter(e=>!e.disabled&&!e.closest('.ver')&&padVis(e));}
+function padKeyOf(e){return (e.dataset.a||e.textContent.slice(0,16))+'|'+(e.dataset.id||'');}
+function padCur(it){if(!PAD.key)return null;return (it||padItems()).find(e=>padKeyOf(e)===PAD.key)||null;}
+function padDefault(it){
+ if(pk&&pk.stage==='reveal')return null; // 札をめくる所はAでめくる
+ const q=s=>it.find(e=>e.matches(s));
+ return q('[data-a="mb"]')||q('[data-a="tearNow"]')||q('[data-a="multiGo"]')||q('.main')||(screen==='game'?q('.hc.ok')||q('[data-a="end"]'):null)||it.find(e=>!e.classList.contains('backfix'))||it[0]||null;
+}
+function padShow(e){document.querySelectorAll('.gpf').forEach(x=>{if(x!==e)x.classList.remove('gpf');});if(e&&PAD.on){e.classList.add('gpf');try{e.scrollIntoView({block:'nearest',inline:'nearest'});}catch(_){}}}
+function padSet(e){PAD.key=e?padKeyOf(e):null;padShow(e);}
+function padRefresh(){if(!PAD.on)return;const it=padItems();let c=padCur(it);if(!c&&!(pk&&pk.stage==='reveal'))c=padDefault(it);PAD.key=c?padKeyOf(c):null;padShow(c);}
+function padMove(dx,dy){
+ const it=padItems();if(!it.length)return;const cur=padCur(it);
+ if(!cur){padSet(padDefault(it)||it[0]);return;}
+ const r=cur.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let best=null,bs=1e9;
+ for(const e of it){if(e===cur)continue;const q=e.getBoundingClientRect(),ex=q.left+q.width/2,ey=q.top+q.height/2;
+  const along=dx?(ex-cx)*dx:(ey-cy)*dy,side=dx?Math.abs(ey-cy):Math.abs(ex-cx);
+  if(along<=4)continue;const s=along+side*(dx?3:1.5);if(s<bs){bs=s;best=e;}}
+ if(best)padSet(best);
+}
+function padBack(){
+ if(screen==='game'&&G&&!pk&&!ui.modal&&!ui.rules&&!G.over&&(ui.sel||ui.selU||ui.info)){ui.sel=null;ui.selU=null;ui.info=null;render();return;}
+ const a=backAction();if(a)onClick(a);
+}
+function padTab(d){
+ const L=padLayer();const on=[...L.querySelectorAll('.sc.on[data-a]')].find(e=>L.querySelectorAll(`.sc[data-a="${e.dataset.a}"]`).length>1);if(!on)return;
+ const g=[...L.querySelectorAll(`.sc[data-a="${on.dataset.a}"]`)],i=g.indexOf(on),n=g[(i+d+g.length)%g.length];if(n&&n!==on)n.click();
+}
+function padScroll(v){
+ let e=padCur()||padLayer();
+ for(;e&&e!==document.body;e=e.parentElement){if(e.scrollHeight>e.clientHeight+2&&/(auto|scroll)/.test(getComputedStyle(e).overflowY)){e.scrollTop+=v;return;}}
+ (document.scrollingElement||document.documentElement).scrollTop+=v;
+}
+function padGet(){
+ let ps=[];const grab=n=>{try{return n.getGamepads?[...n.getGamepads()].filter(p=>p&&p.connected!==false):[];}catch(e){return [];}};
+ ps=grab(navigator);if(!ps.length&&EMBED){try{ps=grab(window.parent.navigator);}catch(e){}}
+ for(const p of ps)if(p.buttons.some(b=>b&&b.pressed)){if(PAD.idx!==p.index){PAD.idx=p.index;PAD.prev=null;}break;}
+ return ps.find(p=>p.index===PAD.idx)||ps.find(p=>p.mapping==='standard')||ps[0]||null;
+}
+function padTick(){
+ const gp=padGet();if(!gp)return;
+ const btn=i=>!!(gp.buttons[i]&&gp.buttons[i].pressed);
+ if(!PAD.prev){PAD.prev=gp.buttons.map(b=>b.pressed);return;} // 開いた時に押していたボタンは数えない
+ const down=i=>btn(i)&&!PAD.prev[i];
+ const ax=i=>{const v=gp.axes[i]||0;return Math.abs(v)<0.2?0:v;};
+ const lx=ax(0),ly=ax(1),ry=ax(3);
+ const nx=(btn(15)?1:0)-(btn(14)?1:0)+(Math.abs(lx)>0.5?Math.sign(lx):0),ny=(btn(13)?1:0)-(btn(12)?1:0)+(Math.abs(ly)>0.5?Math.sign(ly):0);
+ const any=gp.buttons.some(b=>b&&b.pressed)||nx||ny||ry;
+ if(any&&!PAD.on){PAD.on=true;padRefresh();}
+ const now=performance.now();
+ if(nx||ny){const d=Math.abs(nx)>=Math.abs(ny)?'x'+Math.sign(nx):'y'+Math.sign(ny);
+  if(d!==PAD.dir){PAD.dir=d;PAD.t0=PAD.tl=now;padMove(d[0]==='x'?Math.sign(nx):0,d[0]==='y'?Math.sign(ny):0);}
+  else if(now-PAD.t0>380&&now-PAD.tl>130){PAD.tl=now;padMove(d[0]==='x'?Math.sign(nx):0,d[0]==='y'?Math.sign(ny):0);}}
+ else PAD.dir='';
+ if(down(0)){
+  const it=padItems(),cur=padCur(it);
+  if(pk&&pk.stage==='reveal'&&(!cur||cur.dataset.a!=='skip'))flingTop();
+  else if(cur)cur.click();
+  else{const d=padDefault(it);if(d)padSet(d);}
+ }
+ if(down(1))padBack();
+ if(down(3)&&screen==='game'&&!pk){const e=document.querySelector('#app [data-a="end"]');if(e&&!document.querySelector('#app .ov'))e.click();}
+ if(down(4))padTab(-1);if(down(5))padTab(1);
+ if(down(9)&&screen==='game'&&G&&!G.over&&!ui.modal&&!pk)onClick('menu');
+ if(ry)padScroll(ry*Math.abs(ry)*28);
+ PAD.prev=gp.buttons.map(b=>b.pressed);
+}
+if(typeof document!=='undefined'){
+ setInterval(padTick,33);
+ document.addEventListener('pointerdown',()=>{if(PAD.on){PAD.on=false;padShow(null);}},true);
 }
 if(EMBED)parentSend({t:'ready'});
 </script>
