@@ -112,6 +112,19 @@
   UI.close = () => { if (el) el.remove(); el = null; P = null; if (SGK.ASOBIUI) SGK.ASOBIUI.closeCraft(); };
   UI.die = die; UI.roll = roll; // 2.62.0 双六の賽（asobiui.js）
   UI.isOpen = () => !!el;
+  // 2.106.9 胴元の頭を続けて10回たたくと1000貫（絵はクリックを通さないので、押した所が頭の範囲かを座標で見る）
+  let headN = 0, headT = 0;
+  document.addEventListener('pointerdown', (e) => {
+    for (const im of document.querySelectorAll('img.gbBoss')) {
+      const r = im.getBoundingClientRect(); if (!r.width || !r.height) continue;
+      const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+      if (x < 0.2 || x > 0.8 || y < 0 || y > 0.22) continue;
+      const now = performance.now(); headN = now - headT < 1500 ? headN + 1 : 1; headT = now;
+      sfx('click');
+      if (headN >= 10) { headN = 0; SGK.cmd({ type: 'gbHead' }); sfx('coin'); }
+      return;
+    }
+  }, true);
   UI.tab = () => tab; // 2.62.2 遊びのタブ（独楽・貝絵合わせ・双六）では遊びの曲
   UI.update = (priv) => { if (!el) return; P = priv; const gb = P && P.here && P.here.gamble; if (!gb) return UI.close(); render(false); };
 
@@ -164,9 +177,9 @@
     memashi: () => diceScene(2),
     shigoro: () => diceScene(3),
     uma: () => `<div class="track" id="gbTrack"><div class="goal"></div>${[0, 1, 2, 3, 4, 5].map((i) => `<div class="lane" style="top:${1 + i * 12.4}%;z-index:${i + 1}"><div class="horse" id="gbH${i}" style="right:4%"><img src="${ART}horse.png" style="filter:hue-rotate(${i * 55}deg) saturate(${0.8 + (i % 3) * 0.25}) brightness(${1.1 - (i % 2) * 0.15}) drop-shadow(0 3px 3px rgba(0,0,0,.5))"><b>${i + 1}</b></div></div>`).join('')}<div class="call" id="gbCall">さあ、どの馬に賭ける</div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`,
-    karuta: () => `<img class="who oya" src="${ART}boss4.png"><div class="kar"><div class="lbl">親</div><div class="hand" id="gbPar"></div><div class="lbl" style="margin-top:10px">あなた</div><div class="hand" id="gbMine"></div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`,
+    karuta: () => `<img class="who oya gbBoss" src="${ART}boss4.png"><div class="kar"><div class="lbl">親</div><div class="hand" id="gbPar"></div><div class="lbl" style="margin-top:10px">あなた</div><div class="hand" id="gbMine"></div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`,
   };
-  const diceScene = (n) => `<img class="who oya" src="${ART}boss4.png"><div class="dcol"><div class="lbl" id="gbPL">親の賽</div><div class="tray"><div class="dice" id="gbPD">${Array.from({ length: n }, (_, i) => die(1, 'gp' + i)).join('')}</div></div><div class="lbl" id="gbML">あなたの賽</div><div class="dice" id="gbMD">${Array.from({ length: n }, (_, i) => die(1, 'gm' + i)).join('')}</div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`;
+  const diceScene = (n) => `<img class="who oya gbBoss" src="${ART}boss4.png"><div class="dcol"><div class="lbl" id="gbPL">親の賽</div><div class="tray"><div class="dice" id="gbPD">${Array.from({ length: n }, (_, i) => die(1, 'gp' + i)).join('')}</div></div><div class="lbl" id="gbML">あなたの賽</div><div class="dice" id="gbMD">${Array.from({ length: n }, (_, i) => die(1, 'gm' + i)).join('')}</div></div><div class="big"></div><div class="res"></div><div class="panel"></div>`;
 
   // ---- 下の操作の欄 ----
   const PANEL = {

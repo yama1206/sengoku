@@ -42,7 +42,7 @@ function townStage(P, hs) {
   if (townTab === 'mise') return ['', 'shop.jpg', `<img class="who" src="${TA}merchant_p.png">` + say('店の番頭', me.shoka && me.shoka.own ? '旦那様、本日も商いに励みます' : '自分の店を持つのは、商人の夢でございます')]; // 2.56.0 自分の店
   if (townTab === 'minato') return ['', 'minato.jpg', say('湊の船問屋', '海の向こうとの商いなら、船と腕のいい船乗りが要りますぜ')]; // 2.55.0 湊
   if (townTab === 'yugi') return ['', 'shop.jpg', `<img class="who" src="${TA}yugi_p.png">` + say('遊戯屋の看板娘', 'いらっしゃいませー！戦国思想録の札、包みを開けるのも手合わせも、ここでどうぞ♪')]; // 2.102.0 遊戯屋（2.105.1 可愛い看板娘の絵に）
-  if (townTab === 'gamble') return ['', '../gamble/den.jpg', `<img class="who" src="${TA}boss4.png">` + say('賭場の胴元', 'おう、遊んでいくかい。運も腕のうちだぜ')];
+  if (townTab === 'gamble') return ['', '../gamble/den.jpg', `<img class="who gbBoss" src="${TA}boss4.png">` + say('賭場の胴元', 'おう、遊んでいくかい。運も腕のうちだぜ')];
   if (townTab === 'talk') { // 2.13.1 茶屋：大きな町には娘がいる
     if (mu) return ['', 'chaya.jpg', `<img class="who" src="${TA}${mu.img}.png">` + say(`${mu.name}　<span class="heart">${'♥'.repeat(mu.wife ? 5 : mu.st)}${'♡'.repeat(mu.wife ? 0 : 4 - mu.st)}</span>`, (G.muSay && G.muSay[0] === mu.id && performance.now() - G.muSay[2] < 6000) ? G.muSay[1] : mu.line)];
     return ['', 'chaya.jpg', say('茶屋', '旅の人や町の人が、相場や戦の噂をしている')];

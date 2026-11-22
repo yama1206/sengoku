@@ -96,6 +96,10 @@
     if (p.money < bet) return SAY(p.id, '持ち金が足りません');
     p.gbPlay = (p.gbPlay || 0) + 1; p.money -= bet; T.bets[p.id] = { bet, pick: c.kind != null ? c.kind : null };
   };
+  SIM.commands.gbHead = (w, p) => { // 2.106.9 胴元の頭を10回たたくと、おわびに1000貫くれる
+    const s = here(w, p); if (!s || !DATA.isBig(s)) return;
+    pay(p, 1000000); SAY(p.id, '胴元「いてて、わかった、わかった！ これで勘弁してくれ」　1000貫もらった');
+  };
   SIM.commands.gbCancel = (w, p, c) => {
     const T = ok(w, p, c); if (!T) return;
     const b = T.bets[p.id]; if (!b) return;
