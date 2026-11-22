@@ -24,6 +24,7 @@
 #gbHall .tarai canvas{position:absolute;inset:0;width:100%;height:100%}
 #gbHall .vs{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap}
 #gbHall .gauge{position:relative;width:min(360px,80vw);height:26px;background:linear-gradient(90deg,#3a5a8a,#5a9a5a 55%,#e6b422 82%,#f2c14e 88%,#c8281e 93%);border:2px solid #f2c14e;border-radius:6px;margin:6px auto;cursor:pointer}
+#gbHall .kmGov{position:absolute;inset:0;z-index:50;background:rgba(0,0,0,.45);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer}
 #gbHall .gauge b{position:absolute;top:-4px;bottom:-4px;width:4px;background:#fff;box-shadow:0 0 6px #000}
 #gbHall .kaiB{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;width:min(480px,94vw)}
 #gbHall .shell{position:relative;aspect-ratio:1.15;cursor:pointer;perspective:400px}
@@ -242,12 +243,18 @@
     await wait(2600); top.classList.remove('show'); res.classList.remove('show');
   }
   // 力の目盛り：左右に動く針を止める（0.85〜0.92 がいちばん強い。行き過ぎると力みすぎ）
+  // 2.106.5 目盛りは賭け方の欄の上に重ねて出す（欄に隠れて止められなかった）。どこを押しても・空白キーでも止まる
   function gauge(st, sel, send) {
-    const S = ST.koma; if (S.gauge) return; const box = st.querySelector('#kmGauge'); box.innerHTML = '<div class="rule" style="text-align:center">針が金色の所で止める（クリック／タップ）</div><div class="gauge"><b></b></div>';
-    const gEl = box.querySelector('.gauge'), n = gEl.querySelector('b'), t0 = performance.now(); let raf = 0, v = 0;
-    const step = () => { const t = (performance.now() - t0) / 1000; v = (1 - Math.cos(t * 3.4)) / 2; n.style.left = `calc(${(v * 100).toFixed(1)}% - 2px)`; raf = requestAnimationFrame(step); }; step();
-    S.gauge = () => { cancelAnimationFrame(raf); const pow = v <= 0.88 ? v / 0.88 : v <= 0.93 ? 1 : 0.6; box.innerHTML = `<div class="rule" style="text-align:center">${v > 0.93 ? '力みすぎた！' : pow > 0.95 ? '会心の投げ！' : pow > 0.75 ? 'よい投げ' : '弱い投げ…'}</div>`; S.gauge = null; const pw = Math.round(pow * 100) / 100; if (send) send(pw); else cmd({ type: 'kmPlay', qty: sel, pow: pw }); setTimeout(() => { if (box.isConnected) box.innerHTML = ''; }, 2500); };
-    gEl.onclick = () => S.gauge && S.gauge();
+    const S = ST.koma; if (S.gauge) return; const box = st.querySelector('#kmGauge');
+    const ov = document.createElement('div'); ov.className = 'kmGov';
+    ov.innerHTML = '<div class="rule" style="text-align:center;font-size:16px">針が金色の所で止める（どこでもクリック／タップ・空白キー）</div><div class="gauge"><b></b></div>';
+    (document.getElementById('gbHall') || document.body).appendChild(ov);
+    const gEl = ov.querySelector('.gauge'), n = gEl.querySelector('b'), t0 = performance.now(); let raf = 0, v = 0;
+    const step = () => { if (!ov.isConnected) return; const t = (performance.now() - t0) / 1000; v = (1 - Math.cos(t * 3.4)) / 2; n.style.left = `calc(${(v * 100).toFixed(1)}% - 2px)`; raf = requestAnimationFrame(step); }; step();
+    const key = (e) => { if (!ov.isConnected) { document.removeEventListener('keydown', key, true); S.gauge = null; return; } if (e.code === 'Space' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); S.gauge && S.gauge(); } };
+    document.addEventListener('keydown', key, true);
+    S.gauge = () => { cancelAnimationFrame(raf); document.removeEventListener('keydown', key, true); ov.remove(); const pow = v <= 0.88 ? v / 0.88 : v <= 0.93 ? 1 : 0.6; if (box) box.innerHTML = `<div class="rule" style="text-align:center">${v > 0.93 ? '力みすぎた！' : pow > 0.95 ? '会心の投げ！' : pow > 0.75 ? 'よい投げ' : '弱い投げ…'}</div>`; S.gauge = null; const pw = Math.round(pow * 100) / 100; if (send) send(pw); else cmd({ type: 'kmPlay', qty: sel, pow: pw }); setTimeout(() => { if (box && box.isConnected) box.innerHTML = ''; }, 2500); };
+    ov.onclick = (e) => { e.stopPropagation(); S.gauge && S.gauge(); };
   }
 
   // ================= 貝絵合わせ =================
