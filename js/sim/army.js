@@ -109,6 +109,7 @@
     if (t.battle) return;
     if (!t.kind) { // プレイヤーの攻城戦準備に援軍が攻めかかる
       if (t.busy) t.busy = null;
+      if (t.off) { t.siege = null; SIM.say(t.id, `留守のあいだに${armyName(w, n)}が救援に来て、攻城戦の準備が崩れました`); goHome(w, n); return; } // 2.105.2 いま入っていない人は戦に巻き込まない
       return fieldBattle(w, n, t, `${armyName(w, n)}（${n.size}人）が救援に駆けつけ、攻めかかってきました！`);
     }
     const s = SIM.settlement(w, t.to);
@@ -122,10 +123,10 @@
     for (const a of [n, t]) if (w.npcs[a.id] && !a.size) delete w.npcs[a.id];
   }
   function assault(w, n, s) { // 攻城戦準備が終わって総攻め
-    const defs = n.noDef ? [] : Object.values(w.players).filter((p) => p.clan === s.owner && !p.battle && p.at === s.id); /* 1.6.60 城の中にいる人 */
-    const outs = n.noDef ? [] : Object.values(w.players).filter((p) => p.clan === s.owner && !p.battle && p.at !== s.id && dist(p, s) <= AR.fightKm); /* 1.6.61 近くにいる人は城の外から加わる */
+    const defs = n.noDef ? [] : Object.values(w.players).filter((p) => p.clan === s.owner && !p.off && !p.battle && p.at === s.id); /* 1.6.60 城の中にいる人 */
+    const outs = n.noDef ? [] : Object.values(w.players).filter((p) => p.clan === s.owner && !p.off && !p.battle && p.at !== s.id && dist(p, s) <= AR.fightKm); /* 1.6.61 近くにいる人は城の外から加わる */
     if (defs.length || outs.length) return defenseBattle(w, n, s, defs, outs);
-    const mine = Object.values(w.players).filter((p) => p.camp === n.id && !p.battle && dist(p, s) < AR.liftKm); // 0.50.0 参陣している人がいればいっしょに戦う
+    const mine = Object.values(w.players).filter((p) => p.camp === n.id && !p.off && !p.battle && dist(p, s) < AR.liftKm); // 0.50.0 参陣している人がいればいっしょに戦う
     if (mine.length && !n.solo) return SIM._armyAssault(w, n, s, mine);
     const r = SIM._campArrive(w, { to: s.id, att: n.faction, army: n.army });
     if (r === true || !r) { delete w.npcs[n.id]; return; }
@@ -179,7 +180,7 @@
   };
   function fieldBattle(w, n, p, msg) { // 野戦：プレイヤー側 対 軍勢
     const b = newBattle(w, n, { field: 1 });
-    const qs = Object.values(w.players).filter((q) => q === p || (q.clan && q.clan === p.clan && !q.battle && dist(q, p) <= AR.fightKm));
+    const qs = Object.values(w.players).filter((q) => q === p || (q.clan && q.clan === p.clan && !q.off && !q.battle && dist(q, p) <= AR.fightKm));
     for (const q of qs) join(w, b, q, q === p ? msg : `${p.name}とともに${b.foe}（${n.size}人）と戦います！`);
     M.addUnits(w, b, 'B', null, n.army);
     // 0.57.0 いっしょに攻めかかってきた同じ家の隊も加わる

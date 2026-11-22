@@ -181,6 +181,7 @@
     },
     function playerMove(w, dt) {
       for (const p of Object.values(w.players)) {
+        if (p.off) continue; // 2.105.2 いま入っていない人は、その場で止まって待つ（前は抜けた後も歩き続け、野盗や軍勢とぶつかっていた）
         if (p.follow) followStep(w, p);
         if (moveEntity(p, dt) && p.dest) { const s = SIM.settlement(w, p.dest); p.dest = null; if (s && !SIM.canEnter(w, p, s)) { denyEnter(p, s, w); continue; } p.at = s ? s.id : null; if (p.at) SIM.onPlayerArrive(w, p); continue; }
         // 歩いて（WASD・スティック）拠点の上で止まったときも「到着」とみなす

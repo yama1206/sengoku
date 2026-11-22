@@ -143,6 +143,7 @@ function hostTick0() {
   G.inBattle = Object.keys(G.world.battles || {}).length > 0; // 0.32.0 誰かが戦闘中は時間を等倍に
   G.effSpeed = G.inBattle && G.speed > 1 ? 1 : G.speed;
   { const on = new Set([G.myPid, ...(G.net ? G.net.pids() : [])]); for (const id in G.world.players) G.world.players[id].off = !on.has(id); } // 0.61.1 いま接続していない人（前のマルチプレイの参加者）は地図に出さない
+  if (SIM.offBattles) SIM.offBattles(G.world, dt, CFG.AUTO_WAIT_MS / 1000); // 2.105.2 抜けた人だけの合戦は30秒待って自動で決着（「合戦中」のまま残らないように）
   SIM.step(G.world, dt * CFG.MIN_PER_SEC * G.effSpeed);
   if (SIM.planCheck) SIM.planCheck(G.world, dt); // 2.23.1 軍議の終わり（時間を止めていても）
   // 0.62.0 ホストが入っていない「自分で戦う」の戦闘は、ここで進めて、その人へ様子を送る

@@ -72,7 +72,12 @@
       s.pool = s.pool || {};
       { const PL = SIM.poolOf(s); for (const k in PL) if (s.pool[k] == null) s.pool[k] = Math.floor(PL[k][1] / 2); }
     }
-    for (const p of Object.values(w.players)) if (p.battle && !w.battles[p.battle]) p.battle = null;
+    for (const b of Object.values(w.battles)) { // 2.105.2 セーブに残った合戦の片付け：いない人を外し、一覧に名前があるのに本人は別の所にいる人も外す
+      const n0 = (b.pids || []).length;
+      b.pids = (b.pids || []).filter((id) => w.players[id] && w.players[id].battle === b.id);
+      if (n0 && !b.pids.length) { if (b.test) delete w.battles[b.id]; else b.orphan = 1; } // 戦っていた人が誰もいなくなった合戦は、ホストが始めてすぐ決着させる（SIM.offBattles）
+    }
+    for (const p of Object.values(w.players)) if (p.battle && !(w.battles[p.battle] && w.battles[p.battle].pids.includes(p.id))) p.battle = null;
     for (const b of Object.values(w.battles)) { b.ter = b.ter || []; b.lk = b.lk || { A: null, B: null }; for (const u of b.units) { if (u.f == null) u.f = u.side === 'A' ? 0 : Math.PI; if (u.mor == null) u.mor = u.mo = 65; if (u.n0 == null) u.n0 = u.n; } }
     if (!Object.values(w.npcs).some((n) => n.kind === 'bandit')) for (let i = 0; i < 200; i++) spawnBandit(w);
     for (const n of Object.values(w.npcs)) if (n.kind === 'patrol' && !n.army) { // 巡回兵の手勢
@@ -110,7 +115,7 @@
     e.x = nx; e.y = ny; return false;
   }
   SIM.HIDE_MIN = 180; SIM.hidden = (w, p) => (p.hideT || 0) > w.time.min; /* 1.6.20 逃げたり戦が終わったあと3時間は敵に見つからない */
-  const inField = (p) => !p.battle && !(p.at && p.tx == null); // 拠点にいる人は襲われない
+  const inField = (p) => !p.off && !p.battle && !(p.at && p.tx == null); // 拠点にいる人は襲われない（2.105.2 いま入っていない人も。前は野盗や敵の軍勢に襲われて合戦中になっていた）
   function playerPower(p) { return power(p.troops) + TR.hero.hp * TR.hero.atk; }
 
   function banditTick(w, dt) {
@@ -428,6 +433,19 @@
     else if (b.t > 900) autoResolve(w, b); // 長引いたら自動で決着
   }
 
+  /* 2.105.2 戦っている人が全員いま入っていない合戦は、wait 秒（本当の時間）待っても戻らなければ自動で決着させる。
+     前は軍議（1人のときは時間切れがない）のまま止まり、抜けた人がずっと「合戦中」になっていた。real：本当の経過秒 */
+  SIM.offBattles = (w, real, wait) => {
+    for (const b of Object.values(w.battles || {})) {
+      const P = b.pids || [], gone = b.orphan || (P.length && P.every((id) => !w.players[id] || w.players[id].off));
+      if (!gone) { if (b.offT) b.offT = 0; continue; }
+      b.offT = (b.offT || 0) + real;
+      if (!b.orphan && b.offT < wait) continue;
+      if (!P.length) { if (b.test) { delete w.battles[b.id]; continue; } }
+      b.plan = null; autoResolve(w, b);
+      P.forEach((id) => SIM.say(id, '留守のあいだに、途中だった合戦は自動で決着しました'));
+    }
+  };
   SIM.autoResolve = (w, b) => autoResolve(w, b); // 2.4.0 ホストの引き継ぎで、途中だった「自分で戦う」合戦を決着させる
   function autoResolve(w, b) {
     const pw = (side) => b.units.filter((u) => u.side === side && alive(u)).reduce((a, u) => a + u.hp * TR[u.type].atk, 0);
@@ -578,7 +596,7 @@
   SIM.planCheck = (w, real) => { for (const b of Object.values(w.battles || {})) { if (b.plan === undefined) planBegin(w, b); if (b.plan) planTick(w, b, real); } };
   function planTick(w, b, real) {
     const P = b.plan; P.t += real;
-    const all = b.pids.length && b.pids.every((pid) => P.ready[pid]);
+    const all = b.pids.length && b.pids.some((pid) => P.ready[pid]) && b.pids.every((pid) => P.ready[pid] || !w.players[pid] || w.players[pid].off); // 2.105.2 抜けた人は待たない
     if (all || (b.pids.length > 1 && P.t > PLAN.max) || !b.pids.length) {
       b.plan = null;
       b.pids.forEach((pid) => SIM.say(pid, all ? '軍議が終わりました。合戦の始まりです！' : '時間になったので合戦を始めます！'));

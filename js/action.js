@@ -79,7 +79,7 @@
   SIM.battleMarks = (w, pid) => {
     const p = w.players[pid], out = []; if (!p) return out;
     for (const b of Object.values(w.battles || {})) {
-      const qs = (b.pids || []).map((id) => w.players[id]).filter((q) => q && q.battle === b.id); if (!qs.length) continue;
+      const qs = (b.pids || []).map((id) => w.players[id]).filter((q) => q && !q.off && q.battle === b.id); if (!qs.length) continue; /* 2.105.2 いま入っていない人の合戦は出さない */
       if (!qs.includes(p) && (b.war || b.siege) && !(p.clan && qs.some((q) => q.clan === p.clan))) continue;
       const at = SIM.battleSpot(w, b); if (!at) continue;
       out.push([Math.round(at.x * 100) / 100, Math.round(at.y * 100) / 100, b.foe, qs.map((q) => q.name).join('・')]);
