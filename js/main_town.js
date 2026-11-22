@@ -352,13 +352,14 @@ function startNinjaPvp(N, go) {
 function startNusumi(q, co) {
   const N = G.priv && G.priv.me && G.priv.me.nin, tools = (N && N.tools) || {};
   const fin = (r) => { r = r && typeof r === 'object' ? r : { ok: r };
-    if (r.ok === null || r.ok === undefined) { command({ type: 'ninUse', used: r.used || null }); toast('いったん退きました（まだ盗んでいない）', 1500); }
+    if (r.ok === null || r.ok === undefined) { command({ type: 'ninUse', used: r.used || null }); toast(r.no3d ? '3Dが使えないので、盗みはできません' : 'いったん退きました（まだ盗んでいない）', r.no3d ? 3000 : 1500); }
     else command({ type: 'nusumiResult', ok: !!r.ok, used: r.used || null }); };
   if (co) {
     if (!(SGK.NINJA3D && SGK.NINJA3D.can())) { toast('3Dが使えないので、協力はできません', 3000); command({ type: 'ninRoomLeave' }); return; }
-    SGK.NINJA3D.start({ q: co.q, d: co.d, tools, seed: co.q.id, co: { me: G.myPid, leader: co.lead, members: co.mem, names: co.names, send: SGK.ninSend } }, fin); return;
+    SGK.NINJA3D.start({ no2d: true, q: co.q, d: co.d, tools, seed: co.q.id, co: { me: G.myPid, leader: co.lead, members: co.mem, names: co.names, send: SGK.ninSend } }, fin); return;
   }
-  if (SGK.NINJA3D && SGK.NINJA3D.can()) SGK.NINJA3D.start({ q: { k: 'steal', sk: 'zeni', id: q.id, toName: q.toName }, d: q.d, tools, seed: q.id }, fin); else SGK.NINJA.start('steal', q.d, fin);
+  if (!(SGK.NINJA3D && SGK.NINJA3D.can())) return fin({ ok: null, no3d: true }); // 2.109.0 盗みは3Dだけ（2Dの代わりはしない）
+  SGK.NINJA3D.start({ no2d: true, q: { k: 'steal', sk: 'zeni', id: q.id, toName: q.toName }, d: q.d, tools, seed: q.id }, fin);
 }
 setInterval(() => { // 部屋の出発の合図が届いたら、入っている全員が始める
   const R = G.priv && G.priv.me && G.priv.me.nusumiRoom;

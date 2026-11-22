@@ -657,10 +657,10 @@
 
   // ---- 始める ----
   N3.start = (opt, done) => {
-    if (!N3.can() || !initRenderer()) { N3.failed = true; return SGK.NINJA.start(opt.q.k, opt.d, done); }
+    if (!N3.can() || !initRenderer()) { N3.failed = true; if (opt.no2d) return done({ ok: null, no3d: true }); return SGK.NINJA.start(opt.q.k, opt.d, done); } // 2.109.0 no2d＝盗みは2Dの代わりをせず、3Dが使えなければ取りやめる
     cb = done; CO = opt.co ? { lead: opt.co.leader === opt.co.me, me: opt.co.me, leader: opt.co.leader, members: opt.co.members || [], names: opt.co.names || {}, send: opt.co.send, ghosts: {}, snapT: 0, poseT: 0, rx: performance.now() + 12000, t0: performance.now(), ready: false, snap: null, endMsg: null, pv: opt.co.pvp ? opt.co.pvp.role : null, pvFoe: opt.co.pvp ? opt.co.pvp.foe : null } : null; N3.wantNight = !!(opt.d && opt.d.night); N3.on = true; keys.clear(); vk.clear(); prevK.clear(); prevPad = { 9: true }; look = { dx: 0, dy: 0 };
     cv.style.display = 'block'; hud.style.display = 'block'; hud.querySelector('.load').style.display = 'flex'; hud.querySelector('.end').style.display = 'none';
-    loadModels().then(() => { if (N3.on) setup(opt); }).catch((e) => { console.warn('忍びの3Dを読めませんでした', e); N3.on = false; cv.style.display = 'none'; hud.style.display = 'none'; N3.failed = true; SGK.NINJA.start(opt.q.k, opt.d, done); });
+    loadModels().then(() => { if (N3.on) setup(opt); }).catch((e) => { console.warn('忍びの3Dを読めませんでした', e); N3.on = false; cv.style.display = 'none'; hud.style.display = 'none'; N3.failed = true; if (opt.no2d) return done({ ok: null, no3d: true }); SGK.NINJA.start(opt.q.k, opt.d, done); });
   };
   // テスト用：工作の種類・城・昼夜を選んですぐ遊ぶ（結果はどこにも送らない）
   N3.test = (k, ck, night, kai, sk) => N3.start({ q: { k, sk: sk || 'mitsu', whoName: '某', id: 'test' + Math.random() }, d: { ck, night: !!night, kai: kai || 0, guards: 3 + (kai || 0) + 3, lv: 2 }, tools: { kemuri: 3, makibishi: 3, fukiya: 5, kaginawa: 1 } }, (r) => { if (SGK.toast) SGK.toast(JSON.stringify(r)); else console.log('忍びの結果', r); });
