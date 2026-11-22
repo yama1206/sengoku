@@ -209,6 +209,7 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 .dkw em{position:absolute;top:10px;left:0;right:6px;text-align:center;font-style:normal;font-weight:bold;font-size:13px;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}
 .dkw small{font-size:9px;opacity:.7;margin-top:6px}
 .face.gates.hl .sb{box-shadow:inset 0 0 0 2px #2a0e0a,0 0 8px #ff7a4a}
+.mc.ps{background:rgba(255,225,74,.3);box-shadow:0 0 0 2px #ffe14a;opacity:1}
 </style>
 </head>
 <body>
@@ -544,7 +545,7 @@ function onNet(m){
 function guestAct(a,id){
  const me=G.P[0];
  if(a==='charge'){if(ui.sel&&!me.charged){netSend({t:'act',a:'charge',uid:ui.sel});ui.sel=null;ui.busy=true;}}
- else if(a==='cast'){const c=me.hand.find(x=>x.uid===ui.sel);if(c&&canCast(me,c)){netSend({t:'act',a:'cast',uid:c.uid});ui.sel=null;ui.busy=true;}}
+ else if(a==='cast'){const c=me.hand.find(x=>x.uid===ui.sel);if(c&&canCast(me,c)){if(payChoice(me,c))ui.pay={uid:c.uid,sel:autoPayUids(me,c)};else{netSend({t:'act',a:'cast',uid:c.uid});ui.sel=null;ui.busy=true;}}}
  else if(a==='enemyunit'){const u=find(+id),su=find(ui.selU);if(u&&su&&canAtkU(su)&&u.tapped){netSend({t:'act',a:'attack',uid:su.uid,target:u.uid});ui.selU=null;ui.busy=true;}else if(u){ui.info=u.card;ui.sel=ui.selU=null;}}
  else if(a==='eface'){const su=find(ui.selU);if(su&&canAtkU(su)&&!faceOk(su)){log('月山富田城の効果で、これ以上城門を攻撃できない');}else if(su&&canAtkU(su)){netSend({t:'act',a:'attack',uid:su.uid,target:'face'});ui.selU=null;ui.busy=true;}}
  else if(a==='end'){netSend({t:'act',a:'end'});ui.busy=true;ui.sel=ui.selU=null;}
@@ -560,7 +561,7 @@ async function remoteTurn(p){
   if(m.t!=='act')continue;
   if(m.a==='end')return;
   if(m.a==='charge'){const c=p.hand.find(x=>x.uid===m.uid);if(c&&!p.charged){p.hand=p.hand.filter(x=>x!==c);p.mana.push({card:c,tapped:false});p.charged=true;log(`${p.name}は兵糧を蓄えた`);}}
-  else if(m.a==='cast'){const c=p.hand.find(x=>x.uid===m.uid);if(c&&canCast(p,c))await playCard(p,c);}
+  else if(m.a==='cast'){const c=p.hand.find(x=>x.uid===m.uid);if(c&&canCast(p,c))await playCard(p,c,m.pay);}
   else if(m.a==='attack'){const u=find(m.uid);if(u&&u.owner===p&&canAtkU(u)){if(m.target==='face'){if(faceOk(u))await attack(u,'face');}else{const t=find(m.target);if(t&&t.owner===d&&t.tapped)await attack(u,t);}}}
   render();
  }
@@ -716,12 +717,25 @@ function fxUseful(p,c){
   case 'pumpTemp':return p.units.length>0;
   default:return true;}});
 }
-function payMana(p,c){
+// 2.106.16 費えの払い方：横にする兵糧を自分で選べる（選ばなければ今までどおり自動）
+const payNeed=c=>c.i==='ne'?c.c:Math.max(1,c.c);
+function autoPayUids(p,c){
  const un=p.mana.filter(m=>!m.tapped);
- if(c.i==='ne'){for(let k=0;k<c.c;k++)un[k].tapped=true;return;} // 汎用札はどの兵糧でも払える
- const f=un.find(m=>m.card.i===c.i);f.tapped=true;
+ if(c.i==='ne')return un.slice(0,c.c).map(m=>m.card.uid); // 汎用札はどの兵糧でも払える
+ const f=un.find(m=>m.card.i===c.i);if(!f)return [];
  const rest=un.filter(m=>m!==f).sort((a,b)=>(a.card.i===c.i)-(b.card.i===c.i));
- for(let k=0;k<c.c-1;k++)rest[k].tapped=true;
+ return [f,...rest.slice(0,Math.max(0,c.c-1))].map(m=>m.card.uid);
+}
+function payOk(p,c,uids){
+ if(!Array.isArray(uids)||uids.length!==payNeed(c)||new Set(uids).size!==uids.length)return false;
+ const ms=uids.map(u=>p.mana.find(m=>m.card.uid===u&&!m.tapped));if(ms.some(m=>!m))return false;
+ return c.i==='ne'||ms.some(m=>m.card.i===c.i);
+}
+// 払い方を選ぶ意味があるか（縦の兵糧が費えより多く、思想が混ざっている時だけ）
+function payChoice(p,c){const un=p.mana.filter(m=>!m.tapped);return un.length>payNeed(c)&&new Set(un.map(m=>m.card.i)).size>1;}
+function payMana(p,c,uids){
+ if(!payOk(p,c,uids))uids=autoPayUids(p,c);
+ for(const u of uids){const m=p.mana.find(x=>x.card.uid===u&&!x.tapped);if(m)m.tapped=true;}
 }
 
 // ===== UI promises =====
@@ -765,8 +779,8 @@ async function applyFx(p,e){
  }
  render();
 }
-async function playCard(p,c){
- p.hand=p.hand.filter(x=>x!==c);payMana(p,c);
+async function playCard(p,c,pay){
+ p.hand=p.hand.filter(x=>x!==c);payMana(p,c,pay);
  log(`${p.name}:${c.n}を${c.t==='u'?'召喚':c.t==='w'?'装備':'使用'}`);
  if(c.t==='u'){const u=newUnit(p,c);p.units.push(u);render();for(const e of c.e){if(G.over)return;await applyFx(p,e);}}
  else if(c.t==='w'){
@@ -872,7 +886,7 @@ async function startTurn(i){
   else if(c.ps==='nene'&&d.hand.length>p.hand.length)draw(p,1);
   else if(c.ps==='hatsu'&&p.mana.length<d.mana.length)ramp(p,1);
  }
- ui.sel=ui.selU=ui.info=null;render();await sleep(300);
+ ui.sel=ui.selU=ui.info=ui.pay=null;render();await sleep(300);
  if(p.ai){ui.busy=true;render();await aiTurn(p);if(!G.over)await endTurn();}
  else if(p.remote){ui.busy=true;render();await remoteTurn(p);if(G&&!G.over)await endTurn();}
  else{ui.busy=false;render();}
@@ -916,7 +930,7 @@ function startGame(deckMap,auto,pvp){ // pvp={deck,name,me}：人との手合わ
  if(pvp)G.P[1].remote=true;
  for(const p of G.P){p.shields=p.deck.splice(0,5);p.hand=p.deck.splice(0,5);}
  log(`相手の思想: ${cpuIds.map(i=>IDEO[i].n).join('・')}`);
- ui.sel=ui.selU=ui.info=ui.pick=ui.modal=null;ui.busy=true;screen='game';render();
+ ui.sel=ui.selU=ui.info=ui.pick=ui.modal=ui.pay=null;ui.busy=true;screen='game';render();
  if(pvp){const f=Math.random()<0.5?0:1;log(`先手は${G.P[f].name}`);return startTurn(f);}
  return startTurn(0);
 }
@@ -930,7 +944,7 @@ function gateRow(p,enemy){
  const g=p.shields.length?`<span class="gl">城門<b>${p.shields.length}</b></span><span class="gs">${backs(p.shields.length)}</span>`:`<span class="gl ng">${enemy?'本丸を攻める!':'城門なし'}</span><span class="gs"></span>`;
  return g+dk;
 }
-function manaRow(p){if(!p.mana.length)return '<span class="dim">兵糧なし</span>';const up=p.mana.filter(m=>!m.tapped).length;return `<span class="mlab">兵糧 ${up}/${p.mana.length}</span>`+p.mana.map(m=>`<span class="mc ${m.tapped?'t':''}" style="--c:${IDEO[m.card.i].c}" data-a="mana" data-id="${m.card.uid}">${m.card.n}</span>`).join('');}
+function manaRow(p){if(!p.mana.length)return '<span class="dim">兵糧なし</span>';const up=p.mana.filter(m=>!m.tapped).length;return `<span class="mlab">兵糧 ${up}/${p.mana.length}</span>`+p.mana.map(m=>`<span class="mc ${m.tapped?'t':''} ${ui.pay&&p===G.P[0]&&ui.pay.sel.includes(m.card.uid)?'ps':''}" style="--c:${IDEO[m.card.i].c}" data-a="mana" data-id="${m.card.uid}">${m.card.n}</span>`).join('');}
 function findMana(uid){for(const p of G.P){const m=p.mana.find(x=>x.card.uid===uid);if(m)return m.card;}return null;}
 function mTile(m){return `<i class="md ${m.tapped?'t':''}" style="background:${IDEO[m.card.i].c}"></i>`;}
 function unitTile(u,mine){
@@ -988,7 +1002,7 @@ function backAction(){
  if(screen==='shop')return shopBig?'shopbigClose':'toTitle';
  if(screen==='edit')return 'editBack';
  if(screen==='pvp')return 'pvpBack';
- if(screen==='game'&&G)return ui.modal?'':G.over?'toTitle':'menu';
+ if(screen==='game'&&G)return ui.modal?'':G.over?'toTitle':ui.pay?'payNo':'menu';
  return '';
 }
 function backHTML(){const a=backAction();return a?`<button class="backfix" data-a="${a}">戻る</button>`:'';}
@@ -1013,6 +1027,7 @@ function gameHTML(){
  const faceHl=!ui.busy&&su&&canAtkU(su)&&faceOk(su);
  let acts='';
  if(ui.pick)acts=`<div class="msg">${ui.pick.msg}</div>`;
+ else if(ui.pay&&!ui.busy&&!G.over){const c=me.hand.find(x=>x.uid===ui.pay.uid);if(c){const nd=payNeed(c);acts=`<div class="msg">横にする兵糧を${nd}枚選ぶ(${ui.pay.sel.length}/${nd})${c.i!=='ne'?`・${IDEO[c.i].n}を1枚以上`:''}</div><button data-a="payOk" ${payOk(me,c,ui.pay.sel)?'':'disabled'}>この札で払う</button><button data-a="payNo">やめる</button>`;}}
  else if(G.over)acts='';
  else if(ui.busy)acts='<div class="msg">相手の番…</div>';
  else{
@@ -1393,6 +1408,17 @@ async function onClick(a,id){
  }
  const me=G.P[0];
  if(a==='menu'){const r=await modal(G.pvp?'手合わせを抜けますか?(相手の勝ちになります)':'表紙に戻りますか?(対戦は破棄されます)',[{l:'戻る',v:true},{l:'続ける',v:false}]);if(r){if(G&&G.pvp)netQuit();G=null;screen='title';render();}return;}
+ if(ui.pay){ // 払う兵糧を選んでいる最中
+  const c=me.hand.find(x=>x.uid===ui.pay.uid);
+  if(!c||ui.busy||!canCast(me,c)){ui.pay=null;render();return;}
+  if(a==='mana'){const u=+id,m=me.mana.find(x=>x.card.uid===u);if(m&&!m.tapped){const sl=ui.pay.sel;if(sl.includes(u))ui.pay.sel=sl.filter(x=>x!==u);else{if(sl.length>=payNeed(c))sl.shift();sl.push(u);}}else if(m||findMana(u))ui.info=findMana(u);render();return;}
+  if(a==='payOk'){const uids=ui.pay.sel.slice();if(!payOk(me,c,uids))return;ui.pay=null;ui.sel=null;
+   if(G.guest){netSend({t:'act',a:'cast',uid:c.uid,pay:uids});ui.busy=true;render();}
+   else{ui.busy=true;await playCard(me,c,uids);if(!G.over)ui.busy=false;render();}
+   return;}
+  if(a==='payNo'){ui.pay=null;render();return;}
+  return;
+ }
  if(a==='mana'){ui.info=findMana(+id);ui.infoU=null;ui.sel=ui.selU=null;render();return;}
  if(ui.busy){
   // 2.106.15 相手の番でも、表向きの札（場の武将・城・姫・自分の手札）を押すと詳しく見られる。ゲームは動かない
@@ -1405,7 +1431,7 @@ async function onClick(a,id){
  switch(a){
   case 'hand':ui.sel=ui.sel===+id?null:+id;ui.selU=null;ui.info=null;render();break;
   case 'charge':{const c=me.hand.find(x=>x.uid===ui.sel);if(c&&!me.charged){me.hand=me.hand.filter(x=>x!==c);me.mana.push({card:c,tapped:false});me.charged=true;ui.sel=null;log(`${c.n}を兵糧にした`);render();}break;}
-  case 'cast':{const c=me.hand.find(x=>x.uid===ui.sel);if(c&&canCast(me,c)){ui.sel=null;ui.busy=true;await playCard(me,c);if(!G.over){ui.busy=false;}render();}break;}
+  case 'cast':{const c=me.hand.find(x=>x.uid===ui.sel);if(c&&canCast(me,c)&&payChoice(me,c)){ui.pay={uid:c.uid,sel:autoPayUids(me,c)};render();break;}if(c&&canCast(me,c)){ui.sel=null;ui.busy=true;await playCard(me,c);if(!G.over){ui.busy=false;}render();}break;}
   case 'myunit':{const u=find(+id);if(!u)break;if(ui.selU===u.uid)ui.selU=null;else{ui.selU=u.uid;ui.sel=null;ui.info=null;}render();break;}
   case 'enemyunit':{
    const u=find(+id),su=find(ui.selU);if(!u)break;
