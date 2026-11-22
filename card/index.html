@@ -215,7 +215,7 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 <body>
 <div id="app"></div>
 <script>
-const VERSION='0.31';
+const VERSION='0.32';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -310,7 +310,7 @@ mk('so','u','今川氏真',2,1000,3,{e:[{t:'draw',n:1}],h:'imagawa'});
 mk('so','u','鵜殿長照',2,1000,3,{k:['guard'],h:'imagawa'});
 mk('so','u','岡部元信',3,2000,2,{surviveShield:true,h:'imagawa'});
 mk('so','u','朝比奈泰朝',3,3000,2,{h:'imagawa'});
-mk('so','u','松井宗信',3,2000,2,{k:['rush'],h:'imagawa'});
+mk('so','u','松井宗信',3,2000,2,{k:['rush'],noBlock:true,h:'imagawa'});
 mk('so','u','関口親永',4,3000,2,{e:[{t:'shield',n:1}],h:'imagawa'});
 mk('so','u','太原雪斎',4,3000,2,{e:[{t:'draw',n:1},{t:'shield',n:1}],h:'imagawa'});
 mk('so','u','今川義元',6,6000,1,{pr:['SR','SSR'],e:[{t:'killAll',max:2000}],h:'imagawa'});
@@ -462,6 +462,7 @@ function desc(c){
  if(c.surviveShield)a.push('戦闘で生き残り、自分の城門が1枚以下なら山札の上を城門に加える。');
  if(c.killBreak)a.push('自分の手番中、戦闘で相手の武将を破壊したとき、相手の城門を1枚破る(1手番に1回)。');
  if(c.deathRamp)a.push('戦闘で破壊されたとき、山札の上を兵糧にする。');
+ if(c.noBlock)a.push('攻撃中は、相手の守に止められない。');
  if(c.guardAtk)a.push('場にいる間、味方の守を持つ武将も攻撃できる。');
  if(c.w){const b=[];if(c.w.pow)b.push(`兵力+${c.w.pow}`);if(c.w.k)b.push(`【${KWN[c.w.k]}】`);if(c.w.tie)b.push('戦闘で兵力が同じなら相手だけ破壊される');if(c.w.drawAtk)b.push('攻撃するたび1枚引く(自分の手番中1回)');a.push('味方の武将1体に装備: '+b.join('、')+'。(武将が場を離れると墓地へ)');}
  if(c.ps)a.push(PSD[c.ps]+'。');
@@ -845,7 +846,7 @@ async function battle(a,b,blk){
 }
 async function askBlock(d,att,tgt){ // tgt: 攻撃された味方の武将(城門なら無し)
  const gs=d.units.filter(u=>!u.tapped&&!u.dead&&u!==tgt&&hasKw(u,'guard'));
- if(!gs.length)return null;
+ if(!gs.length||att.card.noBlock)return null;
  if(d.ai){
   const bp=u=>power(u)+(u.card.blockBonus||0);
   const strong=gs.filter(u=>bp(u)>=power(att)).sort((a,b)=>bp(a)-bp(b));
