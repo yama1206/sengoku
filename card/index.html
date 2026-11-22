@@ -215,7 +215,7 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 <body>
 <div id="app"></div>
 <script>
-const VERSION='0.24';
+const VERSION='0.25';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -228,7 +228,7 @@ const IDEO={
 };
 const TL={u:'武将',w:'武器',p:'姫',c:'城',x:'奇襲'};
 const KW={rush:'突',guard:'守',double:'連'};
-const KWN={rush:'突撃(登場した手番から攻撃できる)',guard:'守(相手が城門を攻撃した時、代わりに戦える)',double:'連破(城門を2枚破る)'};
+const KWN={rush:'突撃(登場した手番から攻撃できる)',guard:'守(相手が城門を攻撃した時、代わりに戦える。コスト5以下は攻撃できない)',double:'連破(城門を2枚破る)'};
 // ===== 札定義 =====
 // シリーズ単位で定義する。札IDは「シリーズID_思想_連番」で自動採番(例: base_so_01)。
 // 画像は img/札ID.png を置くと自動で表示される(無ければ色枠だけ)。個別指定は {img:'パス'}。
@@ -682,7 +682,9 @@ const hasPs=(p,s)=>p.fields.some(c=>c.ps===s);
 const countPs=(p,s)=>p.fields.filter(c=>c.ps===s).length;
 const hasKw=(u,k)=>!!(u.kws.includes(k)||(u.weapon&&u.weapon.w.k===k)||u.mods.some(m=>m.kw===k)||(k==='rush'&&hasPs(u.owner,'rushAll'))||(k==='guard'&&hasPs(u.owner,'guardAll')));
 const power=u=>u.card.p+(u.weapon?(u.weapon.w.pow||0):0)+u.mods.reduce((a,m)=>a+(m.pow||0),0)+1000*countPs(u.owner,'aura')+(hasKw(u,'guard')?1000*countPs(u.owner,'guardAura'):0)+(u.attacking?1000*countPs(u.owner,'atkAura'):0);
-const canAtkU=u=>!!u&&!u.dead&&!u.tapped&&(!u.sick||hasKw(u,'rush'));
+// 守を持つ武将は、コスト6以上でない限り攻撃できない(守は元から持つ場合のみ。城や武器で得た守は対象外)
+const guardOnly=u=>!!u&&u.kws.includes('guard')&&u.card.c<6;
+const canAtkU=u=>!!u&&!u.dead&&!u.tapped&&!guardOnly(u)&&(!u.sick||hasKw(u,'rush'));
 const newUnit=(p,card)=>({uid:++uidc,card,owner:p,weapon:null,mods:[],kws:card.k.slice(),tapped:false,sick:true,dead:false,attacking:false,skipUntap:false});
 function find(uid){for(const p of G.P){const u=p.units.find(x=>x.uid===uid);if(u)return u;}return null;}
 function findField(uid){for(const p of G.P){const c=p.fields.find(x=>x.uid===uid);if(c)return c;}return null;}
@@ -1087,7 +1089,7 @@ function rulesHTML(){
  ・攻撃先は相手の城門か、横向きの武将。兵力が高い方が勝ち、同じなら相打ち。<br>
  ・城門は山札の上5枚(裏向き)。破られた札は手札に入る。<br>
  ・奇襲は通常の札として、自分の手番に費えを払って使える。城門から出た時は、無料で発動するか、手札に加えて温存するかを選べる。<br>
- ・守を持つ武将は、城門への攻撃を代わりに受けられる。<br>
+ ・守を持つ武将は、城門への攻撃を代わりに受けられる。ただしコスト5以下の守持ちは攻撃できない。<br>
  <button data-a="rulesClose">閉じる</button></div></div>`;
 }
 
