@@ -77,6 +77,7 @@ cv.addEventListener('pointerup', (e) => {
   const hit = R.hitSettlement(G.view, e.offsetX, e.offsetY);
   const [wx, wy] = R.toWorld(e.offsetX, e.offsetY);
   const uh = p.btn !== 2 && unitHit(e.offsetX, e.offsetY);
+  if (uh && hit && G.selKind === 'u' && G.selected === uh.id) { selectSettlement(hit); return; } // 2.102.2 部隊が拠点に重なっているとき：部隊を選んだ状態でもう一度押すと、下の拠点を選べる
   if (uh) { selectUnit(uh); return; } // 部隊をクリック・タップ：情報
   if (p.btn === 2) { // 0.54.10 右クリック：自分の上なら人物を開く（開いていれば閉じる）／それ以外はすぐ移動
     const mm = me(), md = mm && (G.disp[G.myPid] || mm), ms = md && R.toScreen(md.x, md.y);
@@ -336,7 +337,8 @@ function pollPad(dt) {
     else if (down(0)) {
       if (G.pcurOn) { // カーソルの位置をクリック：部隊なら情報、拠点なら選ぶ（選んだ拠点をもう一度で向かう）、地面ならそこへ移動
         const [sx, sy] = G.pcur, uh = unitHit(sx, sy), hit = R.hitSettlement(G.view, sx, sy);
-        if (uh) selectUnit(uh);
+        if (uh && hit && G.selKind === 'u' && G.selected === uh.id) selectSettlement(hit); // 2.102.2 重なっているときは、もう一度で拠点
+        else if (uh) selectUnit(uh);
         else if (hit) { if (G.selKind !== 'u' && G.selected === hit.id) $('infoGo').click(); else selectSettlement(hit); }
         else { const [wx, wy] = R.toWorld(sx, sy); if (G.selected) selectSettlement(null); moveTo(wx, wy); }
       } else if (G.selected) $('infoGo').click();
