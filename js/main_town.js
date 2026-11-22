@@ -8,7 +8,7 @@ function priceCol(r) {
   return `rgb(${N.map((n, i) => Math.round(n + (C[i] - n) * a)).join(',')})`;
 }
 let townTab = 'street', townHtml = '', stageKey = '';
-const TOWN_BGM = { renpei: 'renpei', gamble: 'gamble', talk: 'chaya', home: 'home', market: 'market' }; // 2.14.3 行き先ごとの曲（ほかは町の曲）。2.20.0 市場
+const TOWN_BGM = { renpei: 'renpei', gamble: 'gamble', yugi: 'chaya', talk: 'chaya', home: 'home', market: 'market' }; // 2.14.3 行き先ごとの曲（ほかは町の曲）。2.20.0 市場
 // 2.13.0 町の中：通りの絵から市場・練兵所・賭場・話す（・城・自宅）へ。練兵所＝募兵・調練と仕事・依頼
 const TOWN_SECS = { street: [], renpei: ['army', 'work', 'jobs'] }, SEC_NAME = { army: '募兵', work: '調練・仕事', jobs: '依頼', castle: '城' };
 const TA = 'assets/town/';
@@ -41,6 +41,7 @@ function townStage(P, hs) {
   if (townTab === 'soncho' && h.soncho) return ['', 'soncho.jpg', `<img class="who" src="${TA}soncho_p.png">` + say(h.soncho.me ? '村の衆' : `村長 ${h.soncho.head}`, h.soncho.me ? '村長様、今日もよろしくお願いいたします' : me.nomin && h.soncho.mine ? 'おう、今日も精を出してくれよ。田んぼは待ってくれんでな' : '見ねえ顔だな。働き手ならいつでも歓迎するぞ')]; // 2.56.1 村長
   if (townTab === 'mise') return ['', 'shop.jpg', `<img class="who" src="${TA}merchant_p.png">` + say('店の番頭', me.shoka && me.shoka.own ? '旦那様、本日も商いに励みます' : '自分の店を持つのは、商人の夢でございます')]; // 2.56.0 自分の店
   if (townTab === 'minato') return ['', 'minato.jpg', say('湊の船問屋', '海の向こうとの商いなら、船と腕のいい船乗りが要りますぜ')]; // 2.55.0 湊
+  if (townTab === 'yugi') return ['', 'shop.jpg', `<img class="who" src="${TA}merchant_p.png">` + say('遊戯屋の主人', 'いらっしゃい。戦国思想録の札は、パックも対戦も、ここで楽しめますよ')]; // 2.102.0 遊戯屋（絵は仮：店の絵と商人）
   if (townTab === 'gamble') return ['', '../gamble/den.jpg', `<img class="who" src="${TA}boss4.png">` + say('賭場の胴元', 'おう、遊んでいくかい。運も腕のうちだぜ')];
   if (townTab === 'talk') { // 2.13.1 茶屋：大きな町には娘がいる
     if (mu) return ['', 'chaya.jpg', `<img class="who" src="${TA}${mu.img}.png">` + say(`${mu.name}　<span class="heart">${'♥'.repeat(mu.wife ? 5 : mu.st)}${'♡'.repeat(mu.wife ? 0 : 4 - mu.st)}</span>`, (G.muSay && G.muSay[0] === mu.id && performance.now() - G.muSay[2] < 6000) ? G.muSay[1] : mu.line)];
@@ -71,6 +72,8 @@ function renderTown() {
   $('tab-castle').classList.toggle('hidden', !hs || hs.type !== 'castle');
   $('tab-gamble').classList.toggle('hidden', !SGK.DATA.isBig(hs)); /* 2.8.0 賭場は大きな町だけ */
   if (townTab === 'gamble' && !SGK.DATA.isBig(hs)) townTab = 'street';
+  $('tab-yugi').classList.toggle('hidden', !SGK.DATA.isBig(hs)); /* 2.102.0 遊戯屋も大きな町だけ */
+  if (townTab === 'yugi' && !SGK.DATA.isBig(hs)) townTab = 'street';
   if (townTab === 'castle' && (!hs || hs.type !== 'castle')) townTab = 'street';
   $('tab-gosho').classList.toggle('hidden', !h.gosho); $('tab-minato').classList.toggle('hidden', !h.port); $('tab-mise').classList.toggle('hidden', !h.mise); // 2.56.0 店
   $('tab-soncho').classList.toggle('hidden', !h.soncho); if (townTab === 'soncho' && !h.soncho) townTab = 'street'; // 2.56.1 村長 // 2.55.0 豪商（大きな町）・湊（南蛮貿易の湊）
@@ -264,6 +267,8 @@ function renderTown() {
         html += '</div>';
       }
     }
+  } else if (sec === 'yugi') { // 2.102.0 遊戯屋
+    html += `<div class="card"><div><b>遊戯屋に入る</b><br><span class="muted">カードゲーム「戦国思想録」。パックを買って札を集め、デッキを組んで遊べます。パックの代金と勝負の賞金は、天下往来のお金（文）でやりとりします（1パック500文）。いまは相手はCPUです</span></div><button id="yg-open" data-act="yugiOpen">入る</button></div>`;
   } else if (sec === 'gamble') {
     if (P.here && P.here.gamble && SGK.GAMBLEUI) html += `<div class="card"><div><b>賭場に入る</b><br><span class="muted">行灯の灯る部屋で、壺振りの丁半・賽の目増と四五六・馬くらべ・天正かるた・独楽回し（自分で削った独楽）・貝絵合わせ・絵双六</span></div><button id="gb-open" data-act="gbOpen">入る</button></div><details style="margin-top:6px"><summary class="muted">文字だけで遊ぶ</summary>${SGK.GAMBLE.html(P, G.gbSel, G.myPid)}</details>`; // 2.12.4
     else html += SGK.GAMBLE.html(P, G.gbSel, G.myPid);
@@ -366,6 +371,7 @@ $('townBody').addEventListener('click', (e) => {
   const gs = e.target.closest('button[data-gbset]'); if (gs) { G.gbSel = +gs.dataset.gbset; townHtml = ''; renderTown(); return; } // 2.8.0 賭場の掛け金
   const b = e.target.closest('button[data-act]'); if (!b) return;
   if (b.dataset.act === 'smithPlay') { if (SGK.SMITHUI) SGK.SMITHUI.open(b.dataset.id, G.priv && G.priv.me); return; } // 2.29.0 鍛冶のミニゲーム
+  if (b.dataset.act === 'yugiOpen') { if (SGK.YUGIUI) SGK.YUGIUI.open(G.priv); return; } // 2.102.0 遊戯屋
   if (b.dataset.act === 'gbOpen') { if (SGK.GAMBLEUI) SGK.GAMBLEUI.open(G.priv, G.myPid); return; } // 2.12.4 賭場の画面
   if (b.dataset.act === 'openNawaEdit') { const me2 = G.priv && G.priv.me, C2 = me2 && (me2.castles || []).find((x) => x.id === b.dataset.id); if (C2 && C2.nawa && SGK.NAWAEDIT) SGK.NAWAEDIT.open({ mode: 'edit', id: C2.id, plan: C2.nawa, ck: C2.nawa.ck, money: me2.money }); return; } // 2.12.0 縄張りを描き直す
   const c = { type: b.dataset.act };
@@ -388,5 +394,5 @@ $('joinBtn').onclick = () => command({ type: 'joinBattle' }); // 1.6.12 合戦�
 $('testBtn').onclick = () => SGK.TESTUI && SGK.TESTUI.open(G.priv && G.priv.me); // 2.12.1 テストモードの戦闘
 $('ledgerBtn').onclick = () => SGK.LEDGERUI && SGK.LEDGERUI.open(); // 2.58.0 帳簿
 $('townStage').addEventListener('click', (e) => { const b = e.target.closest('button[data-tab]'); if (b) setTab(b.dataset.tab); }); // 2.13.0 通りのボタン
-function cycleTab(d) { const tabs = ['street', 'market', 'renpei', 'gamble', 'gosho', 'minato', 'mise', 'soncho', 'talk', 'castle', 'home'].filter((t) => !$('tab-' + t).classList.contains('hidden')); setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
+function cycleTab(d) { const tabs = ['street', 'market', 'renpei', 'gamble', 'yugi', 'gosho', 'minato', 'mise', 'soncho', 'talk', 'castle', 'home'].filter((t) => !$('tab-' + t).classList.contains('hidden')); setTab(tabs[(tabs.indexOf(townTab) + d + tabs.length) % tabs.length]); }
 

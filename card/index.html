@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>戦国思想録</title>
+<style>
+:root{--ink:#f3e9d2;--gold:#d4a94a;--panel:#211b16;--line:#3d3228}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 50% 0,#2e2218,#0e0b09 70%);color:var(--ink);font-family:"Hiragino Mincho ProN","Yu Mincho",serif;-webkit-tap-highlight-color:transparent;user-select:none;min-height:100vh}
+#app{max-width:560px;margin:0 auto;padding:8px 8px 40px}
+button{font-family:inherit;color:var(--ink);background:#3a2b1f;border:1px solid var(--gold);border-radius:8px;padding:10px 14px;font-size:15px}
+button:disabled{opacity:.35}
+button.big{width:100%;padding:14px;font-size:18px;margin:8px 0;background:#5a3a1c}
+.ver{position:fixed;top:8px;right:8px;font-size:12px;display:flex;gap:6px;align-items:center;z-index:5}
+.ver button{padding:4px 10px;font-size:12px}
+.title{text-align:center;padding-top:80px}
+.title h1{font-size:38px;letter-spacing:6px;color:var(--gold);margin:10px 0 4px;text-shadow:0 0 18px #a5701e}
+.title p{opacity:.7;margin:0 0 30px}
+.ideos{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+.ic{display:flex;gap:10px;align-items:center;border:2px solid var(--line);border-radius:10px;padding:10px;background:var(--panel);text-align:left}
+.ic.on{border-color:var(--c);box-shadow:0 0 12px var(--c)}
+.ic .k{font-size:30px;color:var(--c);width:40px;text-align:center}
+.ic small{display:block;opacity:.7}
+.top{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:4px}
+.top button{padding:4px 10px;font-size:13px}
+.zone{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px;margin-bottom:6px}
+.pinfo{font-size:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+.md{display:inline-block;width:13px;height:13px;border-radius:3px;border:1px solid #000a}
+.md.t{opacity:.25}
+.row{display:flex;gap:5px;flex-wrap:wrap;min-height:6px;margin:3px 0}
+.face{width:100%;padding:8px;margin:3px 0;font-size:14px;background:#2b2118}
+.face.hl{border-color:#ff7a4a;box-shadow:0 0 10px #ff7a4a;background:#5a2a1a}
+.u{width:calc((100% - 20px)/5);min-width:58px;min-height:68px;border:2px solid var(--c);border-radius:8px;padding:3px;background:#2d241c;display:flex;flex-direction:column;justify-content:space-between;text-align:center}
+.u b{font-size:11px;line-height:1.15}
+.u i{font-style:normal;font-size:14px;color:var(--c);font-weight:bold}
+.u s{text-decoration:none;font-size:10px;opacity:.85;min-height:12px}
+.u.tap{opacity:.5;transform:rotate(8deg)}
+.u.sel{box-shadow:0 0 0 2px #fff,0 0 12px var(--c)}
+.u.tg{box-shadow:0 0 0 3px #ffe14a;animation:bl 1s infinite}
+.u.tg2{box-shadow:0 0 0 3px #ff7a4a}
+@keyframes bl{50%{opacity:.6}}
+.fc{font-size:11px;border:1px solid var(--c);color:var(--c);border-radius:12px;padding:2px 8px}
+.log{font-size:12px;height:78px;overflow-y:auto;background:#0008;border-radius:8px;padding:5px 8px;margin-bottom:6px;line-height:1.5}
+.detail{font-size:12px;min-height:54px;background:#0006;border-radius:8px;padding:6px 8px;margin:4px 0;line-height:1.5}
+.dim{opacity:.5}
+.acts{display:flex;gap:6px;align-items:center;margin:4px 0;flex-wrap:wrap}
+.acts .msg{font-size:13px;color:#ffe14a;flex:1}
+.hand{display:flex;flex-wrap:wrap;gap:5px}
+.hc{width:calc((100% - 20px)/5);min-width:58px;height:88px;border:2px solid var(--c);border-radius:8px;background:#2d241c;position:relative;padding:3px;display:flex;flex-direction:column;justify-content:flex-end;text-align:center;opacity:.55}
+.hc.ok{opacity:1}
+.hc.sel{transform:translateY(-6px);box-shadow:0 0 0 2px #fff,0 0 12px var(--c);opacity:1}
+.hc em{position:absolute;top:-1px;left:-1px;background:var(--c);color:#111;font-style:normal;font-weight:bold;width:20px;height:20px;border-radius:7px 0 7px 0;font-size:12px;line-height:20px}
+.hc b{font-size:11px;line-height:1.15;margin-bottom:2px}
+.hc span{font-size:10px;opacity:.85}
+.hc small{position:absolute;top:2px;right:4px;color:var(--c);font-size:12px}
+.ov{position:fixed;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;z-index:20;padding:16px}
+.mb{background:var(--panel);border:2px solid var(--gold);border-radius:12px;padding:16px;max-width:420px;width:100%;max-height:85vh;overflow:auto;font-size:14px;line-height:1.6}
+.mb button{display:block;width:100%;margin-top:8px}
+.art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:6px;filter:brightness(.72);z-index:0;pointer-events:none}
+.u,.hc{overflow:hidden}
+.u>*,.hc>*{z-index:1;text-shadow:0 1px 3px #000,0 0 4px #000}
+.u>.art,.hc>.art{z-index:0}
+.u{position:relative}
+.dart{float:left;width:48px;height:64px;object-fit:cover;border-radius:6px;margin-right:8px}
+.lr{display:flex;gap:8px;align-items:flex-start;border-bottom:1px solid var(--line);padding:6px 0;font-size:12px;line-height:1.5}
+.lr img{width:48px;height:64px;object-fit:cover;border-radius:6px;background:#0006;flex:none}
+.lr .ph{width:48px;height:64px;border-radius:6px;border:2px solid var(--c);flex:none}
+.lr code{font-size:11px;color:var(--gold)}
+.sc{display:inline-block;margin:3px 4px 3px 0;padding:6px 12px;border:2px solid var(--line);border-radius:16px;font-size:13px}
+.sc.on{border-color:var(--gold);color:var(--gold)}
+.er{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);border-left:4px solid var(--c);padding:6px 4px}
+.er .cb{width:26px;height:26px;border-radius:7px;background:var(--c);color:#111;font-weight:bold;text-align:center;line-height:26px;flex:none;font-size:13px}
+.er .tx{flex:1;font-size:11px;line-height:1.4}.er .tx b{font-size:13px}
+.ctr{display:flex;align-items:center;gap:4px;flex:none}.ctr button{width:36px;height:36px;padding:0;font-size:18px}.ctr span{width:34px;text-align:center;font-size:13px}
+.okc{color:#7be07b}.ngc{color:#ff7a4a}.msg2{font-size:12px;color:#ffb74a;min-height:16px}
+.coinb{font-size:12px;border:1px solid var(--gold);border-radius:12px;padding:2px 10px;color:var(--gold);margin-left:4px}
+.pcard{display:flex;align-items:center;gap:10px;border:2px solid var(--c);border-radius:12px;padding:10px;margin:8px 0;background:var(--panel)}
+.pcard .pcl{flex:1}.pcard button{flex:none;padding:10px 14px;background:#5a3a1c}
+.th{position:relative;width:42px;height:56px;border:2px solid var(--c);border-radius:6px;overflow:hidden;background:linear-gradient(160deg,var(--c),#111);flex:none;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff6}
+.th img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.unown{opacity:.45}
+.rt{font-size:10px;font-weight:bold;border-radius:4px;padding:1px 5px;background:#555;color:#fff}
+.rt-N{color:#bbb}.rt-R{color:#9fd3ff}.rt-SR{color:#ffd84a}.rt-SSR{background:linear-gradient(90deg,#ff6b6b,#ffd86b,#6bff9a,#6bc8ff,#c86bff);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.packov{position:fixed;inset:0;background:radial-gradient(circle at 50% 30%,#2a1f3a,#07050a 75%);z-index:30;display:flex;padding:12px;overflow:auto}
+.pkbadge{position:fixed;left:12px;top:12px;z-index:35;background:#000a;border:1px solid var(--gold);color:var(--gold);border-radius:14px;padding:4px 14px;font-size:15px;font-weight:bold;letter-spacing:1px}
+.mgrid{display:grid;grid-template-columns:repeat(5,62px);gap:14px 10px;margin:6px 0 20px;position:relative}
+.mpk{position:relative;width:62px;height:94px;border-radius:8px;background:linear-gradient(160deg,var(--c),#222 85%);border:2px solid #fff8;box-shadow:0 4px 12px #000a;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;text-align:center;line-height:1.3;letter-spacing:1px}
+.mpk .mt{position:absolute;left:-2px;right:-2px;top:-2px;height:14px;border-radius:8px 8px 0 0;background:linear-gradient(180deg,#fff8,var(--c));border:2px solid #fff8;border-bottom:2px dashed #fff}
+.mpk.torn .mt{animation:mtorn .6s forwards}
+.mpk.torn{animation:mpop .5s forwards}
+.mpk.g-R.torn{--gl:#9fd3ff}.mpk.g-SR.torn{--gl:#ffd84a}.mpk.g-SSR.torn{--gl:#ff7ad9}
+@keyframes mtorn{to{transform:translate(26px,-54px) rotate(38deg);opacity:0}}
+@keyframes mpop{0%{transform:scale(1)}40%{transform:scale(1.18);box-shadow:0 0 22px 6px var(--gl,#fff3)}100%{transform:scale(1.05);box-shadow:0 0 16px 4px var(--gl,#0000)}}
+.mflash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:40}
+.mflash.on{animation:mfl .7s forwards}
+@keyframes mfl{0%{opacity:0}30%{opacity:.95}100%{opacity:0}}
+.pkin{margin:auto;display:flex;flex-direction:column;align-items:center}
+.pk-title{font-size:18px;color:var(--gold);margin-bottom:14px;letter-spacing:2px}.pk-hint{margin:14px 0 8px;opacity:.7;font-size:13px}
+.pack{position:relative;width:210px;height:310px}
+.packtop{position:relative;height:40px;border-radius:10px 10px 0 0;background:linear-gradient(180deg,#fff6,var(--c));border:2px solid #fff8;border-bottom:2px dashed #fff;cursor:grab;touch-action:none;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.tearfill{position:absolute;left:0;top:0;height:100%;width:0;background:linear-gradient(90deg,#fff0,#fff);box-shadow:0 0 14px #fff}
+.tearhint{position:relative;font-size:12px;color:#222;font-weight:bold;animation:bl 1.2s infinite;pointer-events:none}
+.packbody{height:270px;background:linear-gradient(160deg,var(--c),#222 85%);border:2px solid #fff8;border-top:none;border-radius:0 0 12px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;box-shadow:0 10px 40px #000a}
+.plogo{font-size:22px;letter-spacing:4px;color:#fff;text-shadow:0 0 10px #000}.pname{font-size:18px;color:#fff;text-align:center;line-height:1.5}
+.burst{position:absolute;left:50%;top:20px;width:10px;height:10px;border-radius:50%;opacity:0;background:radial-gradient(#fff,#fff0 70%)}
+.pack.torn .packtop{animation:torn .85s forwards}
+.pack.torn .burst{animation:burst .85s forwards}
+@keyframes torn{to{transform:translate(90px,-140px) rotate(35deg);opacity:0}}
+@keyframes burst{0%{opacity:1;transform:translate(-50%,0) scale(1)}100%{opacity:0;transform:translate(-50%,0) scale(60)}}
+.stage{position:relative;width:260px;height:392px;touch-action:none}
+.stk{position:absolute;left:10px;top:6px;width:240px;height:336px;transform-origin:50% 0;will-change:transform}
+.cardwrap{width:240px;height:336px;perspective:1000px;cursor:pointer;animation:cin .35s}
+@keyframes cin{from{transform:translateX(120px);opacity:0}to{transform:none;opacity:1}}
+.cflip{position:relative;width:100%;height:100%;transition:transform .7s;transform-style:preserve-3d}
+.cflip.on{transform:rotateY(180deg)}
+.cback,.cfront{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.cfront{transform:rotateY(180deg)}
+.cback{border-radius:14px;border:4px solid var(--gold);background:radial-gradient(circle at 50% 40%,#4a3a1c,#14100a);display:flex;align-items:center;justify-content:center;font-size:110px;color:var(--gold);text-shadow:0 0 24px #a5701e}
+.cf{width:240px;height:336px;border-radius:14px;border:4px solid var(--c);background:#1d1712;position:relative;overflow:hidden;color:#f3e9d2;display:flex;flex-direction:column}
+.cfa{height:54%;background:linear-gradient(160deg,var(--c),#111);position:relative;display:flex;align-items:center;justify-content:center;font-size:96px;color:#fff3}
+.cfa .art{filter:none;border-radius:0;object-position:50% 14%} /* 縦長の絵なので頭が切れないよう上寄せ */
+.cf.t-c .cfa .art,.cf.t-w .cfa .art,.cf.t-x .cfa .art{object-position:50% 40%}
+.smw{cursor:pointer}
+.bigov{position:fixed;inset:0;background:#000e;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px;box-sizing:border-box}
+.bigov img{max-width:92vw;max-height:76vh;border:4px solid var(--c);border-radius:14px;object-fit:contain;background:#111;box-shadow:0 0 24px #000}
+.bigov .bn{font-size:18px;color:#f3e9d2;font-weight:bold}.bigov .bh{font-size:12px;opacity:.7}
+.cft{display:flex;gap:6px;align-items:center;padding:6px 8px;font-size:15px}
+.cfc{background:var(--c);color:#111;border-radius:50%;width:26px;height:26px;text-align:center;line-height:26px;font-weight:bold;flex:none}
+.cfi{padding:0 8px;font-size:12px;opacity:.8}.cfd{padding:4px 8px;font-size:11px;line-height:1.45;flex:1;overflow:hidden}
+.cfr{position:absolute;right:10px;bottom:6px;font-size:18px;font-weight:bold;letter-spacing:1px}
+.cfn{position:absolute;left:0;top:10px;background:#e0524f;color:#fff;font-size:12px;padding:2px 10px;border-radius:0 10px 10px 0;z-index:2}
+.foil{position:absolute;inset:0;pointer-events:none}
+.r-R .foil{background:linear-gradient(120deg,transparent 30%,#fff5 50%,transparent 70%);background-size:300% 100%;animation:shine 2.6s infinite}
+.r-R{border-color:#bfe3ff}
+.r-SR{border-color:#ffd84a;box-shadow:0 0 22px 4px #ffd84a99}
+.r-SR .foil{background:linear-gradient(120deg,transparent 30%,#ffe9a088 50%,transparent 70%);background-size:300% 100%;animation:shine 2s infinite}
+.r-SSR{border-color:#fff;animation:ssrg 1.4s infinite alternate}
+.r-SSR .foil{background:linear-gradient(115deg,#ff6b6b55,#ffd86b55,#6bff9a55,#6bc8ff55,#c86bff55,#ff6b6b55);background-size:400% 100%;animation:shine 3s linear infinite}
+@keyframes shine{from{background-position:150% 0}to{background-position:-150% 0}}
+@keyframes ssrg{from{box-shadow:0 0 22px 6px #ff6bc8}to{box-shadow:0 0 30px 10px #6bc8ff}}
+.fx{position:absolute;inset:-30px;pointer-events:none;overflow:visible;animation:fxo 2.2s forwards}
+@keyframes fxo{0%,70%{opacity:1}100%{opacity:0}}
+.sp{position:absolute;width:6px;height:6px;border-radius:50%;opacity:0;animation:spk 1.4s infinite;box-shadow:0 0 8px currentColor}
+@keyframes spk{0%{opacity:0;transform:scale(.2)}40%{opacity:1;transform:scale(1.4)}100%{opacity:0;transform:translateY(-30px) scale(.3)}}
+.rtext{position:absolute;left:0;right:0;top:-8px;text-align:center;font-size:34px;font-weight:bold;color:#ffe27a;text-shadow:0 0 12px #ff9a00;animation:rpop .6s}
+.fx-SSR .rtext{background:linear-gradient(90deg,#ff6b6b,#ffd86b,#6bff9a,#6bc8ff,#c86bff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-size:44px;filter:drop-shadow(0 0 10px #fff)}
+@keyframes rpop{from{transform:scale(2.4);opacity:0}to{transform:scale(1);opacity:1}}
+.flash{position:fixed;inset:0;background:#fff;pointer-events:none;animation:fl .9s forwards;z-index:40}
+@keyframes fl{0%{opacity:.95}100%{opacity:0}}
+.sumgrid{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:340px;margin-bottom:14px}
+.smw{width:101px;height:142px}.smi{transform:scale(.42);transform-origin:top left;width:240px;height:336px}
+.smi .cfd{display:none}.smi .cfa{height:62%}
+.res{font-size:44px;text-align:center;color:var(--gold);margin:6px 0}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const VERSION='0.21';
+let TEST=false;
+const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
+const IDEO={
+ so:{n:'創',c:'#e0b341',who:'織田信長・豊臣秀吉',d:'ドロー・武器が得意。新しい力で手数を稼ぐ'},
+ gi:{n:'義',c:'#4a8fe7',who:'上杉謙信',d:'守りと城門が得意。堅く守って粘り勝つ'},
+ bu:{n:'武',c:'#e0524f',who:'武田信玄',d:'突撃と高パワー。力で押し切る'},
+ bo:{n:'謀',c:'#a477e0',who:'毛利元就・竹中半兵衛',d:'妨害と奇策。相手の動きを崩す'},
+ ni:{n:'耐',c:'#4cae6a',who:'徳川家康',d:'兵糧を増やし、耐えて後半に勝つ'},
+ ne:{n:'汎',c:'#9aa0a6',who:'足軽・兵士',d:'どの思想のデッキにも入れられる共通カード(思想の数に数えない・どの兵糧でも出せる)'}
+};
+const TL={u:'武将',w:'武器',p:'姫',c:'城',x:'奇襲'};
+const KW={rush:'突',guard:'守',double:'連'};
+const KWN={rush:'突撃(登場したターンから攻撃できる)',guard:'守(相手が城門を攻撃した時、代わりに戦える)',double:'連破(城門を2枚破る)'};
+// ===== カード定義 =====
+// シリーズ単位で定義する。カードIDは「シリーズID_思想_連番」で自動採番(例: base_so_01)。
+// 画像は img/カードID.png を置くと自動で表示される(無ければ色枠だけ)。個別指定は {img:'パス'}。
+// 新シリーズは series/xxx.js に defineSeries('set2','第2弾',mk=>{ mk(...); }); と書き、下の SERIES_FILES に追加する。
+// 初期カード(base)はガチャ対象外。ガチャで出る版は、時代別シリーズ({era:'..'}付き)のカードだけ。種類ごとの版は下の表(武将=SR、姫と大名=SR/SSR、城と奇襲=R、武器=N。大名は個別に pr:['SR','SSR'] を付ける)。
+const PRINTS_ADD={u:['SR'],p:['SR','SSR'],c:['R'],w:['N'],x:['R']};
+const SERIES=[],CARDS=[];
+const availIdeos=()=>Object.keys(IDEO).filter(k=>k!=='ne'&&CARDS.filter(c=>c.i===k).length>=12);
+const SERIES_FILES=[]; // 例: ['series/set2.js']
+function defineSeries(id,name,fn,opts){
+ const s=Object.assign({id,name,cards:[]},opts||{});const cnt={};SERIES.push(s);
+ fn((i,t,n,c,p,cp,o)=>{cnt[i]=(cnt[i]||0)+1;
+  const card=Object.assign({id:`${id}_${i}_${String(cnt[i]).padStart(2,'0')}`,series:id,i,t,n,c,p,cp,k:[],e:[]},o||{});
+  if(!card.pr)card.pr=id==='base'?[]:(PRINTS_ADD[t]||['N']).slice();
+  s.cards.push(card);CARDS.push(card);});
+}
+const baseImg=c=>c.img||`img/${c.id}.png`;
+// 版(レアリティ)ごとの画像: 初期カードのNは ID.png、それ以外は ID_sr.png のように置く。無ければ ID.png、それも無ければ色枠のみ
+const printImg=(c,r)=>(c.series==='base'&&r==='N')?baseImg(c):`img/${c.id}_${r.toLowerCase()}.png`;
+const imgPath=c=>printImg(c,displayRarity(c));
+function imgFb(el,fb){if(el.dataset.f||el.getAttribute('src')===fb){el.remove();}else{el.dataset.f=1;el.src=fb;}}
+const artTag=(c,r)=>`<img class="art" src="${printImg(c,r||displayRarity(c))}" onerror="imgFb(this,'${baseImg(c)}')" draggable="false" alt="">`;
+
+defineSeries('e1560','1560年 桶狭間と関東',mk=>{
+// 創(織田家・桶狭間)
+mk('so','u','木下藤吉郎',2,1000,3,{k:['rush'],e:[{t:'draw',n:1}]});
+mk('so','u','丹羽長秀',4,4000,2,{e:[{t:'draw',n:1}]});
+mk('so','u','佐久間盛重',2,1000,3,{e:[{t:'draw',n:1}]});
+mk('so','u','毛利新助',2,2000,3,{k:['rush']});
+mk('so','u','服部小平太',3,3000,2,{e:[{t:'tapE'}]});
+mk('so','u','池田恒興',3,3000,2,{k:['rush']});
+mk('so','u','柴田勝家',5,6000,2,{killBreak:true});
+mk('so','u','織田信長【桶狭間】',6,6000,1,{pr:['SR','SSR'],k:['rush'],e:[{t:'kill',max:4000}]});
+mk('so','p','帰蝶',4,0,1,{ps:'rampStart'});
+mk('so','c','清洲城',4,0,1,{ps:'aura'});
+mk('so','w','三間槍',2,0,1,{w:{pow:1000,tie:true}});
+mk('so','x','田楽狭間の強襲',3,0,2,{e:[{t:'kill',tapped:true}]});
+// 義(上杉家・関東管領)
+mk('gi','u','斎藤朝信',1,1000,3,{k:['guard']});
+mk('gi','p','綾姫',4,0,1,{ps:'refill'});
+mk('gi','u','色部勝長',2,2000,3,{k:['guard'],blockBonus:2000});
+mk('gi','u','本庄繁長',3,3000,2,{k:['guard'],blockBonus:1000});
+mk('gi','u','中条藤資',3,3000,2,{k:['guard']});
+mk('gi','u','上杉憲政',3,1000,2,{e:[{t:'shield',n:1}]});
+mk('gi','u','直江景綱',4,3000,2,{e:[{t:'draw',n:1}]});
+mk('gi','u','上杉政虎【関東管領】',6,6000,1,{pr:['SR','SSR'],k:['double'],e:[{t:'draw',n:1},{t:'shield',n:1}]});
+mk('gi','c','厩橋城',5,0,1,{ps:'guardAura'});
+mk('gi','w','越後の長柄',2,0,1,{w:{k:'guard',tie:true}});
+mk('gi','x','関東管領就任',4,0,2,{e:[{t:'shield',n:2}]});
+mk('gi','x','小田原城包囲',5,0,2,{e:[{t:'tapAll'}]});
+// 武(武田家)
+mk('bu','u','武田義信',2,2000,3,{k:['rush'],h:'takeda'});
+mk('bu','u','馬場信春',2,3000,3,{h:'takeda'});
+mk('bu','u','山県昌景',3,3000,2,{k:['rush'],h:'takeda'});
+mk('bu','u','高坂昌信',3,3000,2,{e:[{t:'pumpTemp',pow:1000,kw:'rush'}],h:'takeda'});
+mk('bu','u','真田幸隆',3,2000,2,{e:[{t:'tapE'}],h:'takeda'});
+mk('bu','u','山本勘助',4,3000,2,{e:[{t:'peekDiscard'}],h:'takeda'});
+mk('bu','u','内藤昌豊',4,4000,2,{killBreak:true,h:'takeda'});
+mk('bu','u','武田信玄',6,7000,1,{pr:['SR','SSR'],e:[{t:'kill',max:4000}],h:'takeda'});
+mk('bu','p','三条夫人',3,0,1,{ps:'aura',h:'takeda'});
+mk('bu','c','躑躅ヶ崎館',6,0,1,{ps:'rushAll',h:'takeda'});
+mk('bu','w','風林火山の旗',2,0,1,{w:{pow:1000,k:'rush'},h:'takeda'});
+mk('bu','x','啄木鳥戦法',4,0,2,{e:[{t:'breakS',n:1}],h:'takeda'});
+// 謀(北条家)
+mk('bo','u','風魔小太郎',2,1000,3,{e:[{t:'tapE'}],h:'hojo'});
+mk('bo','u','大道寺政繁',2,2000,3,{k:['guard'],h:'hojo'});
+mk('bo','u','北条氏政',3,2000,2,{e:[{t:'draw',n:1}],h:'hojo'});
+mk('bo','u','北条幻庵',3,1000,2,{e:[{t:'peekDiscard'}],h:'hojo'});
+mk('bo','u','遠山綱景',3,3000,2,{k:['guard'],h:'hojo'});
+mk('bo','u','松田憲秀',4,3000,2,{e:[{t:'kill',max:4000,tapped:true}],h:'hojo'});
+mk('bo','u','北条綱成',4,4000,2,{k:['guard'],blockBonus:2000,h:'hojo'});
+mk('bo','u','北条氏康',6,6000,1,{pr:['SR','SSR'],k:['guard'],e:[{t:'draw',n:1},{t:'discard',n:1}],h:'hojo'});
+mk('bo','p','瑞渓院',4,0,1,{ps:'nene',h:'hojo'});
+mk('bo','c','小田原城',5,0,1,{ps:'gateLimit',h:'hojo'});
+mk('bo','w','黄八幡の旗',2,0,1,{w:{pow:1000,tie:true},h:'hojo'});
+mk('bo','x','河越夜戦',3,0,2,{e:[{t:'tapSkip'}],h:'hojo'});
+// 創(今川家)
+mk('so','u','今川氏真',2,1000,3,{e:[{t:'draw',n:1}],h:'imagawa'});
+mk('so','u','鵜殿長照',2,2000,3,{k:['guard'],h:'imagawa'});
+mk('so','u','岡部元信',3,3000,2,{surviveShield:true,h:'imagawa'});
+mk('so','u','朝比奈泰朝',3,3000,2,{h:'imagawa'});
+mk('so','u','松井宗信',3,3000,2,{k:['rush'],h:'imagawa'});
+mk('so','u','関口親永',4,3000,2,{e:[{t:'shield',n:1}],h:'imagawa'});
+mk('so','u','太原雪斎',4,3000,2,{e:[{t:'draw',n:1},{t:'shield',n:1}],h:'imagawa'});
+mk('so','u','今川義元',6,5000,1,{pr:['SR','SSR'],e:[{t:'draw',n:1},{t:'ramp',n:1}],h:'imagawa'});
+mk('so','p','寿桂尼',4,0,1,{ps:'drawStart',h:'imagawa'});
+mk('so','c','今川館',5,0,1,{ps:'deathDraw',h:'imagawa'});
+mk('so','w','海道の弓',3,0,1,{w:{pow:1000,drawAtk:true},h:'imagawa'});
+mk('so','x','甲相駿三国同盟',3,0,2,{e:[{t:'shield',n:1},{t:'draw',n:1}],h:'imagawa'});
+// 耐(松平家)
+mk('ni','u','阿部正勝',2,1000,3,{e:[{t:'draw',n:1}],h:'matsudaira'});
+mk('ni','u','平岩親吉',2,2000,3,{k:['guard'],h:'matsudaira'});
+mk('ni','u','石川数正',3,3000,2,{e:[{t:'draw',n:1}],h:'matsudaira'});
+mk('ni','u','大久保忠世',3,3000,2,{h:'matsudaira'});
+mk('ni','u','服部半蔵',3,2000,2,{e:[{t:'tapE'}],h:'matsudaira'});
+mk('ni','u','鳥居元忠',4,3000,2,{k:['guard'],deathRamp:true,h:'matsudaira'});
+mk('ni','u','酒井忠次',4,4000,2,{e:[{t:'ramp',n:1}],h:'matsudaira'});
+mk('ni','u','松平元康',6,6000,1,{pr:['SR','SSR'],k:['guard'],e:[{t:'ramp',n:1},{t:'shield',n:1}],h:'matsudaira'});
+mk('ni','p','築山殿',3,0,1,{ps:'hatsu',h:'matsudaira'});
+mk('ni','c','岡崎城',5,0,1,{ps:'guardAll',h:'matsudaira'});
+mk('ni','w','厭離穢土の旗',2,0,1,{w:{pow:1000,k:'guard'},h:'matsudaira'});
+mk('ni','x','大高城兵糧入れ',3,0,2,{e:[{t:'ramp',n:1},{t:'draw',n:1}],h:'matsudaira'});
+// 汎(思想なし・どのデッキにも入る共通カード。ガチャで出る)
+mk('ne','u','足軽',1,1000,3,{pr:['N']});
+mk('ne','u','弓足軽',2,1500,3,{pr:['N'],k:['guard']});
+mk('ne','u','鉄砲足軽',3,2500,3,{pr:['R'],e:[{t:'kill',max:2000}]});
+mk('ne','u','騎馬武者',4,3500,3,{pr:['R'],k:['rush']});
+},{era:'1560年前後'});
+for(const c of CARDS)if(c.series==='e1560'&&!c.h)c.h={so:'oda',gi:'uesugi'}[c.i];
+
+// ===== スターターデッキ(無料で1回だけ受け取れる。受け取ると、そのカードが手に入りデッキに設定される) =====
+const STARTERS=[
+ {id:'st_oda',name:'織田家スターター',sub:'桶狭間の奇襲で一気に攻める',series:'e1560',house:'oda'},
+ {id:'st_imagawa',name:'今川家スターター',sub:'知略と同盟で盤石に戦う',series:'e1560',house:'imagawa'},
+ {id:'st_matsudaira',name:'松平家スターター',sub:'耐えて兵糧を貯め、後半に勝つ',series:'e1560',house:'matsudaira'},
+ {id:'st_uesugi',name:'上杉家スターター',sub:'守りを固めて関東管領へ',series:'e1560',house:'uesugi'},
+ {id:'st_takeda',name:'武田家スターター',sub:'突撃で城門を破り続ける',series:'e1560',house:'takeda'},
+ {id:'st_hojo',name:'北条家スターター',sub:'堅く守り、相手の動きを封じる',series:'e1560',house:'hojo'}
+];
+function starterDeck(st){
+ const d={};
+ for(const c of CARDS.filter(c=>c.series===st.series&&c.h===st.house))d[c.id]=MAX_COPY;
+ return d;
+}
+function claimStarter(id){
+ const st=STARTERS.find(x=>x.id===id);if(!st||SV.starters[id])return false;
+ const d=starterDeck(st);
+ for(const k in d){const c=cardById(k);if(c.series==='base')continue;const r0=c.pr[0],key=printKey(c,r0);const cur=SV.prints[key]||0,add=Math.min(d[k],MAX_COPY-cur);SV.prints[key]=cur+Math.max(0,add);if(d[k]>add)SV.pt+=GACHA.dismantle[r0]*(d[k]-Math.max(0,add));} // 3枚を超える分は自動で分解
+ SV.starters[id]=1;myDeck=d;saveSave();return true;
+}
+const FXD={
+ draw:e=>`山札から${e.n}枚引く`,ramp:e=>`山札の上${e.n}枚を兵糧にする`,shield:e=>`山札の上${e.n}枚を城門に加える`,
+ tapE:()=>'相手の武将1体を横にする',kill:e=>`相手の${e.tapped?'横向きの':''}武将1体を破壊`+(e.max?`(パワー${e.max}以下)`:''),
+ bounce:()=>'相手の武将1体を手札に戻す',discard:e=>`相手の手札をランダムに${e.n}枚捨てさせる`,
+ breakS:e=>`相手の城門を${e.n}枚破る`,tapAll:()=>'相手の武将すべてを横にする',
+ drawIfFewer:()=>'自分の手札が相手より少なければ1枚引く',retWeapon:()=>'自分の場の武器1枚を手札に戻す',
+ toMana:()=>'手札から1枚を兵糧に置く',
+ pumpTemp:e=>`自分の武将1体にパワー+${e.pow}`+(e.kw?`と【${KWN[e.kw]}】`:'')+'を与える(ターン終了まで)',
+ peekDiscard:()=>'相手の手札を見て、1枚選んで捨てさせる',tapSkip:()=>'相手の武将1体を横にし、次のアンタップを1回飛ばす'
+};
+const PSD={drawStart:'自分のターン開始時、1枚引く',aura:'味方の武将すべてパワー+1000',rushAll:'味方の武将すべてに突撃を与える',
+ guardAll:'味方の武将すべてに守を与える',rampStart:'自分のターン開始時、山札の上を兵糧にする',
+ sap:'自分のターン開始時、相手の手札が4枚以上なら1枚捨てさせる',refill:'自分のターン開始時、城門が4枚以下なら山札から1枚加える',
+ chacha:'自分のターン開始時、自分の場に武器があれば1枚引く',guardAura:'味方の守を持つ武将すべてパワー+1000',
+ rushDraw:'味方の突撃を持つ武将が城門を破ったとき、1枚引く(1ターンに1回)',atkAura:'味方の武将が攻撃している間、パワー+1000',
+ nene:'自分のターン開始時、相手の手札が自分より多ければ1枚引く',gateLimit:'相手が城門(本丸)を攻撃できるのは、1ターンに2回まで',
+ hatsu:'自分のターン開始時、自分の兵糧が相手より少なければ山札の上を兵糧にする',
+ deathDraw:'味方の武将が戦闘で破壊されるたび、1枚引く(1ターンに1回)',kasuga:'自分の城門が破られたとき、山札の上を城門に加える(1ターンに1回)'};
+function desc(c){
+ const a=[];
+ c.k.forEach(k=>a.push('【'+KWN[k]+'】'));
+ if(c.blockBonus)a.push(`守として戦うとき、パワー+${c.blockBonus}。`);
+ if(c.surviveShield)a.push('戦闘で生き残り、自分の城門が1枚以下なら山札の上を城門に加える。');
+ if(c.killBreak)a.push('自分のターン中、戦闘で相手の武将を破壊したとき、相手の城門を1枚破る(1ターンに1回)。');
+ if(c.deathRamp)a.push('戦闘で破壊されたとき、山札の上を兵糧にする。');
+ if(c.w){const b=[];if(c.w.pow)b.push(`パワー+${c.w.pow}`);if(c.w.k)b.push(`【${KWN[c.w.k]}】`);if(c.w.tie)b.push('戦闘でパワーが同じなら相手だけ破壊される');if(c.w.drawAtk)b.push('攻撃するたび1枚引く(自分のターン中1回)');a.push('味方の武将1体に装備: '+b.join('、')+'。(武将が場を離れると墓地へ)');}
+ if(c.ps)a.push(PSD[c.ps]+'。');
+ if(c.e.length){const lab={u:'登場時:',w:'装備時:',p:'設置時:',c:'設置時:',x:'使用時:'}[c.t];a.push(lab+c.e.map(e=>FXD[e.t](e)).join('、')+'。');}
+ if(c.t==='x')a.push('(城門から手札に加わる時は、無料で発動もできる)');
+ return a.join(' ');
+}
+
+// ===== state =====
+let G=null,screen='title',chosen=[],uidc=0;
+const ui={sel:null,selU:null,info:null,pick:null,modal:null,busy:true,rules:false};
+// ===== ガチャ設定(価格・確率・ポイントはここを変えるだけで調整できる) =====
+const GACHA={
+ coin:'石高',pt:'軍功',cards:5,guarantee:'R',
+ packCost:100, // 1パックの価格(シリーズに {packCost:..} を付ければ個別指定)
+ rates:{N:50,R:30,SR:15,SSR:5},
+ dismantle:{N:1,R:3,SR:10,SSR:30},exchange:{N:10,R:30,SR:100,SSR:300},
+ reward:{win:50,lose:20,login:100,initial:5000} // initial: 今だけ5000(元は500)。既存セーブには下の GRANT_NOW で差額を1回だけ配る
+};
+// ===== 天下往来の「遊戯屋」に埋め込まれたとき(?embed=1)：お金は天下往来の所持金(文)とつなぐ =====
+const EMBED=/[?&]embed/.test(location.search||'')&&window.parent!==window;
+if(EMBED){GACHA.coin='文';GACHA.packCost=500;GACHA.reward={win:250,lose:100,login:0,initial:0};} // 1パック500文。勝てば250文・負けても100文
+function parentSend(o){try{window.parent.postMessage(Object.assign({sgkCard:1},o),'*');}catch(e){}}
+let walletAt=0;
+function coinChange(d){SV.coin+=d;if(EMBED&&d){walletAt=Date.now();parentSend({t:'pay',d});}}
+window.addEventListener('message',e=>{
+ const m=e.data;if(!EMBED||e.source!==window.parent||!m||m.sgkCard!==1)return;
+ if(m.t==='wallet'&&typeof m.money==='number'&&Date.now()-walletAt>2000&&m.money!==SV.coin){SV.coin=m.money;if(!pk&&(screen==='title'||screen==='shop'))render();}
+});
+const RORD=['N','R','SR','SSR'];
+const DECK_SIZE=36,MAX_COPY=3,SAVE_KEY=EMBED?'sengoku_card_embed_v1':'sengoku_card_v1';
+let SV={deck:{},coin:0,pt:0,prints:{},lastLogin:'',starters:{}};
+let myDeck={},editFilter='all',editAll=false,editMsg='';
+let shopBig=null,shopTab='pack',packIdeo='so',collFilter='all',collRar='all',disSel={},shopMsg='',pk=null,loginMsg='';
+const cardById=id=>CARDS.find(c=>c.id===id);
+const printKey=(c,r)=>c.id+'|'+r;
+const printCount=(c,r)=>SV.prints[printKey(c,r)]||0;
+const sumPrints=c=>(c.pr||[]).reduce((a,r)=>a+printCount(c,r),0);
+// 所持枚数: 初期カードは通常版3枚+ガチャで得た版。追加カードはガチャで得た版の合計
+const ownedOf=c=>c.series==='base'?MAX_COPY+sumPrints(c):sumPrints(c);
+function displayRarity(c){
+ const own=(c.pr||[]).filter(r=>printCount(c,r)>0).sort((a,b)=>RORD.indexOf(b)-RORD.indexOf(a));
+ if(own.length)return own[0];
+ return c.series==='base'?'N':((c.pr&&c.pr[0])||'N');
+}
+const deckTotal=d=>Object.values(d).reduce((a,b)=>a+b,0);
+const deckIdeos=d=>[...new Set(Object.keys(d).filter(k=>d[k]>0).map(cardById).filter(Boolean).map(c=>c.i).filter(i=>i!=='ne'))];
+function deckValid(d){
+ if(deckTotal(d)!==DECK_SIZE||deckIdeos(d).length>2)return false;
+ return Object.keys(d).every(k=>{const c=cardById(k);return c&&d[k]>=0&&d[k]<=Math.min(MAX_COPY,ownedOf(c));});
+}
+// 指定した思想のカードを1枚ずつ順に足していき、36枚にする(all=trueなら所持に関係なく3枚まで。CPU用)
+function autoDeck(idl,all){
+ const cap=c=>Math.min(MAX_COPY,all?MAX_COPY:ownedOf(c));
+ const pool=shuffle(CARDS.filter(c=>(idl.includes(c.i)||c.i==='ne')&&cap(c)>0));const d={};let n=0;
+ for(let r=0;r<MAX_COPY&&n<DECK_SIZE;r++)for(const c of pool){if(n>=DECK_SIZE)break;if((d[c.id]||0)<cap(c)){d[c.id]=(d[c.id]||0)+1;n++;}}
+ return d;
+}
+function saveSave(){SV.deck=myDeck;try{localStorage.setItem(SAVE_KEY,JSON.stringify(SV));}catch(e){}}
+function loadSave(){
+ let s={};try{s=JSON.parse(localStorage.getItem(SAVE_KEY)||'null')||{};}catch(e){s={};}
+ const fresh=!('coin' in s);
+ SV={deck:s.deck||{},coin:fresh?GACHA.reward.initial:(s.coin||0),pt:s.pt||0,prints:s.prints||{},lastLogin:s.lastLogin||'',starters:s.starters||{},grants:s.grants||{}};
+ let grantMsg='';
+ if(!SV.grants[GRANT_NOW.id]){SV.grants[GRANT_NOW.id]=1;if(!fresh&&!EMBED){SV.coin+=GRANT_NOW.coin;grantMsg=`初期配布の増額分として${GACHA.coin}+${GRANT_NOW.coin}を進呈しました。`;}}
+ for(const k of Object.keys(SV.prints)){const n=SV.prints[k];if(n>MAX_COPY){const r=k.split('|')[1];SV.pt+=(GACHA.dismantle[r]||0)*(n-MAX_COPY);SV.prints[k]=MAX_COPY;}} // 3枚を超えて持っていた分は分解
+ let d=SV.deck;if(!deckValid(d))d=autoDeck(shuffle(availIdeos()).slice(0,2));myDeck=d;
+ const today=new Date().toDateString();
+ if(SV.lastLogin!==today){
+  SV.lastLogin=today;
+  if(fresh)loginMsg=EMBED?'遊戯屋へようこそ!まずはカードショップでスターターデッキを受け取ろう!':`はじめに${GACHA.coin}${GACHA.reward.initial}を進呈します。まずはカードショップでスターターデッキを受け取ろう!`;
+  else if(!EMBED){SV.coin+=GACHA.reward.login;loginMsg=`ログインボーナス ${GACHA.coin} +${GACHA.reward.login}`;}
+  if(grantMsg)loginMsg+='<br>'+grantMsg;
+  saveSave();
+ }else if(grantMsg){loginMsg=grantMsg;saveSave();}
+}
+// 今だけの追加配布(1回だけ)。止めたい時は coin を0にする
+const GRANT_NOW={id:'init5000',coin:4500};
+// ----- ガチャ -----
+function rollRarity(min){
+ const st=min?RORD.indexOf(min):0;let tot=0;for(let i=st;i<4;i++)tot+=GACHA.rates[RORD[i]];
+ let x=Math.random()*tot;for(let i=st;i<4;i++){x-=GACHA.rates[RORD[i]];if(x<0)return RORD[i];}
+ return RORD[3];
+}
+// パック = era(時代)を持つシリーズ。シリーズを追加するとパックも増える
+const gachaPacks=()=>SERIES.filter(s=>s.era).map(s=>({id:s.id,name:s.name,era:s.era,cost:s.packCost||GACHA.packCost,color:s.color||'#d4a94a'}));
+function pullPack(pack){
+ const pool=[];for(const c of CARDS){if(c.series!==pack.id)continue;for(const r of(c.pr||[]))pool.push({c,r});}
+ if(!pool.length)return [];
+ const out=[];
+ for(let n=0;n<GACHA.cards;n++){
+  const need=n===GACHA.cards-1&&!out.some(x=>RORD.indexOf(x.r)>=RORD.indexOf(GACHA.guarantee));
+  const ri=RORD.indexOf(rollRarity(need?GACHA.guarantee:null));let cand=[];
+  for(let k=ri;k>=0&&!cand.length;k--)cand=pool.filter(x=>x.r===RORD[k]);
+  for(let k=ri+1;k<4&&!cand.length;k++)cand=pool.filter(x=>x.r===RORD[k]);
+  out.push(Object.assign({},cand[Math.floor(Math.random()*cand.length)]));
+ }
+ return out;
+}
+function buyPack(pack,n){
+ n=n||1;
+ if(SV.coin<pack.cost*n)return null;
+ const res=[];for(let i=0;i<n;i++)res.push(...pullPack(pack));if(!res.length)return null;
+ coinChange(-pack.cost*n);const seen={};
+ for(const x of res){const k=printKey(x.c,x.r);const cur=SV.prints[k]||0;x.isNew=!(cur>0)&&!seen[k];seen[k]=1;
+  if(cur>=MAX_COPY){x.auto=GACHA.dismantle[x.r];SV.pt+=x.auto;} // 同じカードは3枚まで。超えた分は自動で分解して軍功にする
+  else SV.prints[k]=cur+1;}
+ saveSave();return res;
+}
+// 演出確認用(URLに ?test を付けた時だけショップに出る。無料・保存されない)
+const DEMO=typeof location!=='undefined'&&/[?&]test/.test(location.search||'');
+const TESTPACK={id:'test',name:'演出テストパック',cost:0,color:'#888'};
+function testPull(){
+ const out=[];
+ for(let n=0;n<GACHA.cards;n++){const need=n===GACHA.cards-1&&!out.some(x=>x.r!=='N');out.push({c:CARDS[Math.floor(Math.random()*CARDS.length)],r:rollRarity(need?GACHA.guarantee:null),isNew:Math.random()<0.5});}
+ return out;
+}
+// 分解できるのは重複分のみ(各版1枚は残す)。デッキに必要な枚数も残す
+function maxDismantle(c,r){return Math.max(0,Math.min(printCount(c,r)-1,ownedOf(c)-(myDeck[c.id]||0)));}
+function dismantle(c,r,k){k=Math.min(k,maxDismantle(c,r));if(k<=0)return 0;SV.prints[printKey(c,r)]-=k;SV.pt+=GACHA.dismantle[r]*k;saveSave();return k;}
+function exchange(c,r){const cost=GACHA.exchange[r];if(printCount(c,r)>=MAX_COPY)return 'max';if(SV.pt<cost)return false;SV.pt-=cost;SV.prints[printKey(c,r)]=printCount(c,r)+1;saveSave();return true;}
+function loadExtra(){SERIES_FILES.forEach(f=>{const s=document.createElement('script');s.src=f;s.onload=()=>render();s.onerror=()=>{};document.head.appendChild(s);});}
+
+const opp=p=>G.P[1-p.idx];
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+function log(m){G.log.push(m);if(G.log.length>80)G.log.shift();}
+const once=k=>{if(G.once[k])return false;G.once[k]=1;return true;}; // 1ターンに1回の管理(ターン開始でリセット)
+const hasPs=(p,s)=>p.fields.some(c=>c.ps===s);
+const countPs=(p,s)=>p.fields.filter(c=>c.ps===s).length;
+const hasKw=(u,k)=>!!(u.kws.includes(k)||(u.weapon&&u.weapon.w.k===k)||u.mods.some(m=>m.kw===k)||(k==='rush'&&hasPs(u.owner,'rushAll'))||(k==='guard'&&hasPs(u.owner,'guardAll')));
+const power=u=>u.card.p+(u.weapon?(u.weapon.w.pow||0):0)+u.mods.reduce((a,m)=>a+(m.pow||0),0)+1000*countPs(u.owner,'aura')+(hasKw(u,'guard')?1000*countPs(u.owner,'guardAura'):0)+(u.attacking?1000*countPs(u.owner,'atkAura'):0);
+const canAtkU=u=>!!u&&!u.dead&&!u.tapped&&(!u.sick||hasKw(u,'rush'));
+const newUnit=(p,card)=>({uid:++uidc,card,owner:p,weapon:null,mods:[],kws:card.k.slice(),tapped:false,sick:true,dead:false,attacking:false,skipUntap:false});
+function find(uid){for(const p of G.P){const u=p.units.find(x=>x.uid===uid);if(u)return u;}return null;}
+function findField(uid){for(const p of G.P){const c=p.fields.find(x=>x.uid===uid);if(c)return c;}return null;}
+
+function draw(p,n){for(let i=0;i<n;i++)if(p.deck.length)p.hand.push(p.deck.shift());}
+function ramp(p,n){for(let i=0;i<n;i++)if(p.deck.length)p.mana.push({card:p.deck.shift(),tapped:false});}
+function discardRand(p,n){for(let i=0;i<n&&p.hand.length;i++){const k=Math.floor(Math.random()*p.hand.length);p.grave.push(p.hand.splice(k,1)[0]);}}
+// 武将が場を離れるときは、装備中の武器も必ず墓地へ送る
+function releaseWeapon(u){if(u.weapon){u.owner.grave.push(u.weapon);log(`${u.weapon.n}が墓地へ送られた`);u.weapon=null;}}
+function destroy(u,cause){
+ if(u.dead)return;u.dead=true;const p=u.owner;
+ p.units=p.units.filter(x=>x!==u);p.grave.push(u.card);releaseWeapon(u);log(`${u.card.n}が撤退した`);
+ if(cause==='battle'){
+  if(u.card.deathRamp){ramp(p,1);log(`${u.card.n}の効果で兵糧が増えた`);}
+  if(hasPs(p,'deathDraw')&&once('dd'+p.idx)){draw(p,1);log('駿府城の効果で1枚引いた');}
+ }
+}
+function bounceUnit(u){if(u.dead)return;u.dead=true;const p=u.owner;p.units=p.units.filter(x=>x!==u);releaseWeapon(u);p.hand.push(u.card);log(`${u.card.n}が手札に戻った`);}
+
+function canCast(p,c){
+ const un=p.mana.filter(m=>!m.tapped);
+ if(un.length<c.c||(c.i!=='ne'&&!un.some(m=>m.card.i===c.i)))return false;
+ if(c.t==='w'&&!p.units.length)return false;
+ return true;
+}
+// 奇襲の効果に有効な対象があるか(AIが空打ちしないため)
+function fxUseful(p,c){
+ const d=opp(p);
+ return c.e.every(e=>{switch(e.t){
+  case 'kill':return d.units.some(u=>(!e.max||power(u)<=e.max)&&(!e.tapped||u.tapped));
+  case 'bounce':case 'tapSkip':return d.units.length>0;
+  case 'tapE':return d.units.some(u=>!u.tapped);
+  case 'pumpTemp':return p.units.length>0;
+  default:return true;}});
+}
+function payMana(p,c){
+ const un=p.mana.filter(m=>!m.tapped);
+ if(c.i==='ne'){for(let k=0;k<c.c;k++)un[k].tapped=true;return;} // 汎用カードはどの兵糧でも払える
+ const f=un.find(m=>m.card.i===c.i);f.tapped=true;
+ const rest=un.filter(m=>m!==f).sort((a,b)=>(a.card.i===c.i)-(b.card.i===c.i));
+ for(let k=0;k<c.c-1;k++)rest[k].tapped=true;
+}
+
+// ===== UI promises =====
+function pickTarget(cands,msg){return new Promise(res=>{ui.pick={ids:cands.map(u=>u.uid),msg,res};render();});}
+function modal(msg,btns){return new Promise(res=>{ui.modal={msg,btns,res};render();});}
+async function choose(p,cands,msg){
+ if(p.ai||cands.length===1)return cands.slice().sort((a,b)=>power(b)-power(a))[0];
+ return pickTarget(cands,msg);
+}
+function pickChargeCard(p,list){
+ let best=null,bs=-1e9;
+ for(const c of list){const same=p.mana.filter(m=>m.card.i===c.i).length;const s=c.c*3+(same===0?15:0)+Math.random();if(s>bs){bs=s;best=c;}}
+ return best;
+}
+async function chooseCard(p,list,msg,forOpp){
+ if(p.ai)return forOpp?list.slice().sort((a,b)=>b.c-a.c)[0]:pickChargeCard(p,list);
+ return modal(msg,list.map(c=>({l:`${IDEO[c.i].n} ${c.n} (${TL[c.t]} コスト${c.c}${c.t==='u'?' パワー'+c.p:''})`,v:c})));
+}
+
+// ===== effects =====
+async function applyFx(p,e){
+ const d=opp(p);
+ switch(e.t){
+  case 'draw':draw(p,e.n);break;
+  case 'ramp':ramp(p,e.n);break;
+  case 'shield':for(let i=0;i<e.n;i++)if(p.deck.length)p.shields.push(p.deck.shift());log(`${p.name}の城門が増えた`);break;
+  case 'discard':discardRand(d,e.n);break;
+  case 'tapAll':d.units.forEach(u=>u.tapped=true);log('相手の武将がすべて横になった');break;
+  case 'tapE':{const c=d.units.filter(u=>!u.tapped);if(c.length){const u=await choose(p,c,'横にする相手の武将を選んでください');u.tapped=true;log(`${u.card.n}を横にした`);}break;}
+  case 'kill':{const c=d.units.filter(u=>(!e.max||power(u)<=e.max)&&(!e.tapped||u.tapped));if(c.length){const u=await choose(p,c,'破壊する相手の武将を選んでください');destroy(u);}break;}
+  case 'bounce':{if(d.units.length){const u=await choose(p,d.units,'手札に戻す相手の武将を選んでください');bounceUnit(u);}break;}
+  case 'breakS':await breakShields(null,d,e.n);break;
+  case 'drawIfFewer':if(p.hand.length<d.hand.length){draw(p,1);log('手札が少ないので1枚引いた');}break;
+  case 'retWeapon':{const c=p.units.filter(u=>u.weapon);if(c.length){const u=await choose(p,c,'武器を手札に戻す武将を選んでください');p.hand.push(u.weapon);log(`${u.weapon.n}を手札に戻した`);u.weapon=null;}break;}
+  case 'toMana':{if(p.hand.length){const c=await chooseCard(p,p.hand,'兵糧に置くカードを選んでください',false);p.hand=p.hand.filter(x=>x!==c);p.mana.push({card:c,tapped:false});log(`${p.name}は手札から兵糧を置いた`);}break;}
+  case 'pumpTemp':{if(p.units.length){const u=await choose(p,p.units,'強化する味方の武将を選んでください');u.mods.push({pow:e.pow,kw:e.kw,till:G.turnNo});log(`${u.card.n}が一時的に強化された`);}break;}
+  case 'peekDiscard':{if(d.hand.length){const c=await chooseCard(p,d.hand,`相手の手札です。捨てさせるカードを選んでください`,true);d.hand=d.hand.filter(x=>x!==c);d.grave.push(c);log(`${d.name}の${c.n}を捨てさせた`);}break;}
+  case 'tapSkip':{if(d.units.length){const u=await choose(p,d.units,'横にする相手の武将を選んでください');u.tapped=true;u.skipUntap=true;log(`${u.card.n}を横にした(次のアンタップを飛ばす)`);}break;}
+ }
+ render();
+}
+async function playCard(p,c){
+ p.hand=p.hand.filter(x=>x!==c);payMana(p,c);
+ log(`${p.name}:${c.n}を${c.t==='u'?'召喚':c.t==='w'?'装備':'使用'}`);
+ if(c.t==='u'){const u=newUnit(p,c);p.units.push(u);render();for(const e of c.e){if(G.over)return;await applyFx(p,e);}}
+ else if(c.t==='w'){
+  let cands=p.units;if(p.ai&&p.units.some(u=>!u.weapon))cands=p.units.filter(u=>!u.weapon);
+  const u=await choose(p,cands,'武器を装備する味方の武将を選んでください');
+  releaseWeapon(u);u.weapon=c;log(`${u.card.n}が${c.n}を装備した`);render();
+  for(const e of c.e)await applyFx(p,e);
+ }else if(c.t==='x'){
+  for(const e of c.e){if(G.over)return;await applyFx(p,e);}
+  p.grave.push(c);
+ }else{p.fields.push(c);render();for(const e of c.e){if(G.over)return;await applyFx(p,e);}}
+ render();
+}
+
+// ===== battle =====
+async function breakShields(att,d,n){
+ let refill=false;
+ try{
+  for(let i=0;i<n;i++){
+   if(!d.shields.length||G.over)return;
+   const c=d.shields.shift();log(`${d.name}の城門が破られた!`);
+   if(att&&hasPs(att.owner,'rushDraw')&&hasKw(att,'rush')&&once('rd'+att.owner.idx)){draw(att.owner,1);log('小松姫の効果で1枚引いた');}
+   if(hasPs(d,'kasuga')&&once('ks'+d.idx))refill=true;
+   if(c.t==='x'){
+    let use;
+    if(d.ai)use=fxUseful(d,c)&&!c.e.some(e=>e.t==='pumpTemp');
+    else use=await modal(`城門が破られた!\n奇襲「${c.n}」が出た。\n${desc(c)}`,[{l:'無料で発動する',v:true},{l:'手札に加えて温存',v:false}]);
+    if(use){log(`奇襲「${c.n}」を無料で発動!`);for(const e of c.e)await applyFx(d,e);d.grave.push(c);render();if(att&&att.dead)return;continue;}
+   }
+   d.hand.push(c);render();
+  }
+ }finally{
+  // 春日局: 破られた処理がすべて終わってから城門を補充する(連破で補充分が破られない)
+  if(refill&&d.deck.length){d.shields.push(d.deck.shift());log('春日局の効果で城門が増えた');}
+ }
+}
+async function battle(a,b,blk){
+ const pa=power(a),pb=power(b)+(blk&&b.card.blockBonus?b.card.blockBonus:0);
+ log(`${a.card.n}(${pa}) vs ${b.card.n}(${pb})`);
+ let ad=false,bd=false;
+ if(pa>pb)bd=true;else if(pb>pa)ad=true;else{
+  const at=a.weapon&&a.weapon.w.tie,bt=b.weapon&&b.weapon.w.tie;
+  if(at&&!bt)bd=true;else if(bt&&!at)ad=true;else{ad=true;bd=true;}
+ }
+ if(ad)destroy(a,'battle');if(bd)destroy(b,'battle');
+ for(const [x,xd,yd] of [[a,ad,bd],[b,bd,ad]]){
+  if(!xd&&x.card.surviveShield&&x.owner.shields.length<=1&&x.owner.deck.length){x.owner.shields.push(x.owner.deck.shift());log(`${x.card.n}の効果で城門が増えた`);}
+  if(yd&&x.card.killBreak&&G.cur===x.owner.idx&&!G.over&&once('kb'+x.uid))await breakShields(null,opp(x.owner),1);
+ }
+ render();await sleep(300);
+}
+async function askBlock(d,att){
+ const gs=d.units.filter(u=>!u.tapped&&!u.dead&&hasKw(u,'guard'));
+ if(!gs.length)return null;
+ if(d.ai){
+  const bp=u=>power(u)+(u.card.blockBonus||0);
+  const strong=gs.filter(u=>bp(u)>=power(att)).sort((a,b)=>bp(a)-bp(b));
+  if(d.shields.length<=1)return strong[0]||gs.sort((a,b)=>bp(b)-bp(a))[0];
+  if(strong.length&&Math.random()<0.7)return strong[0];
+  return null;
+ }
+ return modal(`${att.card.n}(${power(att)})が攻めてきた!\n守りますか?`,[...gs.map(u=>({l:`${u.card.n}(${power(u)}${u.card.blockBonus?'+'+u.card.blockBonus:''})で守る`,v:u})),{l:'守らない',v:null}]);
+}
+const faceOk=att=>!(hasPs(opp(att.owner),'gateLimit')&&att.owner.faceAtks>=2);
+async function attack(att,target){
+ const p=att.owner,d=opp(p);att.tapped=true;att.attacking=true;
+ try{
+  if(att.weapon&&att.weapon.w.drawAtk&&G.cur===p.idx&&once('da'+p.idx)){draw(p,1);log(`${att.weapon.n}の効果で1枚引いた`);}
+  if(target!=='face'){log(`${att.card.n} → ${target.card.n}`);await battle(att,target,false);return;}
+  p.faceAtks++;
+  log(`${p.name}:${att.card.n}が攻撃!`);
+  const blk=await askBlock(d,att);
+  if(blk){blk.tapped=true;log(`${blk.card.n}が守った!`);await battle(att,blk,true);return;}
+  if(!d.shields.length){win(p,`${att.card.n}が本丸に迫った`);return;}
+  await breakShields(att,d,hasKw(att,'double')?2:1);
+  render();
+ }finally{att.attacking=false;}
+}
+function win(p,why){
+ G.over={winner:p,why};log(`${p.name}の勝利! ${why}`);
+ if(!G.auto&&!G.rewarded){G.rewarded=true;G.reward=p.idx===0?GACHA.reward.win:GACHA.reward.lose;coinChange(G.reward);saveSave();}
+ render();
+}
+
+// ===== turn flow =====
+async function startTurn(i){
+ if(G.over)return;
+ G.cur=i;G.turnNo++;G.once={};const p=G.P[i],d=G.P[1-i];
+ p.mana.forEach(m=>m.tapped=false);
+ p.units.forEach(u=>{if(u.skipUntap)u.skipUntap=false;else u.tapped=false;u.sick=false;}); // 影縫い: 次のアンタップ1回を飛ばす
+ p.charged=false;p.faceAtks=0;
+ log(`── ターン${G.turnNo} ${p.name} ──`);
+ if(G.turnNo>1){if(!p.deck.length){win(d,`${p.name}の山札が尽きた`);return;}draw(p,1);}
+ for(const c of p.fields.slice()){
+  if(c.ps==='drawStart')draw(p,1);
+  else if(c.ps==='rampStart')ramp(p,1);
+  else if(c.ps==='sap'&&d.hand.length>=4)discardRand(d,1);
+  else if(c.ps==='refill'&&p.shields.length<=4&&p.deck.length)p.shields.push(p.deck.shift());
+  else if(c.ps==='chacha'&&p.units.some(u=>u.weapon))draw(p,1);
+  else if(c.ps==='nene'&&d.hand.length>p.hand.length)draw(p,1);
+  else if(c.ps==='hatsu'&&p.mana.length<d.mana.length)ramp(p,1);
+ }
+ ui.sel=ui.selU=ui.info=null;render();await sleep(300);
+ if(p.ai){ui.busy=true;render();await aiTurn(p);if(!G.over)await endTurn();}
+ else{ui.busy=false;render();}
+}
+async function endTurn(){
+ if(G.over)return;ui.busy=true;ui.sel=ui.selU=null;
+ G.P.forEach(q=>q.units.forEach(u=>{u.mods=u.mods.filter(m=>m.till>G.turnNo);})); // 「ターン終了まで」の効果を消す
+ render();await startTurn(1-G.cur);
+}
+
+async function aiTurn(p){
+ const d=opp(p);
+ if(p.mana.length<8&&p.hand.length){
+  const best=pickChargeCard(p,p.hand);
+  p.hand=p.hand.filter(x=>x!==best);p.mana.push({card:best,tapped:false});p.charged=true;log(`${p.name}は兵糧を蓄えた`);render();await sleep(500);
+ }
+ for(let n=0;n<10&&!G.over;n++){
+  const opts=p.hand.filter(c=>canCast(p,c)&&(c.t!=='x'||fxUseful(p,c))&&!((c.t==='p'||c.t==='c')&&p.fields.some(f=>f.id===c.id)));
+  if(!opts.length)break;
+  opts.sort((a,b)=>b.c-a.c);
+  await playCard(p,opts[0]);await sleep(600);
+ }
+ for(const u of p.units.slice()){
+  if(G.over)return;
+  if(u.dead||!canAtkU(u))continue;
+  const tg=d.units.filter(x=>x.tapped&&power(x)<power(u)).sort((a,b)=>power(b)-power(a));
+  let target;
+  if(tg.length)target=tg[0];
+  else if(!faceOk(u))continue;
+  else if(d.shields.length===0||Math.random()<0.85)target='face';
+  else continue;
+  await attack(u,target);await sleep(700);
+ }
+}
+
+function startGame(deckMap,auto){
+ const mkDeck=dm=>{const d=[];for(const id in dm){const c=cardById(id);for(let k=0;k<dm[id];k++)d.push(Object.assign({},c,{uid:++uidc}));}return shuffle(d);};
+ const cpuDeck=starterDeck((typeof cpuForce!=="undefined"&&cpuForce||shuffle(STARTERS)[0])),cpuIds=deckIdeos(cpuDeck);
+ const mkP=(name,idx,deck,ai)=>({name,idx,ai,deck,hand:[],mana:[],shields:[],units:[],fields:[],grave:[],charged:false,faceAtks:0});
+ G={P:[mkP('あなた',0,mkDeck(deckMap),!!auto),mkP('相手',1,mkDeck(cpuDeck),true)],cur:0,turnNo:0,log:[],over:null,cpuIds,once:{},auto:!!auto,rewarded:false,reward:0};
+ for(const p of G.P){p.shields=p.deck.splice(0,5);p.hand=p.deck.splice(0,5);}
+ log(`相手の思想: ${cpuIds.map(i=>IDEO[i].n).join('・')}`);
+ ui.sel=ui.selU=ui.info=ui.pick=ui.modal=null;ui.busy=true;screen='game';render();
+ return startTurn(0);
+}
+
+// ===== render =====
+function mTile(m){return `<i class="md ${m.tapped?'t':''}" style="background:${IDEO[m.card.i].c}"></i>`;}
+function unitTile(u,mine){
+ const col=IDEO[u.card.i].c;let cls='u';
+ if(u.tapped)cls+=' tap';if(ui.selU===u.uid)cls+=' sel';
+ if(ui.pick&&ui.pick.ids.includes(u.uid))cls+=' tg';
+ const su=ui.selU?find(ui.selU):null;
+ if(!mine&&su&&!ui.busy&&canAtkU(su)&&u.tapped&&!ui.pick)cls+=' tg2';
+ let bd=Object.keys(KW).filter(k=>hasKw(u,k)).map(k=>KW[k]).join('');
+ if(u.weapon)bd+=' 装';
+ if(u.mods.length)bd+=' ↑';
+ if(u.sick&&!hasKw(u,'rush'))bd+=' 待';
+ if(u.tapped)bd+=' 横';
+ return `<div class="${cls}" style="--c:${col}" data-a="${mine?'myunit':'enemyunit'}" data-id="${u.uid}">${artTag(u.card)}<b>${u.card.n}</b><i>${power(u)}</i><s>${bd}</s></div>`;
+}
+function handTile(c,me){
+ const ok=!ui.busy&&canCast(me,c);
+ return `<div class="hc ${ok?'ok':''} ${ui.sel===c.uid?'sel':''}" style="--c:${IDEO[c.i].c}" data-a="hand" data-id="${c.uid}">${artTag(c)}<em>${c.c}</em><small>${IDEO[c.i].n}</small><b>${c.n}</b><span>${TL[c.t]}${c.t==='u'?' '+c.p:''}</span></div>`;
+}
+function fieldChips(p){return p.fields.map(c=>`<span class="fc" style="--c:${IDEO[c.i].c}" data-a="field" data-id="${c.uid}">${TL[c.t]}:${c.n}</span>`).join('');}
+function infoHTML(me){
+ let c=null,u=null;
+ if(ui.sel)c=me.hand.find(x=>x.uid===ui.sel);
+ else if(ui.selU){u=find(ui.selU);c=u&&u.card;}
+ else if(ui.info)c=ui.info;
+ if(!c)return '<span class="dim">カードをタップすると詳細が出ます</span>';
+ return `<img class="dart" src="${imgPath(c)}" onerror="this.remove()" alt=""><b style="color:${IDEO[c.i].c}">【${IDEO[c.i].n}】${c.n}</b> ${TL[c.t]} コスト${c.c}${c.t==='u'?' パワー'+(u?power(u):c.p):''}<br>${desc(c)||'(効果なし)'}${u&&u.weapon?`<br><b>装備中: ${u.weapon.n}</b>`:''}`;
+}
+function titleHTML(){
+ return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
+ <div class="title"><h1>戦国思想録</h1><p>— 武将と思想のカードバトル —</p>
+ <div class="dim" style="margin-bottom:10px">${GACHA.coin} ${SV.coin}</div><button class="big" data-a="play">対戦開始</button><button class="big" data-a="toEdit" style="background:#3a2b1f">デッキ編成</button><button class="big" data-a="toShop" style="background:#3a2b1f">カードショップ</button><button class="big" data-a="toList" style="background:#2b2118">カード一覧</button><button class="big" data-a="rules" style="background:#2b2118">遊び方</button>${EMBED?'<button class="big" data-a="exitEmbed" style="background:#5a1f1f">遊戯屋を出る</button>':''}</div>`;
+}
+function listHTML(){
+ return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
+ <div style="padding-top:44px"><h2 style="color:var(--gold);margin:0 0 4px">カード一覧</h2>
+ <div class="dim" style="font-size:12px">画像は img/カードID.png に置くと表示されます(縦長3:4推奨)</div>
+ ${SERIES.map(s=>`<h3 style="margin:14px 0 2px">${s.name} <span class="dim" style="font-size:12px">(${s.id}・${s.cards.length}種)</span></h3>`+s.cards.map(c=>`<div class="lr"><img src="${imgPath(c)}" onerror="this.outerHTML='<div class=\\'ph\\' style=\\'--c:${IDEO[c.i].c}\\'></div>'" alt=""><div><b style="color:${IDEO[c.i].c}">【${IDEO[c.i].n}】${c.n}</b> ${TL[c.t]} コスト${c.c}${c.t==='u'?' パワー'+c.p:''}<br><code>${c.id}</code><br>${desc(c)}</div></div>`).join('')).join('')}
+ <button data-a="toTitle" style="width:100%;margin-top:12px">戻る</button></div>`;
+}
+function editHTML(){
+ const tot=deckTotal(myDeck),ide=deckIdeos(myDeck),ok=deckValid(myDeck);
+ const list=CARDS.filter(c=>(editFilter==='all'||c.i===editFilter)&&(editAll||ownedOf(c)>0||(myDeck[c.id]||0)>0));
+ const row=c=>{const n=myDeck[c.id]||0,cap=Math.min(MAX_COPY,ownedOf(c)),col=IDEO[c.i].c;
+  return `<div class="er" style="--c:${col}"><div class="cb">${c.c}</div><div class="tx"><b>${c.n}</b> <span style="color:${col}">${IDEO[c.i].n}</span> ${TL[c.t]}${c.t==='u'?' '+c.p:''}<br><span class="dim">${desc(c)||'(効果なし)'}</span></div><div class="ctr"><button data-a="dec" data-id="${c.id}" ${n?'':'disabled'}>−</button><span>${n}/${cap}</span><button data-a="inc" data-id="${c.id}" ${n>=cap?'disabled':''}>＋</button></div></div>`;};
+ return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
+ <div style="padding-top:40px"><div class="ehead"><b style="color:var(--gold)">デッキ編成</b> <span class="${tot===DECK_SIZE?'okc':'ngc'}">${tot}/${DECK_SIZE}枚</span> 思想: ${ide.map(i=>`<span style="color:${IDEO[i].c}">${IDEO[i].n}</span>`).join(' ')||'なし'}</div>
+ <div class="dim" style="font-size:11px">${DECK_SIZE}枚・同名${MAX_COPY}枚まで・思想は2つまで</div>
+ <div class="msg2">${editMsg}</div>
+ <div>${['all',...Object.keys(IDEO)].map(k=>`<span class="sc ${editFilter===k?'on':''}" data-a="ef" data-id="${k}">${k==='all'?'全て':IDEO[k].n}</span>`).join('')}<span class="sc ${editAll?'on':''}" data-a="eall">未所持も表示</span></div>
+ <div class="acts"><button data-a="auto">自動構成</button><button data-a="clear">クリア</button></div>
+ ${list.map(row).join('')}
+ <div class="acts" style="position:sticky;bottom:0;background:#120f0d;padding:8px 0"><button data-a="save" ${ok?'':'disabled'} style="flex:1;background:#5a3a1c">保存して戻る</button><button data-a="discard">破棄して戻る</button></div></div>`;
+}
+function gameHTML(){
+ const me=G.P[0],en=G.P[1];
+ const su=ui.selU?find(ui.selU):null;
+ const faceHl=!ui.busy&&su&&canAtkU(su)&&faceOk(su);
+ let acts='';
+ if(ui.pick)acts=`<div class="msg">${ui.pick.msg}</div>`;
+ else if(G.over)acts='';
+ else if(ui.busy)acts='<div class="msg">相手の番…</div>';
+ else{
+  const c=ui.sel?me.hand.find(x=>x.uid===ui.sel):null;
+  if(c){
+   acts+=`<button data-a="charge" ${me.charged?'disabled':''}>兵糧にする</button>`;
+   acts+=`<button data-a="cast" ${canCast(me,c)?'':'disabled'}>${c.t==='u'?'召喚':'使う'}</button>`;
+  }else if(su)acts+='<div class="msg">攻撃先: 相手の城門か、横向きの武将をタップ</div>';
+  acts+='<button data-a="end" style="margin-left:auto">ターン終了</button>';
+ }
+ let ov='';
+ if(ui.modal)ov=`<div class="ov"><div class="mb">${ui.modal.msg.replace(/\n/g,'<br>')}${ui.modal.btns.map((b,i)=>`<button data-a="mb" data-id="${i}">${b.l}</button>`).join('')}</div></div>`;
+ else if(G.over){const w=G.over.winner===me;ov=`<div class="ov"><div class="mb"><div class="res">${w?'勝利!':'敗北…'}</div><div style="text-align:center">${G.over.why}</div>${G.reward?`<div style="text-align:center;color:var(--gold);margin-top:6px">${GACHA.coin} +${G.reward}</div>`:''}<button data-a="again">もう一度</button><button data-a="toTitle">タイトルへ</button></div></div>`;}
+ return `<div class="top"><span>ターン${G.turnNo}・${G.cur===0?'あなたの番':'相手の番'}</span><button data-a="menu">☰</button></div>
+ <div class="zone"><div class="pinfo"><b>相手</b> 手札${en.hand.length} 山札${en.deck.length} 思想:${G.cpuIds.map(i=>IDEO[i].n).join('')}<span>${en.mana.map(mTile).join('')}</span></div>
+ <div class="row">${fieldChips(en)}</div>
+ <button class="face ${faceHl?'hl':''}" data-a="eface">${en.shields.length?`城門 ×${en.shields.length}`:'本丸を攻める!'}</button>
+ <div class="row">${en.units.map(u=>unitTile(u,false)).join('')}</div></div>
+ <div class="log" id="log">${G.log.slice(-8).join('<br>')}</div>
+ <div class="zone"><div class="row">${me.units.map(u=>unitTile(u,true)).join('')}</div>
+ <div class="row">${fieldChips(me)}</div>
+ <div class="pinfo"><b>城門 ×${me.shields.length}</b> 山札${me.deck.length} <span>${me.mana.map(mTile).join('')}</span></div>
+ <div class="detail">${infoHTML(me)}</div>
+ <div class="acts">${acts}</div>
+ <div class="hand">${me.hand.map(c=>handTile(c,me)).join('')}</div></div>${ov}`;
+}
+function rulesHTML(){
+ return `<div class="ov"><div class="mb"><b style="color:var(--gold)">遊び方</b><br>
+ ・デッキは36枚(同名3枚まで・思想2つまで)。デッキ編成画面で組めます。<br>
+ ・勝利条件: 相手の城門(5枚)をすべて破り、本丸に攻撃を当てる。<br>
+ ・毎ターン: 1枚引く → 手札1枚を兵糧にする(任意・1回) → カードを使う → 武将で攻撃。<br>
+ ・コストは兵糧を横にして支払う。使うカードと同じ思想の兵糧が最低1枚必要。<br>
+ ・武将は登場したターンは攻撃できない(突撃を除く)。攻撃すると横になる。<br>
+ ・武器は味方の武将1体に装備して場に残ります。武将が場を離れると武器は墓地へ。1体に装備できるのは1枚で、入れ替えると古い武器は墓地へ。<br>
+ ・カードショップで石高を使ってパックを開け、新しいカードを集められます。
+ ・攻撃先は相手の城門か、横向きの武将。パワーが高い方が勝ち、同じなら相打ち。<br>
+ ・城門は山札の上5枚(裏向き)。破られたカードは手札に入る。<br>
+ ・奇襲は通常のカードとして、自分のターンにコストを払って使える。城門から出た時は、無料で発動するか、手札に加えて温存するかを選べる。<br>
+ ・守を持つ武将は、城門への攻撃を代わりに受けられる。<br>
+ <button data-a="rulesClose">閉じる</button></div></div>`;
+}
+
+// ===== サウンド(外部ファイルなし。ブラウザのWebAudioで音を作る) =====
+const AUD={ctx:null,on:true,scene:null,timer:null,step:0,nextT:0,stepDur:0.25};
+try{AUD.on=localStorage.getItem('sengoku_snd')!=='off';}catch(e){}
+function audInit(){
+ if(AUD.ctx||typeof window==='undefined')return;
+ try{
+  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+  const c=new AC();AUD.ctx=c;
+  AUD.master=c.createGain();AUD.master.gain.value=AUD.on?1:0;AUD.master.connect(c.destination);
+  AUD.bgm=c.createGain();AUD.bgm.gain.value=0.16;AUD.bgm.connect(AUD.master);
+  AUD.sfx=c.createGain();AUD.sfx.gain.value=0.55;AUD.sfx.connect(AUD.master);
+  const len=Math.floor(c.sampleRate*1.6),ir=c.createBuffer(2,len,c.sampleRate);
+  for(let ch=0;ch<2;ch++){const d=ir.getChannelData(ch);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.5);}
+  AUD.rev=c.createConvolver();AUD.rev.buffer=ir;const rg=c.createGain();rg.gain.value=0.35;AUD.rev.connect(rg);rg.connect(AUD.master);
+ }catch(e){AUD.ctx=null;}
+}
+function audResume(){audInit();if(AUD.ctx&&AUD.ctx.state==='suspended')AUD.ctx.resume();audStart();}
+const hz=m=>440*Math.pow(2,(m-69)/12);
+// 琴のようなはじく音
+function tone(t,m,dur,type,vol,dest,rev){
+ const c=AUD.ctx,o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=hz(m);
+ g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+ o.connect(g);g.connect(dest);if(rev)g.connect(AUD.rev);o.start(t);o.stop(t+dur+0.05);
+}
+function noiseBurst(t,dur,f0,f1,vol,dest){
+ const c=AUD.ctx,len=Math.ceil(c.sampleRate*dur),b=c.createBuffer(1,len,c.sampleRate),d=b.getChannelData(0);
+ for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
+ const s=c.createBufferSource();s.buffer=b;const f=c.createBiquadFilter();f.type='bandpass';f.Q.value=1.2;
+ f.frequency.setValueAtTime(f0,t);f.frequency.exponentialRampToValueAtTime(f1,t+dur);
+ const g=c.createGain();g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+ s.connect(f);f.connect(g);g.connect(dest);s.start(t);
+}
+function thump(t,f,dur,vol,dest){
+ const c=AUD.ctx,o=c.createOscillator(),g=c.createGain();o.type='sine';
+ o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(Math.max(20,f*0.35),t+dur);
+ g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+ o.connect(g);g.connect(dest);o.start(t);o.stop(t+dur+0.05);
+}
+function audOk(){return AUD.ctx&&AUD.on;}
+// パックを破る音(紙を裂く音+きらめき)
+function sfxTear(){
+ if(!audOk())return;const t=AUD.ctx.currentTime+0.01,d=AUD.sfx;
+ noiseBurst(t,0.38,900,5200,0.7,d);noiseBurst(t+0.05,0.3,2500,7000,0.3,d);
+ thump(t+0.3,140,0.25,0.5,d);
+ [88,93,96,100].forEach((m,i)=>tone(t+0.32+i*0.06,m,0.5,'sine',0.14,d,true));
+}
+// カードをめくる音
+function sfxFlip(){
+ if(!audOk())return;const t=AUD.ctx.currentTime+0.01,d=AUD.sfx;
+ noiseBurst(t,0.14,2600,900,0.35,d);tone(t+0.05,84,0.18,'triangle',0.1,d,false);
+}
+// カードが出た時の音。レア度が高いほど豪華にする
+function sfxRare(r){
+ if(!audOk())return;const t=AUD.ctx.currentTime+0.02,d=AUD.sfx;
+ if(r==='R'){[79,86].forEach((m,i)=>tone(t+i*0.12,m,0.7,'sine',0.22,d,true));return;}
+ if(r==='SR'){
+  thump(t,90,0.4,0.45,d);
+  [72,76,79,84,88,91].forEach((m,i)=>{tone(t+0.05+i*0.09,m,0.9,'triangle',0.2,d,true);tone(t+0.05+i*0.09,m+12,0.7,'sine',0.08,d,true);});
+  noiseBurst(t+0.1,0.8,3000,9000,0.18,d);
+  [72,76,79,84].forEach(m=>tone(t+0.7,m,1.6,'sine',0.14,d,true));
+  return;
+ }
+ if(r==='SSR'){
+  thump(t,70,0.9,0.9,d);thump(t+0.02,45,1.2,0.8,d);
+  noiseBurst(t,1.0,250,9000,0.5,d);
+  [60,64,67,72,76,79,84,88,91,96].forEach((m,i)=>{tone(t+0.1+i*0.08,m,1.1,'triangle',0.22,d,true);tone(t+0.1+i*0.08,m+12,0.9,'sine',0.1,d,true);});
+  [72,76,79,84,88].forEach(m=>{tone(t+1.0,m,2.6,'sine',0.17,d,true);tone(t+1.0,m,2.2,'triangle',0.08,d,true);});
+  [96,100,103,108].forEach((m,i)=>tone(t+1.05+i*0.12,m,1.8,'sine',0.1,d,true));
+  noiseBurst(t+1.0,1.6,6000,12000,0.12,d);
+ }
+}
+// ----- BGM(和風の音階を自動で演奏。メニューはゆったり、対戦は太鼓つきで速め) -----
+const BGM_S=[62,63,67,69,70,74,75,79,81,82]; // 陰旋法(レ ミ♭ ソ ラ シ♭)
+const BGM_MENU=[[5,-1,4,-1,2,-1,3,-1,2,-1,0,-1,-1,-1,-1,-1],[3,-1,2,-1,0,-1,2,-1,3,-1,4,-1,5,-1,-1,-1],[0,-1,2,3,-1,2,0,-1,-1,-1,3,-1,2,-1,0,-1],[7,-1,5,-1,4,-1,5,-1,4,-1,2,-1,3,-1,-1,-1]];
+const BGM_BATTLE=[[5,5,-1,4,5,-1,7,-1,5,4,-1,2,3,-1,2,-1],[7,-1,5,7,-1,8,7,-1,5,-1,4,5,-1,2,3,-1],[0,2,3,-1,2,3,5,-1,3,2,-1,0,2,-1,3,-1],[5,-1,5,4,5,-1,7,8,7,-1,5,4,2,-1,3,-1]];
+let bgmPat=null,bgmBar=0;
+function bgmStep(step,t){
+ const c=AUD.ctx,b=AUD.bgm,battle=AUD.scene==='battle',pos=step%16;
+ if(pos===0){bgmBar++;const set=battle?BGM_BATTLE:BGM_MENU;bgmPat=set[Math.floor(Math.random()*set.length)];}
+ if(pos===0||pos===8){tone(t,pos===0?38:45,battle?0.9:1.8,'triangle',battle?0.5:0.4,b,false);}
+ if(bgmPat){const n=bgmPat[pos];if(n>=0)tone(t,BGM_S[n],battle?0.35:0.9,'triangle',battle?0.5:0.45,b,true);}
+ if(!battle&&pos===4&&Math.random()<0.5)tone(t,BGM_S[Math.floor(Math.random()*5)]+12,1.2,'sine',0.2,b,true);
+ if(battle){
+  if(pos%4===0)thump(t,pos===0?95:80,0.25,pos===0?0.9:0.55,b);
+  if(pos===6||pos===14)noiseBurst(t,0.08,1800,900,0.18,b);
+ }
+}
+function bgmTick(){
+ const c=AUD.ctx;if(!c)return;
+ while(AUD.nextT<c.currentTime+0.3){bgmStep(AUD.step,AUD.nextT);AUD.nextT+=AUD.stepDur;AUD.step++;}
+}
+function audStart(){
+ if(!AUD.ctx||AUD.timer)return;
+ AUD.nextT=AUD.ctx.currentTime+0.1;AUD.step=0;AUD.stepDur=(AUD.scene==='battle')?0.14:0.3;
+ AUD.timer=setInterval(bgmTick,100);
+}
+function audScene(name){
+ if(AUD.scene===name)return;AUD.scene=name;AUD.stepDur=name==='battle'?0.14:0.3;AUD.step=0;
+}
+function audSetOn(on){
+ AUD.on=on;try{localStorage.setItem('sengoku_snd',on?'on':'off');}catch(e){}
+ if(AUD.master)AUD.master.gain.value=on?1:0;
+ const b=document.getElementById('sndbtn');if(b)b.textContent=on?'♪':'×';
+}
+if(typeof document!=='undefined'){
+ const mk=()=>{if(document.getElementById('sndbtn'))return;const b=document.createElement('button');b.id='sndbtn';b.textContent=AUD.on?'♪':'×';b.title='音のオン・オフ';
+  b.style.cssText='position:fixed;right:8px;bottom:8px;z-index:95;width:40px;height:40px;border-radius:50%;font-size:18px;padding:0;opacity:.85';
+  b.addEventListener('click',e=>{e.stopPropagation();audResume();audSetOn(!AUD.on);});document.body.appendChild(b);};
+ if(document.body)mk();else document.addEventListener('DOMContentLoaded',mk);
+ const first=()=>{audResume();};
+ document.addEventListener('pointerdown',first,true);document.addEventListener('keydown',first,true);
+ document.addEventListener('visibilitychange',()=>{if(!AUD.ctx)return;if(document.hidden)AUD.ctx.suspend();else if(AUD.on)AUD.ctx.resume();});
+}
+
+function render(){
+ if(typeof document==='undefined')return;
+ audScene(screen==='game'?'battle':'menu');
+ const app=document.getElementById('app');if(!app)return;
+ let h=screen==='title'?titleHTML():screen==='edit'?editHTML():screen==='list'?listHTML():screen==='shop'?shopHTML():gameHTML();
+ if(ui.rules)h+=rulesHTML();
+ if(pk)h+=packHTML();
+ if(loginMsg&&screen==='title'&&!pk)h+=toastHTML();
+ app.innerHTML=h;
+ const lg=document.getElementById('log');if(lg)lg.scrollTop=lg.scrollHeight;
+}
+
+// ===== カードショップ =====
+function sparks(n,col){let h='';for(let i=0;i<n;i++)h+=`<i class="sp" style="left:${Math.random()*100}%;top:${Math.random()*100}%;animation-delay:${(Math.random()*1.2).toFixed(2)}s;background:${col}"></i>`;return h;}
+function cardFace(c,r,isNew,auto){
+ const col=IDEO[c.i].c;
+ return `<div class="cf r-${r} t-${c.t}" style="--c:${col}"><div class="cfa"><span>${IDEO[c.i].n}</span>${artTag(c,r)}</div><div class="cft"><span class="cfc">${c.c}</span><b>${c.n}</b></div><div class="cfi">${TL[c.t]}${c.t==='u'?'  パワー'+c.p:''}</div><div class="cfd">${desc(c)}</div><span class="cfr rt-${r}">${r}</span>${isNew?'<span class="cfn">NEW</span>':''}${auto?`<span class="cfn" style="background:#6b6b6b">3枚所持→分解 ${GACHA.pt}+${auto}</span>`:''}<div class="foil"></div></div>`;
+}
+const stkT=t=>`translateY(${(t*16).toFixed(1)}px) scale(${(1-t*0.03).toFixed(3)})`;
+const sumCards=p=>p.all||p.cards;
+function mkPk(pack,res,n){
+ if(n===10&&res.length>GACHA.cards)return{pack,all:res,cards:res.slice(0,GACHA.cards),pi:0,stage:'multi',idx:0,flipped:false,n};
+ return{pack,cards:res,stage:'tear',idx:0,flipped:false,n};
+}
+function sfxMini(i){
+ if(!audOk())return;const t=AUD.ctx.currentTime+0.01,d=AUD.sfx;
+ noiseBurst(t,0.2,1200,6000,0.4,d);tone(t+0.06,84+i,0.3,'sine',0.1,d,true);
+}
+function multiGo(){
+ if(!pk||pk.stage!=='multi'||pk.opening)return;pk.opening=true;
+ const go=document.getElementById('mgo');if(go)go.style.display='none';
+ const ps=document.querySelectorAll('#mgrid .mpk'),gap=230;
+ ps.forEach((el,i)=>setTimeout(()=>{if(!pk||pk.stage!=='multi')return;el.classList.add('torn');sfxMini(i);try{navigator.vibrate&&navigator.vibrate(15);}catch(e){}},300+i*gap));
+ setTimeout(()=>{const f=document.getElementById('mflash');if(f)f.classList.add('on');sfxFlip();},300+ps.length*gap+700);
+ setTimeout(()=>{if(!pk||pk.stage!=='multi')return;pk.stage='reveal';pk.idx=0;pk.flipped=false;pk.fxFor=null;pk.opening=false;render();setTimeout(arriveFx,60);},300+ps.length*gap+1100);
+}
+function nextPack(){
+ if(!pk||pk.stage!=='pksum')return;
+ if(pk.pi>=pk.n-1){pk.stage='summary';pk.big=null;render();return;}
+ pk.pi++;pk.cards=pk.all.slice(pk.pi*GACHA.cards,pk.pi*GACHA.cards+GACHA.cards);pk.stage='reveal';pk.idx=0;pk.flipped=false;pk.fxFor=null;pk.anim=false;pk.big=null;render();setTimeout(arriveFx,60);
+}
+function packHTML(){
+ const p=pk,col=p.pack.color||'#d4a94a';let inner='';
+ if(p.stage==='tear'){
+  inner=`<div class="pk-title">${p.pack.name}</div><div class="pack" id="pack" style="--c:${col}"><div class="packtop" id="ptop"><div class="tearfill" id="tearfill"></div><span class="tearhint">▶ 右へなぞって開封</span></div><div class="packbody"><div class="plogo">戦国思想録</div><div class="pname">${p.pack.name}${p.pack.era?'<br><span style="font-size:13px">'+p.pack.era+'</span>':''}</div></div><div class="burst"></div></div><button data-a="tearNow" style="margin-top:20px">タップで開ける</button>`;
+ }else if(p.stage==='multi'){
+  const per=GACHA.cards,tops=[];for(let i=0;i<p.n;i++){const cs=p.all.slice(i*per,i*per+per);let g='N';for(const x of cs)if(RORD.indexOf(x.r)>RORD.indexOf(g))g=x.r;tops.push(g);}
+  inner=`<div class="pkbadge">10連</div><div class="pk-title">${p.pack.name} 10連</div><div class="mgrid" id="mgrid" style="--c:${col}">${tops.map((g,i)=>`<div class="mpk g-${g}" data-i="${i}"><div class="mt"></div><span>戦国<br>思想録</span></div>`).join('')}</div><div id="mgo"><button data-a="multiGo">タップで10パックを開ける</button></div><div class="mflash" id="mflash"></div>`;
+ }else if(p.stage==='pksum'){
+  const last=p.pi>=p.n-1;
+  inner=`<div class="pkbadge">パック ${p.pi+1}/${p.n}</div><div class="pk-title">パック ${p.pi+1} の結果</div><div class="sumgrid" style="max-width:540px">${p.cards.map((x,k)=>`<div class="smw" data-a="bigcard" data-id="${k}"><div class="smi">${cardFace(x.c,x.r,x.isNew,x.auto)}</div></div>`).join('')}</div><div class="pk-hint" style="margin:0 0 12px">カードをタップすると、大きなイラストが見られます</div><div class="acts" style="justify-content:center"><button data-a="nextPack">${last?'全部の結果へ':'次のパック ▶'}</button>${last?'':'<button data-a="allSum">まとめて結果へ</button>'}</div>`;
+ }else if(p.stage==='reveal'){
+  inner=`${p.n===10?`<div class="pkbadge">パック ${p.pi+1}/${p.n}</div>`:''}<div class="pk-title">${p.n===10?'カード ':''}${p.idx+1} / ${p.cards.length}</div><div class="stage" id="stage">${p.cards.slice(p.idx).map((x,j)=>`<div class="stk" data-j="${j}" style="z-index:${50-j};transform:${stkT(j)}">${cardFace(x.c,x.r,x.isNew,x.auto)}</div>`).join('')}</div><div class="pk-hint">上にスワイプして1枚ずつめくる(ゆっくりずらすと下のカードが見えます)</div><button data-a="skip">スキップ</button>`;
+ }else{
+  const sc=sumCards(p);inner=`<div class="pk-title">開封結果</div><div class="sumgrid" ${sc.length>5?'style="max-width:540px"':''}>${sc.map((x,k)=>`<div class="smw" data-a="bigcard" data-id="${k}"><div class="smi">${cardFace(x.c,x.r,x.isNew,x.auto)}</div></div>`).join('')}</div><div class="pk-hint" style="margin:0 0 12px">カードをタップすると、大きなイラストが見られます</div><div class="acts" style="justify-content:center"><button data-a="again" ${SV.coin>=p.pack.cost*(p.n||1)?'':'disabled'}>${(p.n||1)>1?'もう'+p.n+'連':'もう1パック'}(${p.pack.cost*(p.n||1)}${GACHA.coin})</button><button data-a="packEnd">閉じる</button></div>`;
+ }
+ const bl=p.stage==='summary'?sumCards(p):p.cards;if((p.stage==='summary'||p.stage==='pksum')&&p.big!=null&&bl[p.big]){const x=bl[p.big];inner+=`<div class="bigov" style="--c:${IDEO[x.c.i].c}" data-a="bigClose"><img src="${printImg(x.c,x.r)}" onerror="imgFb(this,'${baseImg(x.c)}')" alt=""><div class="bn">【${IDEO[x.c.i].n}】${x.c.n} <span class="rt-${x.r}">${x.r}</span></div><div class="bh">タップで閉じる</div></div>`;}
+ return `<div class="packov"><div class="pkin">${inner}</div></div>`;
+}
+let drag=null,sdrag=null;
+function setTear(p,anim){const f=document.getElementById('tearfill');if(f){f.style.transition=anim?'width .25s':'none';f.style.width=(p*100)+'%';}if(p>=1)tearDone();}
+function tearDone(){
+ if(!pk||pk.stage!=='tear'||pk.opening)return;pk.opening=true;
+ const el=document.getElementById('pack');if(el)el.classList.add('torn');
+ sfxTear();
+ try{navigator.vibrate&&navigator.vibrate(40);}catch(e){}
+ setTimeout(()=>{if(!pk)return;pk.stage='reveal';pk.idx=0;pk.flipped=false;render();setTimeout(arriveFx,60);},900);
+}
+// 上のカードを指に追従させ、下のカードを少しずつ繰り上げる
+function layoutStack(dy){
+ const st=document.getElementById('stage');if(!st)return;
+ const p=Math.min(1,-dy/170);
+ st.querySelectorAll('.stk').forEach(el=>{el.style.transition='none';el.style.transform=(+el.dataset.j===0)?`translateY(${dy}px) rotate(${(dy*0.02).toFixed(2)}deg)`:stkT(+el.dataset.j-p);});
+}
+function settleStack(fling){
+ const st=document.getElementById('stage');if(!st)return;
+ st.querySelectorAll('.stk').forEach(el=>{const j=+el.dataset.j;el.style.transition='transform .3s ease,opacity .3s';
+  if(j===0){if(fling){el.style.transform='translateY(-760px) rotate(-8deg)';el.style.opacity='0';}else el.style.transform=stkT(0);}
+  else el.style.transform=stkT(fling?j-1:j);});
+}
+function flingTop(){
+ if(!pk||pk.stage!=='reveal'||pk.anim)return;pk.anim=true;settleStack(true);sfxFlip();
+ setTimeout(()=>{if(!pk)return;pk.idx++;pk.anim=false;if(pk.idx>=pk.cards.length)pk.stage=pk.all?'pksum':'summary';render();setTimeout(arriveFx,60);},300);
+}
+// カードが一番上に来た時の演出(SR/SSR)
+function arriveFx(){
+ if(!pk||pk.stage!=='reveal')return;const x=pk.cards[pk.idx];if(!x||pk.fxFor===pk.idx)return;pk.fxFor=pk.idx;
+ const st=document.getElementById('stage');if(!st)return;
+ sfxRare(x.r);
+ if(x.r==='SR'||x.r==='SSR'){
+  st.insertAdjacentHTML('beforeend',`<div class="fx fx-${x.r}">${sparks(x.r==='SSR'?28:14,x.r==='SSR'?'#fff':'#ffe27a')}<div class="rtext">${x.r}!</div></div>`);
+  if(x.r==='SSR'){st.insertAdjacentHTML('beforeend','<div class="flash"></div>');try{navigator.vibrate&&navigator.vibrate([60,40,120]);}catch(e){}}
+ }
+}
+function printRows(mode){
+ const rows=[];
+ for(const c of CARDS){if(collFilter!=='all'&&c.i!==collFilter)continue;for(const r of(c.pr||[])){if(collRar!=='all'&&r!==collRar)continue;rows.push({c,r});}}
+ rows.sort((a,b)=>RORD.indexOf(b.r)-RORD.indexOf(a.r));
+ return rows.map(({c,r})=>{
+  const n=printCount(c,r),k=printKey(c,r),col=IDEO[c.i].c,m=maxDismantle(c,r);let ctl='';
+  if(mode==='coll'){const sel=Math.min(disSel[k]||0,m);ctl=m>0?`<div class="ctr"><button data-a="dsel" data-id="${k}~-1">−</button><span>${sel}</span><button data-a="dsel" data-id="${k}~1">＋</button><button data-a="dis" data-id="${k}" ${sel?'':'disabled'}>分解<br>+${sel*GACHA.dismantle[r]}</button></div>`:'';}
+  else{const cost=GACHA.exchange[r];ctl=`<button data-a="trade" data-id="${k}" ${SV.pt>=cost&&n<MAX_COPY?'':'disabled'}>${cost}${GACHA.pt}<br>交換</button>`;}
+  return `<div class="er ${n?'':'unown'}" style="--c:${col};cursor:pointer" data-a="shopbig" data-id="${k}"><div class="th" style="--c:${col}"><span>${IDEO[c.i].n}</span><img src="${printImg(c,r)}" onerror="imgFb(this,'${baseImg(c)}')" alt=""></div><div class="tx"><b>${c.n}</b> <span class="rt rt-${r}">${r}</span> <span style="color:${col}">${IDEO[c.i].n}</span> ${TL[c.t]}<br><span class="dim">所持 ${n}${mode==='coll'&&n?` ・分解可 ${m}`:''}</span></div>${ctl}</div>`;
+ }).join('');
+}
+function shopHTML(){
+ let total=0,have=0;for(const c of CARDS)for(const r of(c.pr||[])){total++;if(printCount(c,r)>0)have++;}
+ let body='';
+ if(shopTab==='pack'){
+  const packs=gachaPacks();
+  body=STARTERS.filter(st=>!SV.starters[st.id]).map(st=>{const got=false;return `<div class="pcard" style="--c:#c0392b"><div class="pcl"><b>${st.name}</b><div class="dim" style="font-size:12px">${st.sub}<br>12種×3枚=36枚・無料(1回のみ)</div></div><button data-a="starter" data-id="${st.id}" ${got?'disabled':''}>${got?'受取済':'受け取る'}</button></div>`;}).join('')+(packs.length?packs.map(p=>{let tot=0,have=0;for(const c of CARDS.filter(c=>c.series===p.id))for(const r of(c.pr||[])){tot++;if(printCount(c,r)>0)have++;}
+   return `<div class="pcard" style="--c:${p.color}"><div class="pcl"><b>${p.name}</b><div class="dim" style="font-size:12px">${p.era} ・ 収集 ${have}/${tot}</div></div><button data-a="buy" data-id="${p.id}" ${SV.coin>=p.cost?'':'disabled'}>${p.cost}${GACHA.coin}<br>開封</button><button data-a="buy10" data-id="${p.id}" ${SV.coin>=p.cost*10?'':'disabled'} style="margin-left:6px">${p.cost*10}${GACHA.coin}<br>10連</button></div>`;}).join(''):'<div class="dim" style="margin:14px 0">時代別パックは準備中です</div>')
+  +(DEMO?`<div class="pcard" style="--c:#888"><div class="pcl"><b>演出テスト</b><div class="dim" style="font-size:12px">無料・保存されません</div></div><button data-a="buy" data-id="test">開封</button></div>`:'')
+  +`<div class="dim" style="font-size:12px;line-height:1.6;margin-top:8px">パックは時代ごとにあります。1パック${GACHA.cards}枚・最後の1枚は${GACHA.guarantee}以上確定<br>排出率: ${RORD.map(r=>`${r} ${GACHA.rates[r]}%`).join(' / ')}<br>${GACHA.coin}は対戦(勝利+${GACHA.reward.win}・敗北+${GACHA.reward.lose})とログイン(+${GACHA.reward.login})で入手</div>`;
+ }else{
+  body=`<div class="dim" style="font-size:12px;margin:4px 0">${shopTab==='coll'?'同じカードは3枚まで持てて、超えた分は自動で分解して軍功になります。ここでは3枚以下のカードも分解できます(各版1枚とデッキ使用分は残ります)':'軍功で好きな版と交換できます'}</div><div>${['all',...Object.keys(IDEO)].map(k=>`<span class="sc ${collFilter===k?'on':''}" data-a="cf" data-id="${k}">${k==='all'?'全思想':IDEO[k].n}</span>`).join('')}</div><div>${['all',...RORD].map(k=>`<span class="sc ${collRar===k?'on':''}" data-a="cr" data-id="${k}">${k==='all'?'全レア':k}</span>`).join('')}</div>`+printRows(shopTab);
+ }
+ return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div><div style="padding-top:40px">
+ <div class="ehead"><b style="color:var(--gold)">カードショップ</b> <span class="coinb">${GACHA.coin} ${SV.coin}</span> <span class="coinb">${GACHA.pt} ${SV.pt}</span></div>
+ <div>${[['pack','パック'],['coll','所持・分解'],['trade','交換']].map(([k,n])=>`<span class="sc ${shopTab===k?'on':''}" data-a="stab" data-id="${k}">${n}</span>`).join('')}</div>
+ <div class="msg2">${shopMsg}</div>${body}<button data-a="toTitle" style="width:100%;margin-top:12px">戻る</button>${shopBigHTML()}</div>`;
+}
+// カード一覧をタップした時の大きなイラスト。持っているカードは明るく、持っていないカードは暗く表示する
+function shopBigHTML(){
+ if(!shopBig)return '';const [cid,r]=shopBig.split('|'),c=cardById(cid);if(!c)return '';
+ const n=printCount(c,r);
+ return `<div class="bigov" style="--c:${IDEO[c.i].c}" data-a="shopbigClose"><img src="${printImg(c,r)}" onerror="imgFb(this,'${baseImg(c)}')" style="${n?'':'filter:brightness(.25) grayscale(.5)'}" alt=""><div class="bn">【${IDEO[c.i].n}】${c.n} <span class="rt-${r}">${r}</span></div><div class="bh">${n?`所持 ${n}枚`:'未所持'}　・　タップで閉じる</div></div>`;
+}
+const toastHTML=()=>`<div class="ov"><div class="mb" style="text-align:center">${loginMsg}<button data-a="toastClose">OK</button></div></div>`;
+
+// ===== input =====
+async function onClick(a,id){
+ if(a==='update'){location.href=location.pathname+'?v='+Date.now();return;}
+ if(a==='rules'){ui.rules=true;render();return;}
+ if(a==='rulesClose'){ui.rules=false;render();return;}
+ if(a==='toastClose'){loginMsg='';render();return;}
+ if(pk){
+  if(a==='tearNow')tearDone();
+  else if(a==='skip'){pk.stage=pk.all?'pksum':'summary';render();}
+  else if(a==='multiGo')multiGo();
+  else if(a==='nextPack')nextPack();
+  else if(a==='allSum'){pk.stage='summary';pk.big=null;render();}
+  else if(a==='again'){const n=pk.n||1;const res=pk.pack.id==='test'?testPull():buyPack(pk.pack,n);if(res){pk=mkPk(pk.pack,res,n);render();}}
+  else if(a==='packEnd'){pk=null;render();}
+  else if(a==='exitEmbed')parentSend({t:'close'});
+  else if(a==='bigcard'){pk.big=+id;render();}
+  else if(a==='bigClose'){pk.big=null;render();}
+  return;
+ }
+ if(screen==='title'){
+  if(a==='play'){if(deckValid(myDeck))startGame(myDeck);else{screen='edit';editMsg='デッキが36枚になっていません。カードがない時は、カードショップでスターターデッキを受け取ろう';render();}}
+  else if(a==='toEdit'){screen='edit';editMsg='';render();}
+  else if(a==='toList'){screen='list';render();}
+  else if(a==='toShop'){screen='shop';shopMsg='';render();}
+  return;
+ }
+ if(screen==='list'){if(a==='toTitle'){screen='title';render();}return;}
+ if(screen==='shop'){
+  const split=k=>{const [cid,r]=k.split('|');return [cardById(cid),r];};
+  if(a==='shopbig'){shopBig=id;}
+  else if(a==='shopbigClose'){shopBig=null;}
+  else if(a==='toTitle'){screen='title';}
+  else if(a==='stab'){shopTab=id;shopMsg='';}
+  else if(a==='pideo')packIdeo=id;
+  else if(a==='cf')collFilter=id;
+  else if(a==='cr')collRar=id;
+  else if(a==='starter'){shopMsg=claimStarter(id)?'スターターデッキを受け取り、デッキに設定しました':'';}
+  else if(a==='buy10'){const pack=gachaPacks().find(p=>p.id===id);const res=pack&&buyPack(pack,10);if(res){pk=mkPk(pack,res,10);shopMsg='';}else shopMsg=`${GACHA.coin}が足りません`;}
+  else if(a==='buy'){const pack=id==='test'?TESTPACK:gachaPacks().find(p=>p.id===id);const res=pack&&(id==='test'?testPull():buyPack(pack));if(res){pk={pack,cards:res,stage:'tear',idx:0,flipped:false};shopMsg='';}else shopMsg=`${GACHA.coin}が足りません`;}
+  else if(a==='dsel'){const i=id.lastIndexOf('~'),k=id.slice(0,i),dl=+id.slice(i+1),[c,r]=split(k);disSel[k]=Math.max(0,Math.min(maxDismantle(c,r),(disSel[k]||0)+dl));}
+  else if(a==='dis'){const [c,r]=split(id);const k=dismantle(c,r,disSel[id]||0);disSel[id]=0;shopMsg=k?`${c.n}(${r})を${k}枚分解して${GACHA.pt}+${k*GACHA.dismantle[r]}`:'';}
+  else if(a==='trade'){const [c,r]=split(id);const ex=exchange(c,r);shopMsg=ex==='max'?`${c.n}(${r})はすでに${MAX_COPY}枚持っています`:ex?`${c.n}(${r})と交換しました`:`${GACHA.pt}が足りません`;}
+  render();return;
+ }
+ if(screen==='edit'){
+  const c=id?cardById(id):null,cur=c?(myDeck[c.id]||0):0;
+  if(a==='ef'){editFilter=id;}
+  else if(a==='eall'){editAll=!editAll;}
+  else if(a==='inc'&&c){
+   const ide=deckIdeos(myDeck);editMsg='';
+   if(deckTotal(myDeck)>=DECK_SIZE)editMsg=`${DECK_SIZE}枚までです`;
+   else if(cur>=Math.min(MAX_COPY,ownedOf(c)))editMsg=`同名カードは${MAX_COPY}枚までです`;
+   else if(c.i!=='ne'&&!ide.includes(c.i)&&ide.length>=2)editMsg='思想は2つまでです';
+   else myDeck[c.id]=cur+1;
+  }
+  else if(a==='dec'&&c){editMsg='';if(cur>1)myDeck[c.id]=cur-1;else delete myDeck[c.id];}
+  else if(a==='clear'){myDeck={};editMsg='';}
+  else if(a==='auto'){const ide=deckIdeos(myDeck).slice(0,2);for(const k of shuffle(availIdeos()))if(ide.length<2&&!ide.includes(k))ide.push(k);myDeck=autoDeck(ide);editMsg='自動で構成しました';}
+  else if(a==='save'){if(deckValid(myDeck)){saveSave();screen='title';editMsg='';}else editMsg='36枚・思想2つまでにしてください';}
+  else if(a==='discard'){loadSave();screen='title';editMsg='';}
+  render();return;
+ }
+ if(!G)return;
+ if(ui.modal){if(a==='mb'){const m=ui.modal;ui.modal=null;render();m.res(m.btns[+id].v);}return;}
+ if(G.over){if(a==='again'){startGame(myDeck);}else if(a==='toTitle'){screen='title';render();}return;}
+ if(ui.pick){
+  if(a==='myunit'||a==='enemyunit'){const u=find(+id);if(u&&ui.pick.ids.includes(u.uid)){const pk=ui.pick;ui.pick=null;render();pk.res(u);}}
+  return;
+ }
+ const me=G.P[0];
+ if(a==='menu'){const r=await modal('タイトルに戻りますか?(対戦は破棄されます)',[{l:'戻る',v:true},{l:'続ける',v:false}]);if(r){G=null;screen='title';render();}return;}
+ if(ui.busy){
+  if(a==='myunit'||a==='enemyunit'){const u=find(+id);if(u){ui.info=u.card;ui.sel=null;render();}}
+  else if(a==='field'){ui.info=findField(+id);ui.sel=null;render();}
+  return;
+ }
+ switch(a){
+  case 'hand':ui.sel=ui.sel===+id?null:+id;ui.selU=null;ui.info=null;render();break;
+  case 'charge':{const c=me.hand.find(x=>x.uid===ui.sel);if(c&&!me.charged){me.hand=me.hand.filter(x=>x!==c);me.mana.push({card:c,tapped:false});me.charged=true;ui.sel=null;log(`${c.n}を兵糧にした`);render();}break;}
+  case 'cast':{const c=me.hand.find(x=>x.uid===ui.sel);if(c&&canCast(me,c)){ui.sel=null;ui.busy=true;await playCard(me,c);if(!G.over){ui.busy=false;}render();}break;}
+  case 'myunit':{const u=find(+id);if(!u)break;if(ui.selU===u.uid)ui.selU=null;else{ui.selU=u.uid;ui.sel=null;ui.info=null;}render();break;}
+  case 'enemyunit':{
+   const u=find(+id),su=find(ui.selU);if(!u)break;
+   if(su&&canAtkU(su)&&u.tapped){ui.selU=null;ui.busy=true;await attack(su,u);if(!G.over)ui.busy=false;render();}
+   else{ui.info=u.card;ui.sel=null;ui.selU=null;render();}
+   break;}
+  case 'eface':{const su=find(ui.selU);if(su&&canAtkU(su)&&!faceOk(su)){log('月山富田城の効果で、これ以上城門を攻撃できない');render();break;}if(su&&canAtkU(su)){ui.selU=null;ui.busy=true;await attack(su,'face');if(!G.over)ui.busy=false;render();}break;}
+  case 'field':ui.info=findField(+id);ui.sel=ui.selU=null;render();break;
+  case 'end':await endTurn();break;
+ }
+}
+if(typeof document!=='undefined'){
+ document.getElementById('app').addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(el)onClick(el.dataset.a,el.dataset.id);});
+ document.addEventListener('pointerdown',e=>{
+  if(!pk||!e.target.closest)return;
+  if(pk.stage==='tear'){const t=e.target.closest('#ptop');if(t)drag={x:e.clientX,w:t.getBoundingClientRect().width,p:0};}
+  else if(pk.stage==='reveal'&&!pk.anim&&e.target.closest('#stage'))sdrag={y:e.clientY,dy:0};
+ });
+ document.addEventListener('pointermove',e=>{
+  if(drag){drag.p=Math.max(0,Math.min(1,(e.clientX-drag.x)/(drag.w*0.85)));setTear(drag.p);}
+  else if(sdrag){sdrag.dy=Math.min(0,e.clientY-sdrag.y);layoutStack(sdrag.dy);}
+ });
+ const pend=()=>{
+  if(drag){const p=drag.p;drag=null;if(p<1){if(p>=0.7)setTear(1);else setTear(0,true);}}
+  else if(sdrag){const dy=sdrag.dy;sdrag=null;if(dy<=-90||dy>-6)flingTop();else settleStack(false);} // 少しだけ動かして離すと戻る。タップでも次へ
+ };
+ document.addEventListener('pointerup',pend);document.addEventListener('pointercancel',pend);
+ loadSave();loadExtra();render();
+}
+if(EMBED)parentSend({t:'ready'});
+</script>
+</body>
+</html>
