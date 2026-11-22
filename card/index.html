@@ -215,7 +215,7 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 <body>
 <div id="app"></div>
 <script>
-const VERSION='0.33';
+const VERSION='0.35';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -371,14 +371,14 @@ mk('gi','x','尼子再興の誓い',4,0,2,{e:[{t:'shield',n:2}],h:'amago'});
 mk('so','u','斎藤鎮実',2,1000,3,{e:[{t:'draw',n:1}],h:'otomo'});
 mk('so','u','高橋鑑種',2,2000,3,{h:'otomo'});
 mk('so','u','臼杵鑑速',3,2000,2,{e:[{t:'draw',n:1}],h:'otomo'});
-mk('so','u','吉岡長増',3,2000,2,{e:[{t:'drawIfFewer'}],h:'otomo'});
-mk('so','u','吉弘鑑理',3,3000,2,{h:'otomo'});
-mk('so','u','田原親賢',4,3000,2,{e:[{t:'retWeapon'}],h:'otomo'});
-mk('so','u','戸次鑑連',4,3000,2,{k:['rush'],h:'otomo'});
-mk('so','u','大友宗麟【豊後の王】',6,5000,1,{pr:['SR','SSR'],e:[{t:'draw',n:1},{t:'ramp',n:1}],h:'otomo'});
+mk('so','u','吉岡長増',3,2000,2,{blockedBonus:1000,h:'otomo'});
+mk('so','u','吉弘鑑理',3,2000,2,{e:[{t:'drawWeapon'}],h:'otomo'});
+mk('so','u','田原親賢',4,3000,2,{wdisc:true,h:'otomo'});
+mk('so','u','戸次鑑連',5,4000,2,{k:['rush'],e:[{t:'killGuard'}],h:'otomo'});
+mk('so','u','大友宗麟【豊後の王】',6,6000,1,{pr:['SR','SSR'],e:[{t:'draw',n:1},{t:'ramp',n:1}],h:'otomo'});
 mk('so','p','奈多夫人',4,0,1,{ps:'chacha',h:'otomo'});
 mk('so','c','臼杵城',5,0,1,{e:[{t:'draw',n:1},{t:'toMana'}],h:'otomo'});
-mk('so','w','国崩し',4,0,1,{w:{pow:2000},h:'otomo'});
+mk('so','w','国崩し',4,0,1,{w:{pow:2000,gateGrave:true},h:'otomo'});
 mk('so','x','南蛮貿易',3,0,2,{e:[{t:'draw',n:1},{t:'ramp',n:1}],h:'otomo'});
 // 武(島津家・薩摩の突撃)
 mk('bu','u','島津家久',2,1000,3,{k:['rush'],h:'shimazu'});
@@ -442,7 +442,7 @@ const FXD={
  tapE:()=>'相手の武将1体を横にする',killAll:e=>`兵力${e.max}以下の相手の武将をすべて破壊`,kill:e=>`相手の${e.tapped?'横向きの':''}武将1体を破壊`+(e.max?`(兵力${e.max}以下)`:''),
  bounce:()=>'相手の武将1体を手札に戻す',discard:e=>`相手の手札を無作為に${e.n}枚捨てさせる`,
  breakS:e=>`相手の城門を${e.n}枚破る`,tapAll:()=>'相手の武将すべてを横にする',
- drawIfFewer:()=>'自分の手札が相手より少なければ1枚引く',retWeapon:()=>'自分の場の武器1枚を手札に戻す',
+ drawIfFewer:()=>'自分の手札が相手より少なければ1枚引く',retWeapon:()=>'自分の場の武器1枚を手札に戻す',killGuard:()=>'相手の守を持つ武将1体を破壊',drawWeapon:()=>'山札から武器を無作為に1枚手札に加える',
  toMana:()=>'手札から1枚を兵糧に置く',
  pumpTemp:e=>`自分の武将1体に兵力+${e.pow}`+(e.kw?`と【${KWN[e.kw]}】`:'')+'を与える(手番の終わりまで)',
  peekDiscard:()=>'相手の手札を見て、1枚選んで捨てさせる',tapSkip:()=>'相手の武将1体を横にし、次に縦に戻すのを1回飛ばす'
@@ -460,11 +460,13 @@ function desc(c){
  c.k.forEach(k=>a.push('【'+KWN[k]+'】'));
  if(c.blockBonus)a.push(`守として戦うとき、兵力+${c.blockBonus}。`);
  if(c.surviveShield)a.push('戦闘で生き残り、自分の城門が1枚以下なら山札の上を城門に加える。');
+ if(c.blockedBonus)a.push(`守に止められたとき、兵力+${c.blockedBonus}。`);
+ if(c.wdisc)a.push('場にいる間、自分の武器の費えが1下がる(最低1)。');
  if(c.killBreak)a.push('自分の手番中、戦闘で相手の武将を破壊したとき、相手の城門を1枚破る(1手番に1回)。');
  if(c.deathRamp)a.push('戦闘で破壊されたとき、山札の上を兵糧にする。');
  if(c.noBlock)a.push('攻撃中は、相手の守に止められない。');
  if(c.guardAtk)a.push('場にいる間、味方の守を持つ武将も攻撃できる。');
- if(c.w){const b=[];if(c.w.pow)b.push(`兵力+${c.w.pow}`);if(c.w.k)b.push(`【${KWN[c.w.k]}】`);if(c.w.tie)b.push('戦闘で兵力が同じなら相手だけ破壊される');if(c.w.drawAtk)b.push('攻撃するたび1枚引く(自分の手番中1回)');a.push('味方の武将1体に装備: '+b.join('、')+'。(武将が場を離れると墓地へ)');}
+ if(c.w){const b=[];if(c.w.pow)b.push(`兵力+${c.w.pow}`);if(c.w.k)b.push(`【${KWN[c.w.k]}】`);if(c.w.tie)b.push('戦闘で兵力が同じなら相手だけ破壊される');if(c.w.gateGrave)b.push('攻撃するたび相手の城門を1枚墓地へ送る(奇襲は発動しない)');if(c.w.drawAtk)b.push('攻撃するたび1枚引く(自分の手番中1回)');a.push('味方の武将1体に装備: '+b.join('、')+'。(武将が場を離れると墓地へ)');}
  if(c.ps)a.push(PSD[c.ps]+'。');
  if(c.e.length){const lab={u:'登場時:',w:'装備時:',p:'設置時:',c:'設置時:',x:'使用時:'}[c.t];a.push(lab+c.e.map(e=>FXD[e.t](e)).join('、')+'。');}
  if(c.t==='x')a.push('(城門から手札に加わる時は、無料で発動もできる)');
@@ -710,9 +712,10 @@ function destroy(u,cause){
 }
 function bounceUnit(u){if(u.dead)return;u.dead=true;const p=u.owner;p.units=p.units.filter(x=>x!==u);releaseWeapon(u);p.hand.push(u.card);log(`${u.card.n}が手札に戻った`);}
 
+function effCost(c){if(c.t!=='w'||typeof G==='undefined'||!G)return c.c;const o=G.P.find(q=>q.hand.some(h=>h.uid===c.uid));return o&&o.units.some(u=>!u.dead&&u.card.wdisc)?Math.max(1,c.c-1):c.c;}
 function canCast(p,c){
  const un=p.mana.filter(m=>!m.tapped);
- if(un.length<c.c||(c.i!=='ne'&&!un.some(m=>m.card.i===c.i)))return false;
+ if(un.length<effCost(c)||(c.i!=='ne'&&!un.some(m=>m.card.i===c.i)))return false;
  if(c.t==='w'&&!p.units.length)return false;
  return true;
 }
@@ -728,13 +731,13 @@ function fxUseful(p,c){
   default:return true;}});
 }
 // 2.106.16 費えの払い方：横にする兵糧を自分で選べる（選ばなければ今までどおり自動）
-const payNeed=c=>c.i==='ne'?c.c:Math.max(1,c.c);
+const payNeed=c=>c.i==='ne'?effCost(c):Math.max(1,effCost(c));
 function autoPayUids(p,c){
  const un=p.mana.filter(m=>!m.tapped);
- if(c.i==='ne')return un.slice(0,c.c).map(m=>m.card.uid); // 汎用札はどの兵糧でも払える
+ if(c.i==='ne')return un.slice(0,effCost(c)).map(m=>m.card.uid); // 汎用札はどの兵糧でも払える
  const f=un.find(m=>m.card.i===c.i);if(!f)return [];
  const rest=un.filter(m=>m!==f).sort((a,b)=>(a.card.i===c.i)-(b.card.i===c.i));
- return [f,...rest.slice(0,Math.max(0,c.c-1))].map(m=>m.card.uid);
+ return [f,...rest.slice(0,Math.max(0,effCost(c)-1))].map(m=>m.card.uid);
 }
 function payOk(p,c,uids){
  if(!Array.isArray(uids)||uids.length!==payNeed(c)||new Set(uids).size!==uids.length)return false;
@@ -781,6 +784,8 @@ async function applyFx(p,e){
   case 'kill':{const c=d.units.filter(u=>(!e.max||power(u)<=e.max)&&(!e.tapped||u.tapped));if(c.length){const u=await choose(p,c,'破壊する相手の武将を選んでください');destroy(u);}break;}
   case 'bounce':{if(d.units.length){const u=await choose(p,d.units,'手札に戻す相手の武将を選んでください');bounceUnit(u);}break;}
   case 'breakS':await breakShields(null,d,e.n);break;
+  case 'drawWeapon':{const ws=p.deck.filter(c=>c.t==='w');if(ws.length){const c=ws[Math.floor(Math.random()*ws.length)];p.deck.splice(p.deck.indexOf(c),1);p.hand.push(c);log(`山札から${c.n}を手札に加えた`);}break;}
+  case 'killGuard':{const c=d.units.filter(u=>hasKw(u,'guard'));if(c.length){const u=await choose(p,c,'破壊する守を持つ相手の武将を選んでください');destroy(u);}break;}
   case 'drawIfFewer':if(p.hand.length<d.hand.length){draw(p,1);log('手札が少ないので1枚引いた');}break;
   case 'retWeapon':{const c=p.units.filter(u=>u.weapon);if(c.length){const u=await choose(p,c,'武器を手札に戻す武将を選んでください');p.hand.push(u.weapon);log(`${u.weapon.n}を手札に戻した`);u.weapon=null;}break;}
   case 'toMana':{if(p.hand.length){const c=await chooseCard(p,p.hand,'兵糧に置く札を選んでください',false);p.hand=p.hand.filter(x=>x!==c);p.mana.push({card:c,tapped:false});log(`${p.name}は手札から兵糧を置いた`);}break;}
@@ -791,7 +796,7 @@ async function applyFx(p,e){
  render();
 }
 async function playCard(p,c,pay){
- p.hand=p.hand.filter(x=>x!==c);payMana(p,c,pay);
+ payMana(p,c,pay);p.hand=p.hand.filter(x=>x!==c);
  log(`${p.name}:${c.n}を${c.t==='u'?'召喚':c.t==='w'?'装備':'使用'}`);
  if(c.t==='u'){const u=newUnit(p,c);p.units.push(u);render();for(const e of c.e){if(G.over)return;await applyFx(p,e);}}
  else if(c.t==='w'){
@@ -830,7 +835,7 @@ async function breakShields(att,d,n){
  }
 }
 async function battle(a,b,blk){
- const pa=power(a),pb=power(b)+(blk&&b.card.blockBonus?b.card.blockBonus:0);
+ const pa=power(a)+(blk&&a.card.blockedBonus?a.card.blockedBonus:0),pb=power(b)+(blk&&b.card.blockBonus?b.card.blockBonus:0);
  log(`${a.card.n}(${pa}) vs ${b.card.n}(${pb})`);
  let ad=false,bd=false;
  if(pa>pb)bd=true;else if(pb>pa)ad=true;else{
@@ -849,7 +854,7 @@ async function askBlock(d,att,tgt){ // tgt: 攻撃された味方の武将(城�
  if(!gs.length||att.card.noBlock)return null;
  if(d.ai){
   const bp=u=>power(u)+(u.card.blockBonus||0);
-  const strong=gs.filter(u=>bp(u)>=power(att)).sort((a,b)=>bp(a)-bp(b));
+  const strong=gs.filter(u=>bp(u)>=power(att)+(att.card.blockedBonus||0)).sort((a,b)=>bp(a)-bp(b));
   if(tgt){if(power(tgt)>power(att))return null;return strong.length&&(tgt.card.c>=strong[0].card.c||Math.random()<0.5)?strong[0]:null;} // 武将を守る：勝てる守り手がいて、守る価値がある時
   if(d.shields.length<=1)return strong[0]||gs.sort((a,b)=>bp(b)-bp(a))[0];
   if(strong.length&&Math.random()<0.7)return strong[0];
@@ -863,6 +868,7 @@ async function attack(att,target){
  const p=att.owner,d=opp(p);att.tapped=true;att.attacking=true;
  try{
   if(att.weapon&&att.weapon.w.drawAtk&&G.cur===p.idx&&once('da'+p.idx)){draw(p,1);log(`${att.weapon.n}の効果で1枚引いた`);}
+  if(att.weapon&&att.weapon.w.gateGrave&&d.shields.length){d.grave.push(d.shields.shift());log(`${att.weapon.n}の効果で${d.name}の城門が1枚墓地へ送られた`);}
   if(target!=='face'){log(`${att.card.n} → ${target.card.n}`);const bk=await askBlock(d,att,target);if(bk){bk.tapped=true;log(`${bk.card.n}が${target.card.n}を守った!`);await battle(att,bk,true);return;}await battle(att,target,false);return;}
   p.faceAtks++;
   log(`${p.name}:${att.card.n}が攻撃!`);
