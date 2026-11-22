@@ -373,6 +373,8 @@ function starterDeck(st){
  for(const c of CARDS.filter(c=>c.series===st.series&&c.h===st.house))d[c.id]=MAX_COPY;
  return d;
 }
+// 持っている札で初陣組そのままの陣立てが組めるか(陣立てで選べるお手本)
+const canBuildStarter=st=>{const d=starterDeck(st);const ks=Object.keys(d);return ks.length>0&&ks.every(k=>{const c=cardById(k);return c&&ownedOf(c)>=d[k];});};
 function claimStarter(id){
  const st=freeStarters().find(x=>x.id===id);if(!st||SV.starters[id])return false;
  const d=starterDeck(st);
@@ -836,6 +838,7 @@ function editHTML(){
  <div class="msg2">${editMsg}</div>
  <div>${['all',...Object.keys(IDEO)].map(k=>`<span class="sc ${editFilter===k?'on':''}" data-a="ef" data-id="${k}">${k==='all'?'全て':IDEO[k].n}</span>`).join('')}<span class="sc ${editAll?'on':''}" data-a="eall">未所持も表示</span></div>
  <div class="acts"><button data-a="auto">自動構成</button><button data-a="clear">空にする</button></div>
+ ${(()=>{const ok=STARTERS.filter(canBuildStarter);return ok.length?`<div style="margin:4px 0"><span class="dim" style="font-size:12px">初陣組の陣立てを使う: </span>${ok.map(st=>`<span class="sc" data-a="stdeck" data-id="${st.id}">${st.name.replace('の初陣組','')}</span>`).join('')}</div>`:'';})()}
  ${list.map(row).join('')}
  <div class="acts" style="position:sticky;bottom:0;background:#120f0d;padding:8px 0"><button data-a="save" ${ok?'':'disabled'} style="flex:1;background:#5a3a1c">保存して戻る</button><button data-a="discard">破棄して戻る</button></div></div>`;
 }
@@ -1194,6 +1197,7 @@ async function onClick(a,id){
   }
   else if(a==='dec'&&c){editMsg='';if(cur>1)myDeck[c.id]=cur-1;else delete myDeck[c.id];}
   else if(a==='clear'){myDeck={};editMsg='';}
+  else if(a==='stdeck'){const st=STARTERS.find(x=>x.id===id);if(st&&canBuildStarter(st)){myDeck=starterDeck(st);editMsg=`${st.name}の陣立てにしました(保存して戻ると決まります)`;}}
   else if(a==='auto'){const ide=deckIdeos(myDeck).slice(0,2);for(const k of shuffle(availIdeos()))if(ide.length<2&&!ide.includes(k))ide.push(k);myDeck=autoDeck(ide);editMsg='自動で構成しました';}
   else if(a==='save'){if(deckValid(myDeck)){saveSave();screen='title';editMsg='';}else editMsg='36枚・思想2つまでにしてください';}
   else if(a==='discard'){loadSave();screen='title';editMsg='';}
