@@ -157,7 +157,7 @@ button.big{width:100%;padding:14px;font-size:18px;margin:8px 0;background:#5a3a1
 <body>
 <div id="app"></div>
 <script>
-const VERSION='0.21';
+const VERSION='0.23';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -281,6 +281,75 @@ mk('ne','u','騎馬武者',4,3500,3,{pr:['R'],k:['rush']});
 },{era:'1560年前後'});
 for(const c of CARDS)if(c.series==='e1560'&&!c.h)c.h={so:'oda',gi:'uesugi'}[c.i];
 
+// ===== 1560年代 中国・九州(5家) =====
+defineSeries('e1560w','1560年代 中国・九州',mk=>{
+// 謀(毛利家・中国の覇者)
+mk('bo','u','志道広良',2,1000,3,{e:[{t:'draw',n:1}],h:'mouri'});
+mk('bo','u','宍戸隆家',2,2000,3,{k:['guard'],h:'mouri'});
+mk('bo','u','福原貞俊',3,2000,2,{e:[{t:'peekDiscard'}],h:'mouri'});
+mk('bo','u','乃美宗勝',3,3000,2,{e:[{t:'tapE'}],h:'mouri'});
+mk('bo','u','熊谷信直',3,3000,2,{k:['guard'],h:'mouri'});
+mk('bo','u','吉川元春',4,4000,2,{killBreak:true,h:'mouri'});
+mk('bo','u','小早川隆景',4,3000,2,{e:[{t:'bounce'}],h:'mouri'});
+mk('bo','u','毛利元就【中国の覇者】',6,5000,1,{pr:['SR','SSR'],e:[{t:'tapE'},{t:'peekDiscard'}],h:'mouri'});
+mk('bo','p','妙玖',4,0,1,{ps:'sap',h:'mouri'});
+mk('bo','c','吉田郡山城',5,0,1,{ps:'kasuga',h:'mouri'});
+mk('bo','w','焙烙火矢',2,0,1,{w:{pow:1000,tie:true},h:'mouri'});
+mk('bo','x','調略',3,0,2,{e:[{t:'bounce'}],h:'mouri'});
+// 義(尼子家・月山富田城)
+mk('gi','u','秋上宗信',2,1000,3,{k:['guard'],h:'amago'});
+mk('gi','u','宇山久兼',2,2000,3,{k:['guard'],blockBonus:2000,h:'amago'});
+mk('gi','u','立原久綱',3,2000,2,{e:[{t:'shield',n:1}],h:'amago'});
+mk('gi','u','湯原春綱',3,3000,2,{k:['guard'],h:'amago'});
+mk('gi','u','牛尾幸清',3,3000,2,{k:['guard'],blockBonus:1000,h:'amago'});
+mk('gi','u','山中鹿之助【七難八苦】',4,4000,2,{k:['guard'],blockBonus:2000,h:'amago'});
+mk('gi','u','尼子義久',4,3000,2,{e:[{t:'draw',n:1}],h:'amago'});
+mk('gi','u','尼子晴久【月山富田城】',6,6000,1,{pr:['SR','SSR'],k:['guard'],e:[{t:'draw',n:1},{t:'shield',n:1}],h:'amago'});
+mk('gi','p','京極の姫',4,0,1,{ps:'refill',h:'amago'});
+mk('gi','c','月山富田城',5,0,1,{ps:'gateLimit',h:'amago'});
+mk('gi','w','尼子の長巻',2,0,1,{w:{k:'guard',tie:true},h:'amago'});
+mk('gi','x','尼子再興の誓い',4,0,2,{e:[{t:'shield',n:2}],h:'amago'});
+// 創(大友家・豊後の王)
+mk('so','u','斎藤鎮実',2,1000,3,{e:[{t:'draw',n:1}],h:'otomo'});
+mk('so','u','高橋鑑種',2,2000,3,{h:'otomo'});
+mk('so','u','臼杵鑑速',3,2000,2,{e:[{t:'draw',n:1}],h:'otomo'});
+mk('so','u','吉岡長増',3,2000,2,{e:[{t:'drawIfFewer'}],h:'otomo'});
+mk('so','u','吉弘鑑理',3,3000,2,{h:'otomo'});
+mk('so','u','田原親賢',4,3000,2,{e:[{t:'retWeapon'}],h:'otomo'});
+mk('so','u','戸次鑑連',4,4000,2,{k:['rush'],h:'otomo'});
+mk('so','u','大友宗麟【豊後の王】',6,5000,1,{pr:['SR','SSR'],e:[{t:'draw',n:1},{t:'ramp',n:1}],h:'otomo'});
+mk('so','p','奈多夫人',4,0,1,{ps:'chacha',h:'otomo'});
+mk('so','c','臼杵城',5,0,1,{e:[{t:'draw',n:1},{t:'toMana'}],h:'otomo'});
+mk('so','w','国崩し',4,0,1,{w:{pow:2000},h:'otomo'});
+mk('so','x','南蛮貿易',3,0,2,{e:[{t:'draw',n:1},{t:'ramp',n:1}],h:'otomo'});
+// 武(島津家・薩摩の突撃)
+mk('bu','u','島津家久',2,1000,3,{k:['rush'],h:'shimazu'});
+mk('bu','u','島津歳久',2,2000,3,{k:['rush'],h:'shimazu'});
+mk('bu','u','新納忠元',3,3000,2,{k:['rush'],h:'shimazu'});
+mk('bu','u','北郷時久',3,3000,2,{h:'shimazu'});
+mk('bu','u','伊集院忠棟',3,2000,2,{e:[{t:'tapE'}],h:'shimazu'});
+mk('bu','u','島津貴久',4,4000,2,{killBreak:true,h:'shimazu'});
+mk('bu','u','島津義久',4,4000,2,{e:[{t:'pumpTemp',pow:1000,kw:'rush'}],h:'shimazu'});
+mk('bu','u','島津義弘【鬼島津】',6,6000,1,{pr:['SR','SSR'],k:['rush'],killBreak:true,h:'shimazu'});
+mk('bu','p','実窓夫人',4,0,1,{ps:'atkAura',h:'shimazu'});
+mk('bu','c','内城',5,0,1,{ps:'aura',h:'shimazu'});
+mk('bu','w','種子島',2,0,1,{w:{pow:1000,k:'rush'},h:'shimazu'});
+mk('bu','x','釣り野伏せ',4,0,2,{e:[{t:'kill',max:5000}],h:'shimazu'});
+// 耐(龍造寺家・肥前の熊)
+mk('ni','u','成松信勝',2,1000,3,{e:[{t:'draw',n:1}],h:'ryuzoji'});
+mk('ni','u','円城寺信胤',2,2000,3,{k:['guard'],h:'ryuzoji'});
+mk('ni','u','百武賢兼',3,3000,2,{h:'ryuzoji'});
+mk('ni','u','木下昌直',3,3000,2,{e:[{t:'draw',n:1}],h:'ryuzoji'});
+mk('ni','u','龍造寺信周',3,3000,2,{k:['guard'],h:'ryuzoji'});
+mk('ni','u','龍造寺長信',3,2000,2,{e:[{t:'tapE'}],h:'ryuzoji'});
+mk('ni','u','鍋島直茂',4,4000,2,{e:[{t:'ramp',n:1}],h:'ryuzoji'});
+mk('ni','u','龍造寺隆信【肥前の熊】',6,6000,1,{pr:['SR','SSR'],k:['guard'],e:[{t:'ramp',n:1},{t:'draw',n:1}],h:'ryuzoji'});
+mk('ni','p','慶誾尼',4,0,1,{ps:'hatsu',h:'ryuzoji'});
+mk('ni','c','村中城',5,0,1,{ps:'guardAura',h:'ryuzoji'});
+mk('ni','w','肥前の大身槍',2,0,1,{w:{pow:1000,tie:true},h:'ryuzoji'});
+mk('ni','x','今山の夜襲',3,0,2,{e:[{t:'tapSkip'}],h:'ryuzoji'});
+},{era:'1560年代 中国・九州'});
+
 // ===== スターターデッキ(無料で1回だけ受け取れる。受け取ると、そのカードが手に入りデッキに設定される) =====
 const STARTERS=[
  {id:'st_oda',name:'織田家スターター',sub:'桶狭間の奇襲で一気に攻める',series:'e1560',house:'oda'},
@@ -288,7 +357,12 @@ const STARTERS=[
  {id:'st_matsudaira',name:'松平家スターター',sub:'耐えて兵糧を貯め、後半に勝つ',series:'e1560',house:'matsudaira'},
  {id:'st_uesugi',name:'上杉家スターター',sub:'守りを固めて関東管領へ',series:'e1560',house:'uesugi'},
  {id:'st_takeda',name:'武田家スターター',sub:'突撃で城門を破り続ける',series:'e1560',house:'takeda'},
- {id:'st_hojo',name:'北条家スターター',sub:'堅く守り、相手の動きを封じる',series:'e1560',house:'hojo'}
+ {id:'st_hojo',name:'北条家スターター',sub:'堅く守り、相手の動きを封じる',series:'e1560',house:'hojo'},
+ {id:'st_mouri',name:'毛利家スターター',sub:'調略と知略で中国を制す',series:'e1560w',house:'mouri'},
+ {id:'st_amago',name:'尼子家スターター',sub:'難攻不落の月山富田城で粘る',series:'e1560w',house:'amago'},
+ {id:'st_otomo',name:'大友家スターター',sub:'南蛮の力で手数を稼ぐ',series:'e1560w',house:'otomo'},
+ {id:'st_shimazu',name:'島津家スターター',sub:'薩摩の突撃で押し切る',series:'e1560w',house:'shimazu'},
+ {id:'st_ryuzoji',name:'龍造寺家スターター',sub:'耐えて兵糧を貯め、肥前を握る',series:'e1560w',house:'ryuzoji'}
 ];
 function starterDeck(st){
  const d={};
