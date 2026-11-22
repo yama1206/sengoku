@@ -464,7 +464,95 @@ function coinChange(d){SV.coin+=d;if(EMBED&&d){walletAt=Date.now();parentSend({t
 window.addEventListener('message',e=>{
  const m=e.data;if(!EMBED||e.source!==window.parent||!m||m.sgkCard!==1)return;
  if(m.t==='wallet'&&typeof m.money==='number'&&Date.now()-walletAt>2000&&m.money!==SV.coin){SV.coin=m.money;if(!pk&&(screen==='title'||screen==='shop'))render();}
+ else if(m.t==='lobby'){lobby={people:m.people||[],inv:m.inv||[]};if(screen==='pvp'&&!pk)render();}
+ else if(m.t==='net'&&m.m)onNet(m.m);
 });
+// ===== 人と手合わせ(天下往来の遊戯屋の中だけ)。申し込んだ人の画面が札の処理を全部行い、受けた人の画面は盤面を見せて操作を送る =====
+let NET=null,lobby={people:[],inv:[]},pvpMsg='',remoteQ=[],remoteWait=null,askN=0,stT=0;
+const escH=x=>String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function netSend(o){if(NET)parentSend({t:'net',mid:NET.mid,m:o});}
+function netQuit(){if(NET)parentSend({t:'end',mid:NET.mid,quit:1});NET=null;remoteQ=[];remoteWait=null;}
+function remoteNext(){return new Promise(res=>{if(remoteQ.length)res(remoteQ.shift());else remoteWait=res;});}
+function remotePush(m){if(remoteWait){const r=remoteWait;remoteWait=null;r(m);}else remoteQ.push(m);}
+// 相手に選んでもらう(ホスト側)。抜けられたら null
+async function remoteAsk(o){const q=++askN;netSend(Object.assign({t:'ask',q},o));for(;;){if(!G||G.over)return null;const m=await remoteNext();if(m.t==='quit'||!G||G.over)return null;if(m.t==='ans'&&m.q===q)return m.v;}}
+// 相手から見た盤面(ホストの手札・山札・城門の中身は数だけ)
+function snapFor(){
+ const hide=a=>a.map(()=>0);
+ const pl=(p,mine)=>({name:p.name,idx:1-p.idx,hand:mine?p.hand:hide(p.hand),deck:hide(p.deck),shields:hide(p.shields),mana:p.mana,grave:p.grave,fields:p.fields,charged:p.charged,faceAtks:p.faceAtks,units:p.units.map(u=>Object.assign({},u,{owner:null}))});
+ return {P:[pl(G.P[1],true),pl(G.P[0],false)],cur:1-G.cur,turnNo:G.turnNo,log:G.log.slice(-10),cpuIds:G.myIds||[],myTurn:G.cur===1&&!!G.rwait&&!G.over,over:G.over?{w:1-G.over.winner.idx,why:G.over.why}:null};
+}
+function sendState(){clearTimeout(stT);stT=0;if(G&&G.pvp&&NET&&NET.host)netSend({t:'state',g:snapFor()});}
+function hydrate(g){g.P.forEach(p=>p.units.forEach(u=>u.owner=p));g.over=g.over?{winner:g.P[g.over.w],why:g.over.why}:null;g.guest=true;g.pvp=true;g.once={};g.rewarded=true;g.reward=0;return g;}
+function cleanDeck(d){const r={};let n=0;for(const k in(d||{})){const c=cardById(k);const v=Math.max(0,Math.min(MAX_COPY,Math.floor(+d[k]||0)));if(c&&v&&n+v<=DECK_SIZE){r[k]=v;n+=v;}}return r;}
+function onNet(m){
+ if(m.t==='start'){
+  if(G&&G.pvp&&!G.over)return;
+  NET={mid:m.mid,host:!!m.host,opp:String(m.opp||'相手').slice(0,20)};remoteQ=[];remoteWait=null;G=null;pk=null;ui.rules=false;ui.modal=ui.pick=null;screen='pvp';pvpMsg='';
+  if(!NET.host)netSend({t:'deck',deck:myDeck,host:NET.opp}); // 受けた側は自分の陣立てを送る
+  render();return;
+ }
+ if(!NET||m.mid!==NET.mid)return;
+ if(m.t==='quit'){
+  const host=NET.host;
+  if(G&&G.pvp&&!G.over){G.over={winner:G.P[0],why:`${NET.opp}が手合わせを抜けた`};ui.modal=ui.pick=null;}
+  else if(!G){pvpMsg=`${NET.opp}が手合わせを抜けた`;screen='pvp';}
+  NET=null;if(host)remotePush({t:'quit'});render();return;
+ }
+ if(NET.host){
+  if(m.t==='deck'&&!G){startGame(myDeck,false,{deck:cleanDeck(m.deck),name:NET.opp,me:String(m.host||'あなた').slice(0,20)});}
+  else if(m.t==='act'||m.t==='ans')remotePush(m);
+  return;
+ }
+ if(m.t==='state'&&m.g){
+  const keep={modal:ui.modal,pick:ui.pick};G=hydrate(m.g);screen='game';pk=null;
+  ui.busy=!m.g.myTurn;ui.modal=keep.modal;ui.pick=keep.pick;
+  if(ui.sel&&!G.P[0].hand.some(c=>c.uid===ui.sel))ui.sel=null;if(ui.selU&&!find(ui.selU))ui.selU=null;
+  render();
+ }else if(m.t==='ask'){
+  const q=m.q,ans=v=>netSend({t:'ans',q,v});
+  if(m.k==='pick')ui.pick={ids:m.ids||[],msg:escH(m.msg),res:u=>ans(u?u.uid:null)};
+  else ui.modal={msg:escH(m.msg),btns:(m.btns||[]).map((l,i)=>({l:escH(l),v:i})),res:ans};
+  render();
+ }
+}
+// 受けた側：自分の手番の操作をホストへ送る
+function guestAct(a,id){
+ const me=G.P[0];
+ if(a==='charge'){if(ui.sel&&!me.charged){netSend({t:'act',a:'charge',uid:ui.sel});ui.sel=null;ui.busy=true;}}
+ else if(a==='cast'){const c=me.hand.find(x=>x.uid===ui.sel);if(c&&canCast(me,c)){netSend({t:'act',a:'cast',uid:c.uid});ui.sel=null;ui.busy=true;}}
+ else if(a==='enemyunit'){const u=find(+id),su=find(ui.selU);if(u&&su&&canAtkU(su)&&u.tapped){netSend({t:'act',a:'attack',uid:su.uid,target:u.uid});ui.selU=null;ui.busy=true;}else if(u){ui.info=u.card;ui.sel=ui.selU=null;}}
+ else if(a==='eface'){const su=find(ui.selU);if(su&&canAtkU(su)&&!faceOk(su)){log('月山富田城の効果で、これ以上城門を攻撃できない');}else if(su&&canAtkU(su)){netSend({t:'act',a:'attack',uid:su.uid,target:'face'});ui.selU=null;ui.busy=true;}}
+ else if(a==='end'){netSend({t:'act',a:'end'});ui.busy=true;ui.sel=ui.selU=null;}
+ render();
+}
+// ホスト側：相手の手番は、相手から届く操作を確かめながら進める
+async function remoteTurn(p){
+ const d=opp(p);
+ for(;;){
+  if(!G||G.over)return;
+  G.rwait=true;render();const m=await remoteNext();if(G)G.rwait=false;
+  if(!G||G.over||m.t==='quit')return;
+  if(m.t!=='act')continue;
+  if(m.a==='end')return;
+  if(m.a==='charge'){const c=p.hand.find(x=>x.uid===m.uid);if(c&&!p.charged){p.hand=p.hand.filter(x=>x!==c);p.mana.push({card:c,tapped:false});p.charged=true;log(`${p.name}は兵糧を蓄えた`);}}
+  else if(m.a==='cast'){const c=p.hand.find(x=>x.uid===m.uid);if(c&&canCast(p,c))await playCard(p,c);}
+  else if(m.a==='attack'){const u=find(m.uid);if(u&&u.owner===p&&canAtkU(u)){if(m.target==='face'){if(faceOk(u))await attack(u,'face');}else{const t=find(m.target);if(t&&t.owner===d&&t.tapped)await attack(u,t);}}}
+  render();
+ }
+}
+function pvpHTML(){
+ const ok=deckValid(myDeck);let h=`<div style="padding-top:44px"><h2 style="color:var(--gold);margin:0 0 4px">人と手合わせ</h2><div class="dim" style="font-size:12px">同じ町にいる人と、自分の陣立てで勝負します。人との手合わせでは文の賞金は出ません</div>`;
+ if(pvpMsg)h+=`<div class="msg2">${escH(pvpMsg)}</div>`;
+ if(NET)return h+`<div class="msg2">${escH(NET.opp)}との手合わせを支度しています…</div></div>`;
+ if(!ok)h+='<div class="msg2">陣立てが36枚になっていません。先に陣立てを組んでください</div>';
+ const inc=lobby.inv.filter(v=>!v.mine),out=lobby.inv.filter(v=>v.mine);
+ h+=inc.map(v=>`<div class="pcard" style="--c:#c0392b"><div class="pcl"><b>${escH(v.who)}</b><div class="dim" style="font-size:12px">手合わせの申し込みが届いています</div></div><button data-a="pvAcc" data-id="${escH(v.id)}" ${ok?'':'disabled'}>受ける</button><button data-a="pvDec" data-id="${escH(v.id)}" style="margin-left:6px">断る</button></div>`).join('');
+ h+=out.map(v=>`<div class="pcard" style="--c:#888"><div class="pcl"><b>${escH(v.who)}</b><div class="dim" style="font-size:12px">申し込み中・返事を待っています</div></div><button data-a="pvDec" data-id="${escH(v.id)}">取り下げる</button></div>`).join('');
+ h+='<h3 style="margin:14px 0 2px">この町にいる人</h3>';
+ h+=lobby.people.length?lobby.people.map(q=>`<div class="pcard" style="--c:#d4a94a"><div class="pcl"><b>${escH(q.name)}</b></div><button data-a="pvInv" data-id="${escH(q.id)}" ${ok&&!out.length?'':'disabled'}>申し込む</button></div>`).join(''):'<div class="dim" style="margin:8px 0">この町には、ほかの人がいません</div>';
+ return h+'</div>';
+}
 const RORD=['N','R','SR','SSR'];
 const RN={N:'並',R:'上',SR:'特上',SSR:'極上'}; // 版の表示名(中の名前は N/R/SR/SSR のまま)
 const DECK_SIZE=36,MAX_COPY=3,SAVE_KEY=EMBED?'sengoku_card_embed_v1':'sengoku_card_v1';
@@ -617,6 +705,7 @@ function pickTarget(cands,msg){return new Promise(res=>{ui.pick={ids:cands.map(u
 function modal(msg,btns){return new Promise(res=>{ui.modal={msg,btns,res};render();});}
 async function choose(p,cands,msg){
  if(p.ai||cands.length===1)return cands.slice().sort((a,b)=>power(b)-power(a))[0];
+ if(p.remote){const v=await remoteAsk({k:'pick',ids:cands.map(u=>u.uid),msg});return cands.find(u=>u.uid===v)||cands[0];}
  return pickTarget(cands,msg);
 }
 function pickChargeCard(p,list){
@@ -626,6 +715,7 @@ function pickChargeCard(p,list){
 }
 async function chooseCard(p,list,msg,forOpp){
  if(p.ai)return forOpp?list.slice().sort((a,b)=>b.c-a.c)[0]:pickChargeCard(p,list);
+ if(p.remote){const v=await remoteAsk({k:'modal',msg,btns:list.map(c=>`${IDEO[c.i].n} ${c.n} (${TL[c.t]} 費え${c.c}${c.t==='u'?' 兵力'+c.p:''})`)});return list[+v]||list[0];}
  return modal(msg,list.map(c=>({l:`${IDEO[c.i].n} ${c.n} (${TL[c.t]} 費え${c.c}${c.t==='u'?' 兵力'+c.p:''})`,v:c})));
 }
 
@@ -679,6 +769,7 @@ async function breakShields(att,d,n){
    if(c.t==='x'){
     let use;
     if(d.ai)use=fxUseful(d,c)&&!c.e.some(e=>e.t==='pumpTemp');
+    else if(d.remote)use=(await remoteAsk({k:'modal',msg:`城門が破られた!\n奇襲「${c.n}」が出た。\n${desc(c)}`,btns:['無料で発動する','手札に加えて温存']}))===0;
     else use=await modal(`城門が破られた!\n奇襲「${c.n}」が出た。\n${desc(c)}`,[{l:'無料で発動する',v:true},{l:'手札に加えて温存',v:false}]);
     if(use){log(`奇襲「${c.n}」を無料で発動!`);for(const e of c.e)await applyFx(d,e);d.grave.push(c);render();if(att&&att.dead)return;continue;}
    }
@@ -714,6 +805,7 @@ async function askBlock(d,att){
   if(strong.length&&Math.random()<0.7)return strong[0];
   return null;
  }
+ if(d.remote){const v=await remoteAsk({k:'modal',msg:`${att.card.n}(${power(att)})が攻めてきた!\n守りますか?`,btns:[...gs.map(u=>`${u.card.n}(${power(u)}${u.card.blockBonus?'+'+u.card.blockBonus:''})で守る`),'守らない']});return v!=null&&gs[+v]&&!gs[+v].dead?gs[+v]:null;}
  return modal(`${att.card.n}(${power(att)})が攻めてきた!\n守りますか?`,[...gs.map(u=>({l:`${u.card.n}(${power(u)}${u.card.blockBonus?'+'+u.card.blockBonus:''})で守る`,v:u})),{l:'守らない',v:null}]);
 }
 const faceOk=att=>!(hasPs(opp(att.owner),'gateLimit')&&att.owner.faceAtks>=2);
@@ -733,6 +825,7 @@ async function attack(att,target){
 }
 function win(p,why){
  G.over={winner:p,why};log(`${p.name}の勝利! ${why}`);
+ if(G.pvp){G.rewarded=true;render();if(NET&&NET.host){sendState();parentSend({t:'end',mid:NET.mid});}return;} // 人との手合わせは賞金なし
  if(!G.auto&&!G.rewarded){G.rewarded=true;G.reward=p.idx===0?GACHA.reward.win:GACHA.reward.lose;coinChange(G.reward);saveSave();}
  render();
 }
@@ -757,6 +850,7 @@ async function startTurn(i){
  }
  ui.sel=ui.selU=ui.info=null;render();await sleep(300);
  if(p.ai){ui.busy=true;render();await aiTurn(p);if(!G.over)await endTurn();}
+ else if(p.remote){ui.busy=true;render();await remoteTurn(p);if(G&&!G.over)await endTurn();}
  else{ui.busy=false;render();}
 }
 async function endTurn(){
@@ -790,14 +884,16 @@ async function aiTurn(p){
  }
 }
 
-function startGame(deckMap,auto){
+function startGame(deckMap,auto,pvp){ // pvp={deck,name,me}：人との手合わせ(相手の操作は届くのを待つ)
  const mkDeck=dm=>{const d=[];for(const id in dm){const c=cardById(id);for(let k=0;k<dm[id];k++)d.push(Object.assign({},c,{uid:++uidc}));}return shuffle(d);};
- const cpuDeck=starterDeck((typeof cpuForce!=="undefined"&&cpuForce||shuffle(STARTERS)[0])),cpuIds=deckIdeos(cpuDeck);
+ const cpuDeck=pvp?pvp.deck:starterDeck((typeof cpuForce!=="undefined"&&cpuForce||shuffle(STARTERS)[0])),cpuIds=deckIdeos(cpuDeck);
  const mkP=(name,idx,deck,ai)=>({name,idx,ai,deck,hand:[],mana:[],shields:[],units:[],fields:[],grave:[],charged:false,faceAtks:0});
- G={P:[mkP('あなた',0,mkDeck(deckMap),!!auto),mkP('相手',1,mkDeck(cpuDeck),true)],cur:0,turnNo:0,log:[],over:null,cpuIds,once:{},auto:!!auto,rewarded:false,reward:0};
+ G={P:[mkP(pvp?pvp.me:'あなた',0,mkDeck(deckMap),!!auto),mkP(pvp?pvp.name:'相手',1,mkDeck(cpuDeck),!pvp)],cur:0,turnNo:0,log:[],over:null,cpuIds,once:{},auto:!!auto,rewarded:false,reward:0,pvp:!!pvp,myIds:deckIdeos(deckMap)};
+ if(pvp)G.P[1].remote=true;
  for(const p of G.P){p.shields=p.deck.splice(0,5);p.hand=p.deck.splice(0,5);}
  log(`相手の思想: ${cpuIds.map(i=>IDEO[i].n).join('・')}`);
  ui.sel=ui.selU=ui.info=ui.pick=ui.modal=null;ui.busy=true;screen='game';render();
+ if(pvp){const f=Math.random()<0.5?0:1;log(`先手は${G.P[f].name}`);return startTurn(f);}
  return startTurn(0);
 }
 
@@ -833,7 +929,7 @@ function titleHTML(){
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
  ${shopStage('いらっしゃいませー！ 包みを開けるのも、陣立てを組むのも、手合わせも、ここでどうぞ♪')}
  <div class="title"><div class="whead"><span class="wname">戦国思想録</span><span class="coinb">${GACHA.coin} ${SV.coin}</span></div><div class="dim" style="text-align:left;margin-bottom:8px">— 武将と思想の札合戦 —</div>
- <button class="big main" data-a="play">対戦開始</button><button class="big" data-a="toEdit">陣立て</button><button class="big" data-a="toShop">札屋</button><button class="big" data-a="toList">札目録</button><button class="big" data-a="rules">遊び方</button>${EMBED?'<button class="big" data-a="exitEmbed">遊戯屋を出る</button>':''}</div>`;
+ <button class="big main" data-a="play">対戦開始</button>${EMBED?'<button class="big" data-a="toPvp">人と手合わせ</button>':''}<button class="big" data-a="toEdit">陣立て</button><button class="big" data-a="toShop">札屋</button><button class="big" data-a="toList">札目録</button><button class="big" data-a="rules">遊び方</button>${EMBED?'<button class="big" data-a="exitEmbed">遊戯屋を出る</button>':''}</div>`;
 }
 // 天下往来の町の画面と同じ形：店の絵・看板娘の立ち絵・吹き出し
 function shopStage(line){return `<div class="tstage"><img class="who" src="../assets/town/yugi_p.png" onerror="this.remove()" alt=""><div class="say"><b>遊戯屋の看板娘</b>${line}</div></div>`;}
@@ -857,6 +953,7 @@ function backAction(){
  if(screen==='list')return listBig?'listbigClose':'toTitle';
  if(screen==='shop')return shopBig?'shopbigClose':'toTitle';
  if(screen==='edit')return 'editBack';
+ if(screen==='pvp')return 'pvpBack';
  if(screen==='game'&&G)return ui.modal?'':G.over?'toTitle':'menu';
  return '';
 }
@@ -894,7 +991,7 @@ function gameHTML(){
  }
  let ov='';
  if(ui.modal)ov=`<div class="ov"><div class="mb">${ui.modal.msg.replace(/\n/g,'<br>')}${ui.modal.btns.map((b,i)=>`<button data-a="mb" data-id="${i}">${b.l}</button>`).join('')}</div></div>`;
- else if(G.over){const w=G.over.winner===me;ov=`<div class="ov"><div class="mb"><div class="res">${w?'勝利!':'敗北…'}</div><div style="text-align:center">${G.over.why}</div>${G.reward?`<div style="text-align:center;color:var(--gold);margin-top:6px">${GACHA.coin} +${G.reward}</div>`:''}<button data-a="again">もう一度</button><button data-a="toTitle">表紙へ</button></div></div>`;}
+ else if(G.over){const w=G.over.winner===me;ov=`<div class="ov"><div class="mb"><div class="res">${w?'勝利!':'敗北…'}</div><div style="text-align:center">${G.over.why}</div>${G.reward?`<div style="text-align:center;color:var(--gold);margin-top:6px">${GACHA.coin} +${G.reward}</div>`:''}${G.pvp?'':'<button data-a="again">もう一度</button>'}<button data-a="toTitle">表紙へ</button></div></div>`;}
  return `<div class="top"><span>第${G.turnNo}手・${G.cur===0?'あなたの番':'相手の番'}</span></div>
  <div class="zone"><div class="pinfo"><b>相手</b> 手札${en.hand.length} 山札${en.deck.length} 思想:${G.cpuIds.map(i=>IDEO[i].n).join('')}<span>${en.mana.map(mTile).join('')}</span></div>
  <div class="row">${fieldChips(en)}</div>
@@ -1042,7 +1139,8 @@ function render(){
  if(typeof document==='undefined')return;
  audScene(screen==='game'?'battle':'menu');
  const app=document.getElementById('app');if(!app)return;
- let h=screen==='title'?titleHTML():screen==='edit'?editHTML():screen==='list'?listHTML():screen==='shop'?shopHTML():gameHTML();
+ if(G&&G.pvp&&NET&&NET.host&&!stT)stT=setTimeout(sendState,80); // 相手へ盤面を送る(少しまとめて)
+ let h=screen==='title'?titleHTML():screen==='pvp'?pvpHTML():screen==='edit'?editHTML():screen==='list'?listHTML():screen==='shop'?shopHTML():gameHTML();
  if(ui.rules)h+=rulesHTML();
  if(pk)h+=packHTML();
  if(loginMsg&&screen==='title'&&!pk)h+=toastHTML();
@@ -1188,7 +1286,15 @@ async function onClick(a,id){
   else if(a==='bigClose'){pk.big=null;render();}
   return;
  }
+ if(screen==='pvp'){
+  if(a==='pvInv'){parentSend({t:'inv',to:id});pvpMsg='手合わせを申し込みました';}
+  else if(a==='pvAcc'){if(deckValid(myDeck)){parentSend({t:'accept',id});pvpMsg='受けました。支度しています…';}}
+  else if(a==='pvDec'){parentSend({t:'decline',id});pvpMsg='';}
+  else if(a==='pvpBack'){netQuit();pvpMsg='';screen='title';}
+  render();return;
+ }
  if(screen==='title'){
+  if(a==='toPvp'){screen='pvp';pvpMsg='';render();return;}
   if(a==='play'){if(deckValid(myDeck))startGame(myDeck);else{screen='edit';editMsg='陣立てが36枚になっていません。札がない時は、札屋で初陣組を受け取ろう';render();}}
   else if(a==='toEdit'){screen='edit';editMsg='';render();}
   else if(a==='toList'){screen='list';render();}
@@ -1240,18 +1346,19 @@ async function onClick(a,id){
  }
  if(!G)return;
  if(ui.modal){if(a==='mb'){const m=ui.modal;ui.modal=null;render();m.res(m.btns[+id].v);}return;}
- if(G.over){if(a==='again'){startGame(myDeck);}else if(a==='toTitle'){screen='title';render();}return;}
+ if(G.over){if(a==='again'&&!G.pvp){startGame(myDeck);}else if(a==='toTitle'){if(G.pvp){NET=null;G=null;}screen='title';render();}return;}
  if(ui.pick){
   if(a==='myunit'||a==='enemyunit'){const u=find(+id);if(u&&ui.pick.ids.includes(u.uid)){const pk=ui.pick;ui.pick=null;render();pk.res(u);}}
   return;
  }
  const me=G.P[0];
- if(a==='menu'){const r=await modal('表紙に戻りますか?(対戦は破棄されます)',[{l:'戻る',v:true},{l:'続ける',v:false}]);if(r){G=null;screen='title';render();}return;}
+ if(a==='menu'){const r=await modal(G.pvp?'手合わせを抜けますか?(相手の勝ちになります)':'表紙に戻りますか?(対戦は破棄されます)',[{l:'戻る',v:true},{l:'続ける',v:false}]);if(r){if(G&&G.pvp)netQuit();G=null;screen='title';render();}return;}
  if(ui.busy){
   if(a==='myunit'||a==='enemyunit'){const u=find(+id);if(u){ui.info=u.card;ui.sel=null;render();}}
   else if(a==='field'){ui.info=findField(+id);ui.sel=null;render();}
   return;
  }
+ if(G.guest&&['charge','cast','enemyunit','eface','end'].includes(a)){guestAct(a,id);return;} // 受けた側は操作をホストへ送るだけ
  switch(a){
   case 'hand':ui.sel=ui.sel===+id?null:+id;ui.selU=null;ui.info=null;render();break;
   case 'charge':{const c=me.hand.find(x=>x.uid===ui.sel);if(c&&!me.charged){me.hand=me.hand.filter(x=>x!==c);me.mana.push({card:c,tapped:false});me.charged=true;ui.sel=null;log(`${c.n}を兵糧にした`);render();}break;}
