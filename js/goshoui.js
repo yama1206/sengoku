@@ -36,12 +36,17 @@
         + `<button id="gt-${t.id}" data-act="goshoTask" data-id="${t.id}" ${t.done || have < t.qty ? 'disabled' : ''}>${t.done ? '納めた' : '納める'}</button></div>`;
     }
     { // 2.107.0 盗み：豪商の蔵へ忍び込む
-      const NU = G.nusumi, Q = me.nusumi;
-      h += `<div class="secH">忍び込んで盗む</div><div class="muted">${G.name}の蔵に忍び込み、銭を盗み出す。忍びの潜入と同じ3Dで、見張りを避けて蔵の銭を持ち出し、入ってきた所へ戻れば成功。<b>見つかる（バレる）と名声が大きく下がる</b>。奥の蔵ほど見張りが多く、盗める額も増える${me.nin ? '（忍び道具も使える）' : ''}</div>`;
-      if (Q && Q.at) h += `<div class="card" style="display:block;border-color:#c33"><b>${Q.toName}の${Q.name}</b>　<span class="muted">盗める額 ${M(Q.loot)}・見張り${Q.d.guards}人・${Q.d.night ? '夜（見張りの目が届きにくい）' : '昼'}・見つかると名声-${Q.fame}</span><div class="row" style="margin-top:4px"><button id="nu-go" data-nusumigo="1">忍び込む</button><button id="nu-drop" data-act="nusumiDrop">やめる</button></div></div>`;
+      const NU = G.nusumi, Q = me.nusumi, RM = me.nusumiRoom, esc = (t) => String(t).replace(/[<&]/g, '');
+      h += `<div class="secH">忍び込んで盗む</div><div class="muted">${G.name}の蔵に忍び込み、銭を盗み出す。忍びの潜入と同じ3Dで、見張りを避けて蔵の銭を持ち出し、入ってきた所へ戻れば成功。<b>見つかる（バレる）と名声が大きく下がる</b>。奥の蔵ほど見張りが多く、盗める額も増える。同じ町の仲間と協力もできる（最大3人。盗めた額は全員に満額・誰かが見つかったら全員失敗・見張りも増える）${me.nin ? '。忍び道具も使える' : ''}</div>`;
+      const room = RM ? (RM.joined ? `<div style="margin-top:6px;border-top:1px solid #8884;padding-top:4px"><b>${RM.leader ? '仲間を募集中' : '協力して盗む'}</b>（${RM.n}/${RM.max}人：${RM.names.map(esc).join('・')}）<div class="row" style="margin-top:4px">${RM.leader ? '<button id="nu-cogo" data-act="nusumiGo">この仲間で出発する</button>' : '<span class="muted">リーダーが出発すると始まります</span>'}<button id="nu-leave" data-act="ninRoomLeave">${RM.leader ? '募集をやめる' : '抜ける'}</button></div></div>`
+        : `<div style="margin-top:6px;border-top:1px solid #8884;padding-top:4px"><b>${esc(RM.lname)}が仲間を募っています</b>（${RM.lvName}・${RM.n}/${RM.max}人）<div class="row" style="margin-top:4px"><button id="nu-join" data-act="nusumiJoin">加わる</button></div></div>`) : '';
+      if (Q && Q.at) h += `<div class="card" style="display:block;border-color:#c33"><b>${Q.toName}の${Q.name}</b>　<span class="muted">盗める額 ${M(Q.loot)}・見張り${Q.d.guards}人・${Q.d.night ? '夜（見張りの目が届きにくい）' : '昼'}・見つかると名声-${Q.fame}</span><div class="row" style="margin-top:4px">${RM && RM.joined ? '' : '<button id="nu-go" data-nusumigo="1">ひとりで忍び込む</button>'}${RM ? '' : '<button id="nu-rec" data-act="nusumiRecruit">仲間を募る</button>'}<button id="nu-drop" data-act="nusumiDrop">やめる</button></div>${room}</div>`;
       else if (Q) h += `<div class="card" style="display:block"><span class="muted">いま${Q.toName}の蔵へ忍び込む支度をしています（その町でないと忍び込めません）</span><div class="row" style="margin-top:4px"><button id="nu-drop" data-act="nusumiDrop">やめる</button></div></div>`;
-      else if (NU.cd > 0) h += `<div class="muted">${G.name}は用心しています。あと${NU.cd}日ほどは近づけません</div>`;
-      else NU.lv.forEach((L, i) => { h += `<div class="card"><div><b>${L.name}</b>　<span class="muted">${L.desc}<br>見張り${L.guards}人・見つかると名声-${L.fame}</span></div><button id="nu-${i + 1}" data-act="nusumiTake" data-id="${i + 1}">支度する</button></div>`; });
+      else {
+        if (room) h += `<div class="card" style="display:block">${room}</div>`;
+        if (NU.cd > 0) h += `<div class="muted">${G.name}は用心しています。あと${NU.cd}日ほどは近づけません</div>`;
+        else NU.lv.forEach((L, i) => { h += `<div class="card"><div><b>${L.name}</b>　<span class="muted">${L.desc}<br>見張り${L.guards}人・見つかると名声-${L.fame}</span></div><button id="nu-${i + 1}" data-act="nusumiTake" data-id="${i + 1}">支度する</button></div>`; });
+      }
     }
     h += '<div class="secH">奉公（商人になる）</div>';
     if (S && S.own) h += `<div class="card" style="display:block"><b>${S.houseName}　店主</b><br><span class="muted">独立して自分の店を持っています。持てる荷×${S.carry}・荷が重くても遅くなりにくい。店のことは町の「店」の画面で（支店を出す・品を並べる・茶会）</span></div>`; // 2.56.0

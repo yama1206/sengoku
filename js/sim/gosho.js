@@ -217,19 +217,44 @@
   };
   const nusumiD = (w, L) => ({ guards: L.guards, lv: L.lv, kai: L.kai, ck: 'hira', night: SIM.daylight ? SIM.daylight(w.time.min) < 0.5 : false });
   const nusumiCd = (w, p, sid) => Math.max(0, Math.ceil((((p.nusumiCd || {})[sid] || 0) - w.time.min) / 1440));
-  C.nusumiTake = (w, p, c) => {
-    const s = here(w, p); if (!isBig(s) || p.battle || p.busy) return;
-    const L = GS.NUSUMI.lv[+c.id]; if (!L) return;
-    if (p.nusumi) return say(p.id, `すでに${p.nusumi.toName}の蔵へ忍び込む支度をしています`);
-    const cd = nusumiCd(w, p, s.id); if (cd > 0) return say(p.id, `${houseName(s.id)}は用心しています。あと${cd}日ほどは近づけません`);
+  // 支度をする（同じ町・同じ段・同じ日なら仲間と同じ id になる＝協力できる）
+  function nusumiMake(w, p, s, lv) {
+    const L = GS.NUSUMI.lv[lv]; if (!L) return false;
+    if (p.nusumi) { say(p.id, `すでに${p.nusumi.toName}の蔵へ忍び込む支度をしています`); return false; }
+    const cd = nusumiCd(w, p, s.id); if (cd > 0) { say(p.id, `${houseName(s.id)}は用心しています。あと${cd}日ほどは近づけません`); return false; }
     const kan = L.loot[0] + Math.floor(SIM.rand(w) * (L.loot[1] - L.loot[0] + 1));
-    p.nusumi = { id: `nusumi-${s.id}-${w.time.min}`, to: s.id, toName: houseName(s.id), lv: +c.id, name: L.name, loot: kan * 1000, fame: L.fame, deadline: w.time.min + GS.NUSUMI.limitDays * 1440 };
-    say(p.id, `${houseName(s.id)}の${L.name}へ忍び込みます。見張りを避けて銭を盗み出し、入ってきた所へ戻れば成功。見つかると名声が${L.fame}下がります`);
+    p.nusumi = { id: `nusumi-${s.id}-${lv}-${day(w)}`, to: s.id, toName: houseName(s.id), lv, name: L.name, loot: kan * 1000, fame: L.fame, deadline: w.time.min + GS.NUSUMI.limitDays * 1440 };
+    return true;
+  }
+  C.nusumiTake = (w, p, c) => {
+    const s = here(w, p); if (!isBig(s) || p.battle || p.busy || !GS.NUSUMI.lv[+c.id]) return;
+    if (!nusumiMake(w, p, s, +c.id)) return; const L = GS.NUSUMI.lv[+c.id];
+    say(p.id, `${houseName(s.id)}の${L.name}へ忍び込みます。見張りを避けて銭を盗み出し、入ってきた所へ戻れば成功。見つかると名声が${L.fame}下がります。仲間を募って一緒に盗むこともできます`);
   };
-  C.nusumiDrop = (w, p) => { if (!p.nusumi) return; say(p.id, `${p.nusumi.toName}への盗みは取りやめました`); p.nusumi = null; };
+  C.nusumiDrop = (w, p) => { if (!p.nusumi) return; say(p.id, `${p.nusumi.toName}への盗みは取りやめました`); SIM.ninRoom.leaveRoom(w, p); p.nusumi = null; };
+  // ---- 2.108.0 協力して盗む：忍びの協力任務と同じ部屋（最大3人）。盗めた額は全員に満額。誰かが見つかったら全員失敗。仲間が増えたぶん見張りも増える
+  C.nusumiRecruit = (w, p) => {
+    const q = p.nusumi, s = here(w, p), R = SIM.ninRoom; if (!q || !s || s.id !== q.to || p.battle) return;
+    const r = R.roomOf(w, s.id); if (r) return say(p.id, r.mem.includes(p.id) ? 'すでに募集しています' : r.go ? '別の仲間がもう忍び込んでいます' : '別の仲間が募集しています');
+    R.ROOMS[s.id] = { id: q.id, leader: p.id, mem: [p.id], t: Date.now(), go: null, nus: true };
+    say(p.id, `仲間を募りました。同じ町にいる人が「加わる」を押すと一緒に盗めます（最大${R.CO_MAX}人）`);
+  };
+  C.nusumiJoin = (w, p) => {
+    const s = here(w, p), R = SIM.ninRoom, r = s && isBig(s) && R.roomOf(w, s.id); if (!r || !r.nus || r.go || r.mem.includes(p.id) || p.battle || p.busy) return;
+    if (r.mem.length >= R.CO_MAX) return say(p.id, `満員です（${R.CO_MAX}人まで）`);
+    if (p.nusumi && p.nusumi.id !== r.id) return say(p.id, '別の盗みの支度をしています。先にやめてください');
+    if (!p.nusumi && !nusumiMake(w, p, s, +String(r.id).split('-')[2])) return;
+    if (p.nusumi.id !== r.id) { p.nusumi = null; return say(p.id, '日が替わったので、この募集には加われません'); }
+    r.mem.push(p.id); for (const id of r.mem) say(id, `${R.nm(w, p.id)}が加わりました（${r.mem.length}/${R.CO_MAX}人）`);
+  };
+  C.nusumiGo = (w, p) => {
+    const s = here(w, p), R = SIM.ninRoom, r = s && R.roomOf(w, s.id), q = p.nusumi; if (!r || !r.nus || r.go || r.leader !== p.id || !q || r.id !== q.id) return;
+    const d = nusumiD(w, GS.NUSUMI.lv[q.lv]); d.guards = Math.min(16, d.guards + (r.mem.length - 1));
+    r.go = { at: Date.now(), q: { id: q.id, k: 'steal', sk: 'zeni', toName: q.toName }, d, mem: r.mem.slice(), lead: p.id, names: Object.fromEntries(r.mem.map((id) => [id, R.nm(w, id)])) };
+  };
   C.nusumiResult = (w, p, c) => {
     const q = p.nusumi, s = here(w, p); if (!q || !s || s.id !== q.to || p.battle) return;
-    p.nusumi = null; if (SIM.ninUseTools) SIM.ninUseTools(p, c.used);
+    p.nusumi = null; if (SIM.ninUseTools) SIM.ninUseTools(p, c.used); SIM.ninRoom.leaveRoom(w, p);
     p.nusumiCd = p.nusumiCd || {}; p.nusumiCd[q.to] = w.time.min + GS.NUSUMI.coolDays * 1440;
     if (c.ok) { p.money += q.loot; return say(p.id, `${q.toName}の${q.name}から${SIM.money(q.loot)}を盗み出しました！ 気づかれずに抜けられました`); }
     const lost = Math.min(p.fame || 0, q.fame); p.fame = Math.max(0, (p.fame || 0) - q.fame);
@@ -244,6 +269,9 @@
     r.me.sho = S ? { own: !!S.own, house: S.house, houseName: S.own ? S.ya : houseName(S.house), rank: S.rank, name: GS.RANKS[S.rank].name, merit: S.merit, next: S.rank < 4 ? { name: GS.RANKS[S.rank + 1].name, merit: RK()[S.rank + 1].merit, fame: RK()[S.rank + 1].fame } : null, pay: GS.RANKS[S.rank].pay, carry: GS.RANKS[S.rank].carry, off: GS.RANKS[S.rank].off } : null;
     r.me.takara = Object.entries(p.takara || {}).filter(([k, n]) => n > 0 && GS.TAKARA[k]).map(([k, n]) => ({ id: k, n, name: GS.TAKARA[k].name, kenjo: GS.TAKARA[k].kenjo, sell: Math.round(GS.TAKARA[k].price * GS.sellBack) }));
     const s = here(w, p);
+    { const R = SIM.ninRoom, rm = s && isBig(s) && R ? R.roomOf(w, s.id) : null; r.me.nusumiRoom = null;
+      if (rm && rm.nus) { const joined = rm.mem.includes(p.id), canJoin = !joined && !rm.go && rm.mem.length < R.CO_MAX && (!p.nusumi || p.nusumi.id === rm.id);
+        if (joined || canJoin) r.me.nusumiRoom = { joined, canJoin, leader: rm.leader === p.id, lname: R.nm(w, rm.leader), names: rm.mem.map((id) => R.nm(w, id)), n: rm.mem.length, max: R.CO_MAX, lvName: (GS.NUSUMI.lv[+String(rm.id).split('-')[2]] || {}).name || '', go: joined ? rm.go : null }; } }
     const NQ = p.nusumi; r.me.nusumi = NQ ? Object.assign({}, NQ, { at: !!(s && s.id === NQ.to), d: nusumiD(w, GS.NUSUMI.lv[NQ.lv]) }) : null; // 2.107.0
     if (r.here && isBig(s)) {
       const G = stock(w, s), o = GS.off(p, s.id);

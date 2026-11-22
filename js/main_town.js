@@ -348,19 +348,22 @@ function startNinjaPvp(N, go) {
       else command({ type: 'ninDefResult', ok: !!r.ok, caught: r.caught || 0, killed: r.killed || 0, ko: !!r.ko, used: r.used || null }); });
   }
 }
-// 2.107.0 豪商の蔵への盗み（忍びの潜入を流用）。支度ができたら始まる。いったん退いたら、豪商の画面の「忍び込む」でもう一度
-function startNusumi(q) {
-  const N = G.priv && G.priv.me && G.priv.me.nin;
+// 2.107.0 豪商の蔵への盗み（忍びの潜入を流用）。「忍び込む」を押すと始まる。いったん退いたら、豪商の画面でもう一度。2.108.0 協力（co＝部屋の出発の合図）
+function startNusumi(q, co) {
+  const N = G.priv && G.priv.me && G.priv.me.nin, tools = (N && N.tools) || {};
   const fin = (r) => { r = r && typeof r === 'object' ? r : { ok: r };
     if (r.ok === null || r.ok === undefined) { command({ type: 'ninUse', used: r.used || null }); toast('いったん退きました（まだ盗んでいない）', 1500); }
     else command({ type: 'nusumiResult', ok: !!r.ok, used: r.used || null }); };
-  G.lastNusumi = q.id;
-  if (SGK.NINJA3D && SGK.NINJA3D.can()) SGK.NINJA3D.start({ q: { k: 'steal', sk: 'zeni', id: q.id, toName: q.toName }, d: q.d, tools: (N && N.tools) || {}, seed: q.id }, fin); else SGK.NINJA.start('steal', q.d, fin);
+  if (co) {
+    if (!(SGK.NINJA3D && SGK.NINJA3D.can())) { toast('3Dが使えないので、協力はできません', 3000); command({ type: 'ninRoomLeave' }); return; }
+    SGK.NINJA3D.start({ q: co.q, d: co.d, tools, seed: co.q.id, co: { me: G.myPid, leader: co.lead, members: co.mem, names: co.names, send: SGK.ninSend } }, fin); return;
+  }
+  if (SGK.NINJA3D && SGK.NINJA3D.can()) SGK.NINJA3D.start({ q: { k: 'steal', sk: 'zeni', id: q.id, toName: q.toName }, d: q.d, tools, seed: q.id }, fin); else SGK.NINJA.start('steal', q.d, fin);
 }
-setInterval(() => {
-  const q = G.priv && G.priv.me && G.priv.me.nusumi;
-  if (!q || !q.at || G.lastNusumi === q.id || (SGK.NINJA3D && SGK.NINJA3D.on) || (SGK.NINJA && SGK.NINJA.on)) return;
-  openTown(false); startNusumi(q);
+setInterval(() => { // 部屋の出発の合図が届いたら、入っている全員が始める
+  const R = G.priv && G.priv.me && G.priv.me.nusumiRoom;
+  if (!R || !R.go || !R.joined || (SGK.NINJA3D && SGK.NINJA3D.on) || (SGK.NINJA && SGK.NINJA.on) || G.lastNusumiGo === R.go.at) return;
+  G.lastNusumiGo = R.go.at; openTown(false); startNusumi(null, R.go);
 }, 400);
 setInterval(() => {
   const N = G.priv && G.priv.me && G.priv.me.nin, go = N && N.pvpGo;

@@ -227,6 +227,8 @@
     r.go = { at: Date.now(), q: { id: q.id, k: q.k, sk: q.sk || null, whoName: q.whoName || null }, d, mem: r.mem.slice(), lead: p.id, names: Object.fromEntries(r.mem.map((id) => [id, nm(w, id)])) };
   };
 
+  SIM.ninRoom = { ROOMS, roomOf, leaveRoom, nm, CO_MAX }; // 2.108.0 豪商の蔵への盗みの協力（gosho.js）でも同じ部屋を使う
+
   // 工作の効き目を城にかける。def＝2.57.0 守りに失敗して、自分の側の城が受けるとき。note＝知らせ、extra＝盗んだ金の分け前
   function applyJob(w, s, q, def) {
     const now = w.time.min, deb = (v) => { if (!(s.ninT > now) || (s.ninDeb || 0) < v) s.ninDeb = v; s.ninT = Math.max(s.ninT || 0, now + 30 * 1440); };
