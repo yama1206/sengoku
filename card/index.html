@@ -215,7 +215,7 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 <body>
 <div id="app"></div>
 <script>
-const VERSION='0.28';
+const VERSION='0.29';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -228,7 +228,7 @@ const IDEO={
 };
 const TL={u:'武将',w:'武器',p:'姫',c:'城',x:'奇襲'};
 const KW={rush:'突',guard:'守',double:'連'};
-const KWN={rush:'突撃(登場した手番から攻撃できる)',guard:'守(相手が城門を攻撃した時、代わりに戦える。コスト5以下は攻撃できない)',double:'連破(城門を2枚破る)'};
+const KWN={rush:'突撃(登場した手番から攻撃できる)',guard:'守(相手が城門や味方の武将を攻撃した時、代わりに戦える。コスト5以下は攻撃できない)',double:'連破(城門を2枚破る)'};
 // ===== 札定義 =====
 // シリーズ単位で定義する。札IDは「シリーズID_思想_連番」で自動採番(例: base_so_01)。
 // 画像は img/札ID.png を置くと自動で表示される(無ければ色枠だけ)。個別指定は {img:'パス'}。
@@ -273,7 +273,7 @@ mk('gi','u','色部勝長',2,1000,3,{k:['guard'],blockBonus:2000});
 mk('gi','u','本庄繁長',3,2000,2,{k:['guard'],blockBonus:1000});
 mk('gi','u','中条藤資',3,2000,2,{k:['guard']});
 mk('gi','u','上杉憲政',3,2000,2,{e:[{t:'shield',n:1}]});
-mk('gi','u','直江景綱',4,3000,2,{e:[{t:'draw',n:1}]});
+mk('gi','u','直江景綱',4,3000,2,{guardAtk:true});
 mk('gi','u','上杉政虎【関東管領】',6,6000,1,{pr:['SR','SSR'],k:['double'],e:[{t:'draw',n:1},{t:'shield',n:1}]});
 mk('gi','c','厩橋城',5,0,1,{ps:'guardAura'});
 mk('gi','w','越後の長柄',2,0,1,{w:{k:'guard',tie:true}});
@@ -317,7 +317,7 @@ mk('so','u','今川義元',6,5000,1,{pr:['SR','SSR'],e:[{t:'draw',n:1},{t:'ramp'
 mk('so','p','寿桂尼',4,0,1,{ps:'drawStart',h:'imagawa'});
 mk('so','c','今川館',5,0,1,{ps:'deathDraw',h:'imagawa'});
 mk('so','w','海道の弓',3,0,1,{w:{pow:1000,drawAtk:true},h:'imagawa'});
-mk('so','x','甲相駿三国同盟',3,0,2,{e:[{t:'shield',n:1},{t:'draw',n:1}],h:'imagawa'});
+mk('so','x','駿河の備え',3,0,2,{e:[{t:'shield',n:1},{t:'draw',n:1}],h:'imagawa'});
 // 耐(松平家)
 mk('ni','u','阿部正勝',2,1000,3,{e:[{t:'draw',n:1}],h:'matsudaira'});
 mk('ni','u','平岩親吉',2,1000,3,{k:['guard'],h:'matsudaira'});
@@ -361,7 +361,7 @@ mk('gi','u','立原久綱',3,2000,2,{e:[{t:'shield',n:1}],h:'amago'});
 mk('gi','u','湯原春綱',3,2000,2,{k:['guard'],h:'amago'});
 mk('gi','u','牛尾幸清',3,2000,2,{k:['guard'],blockBonus:1000,h:'amago'});
 mk('gi','u','山中鹿之助【七難八苦】',4,3000,2,{k:['guard'],blockBonus:2000,h:'amago'});
-mk('gi','u','尼子義久',4,3000,2,{e:[{t:'draw',n:1}],h:'amago'});
+mk('gi','u','尼子義久',4,3000,2,{guardAtk:true,h:'amago'});
 mk('gi','u','尼子晴久【月山富田城】',6,6000,1,{pr:['SR','SSR'],k:['guard'],e:[{t:'draw',n:1},{t:'shield',n:1}],h:'amago'});
 mk('gi','p','京極の姫',4,0,1,{ps:'refill',h:'amago'});
 mk('gi','c','月山富田城',5,0,1,{ps:'gateLimit',h:'amago'});
@@ -462,6 +462,7 @@ function desc(c){
  if(c.surviveShield)a.push('戦闘で生き残り、自分の城門が1枚以下なら山札の上を城門に加える。');
  if(c.killBreak)a.push('自分の手番中、戦闘で相手の武将を破壊したとき、相手の城門を1枚破る(1手番に1回)。');
  if(c.deathRamp)a.push('戦闘で破壊されたとき、山札の上を兵糧にする。');
+ if(c.guardAtk)a.push('場にいる間、味方の守を持つ武将も攻撃できる。');
  if(c.w){const b=[];if(c.w.pow)b.push(`兵力+${c.w.pow}`);if(c.w.k)b.push(`【${KWN[c.w.k]}】`);if(c.w.tie)b.push('戦闘で兵力が同じなら相手だけ破壊される');if(c.w.drawAtk)b.push('攻撃するたび1枚引く(自分の手番中1回)');a.push('味方の武将1体に装備: '+b.join('、')+'。(武将が場を離れると墓地へ)');}
  if(c.ps)a.push(PSD[c.ps]+'。');
  if(c.e.length){const lab={u:'登場時:',w:'装備時:',p:'設置時:',c:'設置時:',x:'使用時:'}[c.t];a.push(lab+c.e.map(e=>FXD[e.t](e)).join('、')+'。');}
@@ -687,7 +688,7 @@ const countPs=(p,s)=>p.fields.filter(c=>c.ps===s).length;
 const hasKw=(u,k)=>!!(u.kws.includes(k)||(u.weapon&&u.weapon.w.k===k)||u.mods.some(m=>m.kw===k)||(k==='rush'&&hasPs(u.owner,'rushAll'))||(k==='guard'&&hasPs(u.owner,'guardAll')));
 const power=u=>u.card.p+(u.weapon?(u.weapon.w.pow||0):0)+u.mods.reduce((a,m)=>a+(m.pow||0),0)+1000*countPs(u.owner,'aura')+(hasKw(u,'guard')?1000*countPs(u.owner,'guardAura'):0)+(u.attacking?1000*countPs(u.owner,'atkAura'):0);
 // 守を持つ武将は、コスト6以上でない限り攻撃できない(守は元から持つ場合のみ。城や武器で得た守は対象外)
-const guardOnly=u=>!!u&&u.kws.includes('guard')&&u.card.c<6;
+const guardOnly=u=>!!u&&u.kws.includes('guard')&&u.card.c<6&&!u.owner.units.some(x=>!x.dead&&x.card.guardAtk); // 号令持ち(guardAtk)が場にいれば守持ちも攻撃できる
 const canAtkU=u=>!!u&&!u.dead&&!u.tapped&&!guardOnly(u)&&(!u.sick||hasKw(u,'rush'));
 const newUnit=(p,card)=>({uid:++uidc,card,owner:p,weapon:null,mods:[],kws:card.k.slice(),tapped:false,sick:true,dead:false,attacking:false,skipUntap:false});
 function find(uid){for(const p of G.P){const u=p.units.find(x=>x.uid===uid);if(u)return u;}return null;}
@@ -840,25 +841,26 @@ async function battle(a,b,blk){
  }
  render();await sleep(300);
 }
-async function askBlock(d,att){
- const gs=d.units.filter(u=>!u.tapped&&!u.dead&&hasKw(u,'guard'));
+async function askBlock(d,att,tgt){ // tgt: 攻撃された味方の武将(城門なら無し)
+ const gs=d.units.filter(u=>!u.tapped&&!u.dead&&u!==tgt&&hasKw(u,'guard'));
  if(!gs.length)return null;
  if(d.ai){
   const bp=u=>power(u)+(u.card.blockBonus||0);
   const strong=gs.filter(u=>bp(u)>=power(att)).sort((a,b)=>bp(a)-bp(b));
+  if(tgt){if(power(tgt)>power(att))return null;return strong.length&&(tgt.card.c>=strong[0].card.c||Math.random()<0.5)?strong[0]:null;} // 武将を守る：勝てる守り手がいて、守る価値がある時
   if(d.shields.length<=1)return strong[0]||gs.sort((a,b)=>bp(b)-bp(a))[0];
   if(strong.length&&Math.random()<0.7)return strong[0];
   return null;
  }
- if(d.remote){const v=await remoteAsk({k:'modal',msg:`${att.card.n}(${power(att)})が攻めてきた!\n守りますか?`,btns:[...gs.map(u=>`${u.card.n}(${power(u)}${u.card.blockBonus?'+'+u.card.blockBonus:''})で守る`),'守らない']});return v!=null&&gs[+v]&&!gs[+v].dead?gs[+v]:null;}
- return modal(`${att.card.n}(${power(att)})が攻めてきた!\n守りますか?`,[...gs.map(u=>({l:`${u.card.n}(${power(u)}${u.card.blockBonus?'+'+u.card.blockBonus:''})で守る`,v:u})),{l:'守らない',v:null}]);
+ if(d.remote){const v=await remoteAsk({k:'modal',msg:`${att.card.n}(${power(att)})が${tgt?tgt.card.n+'に':''}攻めてきた!\n守りますか?`,btns:[...gs.map(u=>`${u.card.n}(${power(u)}${u.card.blockBonus?'+'+u.card.blockBonus:''})で守る`),'守らない']});return v!=null&&gs[+v]&&!gs[+v].dead?gs[+v]:null;}
+ return modal(`${att.card.n}(${power(att)})が${tgt?tgt.card.n+'に':''}攻めてきた!\n守りますか?`,[...gs.map(u=>({l:`${u.card.n}(${power(u)}${u.card.blockBonus?'+'+u.card.blockBonus:''})で守る`,v:u})),{l:'守らない',v:null}]);
 }
 const faceOk=att=>!(hasPs(opp(att.owner),'gateLimit')&&att.owner.faceAtks>=2);
 async function attack(att,target){
  const p=att.owner,d=opp(p);att.tapped=true;att.attacking=true;
  try{
   if(att.weapon&&att.weapon.w.drawAtk&&G.cur===p.idx&&once('da'+p.idx)){draw(p,1);log(`${att.weapon.n}の効果で1枚引いた`);}
-  if(target!=='face'){log(`${att.card.n} → ${target.card.n}`);await battle(att,target,false);return;}
+  if(target!=='face'){log(`${att.card.n} → ${target.card.n}`);const bk=await askBlock(d,att,target);if(bk){bk.tapped=true;log(`${bk.card.n}が${target.card.n}を守った!`);await battle(att,bk,true);return;}await battle(att,target,false);return;}
   p.faceAtks++;
   log(`${p.name}:${att.card.n}が攻撃!`);
   const blk=await askBlock(d,att);
@@ -1093,7 +1095,7 @@ function rulesHTML(){
  ・攻撃先は相手の城門か、横向きの武将。兵力が高い方が勝ち、同じなら相打ち。<br>
  ・城門は山札の上5枚(裏向き)。破られた札は手札に入る。<br>
  ・奇襲は通常の札として、自分の手番に費えを払って使える。城門から出た時は、無料で発動するか、手札に加えて温存するかを選べる。<br>
- ・守を持つ武将は、城門への攻撃を代わりに受けられる。ただしコスト5以下の守持ちは攻撃できない。<br>
+ ・守を持つ武将は、城門や味方の武将への攻撃を代わりに受けられる。ただしコスト5以下の守持ちは攻撃できない(号令の武将が場にいれば攻撃できる)。<br>
  <button data-a="rulesClose">閉じる</button></div></div>`;
 }
 
