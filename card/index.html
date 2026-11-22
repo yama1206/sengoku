@@ -196,7 +196,7 @@ const imgPath=c=>printImg(c,displayRarity(c));
 function imgFb(el,fb){if(el.dataset.f||el.getAttribute('src')===fb){el.remove();}else{el.dataset.f=1;el.src=fb;}}
 const artTag=(c,r)=>`<img class="art" src="${printImg(c,r||displayRarity(c))}" onerror="imgFb(this,'${baseImg(c)}')" draggable="false" alt="">`;
 
-defineSeries('e1560','1560年 桶狭間と関東',mk=>{
+defineSeries('e1560','1560年代 桶狭間と関東',mk=>{
 // 創(織田家・桶狭間)
 mk('so','u','木下藤吉郎',2,1000,3,{k:['rush'],e:[{t:'draw',n:1}]});
 mk('so','u','丹羽長秀',4,4000,2,{e:[{t:'draw',n:1}]});
@@ -280,7 +280,7 @@ mk('ne','u','足軽',1,1000,3,{pr:['N']});
 mk('ne','u','弓足軽',2,1500,3,{pr:['N'],k:['guard']});
 mk('ne','u','鉄砲足軽',3,2500,3,{pr:['R'],e:[{t:'kill',max:2000}]});
 mk('ne','u','騎馬武者',4,3500,3,{pr:['R'],k:['rush']});
-},{era:'1560年前後'});
+},{era:'1560年代 桶狭間と関東'});
 for(const c of CARDS)if(c.series==='e1560'&&!c.h)c.h={so:'oda',gi:'uesugi'}[c.i];
 
 // ===== 1560年代 中国・九州(5家) =====
@@ -366,13 +366,15 @@ const STARTERS=[
  {id:'st_shimazu',name:'島津家の初陣組',sub:'薩摩の突撃で押し切る',series:'e1560w',house:'shimazu'},
  {id:'st_ryuzoji',name:'龍造寺家の初陣組',sub:'耐えて兵糧を貯め、肥前を握る',series:'e1560w',house:'ryuzoji'}
 ];
+// 受け取れる初陣組は最初の「桶狭間と関東」の家だけ(ほかの家は相手の陣立てにだけ使う)
+const freeStarters=()=>STARTERS.filter(st=>st.series==='e1560');
 function starterDeck(st){
  const d={};
  for(const c of CARDS.filter(c=>c.series===st.series&&c.h===st.house))d[c.id]=MAX_COPY;
  return d;
 }
 function claimStarter(id){
- const st=STARTERS.find(x=>x.id===id);if(!st||SV.starters[id])return false;
+ const st=freeStarters().find(x=>x.id===id);if(!st||SV.starters[id])return false;
  const d=starterDeck(st);
  for(const k in d){const c=cardById(k);if(c.series==='base')continue;const r0=c.pr[0],key=printKey(c,r0);const cur=SV.prints[key]||0,add=Math.min(d[k],MAX_COPY-cur);SV.prints[key]=cur+Math.max(0,add);if(d[k]>add)SV.pt+=GACHA.dismantle[r0]*(d[k]-Math.max(0,add));} // 3枚を超える分は自動で分解
  SV.starters[id]=1;myDeck=d;saveSave();return true;
@@ -1110,7 +1112,7 @@ function shopHTML(){
  let body='';
  if(shopTab==='pack'){
   const packs=gachaPacks();
-  body=STARTERS.filter(st=>!SV.starters[st.id]).map(st=>{const got=false;return `<div class="pcard" style="--c:#c0392b"><div class="pcl"><b>${st.name}</b><div class="dim" style="font-size:12px">${st.sub}<br>12種×3枚=36枚・無料(1回のみ)</div></div><button data-a="starter" data-id="${st.id}" ${got?'disabled':''}>${got?'受取済':'受け取る'}</button></div>`;}).join('')+(packs.length?packs.map(p=>{let tot=0,have=0;for(const c of CARDS.filter(c=>c.series===p.id))for(const r of(c.pr||[])){tot++;if(printCount(c,r)>0)have++;}
+  body=freeStarters().filter(st=>!SV.starters[st.id]).map(st=>{const got=false;return `<div class="pcard" style="--c:#c0392b"><div class="pcl"><b>${st.name}</b><div class="dim" style="font-size:12px">${st.sub}<br>12種×3枚=36枚・無料(1回のみ)</div></div><button data-a="starter" data-id="${st.id}" ${got?'disabled':''}>${got?'受取済':'受け取る'}</button></div>`;}).join('')+(packs.length?packs.map(p=>{let tot=0,have=0;for(const c of CARDS.filter(c=>c.series===p.id))for(const r of(c.pr||[])){tot++;if(printCount(c,r)>0)have++;}
    return `<div class="pcard" style="--c:${p.color}"><div class="pcl"><b>${p.name}</b><div class="dim" style="font-size:12px">${p.era} ・ 収集 ${have}/${tot}</div></div><button data-a="buy" data-id="${p.id}" ${SV.coin>=p.cost?'':'disabled'}>${p.cost}${GACHA.coin}<br>開封</button><button data-a="buy10" data-id="${p.id}" ${SV.coin>=p.cost*10?'':'disabled'} style="margin-left:6px">${p.cost*10}${GACHA.coin}<br>10連</button></div>`;}).join(''):'<div class="dim" style="margin:14px 0">時代ごとの包みは準備中です</div>')
   +(DEMO?`<div class="pcard" style="--c:#888"><div class="pcl"><b>演出試し</b><div class="dim" style="font-size:12px">無料・保存されません</div></div><button data-a="buy" data-id="test">開封</button></div>`:'')
   +`<div class="dim" style="font-size:12px;line-height:1.6;margin-top:8px">包みは時代ごとにあります。1包み${GACHA.cards}枚・最後の1枚は${RN[GACHA.guarantee]}以上確定<br>出る割合: ${RORD.map(r=>`${RN[r]} ${GACHA.rates[r]}%`).join(' / ')}<br>${GACHA.coin}は対戦(勝利+${GACHA.reward.win}・敗北+${GACHA.reward.lose})と参上(+${GACHA.reward.login})で入手</div>`;
