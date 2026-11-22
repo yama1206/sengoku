@@ -204,6 +204,39 @@
   SIM.ensure = function (w) { baseEnsure(w); for (const p of Object.values(w.players)) { if (sho(p)) { if (p.clan) p.sho = null; else setSt(p); } } return w; };
 
   // ---- 本人に送る情報 ----
+  // ---- 2.107.0 盗み：豪商の蔵に忍び込んで銭を盗む。忍びの潜入（3D）を流用する。忍びでなくてもできる（忍び道具は持っていれば使える）。
+  //  難しさは3段（表の蔵・奥の蔵・金蔵）。段が上がるほど見張りが増え、盗める額も増える（10〜50貫）。見つかる（バレる）と名声が大きく下がる。数値は仮
+  GS.NUSUMI = {
+    lv: [null,
+      { name: '表の蔵', guards: 3, lv: 1, kai: 1, loot: [10, 20], fame: 10, desc: '見張りは少なめ。盗める額は10〜20貫' },
+      { name: '奥の蔵', guards: 5, lv: 3, kai: 2, loot: [20, 35], fame: 18, desc: '見張りが増える。盗める額は20〜35貫' },
+      { name: '金蔵', guards: 8, lv: 5, kai: 3, loot: [35, 50], fame: 28, desc: '見張りが多く目も鋭い。盗める額は35〜50貫' },
+    ],
+    coolDays: 4,   // 盗みに挑んだ（成功・失敗とも）町の蔵には、しばらく近づけない
+    limitDays: 1,  // 忍び込む支度をしてから、この日数で支度は無かったことになる
+  };
+  const nusumiD = (w, L) => ({ guards: L.guards, lv: L.lv, kai: L.kai, ck: 'hira', night: SIM.daylight ? SIM.daylight(w.time.min) < 0.5 : false });
+  const nusumiCd = (w, p, sid) => Math.max(0, Math.ceil((((p.nusumiCd || {})[sid] || 0) - w.time.min) / 1440));
+  C.nusumiTake = (w, p, c) => {
+    const s = here(w, p); if (!isBig(s) || p.battle || p.busy) return;
+    const L = GS.NUSUMI.lv[+c.id]; if (!L) return;
+    if (p.nusumi) return say(p.id, `すでに${p.nusumi.toName}の蔵へ忍び込む支度をしています`);
+    const cd = nusumiCd(w, p, s.id); if (cd > 0) return say(p.id, `${houseName(s.id)}は用心しています。あと${cd}日ほどは近づけません`);
+    const kan = L.loot[0] + Math.floor(SIM.rand(w) * (L.loot[1] - L.loot[0] + 1));
+    p.nusumi = { id: `nusumi-${s.id}-${w.time.min}`, to: s.id, toName: houseName(s.id), lv: +c.id, name: L.name, loot: kan * 1000, fame: L.fame, deadline: w.time.min + GS.NUSUMI.limitDays * 1440 };
+    say(p.id, `${houseName(s.id)}の${L.name}へ忍び込みます。見張りを避けて銭を盗み出し、入ってきた所へ戻れば成功。見つかると名声が${L.fame}下がります`);
+  };
+  C.nusumiDrop = (w, p) => { if (!p.nusumi) return; say(p.id, `${p.nusumi.toName}への盗みは取りやめました`); p.nusumi = null; };
+  C.nusumiResult = (w, p, c) => {
+    const q = p.nusumi, s = here(w, p); if (!q || !s || s.id !== q.to || p.battle) return;
+    p.nusumi = null; if (SIM.ninUseTools) SIM.ninUseTools(p, c.used);
+    p.nusumiCd = p.nusumiCd || {}; p.nusumiCd[q.to] = w.time.min + GS.NUSUMI.coolDays * 1440;
+    if (c.ok) { p.money += q.loot; return say(p.id, `${q.toName}の${q.name}から${SIM.money(q.loot)}を盗み出しました！ 気づかれずに抜けられました`); }
+    const lost = Math.min(p.fame || 0, q.fame); p.fame = Math.max(0, (p.fame || 0) - q.fame);
+    say(p.id, `見つかってしまいました！ ${q.toName}の盗人として噂が広まり、名声が${lost}下がりました（盗んだ銭は取り戻されました）`);
+  };
+  SIM.systems.push(function nusumiTick(w) { for (const p of Object.values(w.players)) if (p.nusumi && w.time.min > p.nusumi.deadline) { say(p.id, `${p.nusumi.toName}への盗みの支度は流れました`); p.nusumi = null; } });
+
   const basePriv = SIM.privateState;
   SIM.privateState = (w, pid) => {
     const r = basePriv(w, pid), p = w.players[pid]; if (!r || !p || !r.me) return r;
@@ -211,12 +244,14 @@
     r.me.sho = S ? { own: !!S.own, house: S.house, houseName: S.own ? S.ya : houseName(S.house), rank: S.rank, name: GS.RANKS[S.rank].name, merit: S.merit, next: S.rank < 4 ? { name: GS.RANKS[S.rank + 1].name, merit: RK()[S.rank + 1].merit, fame: RK()[S.rank + 1].fame } : null, pay: GS.RANKS[S.rank].pay, carry: GS.RANKS[S.rank].carry, off: GS.RANKS[S.rank].off } : null;
     r.me.takara = Object.entries(p.takara || {}).filter(([k, n]) => n > 0 && GS.TAKARA[k]).map(([k, n]) => ({ id: k, n, name: GS.TAKARA[k].name, kenjo: GS.TAKARA[k].kenjo, sell: Math.round(GS.TAKARA[k].price * GS.sellBack) }));
     const s = here(w, p);
+    const NQ = p.nusumi; r.me.nusumi = NQ ? Object.assign({}, NQ, { at: !!(s && s.id === NQ.to), d: nusumiD(w, GS.NUSUMI.lv[NQ.lv]) }) : null; // 2.107.0
     if (r.here && isBig(s)) {
       const G = stock(w, s), o = GS.off(p, s.id);
       r.here.gosho = {
         name: houseName(s.id), ya: GS.HOUSES[s.id].ya, left: GS.stockDays - (day(w) % GS.stockDays),
         items: G.items.map((k) => { const K = kahoInfo(k); return K && Object.assign({}, K, { price: Math.round(K.price * (1 - o)), sold: G.sold.includes(k) }); }).filter(Boolean),
         tasks: tasks(w, s).map((t) => ({ id: t.id, item: t.item, qty: t.qty, reward: t.reward, merit: t.merit, done: t.done })),
+        nusumi: { lv: GS.NUSUMI.lv.slice(1).map((L) => ({ name: L.name, guards: L.guards, loot: L.loot, fame: L.fame, desc: L.desc })), cd: nusumiCd(w, p, s.id) }, // 2.107.0
         canJoin: !S && !(p.clan && p.rank >= 5), mine: !!(S && !S.own && S.house === s.id), off: Math.round(o * 100),
         ranks: GS.RANKS.slice(1, 5).map((R, i) => ({ name: R.name, pay: R.pay, carry: R.carry, desc: R.desc, merit: RK()[i + 1].merit, fame: RK()[i + 1].fame })),
       };

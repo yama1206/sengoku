@@ -148,6 +148,7 @@
     p.money -= t.price; p.ninTools[c.kind] = have + 1;
   };
   const useTools = (p, used) => { if (!used || !p.ninTools) return; for (const k in used) if (NIN.tools[k] && k !== 'kaginawa') p.ninTools[k] = Math.max(0, (p.ninTools[k] || 0) - Math.max(0, +used[k] || 0)); };
+  SIM.ninUseTools = useTools; // 2.107.0 豪商の蔵への盗み（gosho.js）でも忍び道具を減らす
   C.ninUse = (w, p, c) => { useTools(p, c.used); leaveRoom(w, p); if (p.ninDef) { p.ninDef.go = false; p.ninDef.fight = false; } const s = here(w, p); if (s) pvpEnd(w, s.id, p.id); }; // 退いたときも使った道具は減る
   C.ninTake = (w, p, c) => {
     const s = here(w, p), o = offers(w, p, s).find((x) => x.id === c.id); if (!o) return;

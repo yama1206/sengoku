@@ -348,6 +348,20 @@ function startNinjaPvp(N, go) {
       else command({ type: 'ninDefResult', ok: !!r.ok, caught: r.caught || 0, killed: r.killed || 0, ko: !!r.ko, used: r.used || null }); });
   }
 }
+// 2.107.0 豪商の蔵への盗み（忍びの潜入を流用）。支度ができたら始まる。いったん退いたら、豪商の画面の「忍び込む」でもう一度
+function startNusumi(q) {
+  const N = G.priv && G.priv.me && G.priv.me.nin;
+  const fin = (r) => { r = r && typeof r === 'object' ? r : { ok: r };
+    if (r.ok === null || r.ok === undefined) { command({ type: 'ninUse', used: r.used || null }); toast('いったん退きました（まだ盗んでいない）', 1500); }
+    else command({ type: 'nusumiResult', ok: !!r.ok, used: r.used || null }); };
+  G.lastNusumi = q.id;
+  if (SGK.NINJA3D && SGK.NINJA3D.can()) SGK.NINJA3D.start({ q: { k: 'steal', sk: 'zeni', id: q.id, toName: q.toName }, d: q.d, tools: (N && N.tools) || {}, seed: q.id }, fin); else SGK.NINJA.start('steal', q.d, fin);
+}
+setInterval(() => {
+  const q = G.priv && G.priv.me && G.priv.me.nusumi;
+  if (!q || !q.at || G.lastNusumi === q.id || (SGK.NINJA3D && SGK.NINJA3D.on) || (SGK.NINJA && SGK.NINJA.on)) return;
+  openTown(false); startNusumi(q);
+}, 400);
 setInterval(() => {
   const N = G.priv && G.priv.me && G.priv.me.nin, go = N && N.pvpGo;
   if (!go || (SGK.NINJA3D && SGK.NINJA3D.on) || (SGK.NINJA && SGK.NINJA.on) || G.lastPvpGo === go.at) return;
@@ -366,6 +380,8 @@ $('townBody').addEventListener('click', (e) => {
   const pb = e.target.closest('button[data-party]'); if (pb) { SGK.PARTY.openLobby(pb.dataset.party); return; } /* 2.69.4 町の窓は開けたまま（やめるで遊びを選ぶ画面へ戻る。遊びを始める時に閉じる） */ // 2.42.0
   const nj = e.target.closest('button[data-nj]'); // 0.77.0 忍び込む
   if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; if (N.pvp && N.pvp.here) { command({ type: 'ninPvpGo' }); toast('守りの忍びと対戦します…', 2000); return; } openTown(false); startNinja(N, null); return; } // 2.57.1 守る人がいれば対戦
+  const nu = e.target.closest('button[data-nusumigo]'); // 2.107.0 豪商の蔵へ忍び込む
+  if (nu) { const q = G.priv && G.priv.me && G.priv.me.nusumi; if (!q || !q.at) return; openTown(false); startNusumi(q); return; }
   const nd = e.target.closest('button[data-njdef]'); // 2.57.0 城の守り
   if (nd) { const N = G.priv && G.priv.me.nin; if (!N || !N.def || !N.def.at) return; openTown(false); startNinjaDef(N); return; }
   const gs = e.target.closest('button[data-gbadd]'); if (gs) { G.gbSel = SGK.GAMBLE.betStep(G.gbSel, gs.dataset.gbadd, G.gbTouched, G.priv && G.priv.me.money); G.gbTouched = true; townHtml = ''; renderTown(); return; } // 2.8.0 賭場の掛け金（2.103.0 押すたびに足す）

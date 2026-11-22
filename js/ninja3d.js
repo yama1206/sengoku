@@ -19,7 +19,7 @@
     sabo: { tg: '兵糧蔵', hold: 2.4, verb: '火を付ける' }, raid: { tg: '武器蔵', hold: 2.8, verb: '打ち壊す' }, gate: { tg: '城門', hold: 2.4, verb: '細工する' },
     rumor: { tg: '町人', hold: 1.2, verb: '噂を流す' }, hurt: { tg: '寝所の武将', hold: 1.6, verb: '手傷を負わせる' }, steal: { tg: '', hold: 1.6, verb: '盗み出す' },
   };
-  const STEAL = { mitsu: { name: '密書', at: '書院' }, ezu: { name: '城の絵図', at: '櫓の上' }, kin: { name: '軍資金', at: '金蔵' } };
+  const STEAL = { mitsu: { name: '密書', at: '書院' }, ezu: { name: '城の絵図', at: '櫓の上' }, kin: { name: '軍資金', at: '金蔵' }, zeni: { name: '千両箱', at: '豪商の蔵' } }; // 2.107.0 zeni＝豪商の蔵の盗み
   const TOOLS = [['kemuri', '煙玉', '1'], ['makibishi', '撒菱', '2'], ['fukiya', '吹き矢', '3']];
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v), lerp = (a, b, k) => a + (b - a) * k;
   const angD = (a, b) => { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; };
@@ -158,6 +158,7 @@
     if (job.k === 'steal') {
       if (job.sk === 'ezu') T0({ name: '城の絵図', x: yg.x, z: yg.z, y: yg.y, chest: 1 });
       else if (job.sk === 'kin') T0(Object.assign({ name: '軍資金', s: kin }, doorOf(kin)));
+      else if (job.sk === 'zeni') T0(Object.assign({ name: '千両箱', s: kin }, doorOf(kin))); // 2.107.0
       else T0({ name: '密書', x: pv.x0 + 4.5, z: pv.z0 + 1.6, y: hI + 0.5, chest: 1 });
     }
     if (job.k === 'hurt') L.posts.push({ x: pv.x0 + 4, z: pv.z1 + 1.6, yaw: 0, rig: 't3', wep: 'katana' }, { x: pv.x1 + 1.6, z: pv.z0 + 4.5, yaw: Math.PI / 2, rig: 't3', wep: 'katana' });
