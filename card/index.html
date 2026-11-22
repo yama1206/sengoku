@@ -1462,7 +1462,7 @@ if(typeof document!=='undefined'){
  loadSave();loadExtra();render();
 }
 // ===== コントローラー(0.24): 十字キー・左スティックで選ぶ、Aで押す、Bで戻る、LB/RBでタブ、Yで手番を終える、右スティックで送る =====
-const PAD={key:null,prev:null,on:false,dir:'',t0:0,tl:0,idx:-1};
+var PAD={key:null,prev:null,on:false,dir:'',t0:0,tl:0,idx:-1};
 function padVis(e){return e.getClientRects().length>0&&getComputedStyle(e).visibility!=='hidden';}
 function padLayer(){const app=document.getElementById('app');return app.querySelector('.bigov')||app.querySelector('.packov')||[...app.querySelectorAll('.ov')].pop()||app;}
 function padItems(){const L=padLayer();const els=[...(L.matches('[data-a]')?[L]:[]),...L.querySelectorAll('[data-a],button')];
@@ -1476,7 +1476,7 @@ function padDefault(it){
 }
 function padShow(e){document.querySelectorAll('.gpf').forEach(x=>{if(x!==e)x.classList.remove('gpf');});if(e&&PAD.on){e.classList.add('gpf');try{e.scrollIntoView({block:'nearest',inline:'nearest'});}catch(_){}}}
 function padSet(e){PAD.key=e?padKeyOf(e):null;padShow(e);}
-function padRefresh(){if(!PAD.on)return;const it=padItems();let c=padCur(it);if(!c&&!(pk&&pk.stage==='reveal'))c=padDefault(it);PAD.key=c?padKeyOf(c):null;padShow(c);}
+function padRefresh(){if(!PAD||!PAD.on)return;const it=padItems();let c=padCur(it);if(!c&&!(pk&&pk.stage==='reveal'))c=padDefault(it);PAD.key=c?padKeyOf(c):null;padShow(c);}
 function padMove(dx,dy){
  const it=padItems();if(!it.length)return;const cur=padCur(it);
  if(!cur){padSet(padDefault(it)||it[0]);return;}
