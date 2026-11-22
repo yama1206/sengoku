@@ -11,15 +11,15 @@ async function playWorld(code, local, msg, slot) {
   if (entering) return; entering = true;
   const CLD = SGK.CLOUD;
   try {
+    titleMsg(''); loadMsg('世界に入っています…'); await loadPaint(); // 2.106.17 入るまでいつも「読み込み中」を出す（前は下の小さな文字だけで、2回目以降は見えなかった）
     if (!CLD.on()) { if (!local) throw new Error('クラウドが使えません'); SGK.SAVE.slot = slot || 0; startHost(local, msg, null); return; }
-    titleMsg('世界に入っています…');
     if (!code) { code = await CLD.newCode(); local.code = code; }
     myProf();
     const ent = await SGK.NET.enter(code, () => ({ name: myName(), cnt: 1 }));
     CLD.remember(code);
-    if (ent.role === 'guest') { titleMsg('ホストにつないでいます…'); startClient(ent, code); return; }
+    if (ent.role === 'guest') { loadMsg('ホストにつないでいます…'); startClient(ent, code); return; }
     await hostFromCloud(code, ent, local, msg, slot, null);
-  } catch (e) { G.mode = 'title'; titleMsg(e.message); }
+  } catch (e) { G.mode = 'title'; loadMsg(null); titleMsg(e.message); }
   finally { entering = false; }
 }
 // ホストになる：クラウドの世界（手元の方が新しければ手元）を読んで始める。mine：引き継いだ人の「自分の分」

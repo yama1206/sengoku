@@ -2,7 +2,7 @@
 // 2.57.2 main.js を画面ごとに分けた。main*.js は外側の関数で包まず、名前（G・$・toast など）を大域で分け合う。index.html の順に読み込むこと
 // ---------- タイトル ----------
 // ---------- セーブスロット（new：新しく作る／load：続きから／import：ファイルを読み込む） ----------
-let slotMode = 'load', slotConfirm = null, importWorld = null;
+let slotMode = 'load', slotConfirm = null, importWorld = null, slotBusy = false;
 const contBtn = () => { $('btnContinue').disabled = !SGK.SAVE.has(); };
 SGK.SAVE.ready.then(contBtn); contBtn();
 function renderSlots() {
@@ -34,10 +34,12 @@ $('slotList').addEventListener('click', async (e) => {
   const n = +b.dataset.slot, used = SGK.SAVE.slots()[n - 1].meta;
   if (slotMode !== 'load' && used && slotConfirm !== n) { slotConfirm = n; return keep(b.id); }
   if (slotMode === 'load') {
+    if (entering || slotBusy) return; slotBusy = true; // 2.106.17 二度押しで二重に読み込まない
     try {
-      const r = await SGK.SAVE.load(n); if (!r) return titleMsg('このスロットのセーブが読めませんでした');
-      titleBack(); playWorld(r.world.code || null, r.world, r.from === 'main' ? `スロット${n}の続きから再開しました` : 'セーブが読めなかったので、バックアップから再開しました', n);
-    } catch (err) { titleMsg(err.message); }
+      titleMsg(''); loadMsg('セーブを読み込んでいます…'); await loadPaint();
+      const r = await SGK.SAVE.load(n); if (!r) { loadMsg(null); return titleMsg('このスロットのセーブが読めませんでした'); }
+      titleBack(); await playWorld(r.world.code || null, r.world, r.from === 'main' ? `スロット${n}の続きから再開しました` : 'セーブが読めなかったので、バックアップから再開しました', n);
+    } catch (err) { loadMsg(null); titleMsg(err.message); } finally { slotBusy = false; }
     return;
   }
   if (used) await SGK.SAVE.remove(n);

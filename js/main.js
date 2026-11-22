@@ -51,7 +51,10 @@ function bushoReply(text) {
 function bushoClose() { const el = $('bushoTalk'); if (el) el.classList.add('hidden'); G.bTalk = null; }
 function toast(text, ms = 3000) { const t = document.createElement('div'); t.className = 'toast'; t.innerHTML = SGK.ICON ? SGK.ICON.tok(text) : text; /* 2.12.4 {i:名前} は絵 */ $('toasts').appendChild(t); setTimeout(() => t.remove(), ms); }
 function titleMsg(text) { $('titleMsg').textContent = text || ''; }
-function show(id) { ['title', 'game'].forEach((s) => $(s).classList.toggle('hidden', s !== id)); if (id === 'game') requestAnimationFrame(() => R.resize($('map'))); }
+// 2.106.17 世界に入るまでの「読み込み中」。text を渡すと出す（文字を変える）、null で消す。画面を切り替えた時（show）は必ず消す
+function loadMsg(text) { const m = $('loadMask'); if (!m) return; if (text == null) { m.classList.add('hidden'); return; } $('loadText').textContent = text; m.classList.remove('hidden'); }
+const loadPaint = () => new Promise((r) => setTimeout(r, 40)); // 重い処理の前に「読み込み中」を描かせる（rAF は隠れた画面で止まるので setTimeout）
+function show(id) { loadMsg(null); ['title', 'game'].forEach((s) => $(s).classList.toggle('hidden', s !== id)); if (id === 'game') requestAnimationFrame(() => R.resize($('map'))); }
 
 // ---------- メニュー操作（キー・コントローラー：押した方向へ移動／決定してもカーソル位置は保つ） ----------
 const focusMem = {};

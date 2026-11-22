@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="2.106.16">
+<meta name="sgk-ver" content="2.106.17">
 <title>天下往来</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -36,6 +36,11 @@
   .smT.focus { z-index:3; }
   .smT.focus span, .smT.sel span { font-weight:bold; font-size:14px; }
   #titleMsg { min-height:1.4em; color:#ffb4a2; text-align:center; }
+  /* 2.106.17 世界に入るまでの「読み込み中」（画面全体を覆い、二度押しもさせない） */
+  #loadMask { position:fixed; inset:0; z-index:900; display:flex; align-items:center; justify-content:center; background:rgba(10,8,6,.72); color:#f3e6c8; font-size:18px; text-align:center; }
+  #loadMask.hidden { display:none !important; }
+  #loadMask .spin { width:38px; height:38px; margin:0 auto 12px; border:4px solid rgba(243,230,200,.25); border-top-color:#f2c14e; border-radius:50%; animation:lmSpin 0.9s linear infinite; }
+  @keyframes lmSpin { to { transform:rotate(360deg); } }
   #game { position:fixed; inset:0; }
   #map { position:absolute; inset:0; width:100%; height:100%; touch-action:none; }
   .hud { position:absolute; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 12px; }
@@ -201,6 +206,7 @@
     <div class="row"><button id="btnFriendBack">戻る</button><button id="btnFriendRefresh">状況を更新</button></div>
   </div>
   <div id="titleMsg"></div>
+  <div id="loadMask" class="hidden"><div><div class="spin"></div><div id="loadText">読み込み中…</div></div></div>
   <input type="file" id="fileInput" accept=".json,application/json" class="hidden">
 </section>
 
