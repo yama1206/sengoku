@@ -11,5 +11,5 @@ mk('so','u','織田信長【桶狭間】',6,6000,1,{pr:['SR','SSR'],k:['rush'],e
 mk('so','p','帰蝶',4,0,1,{ps:'rampStart'});
 mk('so','c','清洲城',4,0,1,{ps:'aura'});
 mk('so','w','三間槍',2,0,1,{w:{pow:1000,tie:true}});
-mk('so','x','田楽狭間の強襲',3,0,2,{e:[{t:'kill',tapped:true}]});
+mk('so','x','田楽狭間の強襲',4,0,2,{e:[{t:'kill',tapped:true}]});
 });
