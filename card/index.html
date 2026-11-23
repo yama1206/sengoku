@@ -215,7 +215,7 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 <body>
 <div id="app"></div>
 <script>
-const VERSION='0.40';
+const VERSION='0.41';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -226,15 +226,15 @@ const IDEO={
  ni:{n:'耐',c:'#4cae6a',who:'徳川家康',d:'兵糧を増やし、耐えて後半に勝つ'},
  ne:{n:'汎',c:'#9aa0a6',who:'足軽・兵士',d:'どの思想の陣立てにも入れられる共通札(思想の数に数えない・どの兵糧でも出せる)'}
 };
-const TL={u:'武将',w:'武器',p:'姫',c:'城',x:'奇襲'};
+const TL={u:'武将',w:'武器',p:'姫',c:'城',x:'戦術'};
 const KW={rush:'突',guard:'守',double:'連'};
-const KWN={rush:'突撃(登場した手番から攻撃できる)',guard:'守(相手が城門や味方の武将を攻撃した時、代わりに戦える。コスト5以下は攻撃できない)',double:'連破(城門を2枚破る)'};
+const KWN={rush:'突撃(登場した手番から攻撃できる)',guard:'守(相手が城門や味方の武将を攻撃した時、代わりに戦える。コスト5以下は攻撃できない)',double:'連破(城門を2枚破る)',ambush:'奇襲(城門が破られた時、無料で発動するか手札に加えて温存するかを選べる)'};
 // ===== 札定義 =====
 // シリーズ単位で定義する。札IDは「シリーズID_思想_連番」で自動採番(例: base_so_01)。
 // 画像は img/札ID.png を置くと自動で表示される(無ければ色枠だけ)。個別指定は {img:'パス'}。
 // 札データは家ごとに houses/家ID.js に置く(下の defineHouse / HOUSE_FILES)。新しい家は houses/xxx.js を作り、HOUSE_FILES の末尾に足す。新シリーズ(包み)は defineSeries で足す。
 // (後から読み込む追加シリーズは series/xxx.js に defineSeries('set2','第2弾',mk=>{ mk(...); }); と書き、SERIES_FILES に足す方法もある)
-// 初期札(base)はガチャ対象外。ガチャで出る版は、時代別シリーズ({era:'..'}付き)の札だけ。種類ごとの版は下の表(武将=SR、姫と大名=SR/SSR、城と奇襲=R、武器=N。大名は個別に pr:['SR','SSR'] を付ける)。
+// 初期札(base)はガチャ対象外。ガチャで出る版は、時代別シリーズ({era:'..'}付き)の札だけ。種類ごとの版は下の表(武将=SR、姫と大名=SR/SSR、城と戦術=R、武器=N。大名は個別に pr:['SR','SSR'] を付ける)。
 const PRINTS_ADD={u:['SR'],p:['SR','SSR'],c:['R'],w:['N'],x:['R']};
 const SERIES=[],CARDS=[];
 const availIdeos=()=>Object.keys(IDEO).filter(k=>k!=='ne'&&CARDS.filter(c=>c.i===k).length>=12);
@@ -249,6 +249,7 @@ function addCards(s,fn,house){
  fn((i,t,n,c,p,cp,o)=>{const q=s.id+'_'+i;CARD_SEQ[q]=(CARD_SEQ[q]||0)+1;
   const card=Object.assign({id:`${s.id}_${i}_${String(CARD_SEQ[q]).padStart(2,'0')}`,series:s.id,i,t,n,c,p,cp,k:[],e:[]},o||{});
   if(house)card.h=house;
+  if(t==='x'&&!card.k.includes('ambush'))card.k.push('ambush');
   if(!card.pr)card.pr=s.id==='base'?[]:(PRINTS_ADD[t]||['N']).slice();
   s.cards.push(card);CARDS.push(card);});
 }
@@ -333,8 +334,7 @@ function desc(c){
  if(c.w){const b=[];if(c.w.pow)b.push(`兵力+${c.w.pow}`);if(c.w.k)b.push(`【${KWN[c.w.k]}】`);if(c.w.tie)b.push('戦闘で兵力が同じなら相手だけ破壊される');if(c.w.gateGrave)b.push('攻撃するたび相手の城門を1枚墓地へ送る(奇襲は発動しない)');if(c.w.drawAtk)b.push('攻撃するたび1枚引く(自分の手番中1回)');a.push('味方の武将1体に装備: '+b.join('、')+'。(武将が場を離れると墓地へ)');}
  if(c.ps)a.push(PSD[c.ps]+'。');
  if(c.e.length){const lab={u:'登場時:',w:'装備時:',p:'設置時:',c:'設置時:',x:'使用時:'}[c.t];a.push(lab+c.e.map(e=>FXD[e.t](e)).join('、')+'。');}
- if(c.t==='x')a.push('(城門から手札に加わる時は、無料で発動もできる)');
- return a.join(' ');
+  return a.join(' ');
 }
 
 // ===== state =====
@@ -583,7 +583,7 @@ function canCast(p,c){
  if(c.t==='w'&&!p.units.length)return false;
  return true;
 }
-// 奇襲の効果に有効な対象があるか(AIが空打ちしないため)
+// 戦術(奇襲)の効果に有効な対象があるか(AIが空打ちしないため)
 function fxUseful(p,c){
  const d=opp(p);
  return c.e.every(e=>{switch(e.t){
@@ -684,7 +684,7 @@ async function breakShields(att,d,n){
    const c=d.shields.shift();log(`${d.name}の城門が破られた!`);
    if(att&&hasPs(att.owner,'rushDraw')&&hasKw(att,'rush')&&once('rd'+att.owner.idx)){draw(att.owner,1);log('小松姫の効果で1枚引いた');}
    if(hasPs(d,'kasuga')&&once('ks'+d.idx))refill=true;
-   if(c.t==='x'){
+   if(c.k.includes('ambush')){
     let use;
     if(d.ai)use=fxUseful(d,c)&&!c.e.some(e=>e.t==='pumpTemp');
     else if(d.remote)use=(await remoteAsk({k:'modal',msg:`城門が破られた!\n奇襲「${c.n}」が出た。\n${desc(c)}`,btns:['無料で発動する','手札に加えて温存']}))===0;
@@ -967,7 +967,7 @@ function rulesHTML(){
  ・札売り場で戦銭を使って包みを開け、新しい札を集められます。
  ・攻撃先は相手の城門か、横向きの武将。兵力が高い方が勝ち、同じなら相打ち。<br>
  ・城門は山札の上5枚(裏向き)。破られた札は手札に入る。<br>
- ・奇襲は通常の札として、自分の手番に費えを払って使える。城門から出た時は、無料で発動するか、手札に加えて温存するかを選べる。<br>
+ ・戦術は通常の札として、自分の手番に費えを払って使える。【奇襲】を持つ戦術は、城門から出た時に無料で発動するか、手札に加えて温存するかを選べる。<br>
  ・守を持つ武将は、城門や味方の武将への攻撃を代わりに受けられる。ただしコスト5以下の守持ちは攻撃できない(号令の武将が場にいれば攻撃できる)。<br>
  <button data-a="rulesClose">閉じる</button></div></div>`;
 }
