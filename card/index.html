@@ -215,7 +215,7 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 <body>
 <div id="app"></div>
 <script>
-const VERSION='0.41';
+const VERSION='0.42';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -267,8 +267,9 @@ const artTag=(c,r)=>`<img class="art" src="${printImg(c,r||displayRarity(c))}" o
 
 defineSeries('e1560','1560年代 桶狭間と関東',null,{era:'1560年代 桶狭間と関東'});
 defineSeries('e1560w','1560年代 中国・九州',null,{era:'1560年代 中国・九州'});
+defineSeries('e1560e','1560年代 四国・奥羽・北陸',null,{era:'1560年代 四国・奥羽・北陸',unlock:'cpuAll'}); // unlock: CPU対戦で初陣組をすべて倒すまで、包みは開けられない
 // 家の札データを読み込む(順番どおりに同期で読む)。順番は札IDの連番に効くので変えない。新しい家は末尾に足す
-const HOUSE_FILES=['oda','uesugi','takeda','hojo','imagawa','matsudaira','_common','mouri','amago','otomo','shimazu','ryuzoji'];
+const HOUSE_FILES=['oda','uesugi','takeda','hojo','imagawa','matsudaira','_common','mouri','amago','otomo','shimazu','ryuzoji','chosokabe','miyoshi','kono','date','ashina','mogami','asakura','nanbu','hatakeyama'];
 HOUSE_FILES.forEach(f=>document.write(`<script src="houses/${f}.js?v=${VERSION}"><\/script>`));
 </script>
 <script>
@@ -285,8 +286,28 @@ const STARTERS=[
  {id:'st_amago',name:'尼子家の初陣組',sub:'難攻不落の月山富田城で粘る',series:'e1560w',house:'amago'},
  {id:'st_otomo',name:'大友家の初陣組',sub:'南蛮の力で手数を稼ぐ',series:'e1560w',house:'otomo'},
  {id:'st_shimazu',name:'島津家の初陣組',sub:'薩摩の突撃で押し切る',series:'e1560w',house:'shimazu'},
- {id:'st_ryuzoji',name:'龍造寺家の初陣組',sub:'耐えて兵糧を貯め、肥前を握る',series:'e1560w',house:'ryuzoji'}
+ {id:'st_ryuzoji',name:'龍造寺家の初陣組',sub:'耐えて兵糧を貯め、肥前を握る',series:'e1560w',house:'ryuzoji'},
+ {id:'st_chosokabe',name:'長宗我部家の初陣組',sub:'一領具足の突撃と武器の使い回し',series:'e1560e',house:'chosokabe'},
+ {id:'st_miyoshi',name:'三好家の初陣組',sub:'大軍で止められずに押し切る',series:'e1560e',house:'miyoshi'},
+ {id:'st_kono',name:'河野家の初陣組',sub:'水軍で追い返し、堅く守る',series:'e1560e',house:'kono'},
+ {id:'st_date',name:'伊達家の初陣組',sub:'外交で相手の手札と動きを崩す',series:'e1560e',house:'date'},
+ {id:'st_ashina',name:'蘆名家の初陣組',sub:'守りを崩し、謀略で揺さぶる',series:'e1560e',house:'ashina'},
+ {id:'st_mogami',name:'最上家の初陣組',sub:'延沢の剛力と城門の補充',series:'e1560e',house:'mogami'},
+ {id:'st_asakura',name:'朝倉家の初陣組',sub:'一乗谷の富で兵糧を増やす',series:'e1560e',house:'asakura'},
+ {id:'st_nanbu',name:'南部家の初陣組',sub:'騎馬の突撃と九戸の剛力',series:'e1560e',house:'nanbu'},
+ {id:'st_hatakeyama',name:'能登畠山家の初陣組',sub:'七尾の堅城と、倒れても残る備え',series:'e1560e',house:'hatakeyama'}
 ];
+// ===== CPU対戦(初陣組ごとに「普通」「強い」。それぞれ初めて勝つと戦銭がもらえる) =====
+// 普通…そのままの陣立て。強い…相手は手札+1・城門+1・最初から兵糧1枚(数字を変えれば強さを調整できる)
+const CPU_LV={n:{name:'普通',hand:0,shield:0,mana:0},s:{name:'強い',hand:1,shield:1,mana:1}};
+const CPU_FIRST_SEN=10; // 初めて勝った時の戦銭(家×強さごとに1回)
+// 包みの解放に必要な初陣組(最初に用意した11家)。普通でも強いでも、1回勝てば数える
+const cpuReq=()=>STARTERS.filter(st=>st.series!=='e1560e');
+const cpuDone=(st,lv)=>!!(SV.cpu&&SV.cpu[st.id+':'+lv]);
+const cpuCleared=st=>cpuDone(st,'n')||cpuDone(st,'s');
+const cpuClearCount=()=>cpuReq().filter(cpuCleared).length;
+const packLocked=p=>p&&p.unlock==='cpuAll'&&cpuClearCount()<cpuReq().length;
+let cpuSel=null,cpuMsg=''; // cpuSel={id,lv}: いま戦っている相手
 // 受け取れる初陣組は最初の「桶狭間と関東」の家だけ(ほかの家は相手の陣立てにだけ使う)
 const freeStarters=()=>STARTERS.filter(st=>st.series==='e1560');
 function starterDeck(st){
@@ -434,6 +455,17 @@ async function remoteTurn(p){
   render();
  }
 }
+function cpuHTML(){
+ const ok=deckValid(myDeck),req=cpuReq(),n=cpuClearCount(),pk0=gachaPacks().find(x=>x.unlock),locked=packLocked(pk0);
+ let h=`<div style="padding-top:44px"><h2 style="color:var(--gold);margin:0 0 4px">CPU対戦</h2><div class="dim" style="font-size:12px;line-height:1.6">相手の初陣組と、自分の陣立てで勝負します。「${CPU_LV.s.name}」は相手の手札・城門・兵糧が増えます。初めて勝つと、家と強さごとに${GACHA.sen}${CPU_FIRST_SEN}枚もらえます</div>`;
+ if(pk0)h+=`<div class="pcard" style="--c:${locked?'#888':'#d4a94a'}"><div class="pcl"><b>${pk0.name}の包み</b><div class="dim" style="font-size:12px">${locked?`初陣組(最初の${req.length}家)にすべて勝つと開けられます  ${n}/${req.length}`:'解放済み・札売り場で開けられます'}</div></div></div>`;
+ if(cpuMsg)h+=`<div class="msg2">${escH(cpuMsg)}</div>`;
+ if(!ok)h+='<div class="msg2">陣立てが36枚になっていません。先に陣立てを組んでください</div><button data-a="toEdit" style="width:100%;margin:6px 0">陣立てを組む</button>';
+ const row=st=>{const done=cpuCleared(st)&&req.includes(st);return `<div class="pcard" style="--c:${IDEO[(CARDS.find(c=>c.series===st.series&&c.h===st.house)||{i:'ne'}).i].c}"><div class="pcl"><b>${st.name}${done?' ✔':''}</b><div class="dim" style="font-size:12px">${st.sub}</div></div>${Object.keys(CPU_LV).map(lv=>`<button data-a="cpuGo" data-id="${st.id}:${lv}" ${ok?'':'disabled'} style="margin-left:6px">${CPU_LV[lv].name}<br>${cpuDone(st,lv)?'勝利済み':GACHA.sen+'+'+CPU_FIRST_SEN}</button>`).join('')}</div>`;};
+ h+='<h3 style="margin:14px 0 2px">初陣組</h3>'+req.map(row).join('');
+ h+='<h3 style="margin:14px 0 2px">新しい包みの家</h3><div class="dim" style="font-size:12px">包みの解放には数えません</div>'+STARTERS.filter(x=>!req.includes(x)).map(row).join('');
+ return h+'</div>';
+}
 function pvpHTML(){
  const ok=deckValid(myDeck);let h=`<div style="padding-top:44px"><h2 style="color:var(--gold);margin:0 0 4px">人と手合わせ</h2><div class="dim" style="font-size:12px">同じ町にいる人と、自分の陣立てで勝負します。人との手合わせでは文の賞金は出ません</div>`;
  if(pvpMsg)h+=`<div class="msg2">${escH(pvpMsg)}</div>`;
@@ -481,7 +513,7 @@ function saveSave(){SV.deck=myDeck;try{localStorage.setItem(SAVE_KEY,JSON.string
 function loadSave(){
  let s={};try{s=JSON.parse(localStorage.getItem(SAVE_KEY)||'null')||{};}catch(e){s={};}
  const fresh=!('coin' in s);
- SV={sen:s.sen||0,deck:s.deck||{},coin:fresh?GACHA.reward.initial:(s.coin||0),pt:s.pt||0,prints:s.prints||{},lastLogin:s.lastLogin||'',starters:s.starters||{},grants:s.grants||{}};
+ SV={sen:s.sen||0,deck:s.deck||{},coin:fresh?GACHA.reward.initial:(s.coin||0),pt:s.pt||0,prints:s.prints||{},lastLogin:s.lastLogin||'',starters:s.starters||{},grants:s.grants||{},cpu:s.cpu||{}};
  let grantMsg='';
  if(!SV.grants[GRANT_NOW.id]){SV.grants[GRANT_NOW.id]=1;if(!fresh&&!EMBED){SV.coin+=GRANT_NOW.coin;grantMsg=`初期配布の増額分として${GACHA.coin}+${GRANT_NOW.coin}を進呈しました。`;}}
  for(const k of Object.keys(SV.prints)){const n=SV.prints[k];if(n>MAX_COPY){const r=k.split('|')[1];SV.pt+=(GACHA.dismantle[r]||0)*(n-MAX_COPY);SV.prints[k]=MAX_COPY;}} // 3枚を超えて持っていた分は分解
@@ -508,7 +540,7 @@ function rollRarity(min){
  return RORD[3];
 }
 // 包み = era(時代)を持つシリーズ。シリーズを追加すると包みも増える
-const gachaPacks=()=>SERIES.filter(s=>s.era).map(s=>({id:s.id,name:s.name,era:s.era,cost:s.packCost||GACHA.packCost,color:s.color||'#d4a94a'}));
+const gachaPacks=()=>SERIES.filter(s=>s.era).map(s=>({id:s.id,name:s.name,era:s.era,cost:s.packCost||GACHA.packCost,color:s.color||'#d4a94a',unlock:s.unlock}));
 function pullPack(pack){
  const pool=[];for(const c of CARDS){if(c.series!==pack.id)continue;for(const r of(c.pr||[]))pool.push({c,r});}
  if(!pool.length)return [];
@@ -524,7 +556,7 @@ function pullPack(pack){
 }
 function buyPack(pack,n){
  n=n||1;
- if(SV.sen<pack.cost*n)return null;
+ if(packLocked(pack)||SV.sen<pack.cost*n)return null;
  const res=[];for(let i=0;i<n;i++)res.push(...pullPack(pack));if(!res.length)return null;
  SV.sen-=pack.cost*n;const seen={};
  for(const x of res){const k=printKey(x.c,x.r);const cur=SV.prints[k]||0;x.isNew=!(cur>0)&&!seen[k];seen[k]=1;
@@ -746,7 +778,9 @@ async function attack(att,target){
 function win(p,why){
  G.over={winner:p,why};log(`${p.name}の勝利! ${why}`);
  if(G.pvp){G.rewarded=true;render();if(NET&&NET.host){sendState();parentSend({t:'end',mid:NET.mid});}return;} // 人との手合わせは賞金なし
- if(!G.auto&&!G.rewarded){G.rewarded=true;G.reward=p.idx===0?GACHA.reward.win:GACHA.reward.lose;coinChange(G.reward);saveSave();}
+ if(!G.auto&&!G.rewarded){G.rewarded=true;G.reward=p.idx===0?GACHA.reward.win:GACHA.reward.lose;coinChange(G.reward);
+  if(p.idx===0&&G.cpu){const key=G.cpu.id+':'+G.cpu.lv;if(!SV.cpu[key]){const before=packLocked(gachaPacks().find(x=>x.unlock));SV.cpu[key]=1;SV.sen+=CPU_FIRST_SEN;G.senReward=CPU_FIRST_SEN;if(before&&!packLocked(gachaPacks().find(x=>x.unlock)))G.unlockedPack=true;}} // 初めて勝った相手(強さごと)には戦銭。初陣組を全部倒すと新しい包みが開く
+  saveSave();}
  render();
 }
 
@@ -806,11 +840,13 @@ async function aiTurn(p){
 
 function startGame(deckMap,auto,pvp){ // pvp={deck,name,me}：人との手合わせ(相手の操作は届くのを待つ)
  const mkDeck=dm=>{const d=[];for(const id in dm){const c=cardById(id);for(let k=0;k<dm[id];k++)d.push(Object.assign({},c,{uid:++uidc}));}return shuffle(d);};
- const cpuDeck=pvp?pvp.deck:starterDeck((typeof cpuForce!=="undefined"&&cpuForce||shuffle(STARTERS)[0])),cpuIds=deckIdeos(cpuDeck);
+ const cpuSt=pvp?null:(auto||!cpuSel?shuffle(STARTERS.filter(x=>x.series!=='e1560e'))[0]:STARTERS.find(x=>x.id===cpuSel.id)||STARTERS[0]),cpuLv=(!pvp&&!auto&&cpuSel&&CPU_LV[cpuSel.lv])||CPU_LV.n;
+ const cpuDeck=pvp?pvp.deck:starterDeck(cpuSt),cpuIds=deckIdeos(cpuDeck);
  const mkP=(name,idx,deck,ai)=>({name,idx,ai,deck,hand:[],mana:[],shields:[],units:[],fields:[],grave:[],charged:false,faceAtks:0});
- G={P:[mkP(pvp?pvp.me:'あなた',0,mkDeck(deckMap),!!auto),mkP(pvp?pvp.name:'相手',1,mkDeck(cpuDeck),!pvp)],cur:0,turnNo:0,log:[],over:null,cpuIds,once:{},auto:!!auto,rewarded:false,reward:0,pvp:!!pvp,myIds:deckIdeos(deckMap)};
+ G={P:[mkP(pvp?pvp.me:'あなた',0,mkDeck(deckMap),!!auto),mkP(pvp?pvp.name:'相手',1,mkDeck(cpuDeck),!pvp)],cur:0,turnNo:0,log:[],over:null,cpuIds,once:{},auto:!!auto,rewarded:false,reward:0,pvp:!!pvp,myIds:deckIdeos(deckMap),cpu:(!pvp&&!auto&&cpuSel)?{id:cpuSt.id,lv:cpuSel.lv}:null,senReward:0,unlockedPack:false};
  if(pvp)G.P[1].remote=true;
  for(const p of G.P){p.shields=p.deck.splice(0,5);p.hand=p.deck.splice(0,5);}
+ if(!pvp&&!auto&&cpuSt){const e=G.P[1];e.shields.push(...e.deck.splice(0,cpuLv.shield));e.hand.push(...e.deck.splice(0,cpuLv.hand));for(let k=0;k<cpuLv.mana&&e.deck.length;k++)e.mana.push({card:e.deck.shift(),tapped:false});log(`相手: ${cpuSt.name}(${cpuLv.name})`);}
  log(`相手の思想: ${cpuIds.map(i=>IDEO[i].n).join('・')}`);
  ui.sel=ui.selU=ui.info=ui.pick=ui.modal=ui.pay=null;ui.busy=true;screen='game';render();
  if(pvp){const f=Math.random()<0.5?0:1;log(`先手は${G.P[f].name}`);return startTurn(f);}
@@ -859,7 +895,7 @@ function titleHTML(){
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
  ${shopStage('いらっしゃいませー！ 包みを開けるのも、陣立てを組むのも、手合わせも、ここでどうぞ♪')}
  <div class="title"><div class="whead"><span class="wname">戦国思想録</span><span class="coinb">${GACHA.sen} ${SV.sen}</span><span class="coinb">${GACHA.coin} ${SV.coin}</span></div><div class="dim" style="text-align:left;margin-bottom:8px">— 武将と思想の札合戦 —</div>
- <button class="big main" data-a="play">対戦開始</button>${EMBED?'<button class="big" data-a="toPvp">人と手合わせ</button>':''}<button class="big" data-a="toEdit">陣立て</button><button class="big" data-a="toShop">札売り場</button><button class="big" data-a="toList">札目録</button><button class="big" data-a="rules">遊び方</button>${EMBED?'<button class="big" data-a="exitEmbed">遊戯屋を出る</button>':''}</div>`;
+ <button class="big main" data-a="play">CPU対戦</button>${EMBED?'<button class="big" data-a="toPvp">人と手合わせ</button>':''}<button class="big" data-a="toEdit">陣立て</button><button class="big" data-a="toShop">札売り場</button><button class="big" data-a="toList">札目録</button><button class="big" data-a="rules">遊び方</button>${EMBED?'<button class="big" data-a="exitEmbed">遊戯屋を出る</button>':''}</div>`;
 }
 // 天下往来の町の画面と同じ形：店の絵・看板娘の立ち絵・吹き出し
 function shopStage(line){return `<div class="tstage"><img class="who" src="../assets/town/yugi_p.png" onerror="this.remove()" alt=""><div class="say"><b>遊戯屋の看板娘</b>${line}</div></div>`;}
@@ -902,6 +938,7 @@ function backAction(){
  if(screen==='shop')return shopBig?'shopbigClose':'toTitle';
  if(screen==='edit')return 'editBack';
  if(screen==='pvp')return 'pvpBack';
+ if(screen==='cpu')return 'cpuBack';
  if(screen==='game'&&G)return ui.modal?'':G.over?'toTitle':ui.pay?'payNo':'menu';
  return '';
 }
@@ -940,7 +977,7 @@ function gameHTML(){
  }
  let ov='';
  if(ui.modal)ov=`<div class="ov"><div class="mb">${ui.modal.msg.replace(/\n/g,'<br>')}${ui.modal.btns.map((b,i)=>`<button data-a="mb" data-id="${i}">${b.l}</button>`).join('')}</div></div>`;
- else if(G.over){const w=G.over.winner===me;ov=`<div class="ov"><div class="mb"><div class="res">${w?'勝利!':'敗北…'}</div><div style="text-align:center">${G.over.why}</div>${G.reward?`<div style="text-align:center;color:var(--gold);margin-top:6px">${GACHA.coin} +${G.reward}</div>`:''}${G.pvp?'':'<button data-a="again">もう一度</button>'}<button data-a="toTitle">表紙へ</button></div></div>`;}
+ else if(G.over){const w=G.over.winner===me;ov=`<div class="ov"><div class="mb"><div class="res">${w?'勝利!':'敗北…'}</div><div style="text-align:center">${G.over.why}</div>${G.reward?`<div style="text-align:center;color:var(--gold);margin-top:6px">${GACHA.coin} +${G.reward}</div>`:''}${G.senReward?`<div style="text-align:center;color:var(--gold);margin-top:4px">初めての勝利! ${GACHA.sen} +${G.senReward}</div>`:''}${G.unlockedPack?`<div style="text-align:center;color:var(--gold);margin-top:4px">初陣組をすべて倒した!「1560年代 四国・奥羽・北陸」の包みが開けられるようになりました</div>`:''}${G.pvp?'':'<button data-a="again">もう一度</button>'}<button data-a="toTitle">表紙へ</button></div></div>`;}
  return `<div class="top"><span>第${G.turnNo}手・${G.cur===0?'あなたの番':'相手の番'}</span></div>
  <div class="zone"><div class="pinfo"><b>相手</b> 手札${en.hand.length} 思想:${G.cpuIds.map(i=>IDEO[i].n).join('')}</div>
  <div class="row mrow">${manaRow(en)}</div>
@@ -1091,7 +1128,7 @@ function render(){
  audScene(screen==='game'?'battle':'menu');
  const app=document.getElementById('app');if(!app)return;
  if(G&&G.pvp&&NET&&NET.host&&!stT)stT=setTimeout(sendState,80); // 相手へ盤面を送る(少しまとめて)
- let h=screen==='title'?titleHTML():screen==='pvp'?pvpHTML():screen==='edit'?editHTML():screen==='list'?listHTML():screen==='shop'?shopHTML():gameHTML();
+ let h=screen==='title'?titleHTML():screen==='pvp'?pvpHTML():screen==='cpu'?cpuHTML():screen==='edit'?editHTML():screen==='list'?listHTML():screen==='shop'?shopHTML():gameHTML();
  if(ui.rules)h+=rulesHTML();
  if(pk)h+=packHTML();
  if(loginMsg&&screen==='title'&&!pk)h+=toastHTML();
@@ -1200,7 +1237,7 @@ function shopHTML(){
  if(shopTab==='pack'){
   const packs=gachaPacks();
   body=SEN_GIFTS.filter(g=>!SV.grants[g.id]).map(g=>`<div class="pcard" style="--c:#e0b341"><div class="pcl"><b>${g.name}</b><div class="dim" style="font-size:12px">${GACHA.sen}${g.n}枚を進呈・1回のみ</div></div><button data-a="gift" data-id="${g.id}">受け取る</button></div>`).join('')+`<div class="pcard" style="--c:#888"><div class="pcl"><b>${GACHA.sen}に替える</b><div class="dim" style="font-size:12px">${GACHA.senRate}${GACHA.coin}→${GACHA.sen}1枚・戻せません</div></div><button data-a="sen" data-id="1" ${SV.coin>=GACHA.senRate?'':'disabled'}>1枚<br>${GACHA.senRate}${GACHA.coin}</button><button data-a="sen" data-id="10" ${SV.coin>=GACHA.senRate*10?'':'disabled'} style="margin-left:6px">10枚<br>${GACHA.senRate*10}${GACHA.coin}</button></div>`+freeStarters().filter(st=>!SV.starters[st.id]).map(st=>{const got=false;return `<div class="pcard" style="--c:#c0392b"><div class="pcl"><b>${st.name}</b><div class="dim" style="font-size:12px">${st.sub}<br>12種×3枚=36枚・無料(1回のみ)</div></div><button data-a="starter" data-id="${st.id}" ${got?'disabled':''}>${got?'受取済':'受け取る'}</button></div>`;}).join('')+(packs.length?packs.map(p=>{let tot=0,have=0;for(const c of CARDS.filter(c=>c.series===p.id))for(const r of(c.pr||[])){tot++;if(printCount(c,r)>0)have++;}
-   return `<div class="pcard" style="--c:${p.color}"><div class="pcl"><b>${p.name}</b><div class="dim" style="font-size:12px">${p.era} ・ 収集 ${have}/${tot}</div></div><button data-a="buy" data-id="${p.id}" ${SV.sen>=p.cost?'':'disabled'}>${p.cost}${GACHA.sen}<br>開封</button><button data-a="buy10" data-id="${p.id}" ${SV.sen>=p.cost*10?'':'disabled'} style="margin-left:6px">${p.cost*10}${GACHA.sen}<br>10連</button></div>`;}).join(''):'<div class="dim" style="margin:14px 0">時代ごとの包みは準備中です</div>')
+   return `<div class="pcard" style="--c:${p.color}"><div class="pcl"><b>${p.name}</b><div class="dim" style="font-size:12px">${p.era} ・ 収集 ${have}/${tot}</div></div>${packLocked(p)?`<button disabled>解放前</button></div><div class="dim" style="font-size:12px;margin:-2px 0 8px 4px">CPU対戦で初陣組${cpuReq().length}家にすべて勝つと開けられます(${cpuClearCount()}/${cpuReq().length})</div>`:`<button data-a="buy" data-id="${p.id}" ${SV.sen>=p.cost?'':'disabled'}>${p.cost}${GACHA.sen}<br>開封</button><button data-a="buy10" data-id="${p.id}" ${SV.sen>=p.cost*10?'':'disabled'} style="margin-left:6px">${p.cost*10}${GACHA.sen}<br>10連</button></div>`}`;}).join(''):'<div class="dim" style="margin:14px 0">時代ごとの包みは準備中です</div>')
   +(DEMO?`<div class="pcard" style="--c:#888"><div class="pcl"><b>演出試し</b><div class="dim" style="font-size:12px">無料・保存されません</div></div><button data-a="buy" data-id="test">開封</button></div>`:'')
   +`<div class="dim" style="font-size:12px;line-height:1.6;margin-top:8px">包みは時代ごとにあります。1包み${GACHA.cards}枚・最後の1枚は${RN[GACHA.guarantee]}以上確定<br>出る割合: ${RORD.map(r=>`${RN[r]} ${GACHA.rates[r]}%`).join(' / ')}<br>${GACHA.coin}は対戦(勝利+${GACHA.reward.win}・敗北+${GACHA.reward.lose})${EMBED?'':'と参上(+'+GACHA.reward.login+')'}で入手。${GACHA.senRate}${GACHA.coin}で${GACHA.sen}1枚に替えられます(戦銭は${GACHA.coin}に戻せません)</div>`;
  }else{
@@ -1245,9 +1282,15 @@ async function onClick(a,id){
   else if(a==='pvpBack'){netQuit();pvpMsg='';screen='title';}
   render();return;
  }
+ if(screen==='cpu'){
+  if(a==='cpuBack'){screen='title';}
+  else if(a==='cpuGo'){const [sid,lv]=id.split(':');if(STARTERS.some(x=>x.id===sid)&&CPU_LV[lv]){if(deckValid(myDeck)){cpuSel={id:sid,lv};startGame(myDeck);return;}cpuMsg='陣立てが36枚になっていません。先に陣立てを組んでください';}}
+  else if(a==='toEdit'){screen='edit';editMsg='';}
+  render();return;
+ }
  if(screen==='title'){
   if(a==='toPvp'){screen='pvp';pvpMsg='';render();return;}
-  if(a==='play'){if(deckValid(myDeck))startGame(myDeck);else{screen='edit';editMsg='陣立てが36枚になっていません。札がない時は、札売り場で初陣組を受け取ろう';render();}}
+  if(a==='play'){if(deckValid(myDeck)){screen='cpu';cpuMsg='';}else{screen='edit';editMsg='陣立てが36枚になっていません。札がない時は、札売り場で初陣組を受け取ろう';}render();}
   else if(a==='toEdit'){screen='edit';editMsg='';render();}
   else if(a==='toList'){screen='list';render();}
   else if(a==='toShop'){screen='shop';shopMsg='';render();}
@@ -1273,8 +1316,8 @@ async function onClick(a,id){
   else if(a==='starter'){shopMsg=claimStarter(id)?'初陣組を受け取り、陣立てに設定しました':'';}
   else if(a==='gift'){const g=claimGift(id);shopMsg=g?`${g.name}で${GACHA.sen}${g.n}枚を受け取りました!`:'';}
   else if(a==='sen'){const n=+id;shopMsg=exchangeSen(n)?`${GACHA.coin}${GACHA.senRate*n}を${GACHA.sen}${n}枚に替えました`:`${GACHA.coin}が足りません`;}
-  else if(a==='buy10'){const pack=gachaPacks().find(p=>p.id===id);const res=pack&&buyPack(pack,10);if(res){pk=mkPk(pack,res,10);shopMsg='';}else shopMsg=`${GACHA.sen}が足りません`;}
-  else if(a==='buy'){const pack=id==='test'?TESTPACK:gachaPacks().find(p=>p.id===id);const res=pack&&(id==='test'?testPull():buyPack(pack));if(res){pk={pack,cards:res,stage:'tear',idx:0,flipped:false};shopMsg='';}else shopMsg=`${GACHA.sen}が足りません`;}
+  else if(a==='buy10'){const pack=gachaPacks().find(p=>p.id===id);if(packLocked(pack)){shopMsg='この包みは、CPU対戦で初陣組にすべて勝つと開けられます';render();return;}const res=pack&&buyPack(pack,10);if(res){pk=mkPk(pack,res,10);shopMsg='';}else shopMsg=`${GACHA.sen}が足りません`;}
+  else if(a==='buy'){const pack=id==='test'?TESTPACK:gachaPacks().find(p=>p.id===id);if(packLocked(pack)){shopMsg='この包みは、CPU対戦で初陣組にすべて勝つと開けられます';render();return;}const res=pack&&(id==='test'?testPull():buyPack(pack));if(res){pk={pack,cards:res,stage:'tear',idx:0,flipped:false};shopMsg='';}else shopMsg=`${GACHA.sen}が足りません`;}
   else if(a==='dsel'){const i=id.lastIndexOf('~'),k=id.slice(0,i),dl=+id.slice(i+1),[c,r]=split(k);disSel[k]=Math.max(0,Math.min(maxDismantle(c,r),(disSel[k]||0)+dl));}
   else if(a==='dis'){const [c,r]=split(id);const k=dismantle(c,r,disSel[id]||0);disSel[id]=0;shopMsg=k?`${c.n}(${RN[r]})を${k}枚分解して${GACHA.pt}+${k*GACHA.dismantle[r]}`:'';}
   else if(a==='trade'){const [c,r]=split(id);const ex=exchange(c,r);shopMsg=ex==='max'?`${c.n}(${RN[r]})はすでに${MAX_COPY}枚持っています`:ex?`${c.n}(${RN[r]})と交換しました`:`${GACHA.pt}が足りません`;}
@@ -1303,7 +1346,7 @@ async function onClick(a,id){
  if(!G)return;
  if(a==='logT'){ui.logOpen=!ui.logOpen;render();return;} // 対戦の記録は「記録」を押した時だけ左下に出す
  if(ui.modal){if(a==='mb'){const m=ui.modal;ui.modal=null;render();m.res(m.btns[+id].v);}return;}
- if(G.over){if(a==='again'&&!G.pvp){startGame(myDeck);}else if(a==='toTitle'){if(G.pvp){NET=null;G=null;}screen='title';render();}return;}
+ if(G.over){if(a==='again'&&!G.pvp){startGame(myDeck);}else if(a==='toTitle'){if(G.pvp){NET=null;G=null;}screen=G&&G.cpu?'cpu':'title';render();}return;}
  if(ui.pick){
   if(a==='myunit'||a==='enemyunit'){const u=find(+id);if(u&&ui.pick.ids.includes(u.uid)){const pk=ui.pick;ui.pick=null;render();pk.res(u);}else if(u){ui.info=u.card;ui.infoU=u.uid;render();}}
   else if(a==='field'){ui.info=findField(+id);ui.infoU=null;render();}
