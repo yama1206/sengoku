@@ -232,19 +232,31 @@ const KWN={rush:'突撃(登場した手番から攻撃できる)',guard:'守(相
 // ===== 札定義 =====
 // シリーズ単位で定義する。札IDは「シリーズID_思想_連番」で自動採番(例: base_so_01)。
 // 画像は img/札ID.png を置くと自動で表示される(無ければ色枠だけ)。個別指定は {img:'パス'}。
-// 新シリーズは series/xxx.js に defineSeries('set2','第2弾',mk=>{ mk(...); }); と書き、下の SERIES_FILES に追加する。
+// 札データは家ごとに houses/家ID.js に置く(下の defineHouse / HOUSE_FILES)。新しい家は houses/xxx.js を作り、HOUSE_FILES の末尾に足す。新シリーズ(包み)は defineSeries で足す。
+// (後から読み込む追加シリーズは series/xxx.js に defineSeries('set2','第2弾',mk=>{ mk(...); }); と書き、SERIES_FILES に足す方法もある)
 // 初期札(base)はガチャ対象外。ガチャで出る版は、時代別シリーズ({era:'..'}付き)の札だけ。種類ごとの版は下の表(武将=SR、姫と大名=SR/SSR、城と奇襲=R、武器=N。大名は個別に pr:['SR','SSR'] を付ける)。
 const PRINTS_ADD={u:['SR'],p:['SR','SSR'],c:['R'],w:['N'],x:['R']};
 const SERIES=[],CARDS=[];
 const availIdeos=()=>Object.keys(IDEO).filter(k=>k!=='ne'&&CARDS.filter(c=>c.i===k).length>=12);
 const SERIES_FILES=[]; // 例: ['series/set2.js']
 function defineSeries(id,name,fn,opts){
- const s=Object.assign({id,name,cards:[]},opts||{});const cnt={};SERIES.push(s);
- fn((i,t,n,c,p,cp,o)=>{cnt[i]=(cnt[i]||0)+1;
-  const card=Object.assign({id:`${id}_${i}_${String(cnt[i]).padStart(2,'0')}`,series:id,i,t,n,c,p,cp,k:[],e:[]},o||{});
-  if(!card.pr)card.pr=id==='base'?[]:(PRINTS_ADD[t]||['N']).slice();
+ const s=Object.assign({id,name,cards:[]},opts||{});SERIES.push(s);
+ if(fn)addCards(s,fn);
+}
+// 札を足す。札IDは「シリーズID_思想_連番」で、連番はシリーズ・思想ごとに足した順につく(順番を変えるとIDがずれて、持っている札や陣立てが壊れる)。house を渡すと札に h(家ID)が付く
+const CARD_SEQ={};
+function addCards(s,fn,house){
+ fn((i,t,n,c,p,cp,o)=>{const q=s.id+'_'+i;CARD_SEQ[q]=(CARD_SEQ[q]||0)+1;
+  const card=Object.assign({id:`${s.id}_${i}_${String(CARD_SEQ[q]).padStart(2,'0')}`,series:s.id,i,t,n,c,p,cp,k:[],e:[]},o||{});
+  if(house)card.h=house;
+  if(!card.pr)card.pr=s.id==='base'?[]:(PRINTS_ADD[t]||['N']).slice();
   s.cards.push(card);CARDS.push(card);});
 }
+// 家ごとの札データは houses/家ID.js に置く。defineHouse(家ID, シリーズID, {家の情報}, mk=>{ mk(...); })。家の効果などは、この {家の情報} に足していく
+const HOUSES={};
+function seriesOf(id){const s=SERIES.find(x=>x.id===id);if(!s)throw new Error('シリーズ未定義: '+id);return s;}
+function defineHouse(id,series,info,fn){HOUSES[id]=Object.assign({id,series},info||{});addCards(seriesOf(series),fn,id);}
+function addCommonCards(series,fn){addCards(seriesOf(series),fn,null);}
 const baseImg=c=>c.img||`img/${c.id}.png`;
 // 版(レアリティ)ごとの画像: 初期札のNは ID.png、それ以外は ID_sr.png のように置く。無ければ ID.png、それも無ければ色枠のみ
 const printImg=(c,r)=>(c.series==='base'&&r==='N')?baseImg(c):`img/${c.id}_${r.toLowerCase()}.png`;
@@ -252,161 +264,13 @@ const imgPath=c=>printImg(c,displayRarity(c));
 function imgFb(el,fb){if(el.dataset.f||el.getAttribute('src')===fb){el.remove();}else{el.dataset.f=1;el.src=fb;}}
 const artTag=(c,r)=>`<img class="art" src="${printImg(c,r||displayRarity(c))}" onerror="imgFb(this,'${baseImg(c)}')" draggable="false" alt="">`;
 
-defineSeries('e1560','1560年代 桶狭間と関東',mk=>{
-// 創(織田家・桶狭間)
-mk('so','u','木下藤吉郎',2,1000,3,{k:['rush'],e:[{t:'draw',n:1}]});
-mk('so','u','丹羽長秀',4,3000,2,{e:[{t:'draw',n:1}]});
-mk('so','u','佐久間盛重',2,1000,3,{e:[{t:'draw',n:1}]});
-mk('so','u','毛利新助',2,1000,3,{k:['rush']});
-mk('so','u','服部小平太',3,2000,2,{e:[{t:'tapE'}]});
-mk('so','u','池田恒興',3,2000,2,{k:['rush']});
-mk('so','u','柴田勝家',5,4000,2,{killBreak:true});
-mk('so','u','織田信長【桶狭間】',6,6000,1,{pr:['SR','SSR'],k:['rush'],e:[{t:'kill',max:4000}]});
-mk('so','p','帰蝶',4,0,1,{ps:'rampStart'});
-mk('so','c','清洲城',4,0,1,{ps:'aura'});
-mk('so','w','三間槍',2,0,1,{w:{pow:1000,tie:true}});
-mk('so','x','田楽狭間の強襲',3,0,2,{e:[{t:'kill',tapped:true}]});
-// 義(上杉家・関東管領)
-mk('gi','u','斎藤朝信',1,500,3,{k:['guard']});
-mk('gi','p','綾姫',4,0,1,{ps:'refill'});
-mk('gi','u','色部勝長',2,1000,3,{k:['guard'],blockBonus:2000});
-mk('gi','u','本庄繁長',3,2000,2,{k:['guard'],blockBonus:1000});
-mk('gi','u','中条藤資',3,2000,2,{k:['guard']});
-mk('gi','u','上杉憲政',3,2000,2,{e:[{t:'shield',n:1}]});
-mk('gi','u','直江景綱',4,3000,2,{guardAtk:true});
-mk('gi','u','上杉政虎【関東管領】',6,6000,1,{pr:['SR','SSR'],k:['double'],e:[{t:'draw',n:1},{t:'shield',n:1}]});
-mk('gi','c','厩橋城',5,0,1,{ps:'guardAura'});
-mk('gi','w','越後の長柄',2,0,1,{w:{k:'guard',tie:true}});
-mk('gi','x','関東管領就任',4,0,2,{e:[{t:'shield',n:2}]});
-mk('gi','x','小田原城包囲',5,0,2,{e:[{t:'tapAll'}]});
-// 武(武田家)
-mk('bu','u','武田義信',2,1000,3,{k:['rush'],h:'takeda'});
-mk('bu','u','馬場信春',2,2000,3,{h:'takeda'});
-mk('bu','u','山県昌景',3,2000,2,{k:['rush'],h:'takeda'});
-mk('bu','u','高坂昌信',3,2000,2,{e:[{t:'pumpTemp',pow:1000,kw:'rush'}],h:'takeda'});
-mk('bu','u','真田幸隆',3,2000,2,{e:[{t:'tapE'}],h:'takeda'});
-mk('bu','u','山本勘助',4,3000,2,{e:[{t:'peekDiscard'}],h:'takeda'});
-mk('bu','u','内藤昌豊',4,3000,2,{killBreak:true,h:'takeda'});
-mk('bu','u','武田信玄',6,7000,1,{pr:['SR','SSR'],e:[{t:'kill',max:5000}],h:'takeda'});
-mk('bu','p','三条夫人',3,0,1,{ps:'aura',h:'takeda'});
-mk('bu','c','躑躅ヶ崎館',6,0,1,{ps:'rushAll',h:'takeda'});
-mk('bu','w','風林火山の旗',2,0,1,{w:{pow:1000,k:'rush'},h:'takeda'});
-mk('bu','x','啄木鳥戦法',4,0,2,{e:[{t:'breakS',n:2}],h:'takeda'});
-// 謀(北条家)
-mk('bo','u','風魔小太郎',2,1000,3,{e:[{t:'tapE'}],h:'hojo'});
-mk('bo','u','大道寺政繁',2,1000,3,{k:['guard'],h:'hojo'});
-mk('bo','u','北条氏政',3,2000,2,{e:[{t:'draw',n:1}],h:'hojo'});
-mk('bo','u','北条幻庵',3,2000,2,{e:[{t:'peekDiscard'}],h:'hojo'});
-mk('bo','u','遠山綱景',3,2000,2,{k:['guard'],h:'hojo'});
-mk('bo','u','松田憲秀',4,3000,2,{e:[{t:'kill',max:4000,tapped:true}],h:'hojo'});
-mk('bo','u','北条綱成',4,3000,2,{k:['guard'],blockBonus:2000,h:'hojo'});
-mk('bo','u','北条氏康',6,6000,1,{pr:['SR','SSR'],k:['guard'],e:[{t:'draw',n:1},{t:'discard',n:1}],h:'hojo'});
-mk('bo','p','瑞渓院',4,0,1,{ps:'nene',h:'hojo'});
-mk('bo','c','小田原城',5,0,1,{ps:'gateLimit',h:'hojo'});
-mk('bo','w','黄八幡の旗',2,0,1,{w:{pow:1000,tie:true},h:'hojo'});
-mk('bo','x','河越夜戦',3,0,2,{e:[{t:'tapSkip'}],h:'hojo'});
-// 創(今川家)
-mk('so','u','今川氏真',2,1000,3,{e:[{t:'draw',n:1}],h:'imagawa'});
-mk('so','u','鵜殿長照',2,1000,3,{k:['guard'],h:'imagawa'});
-mk('so','u','岡部元信',3,2000,2,{surviveShield:true,h:'imagawa'});
-mk('so','u','朝比奈泰朝',3,3000,2,{h:'imagawa'});
-mk('so','u','松井宗信',3,2000,2,{k:['rush'],h:'imagawa'});
-mk('so','u','関口親永',4,3000,2,{noBlock:true,h:'imagawa'});
-mk('so','u','太原雪斎',4,3000,2,{e:[{t:'draw',n:1},{t:'shield',n:1}],h:'imagawa'});
-mk('so','u','今川義元',6,6000,1,{pr:['SR','SSR'],e:[{t:'killAll',max:2000}],h:'imagawa'});
-mk('so','p','寿桂尼',4,0,1,{ps:'drawStart',h:'imagawa'});
-mk('so','c','今川館',4,0,1,{ps:'deathDraw',h:'imagawa'});
-mk('so','w','海道の弓',2,0,1,{w:{pow:1000,drawAtk:true},h:'imagawa'});
-mk('so','x','駿河の備え',3,0,2,{e:[{t:'shield',n:2},{t:'draw',n:1}],h:'imagawa'});
-// 耐(松平家)
-mk('ni','u','阿部正勝',2,1000,3,{e:[{t:'draw',n:1}],h:'matsudaira'});
-mk('ni','u','平岩親吉',2,1000,3,{k:['guard'],h:'matsudaira'});
-mk('ni','u','石川数正',3,2000,2,{e:[{t:'draw',n:1}],h:'matsudaira'});
-mk('ni','u','大久保忠世',3,3000,2,{h:'matsudaira'});
-mk('ni','u','服部半蔵',3,2000,2,{e:[{t:'tapE'}],h:'matsudaira'});
-mk('ni','u','鳥居元忠',4,3000,2,{k:['guard'],deathRamp:true,h:'matsudaira'});
-mk('ni','u','酒井忠次',4,3000,2,{e:[{t:'ramp',n:1}],h:'matsudaira'});
-mk('ni','u','松平元康',6,6000,1,{pr:['SR','SSR'],k:['guard'],e:[{t:'ramp',n:1},{t:'shield',n:1}],h:'matsudaira'});
-mk('ni','p','築山殿',3,0,1,{ps:'hatsu',h:'matsudaira'});
-mk('ni','c','岡崎城',5,0,1,{ps:'guardAll',h:'matsudaira'});
-mk('ni','w','厭離穢土の旗',2,0,1,{w:{pow:1000,k:'guard'},h:'matsudaira'});
-mk('ni','x','大高城兵糧入れ',3,0,2,{e:[{t:'ramp',n:1},{t:'draw',n:1}],h:'matsudaira'});
-// 汎(思想なし・どの陣立てにも入る共通札。ガチャで出る)
-mk('ne','u','足軽',1,1000,3,{pr:['N']});
-mk('ne','u','弓足軽',2,1000,3,{pr:['N'],k:['guard']});
-mk('ne','u','鉄砲足軽',3,2000,3,{pr:['R'],e:[{t:'kill',max:2000}]});
-mk('ne','u','騎馬武者',4,3000,3,{pr:['R'],k:['rush']});
-},{era:'1560年代 桶狭間と関東'});
-for(const c of CARDS)if(c.series==='e1560'&&!c.h)c.h={so:'oda',gi:'uesugi'}[c.i];
-
-// ===== 1560年代 中国・九州(5家) =====
-defineSeries('e1560w','1560年代 中国・九州',mk=>{
-// 謀(毛利家・中国の覇者)
-mk('bo','u','志道広良',2,1000,3,{e:[{t:'draw',n:1}],h:'mouri'});
-mk('bo','u','宍戸隆家',2,1000,3,{k:['guard'],h:'mouri'});
-mk('bo','u','福原貞俊',3,2000,2,{e:[{t:'peekDiscard'}],h:'mouri'});
-mk('bo','u','乃美宗勝',3,2000,2,{e:[{t:'tapE'}],h:'mouri'});
-mk('bo','u','熊谷信直',3,2000,2,{k:['guard'],h:'mouri'});
-mk('bo','u','吉川元春',4,3000,2,{killBreak:true,h:'mouri'});
-mk('bo','u','小早川隆景',4,3000,2,{e:[{t:'bounce'}],h:'mouri'});
-mk('bo','u','毛利元就【中国の覇者】',6,6000,1,{pr:['SR','SSR'],e:[{t:'tapE'},{t:'peekDiscard'}],h:'mouri'});
-mk('bo','p','妙玖',4,0,1,{ps:'sap',h:'mouri'});
-mk('bo','c','吉田郡山城',5,0,1,{ps:'kasuga',h:'mouri'});
-mk('bo','w','焙烙火矢',2,0,1,{w:{pow:1000,tie:true},h:'mouri'});
-mk('bo','x','調略',3,0,2,{e:[{t:'bounce'},{t:'draw',n:1}],h:'mouri'});
-// 義(尼子家・月山富田城)
-mk('gi','u','秋上宗信',2,1000,3,{k:['guard'],h:'amago'});
-mk('gi','u','宇山久兼',2,1000,3,{k:['guard'],blockBonus:2000,h:'amago'});
-mk('gi','u','立原久綱',3,2000,2,{e:[{t:'shield',n:1}],h:'amago'});
-mk('gi','u','湯原春綱',3,2000,2,{k:['guard'],h:'amago'});
-mk('gi','u','牛尾幸清',3,2000,2,{k:['guard'],blockBonus:1000,h:'amago'});
-mk('gi','u','山中鹿之助【七難八苦】',4,3000,2,{k:['guard'],blockBonus:2000,h:'amago'});
-mk('gi','u','尼子義久',4,3000,2,{guardAtk:true,h:'amago'});
-mk('gi','u','尼子晴久【月山富田城】',6,6000,1,{pr:['SR','SSR'],k:['guard'],e:[{t:'draw',n:1},{t:'shield',n:1}],h:'amago'});
-mk('gi','p','京極の姫',4,0,1,{ps:'refill',h:'amago'});
-mk('gi','c','月山富田城',5,0,1,{ps:'gateLimit',h:'amago'});
-mk('gi','w','尼子の長巻',2,0,1,{w:{k:'guard',tie:true},h:'amago'});
-mk('gi','x','尼子再興の誓い',4,0,2,{e:[{t:'shield',n:2}],h:'amago'});
-// 創(大友家・豊後の王)
-mk('so','u','斎藤鎮実',2,1000,3,{e:[{t:'draw',n:1}],h:'otomo'});
-mk('so','u','高橋鑑種',2,2000,3,{h:'otomo'});
-mk('so','u','臼杵鑑速',3,2000,2,{e:[{t:'draw',n:1}],h:'otomo'});
-mk('so','u','吉岡長増',3,2000,2,{blockedBonus:1000,h:'otomo'});
-mk('so','u','吉弘鑑理',3,2000,2,{e:[{t:'drawWeapon'}],h:'otomo'});
-mk('so','u','田原親賢',4,3000,2,{wdisc:true,h:'otomo'});
-mk('so','u','戸次鑑連',5,4000,2,{k:['rush'],e:[{t:'killGuard'}],h:'otomo'});
-mk('so','u','大友宗麟【豊後の王】',6,6000,1,{pr:['SR','SSR'],e:[{t:'draw',n:1},{t:'ramp',n:1}],h:'otomo'});
-mk('so','p','奈多夫人',4,0,1,{ps:'chacha',h:'otomo'});
-mk('so','c','臼杵城',5,0,1,{e:[{t:'draw',n:1},{t:'toMana'}],h:'otomo'});
-mk('so','w','国崩し',4,0,1,{w:{pow:2000,gateGrave:true},h:'otomo'});
-mk('so','x','南蛮貿易',3,0,2,{e:[{t:'draw',n:1},{t:'ramp',n:1}],h:'otomo'});
-// 武(島津家・薩摩の突撃)
-mk('bu','u','島津家久',2,1000,3,{k:['rush'],h:'shimazu'});
-mk('bu','u','島津歳久',2,1000,3,{k:['rush'],h:'shimazu'});
-mk('bu','u','新納忠元',3,2000,2,{k:['rush'],h:'shimazu'});
-mk('bu','u','北郷時久',3,3000,2,{h:'shimazu'});
-mk('bu','u','伊集院忠棟',3,2000,2,{e:[{t:'tapE'}],h:'shimazu'});
-mk('bu','u','島津貴久',4,3000,2,{killBreak:true,h:'shimazu'});
-mk('bu','u','島津義久',4,3000,2,{e:[{t:'pumpTemp',pow:1000,kw:'rush'}],h:'shimazu'});
-mk('bu','u','島津義弘【鬼島津】',6,6000,1,{pr:['SR','SSR'],k:['rush'],killBreak:true,h:'shimazu'});
-mk('bu','p','実窓夫人',4,0,1,{ps:'atkAura',h:'shimazu'});
-mk('bu','c','内城',5,0,1,{ps:'aura',h:'shimazu'});
-mk('bu','w','種子島',2,0,1,{w:{pow:1000,k:'rush'},h:'shimazu'});
-mk('bu','x','釣り野伏せ',4,0,2,{e:[{t:'kill',max:5000}],h:'shimazu'});
-// 耐(龍造寺家・肥前の熊)
-mk('ni','u','成松信勝',2,1000,3,{e:[{t:'draw',n:1}],h:'ryuzoji'});
-mk('ni','u','円城寺信胤',2,1000,3,{k:['guard'],h:'ryuzoji'});
-mk('ni','u','百武賢兼',3,3000,2,{h:'ryuzoji'});
-mk('ni','u','木下昌直',3,2000,2,{e:[{t:'draw',n:1}],h:'ryuzoji'});
-mk('ni','u','龍造寺信周',3,2000,2,{k:['guard'],h:'ryuzoji'});
-mk('ni','u','龍造寺長信',3,2000,2,{e:[{t:'tapE'}],h:'ryuzoji'});
-mk('ni','u','鍋島直茂',4,3000,2,{e:[{t:'ramp',n:1}],h:'ryuzoji'});
-mk('ni','u','龍造寺隆信【肥前の熊】',6,7000,1,{pr:['SR','SSR'],k:['guard'],e:[{t:'ramp',n:1},{t:'draw',n:1}],h:'ryuzoji'});
-mk('ni','p','慶誾尼',4,0,1,{ps:'hatsu',h:'ryuzoji'});
-mk('ni','c','村中城',5,0,1,{ps:'guardAura',h:'ryuzoji'});
-mk('ni','w','肥前の大身槍',2,0,1,{w:{pow:1000,tie:true},h:'ryuzoji'});
-mk('ni','x','今山の夜襲',3,0,2,{e:[{t:'tapSkip'},{t:'draw',n:1}],h:'ryuzoji'});
-},{era:'1560年代 中国・九州'});
+defineSeries('e1560','1560年代 桶狭間と関東',null,{era:'1560年代 桶狭間と関東'});
+defineSeries('e1560w','1560年代 中国・九州',null,{era:'1560年代 中国・九州'});
+// 家の札データを読み込む(順番どおりに同期で読む)。順番は札IDの連番に効くので変えない。新しい家は末尾に足す
+const HOUSE_FILES=['oda','uesugi','takeda','hojo','imagawa','matsudaira','_common','mouri','amago','otomo','shimazu','ryuzoji'];
+HOUSE_FILES.forEach(f=>document.write(`<script src="houses/${f}.js?v=${VERSION}"><\/script>`));
+</script>
+<script>
 
 // ===== 初陣組(無料で1回だけ受け取れる。受け取ると、その札が手に入り陣立てに設定される) =====
 const STARTERS=[
