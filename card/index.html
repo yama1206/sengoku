@@ -215,7 +215,7 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 <body>
 <div id="app"></div>
 <script>
-const VERSION='0.47';
+const VERSION='0.48';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -340,7 +340,7 @@ const PSD={drawStart:'自分の手番の始め、1枚引く',aura:'味方の武�
  sap:'自分の手番の始め、相手の手札が4枚以上なら1枚捨てさせる',refill:'自分の手番の始め、城門が4枚以下なら山札から1枚加える',
  chacha:'自分の手番の始め、自分の場に武器があれば1枚引く',guardAura:'味方の守を持つ武将すべて兵力+1000',weaponGuard:'武器を装備した味方の武将すべてに守を与える',
  rushDraw:'味方の突撃を持つ武将が城門を破ったとき、1枚引く(1手番に1回)',atkAura:'味方の武将が攻撃している間、兵力+1000',
- nene:'自分の手番の始め、相手の手札が自分より多ければ1枚引く',gateLimit:'相手が城門(本丸)を攻撃できるのは、1手番に2回まで',
+ nene:'自分の手番の始め、相手の手札が自分より多ければ1枚引く',drawWhenAhead:'自分の手番の始め、自分の手札が相手より多ければ1枚引く',gateLimit:'相手が城門(本丸)を攻撃できるのは、1手番に2回まで',
  hatsu:'自分の手番の始め、自分の兵糧が相手より少なければ山札の上を兵糧にする',
  deathDraw:'味方の武将が戦闘で破壊されるたび、1枚引く(1手番に1回)',kasuga:'自分の城門が破られたとき、山札の上を城門に加える(1手番に1回)'};
 function desc(c){
@@ -351,6 +351,7 @@ function desc(c){
  if(c.blockedBonus)a.push(`守に止められたとき、兵力+${c.blockedBonus}。`);
  if(c.wdisc)a.push('場にいる間、自分の武器の費えが1下がる(最低1)。');
  if(c.killBreak)a.push('自分の手番中、戦闘で相手の武将を破壊したとき、相手の城門を1枚破る(1手番に1回)。');
+ if(c.attackUnitBonus)a.push(`自分の手番中、相手の武将を攻撃するとき兵力+${c.attackUnitBonus}。`);
  if(c.deathRamp)a.push('戦闘で破壊されたとき、山札の上を兵糧にする。');
  if(c.noBlock)a.push('攻撃中は、相手の守に止められない。');
  if(c.untapAfterBlock)a.push('守として戦って生き残ったとき、一度だけ縦に戻る。');
@@ -613,7 +614,7 @@ const once=k=>{if(G.once[k])return false;G.once[k]=1;return true;}; // 1手番�
 const hasPs=(p,s)=>p.fields.some(c=>c.ps===s);
 const countPs=(p,s)=>p.fields.filter(c=>c.ps===s).length;
 const hasKw=(u,k)=>!!(u.kws.includes(k)||(u.weapon&&u.weapon.w.k===k)||u.mods.some(m=>m.kw===k)||(k==='rush'&&hasPs(u.owner,'rushAll'))||(k==='guard'&&(hasPs(u.owner,'guardAll')||(u.weapon&&hasPs(u.owner,'weaponGuard')))));
-const power=u=>u.card.p+(u.weapon?(u.weapon.w.pow||0)+(u.weapon.w.powPerShield||0)*u.owner.shields.length:0)+u.mods.reduce((a,m)=>a+(m.pow||0),0)+1000*countPs(u.owner,'aura')+(hasKw(u,'guard')?1000*countPs(u.owner,'guardAura'):0)+(u.attacking?1000*countPs(u.owner,'atkAura'):0);
+const power=u=>u.card.p+(u.weapon?(u.weapon.w.pow||0)+(u.weapon.w.powPerShield||0)*u.owner.shields.length:0)+u.mods.reduce((a,m)=>a+(m.pow||0),0)+1000*countPs(u.owner,'aura')+(hasKw(u,'guard')?1000*countPs(u.owner,'guardAura'):0)+(u.attacking?1000*countPs(u.owner,'atkAura'):0)+(u.attackingUnit&&G.cur===u.owner.idx?(u.card.attackUnitBonus||0):0);
 // 守を持つ武将は、コスト6以上でない限り攻撃できない(守は元から持つ場合のみ。城や武器で得た守は対象外)
 const guardOnly=u=>!!u&&u.kws.includes('guard')&&u.card.c<6&&!u.owner.units.some(x=>!x.dead&&x.card.guardAtk); // 号令持ち(guardAtk)が場にいれば守持ちも攻撃できる
 const canAtkU=u=>!!u&&!u.dead&&!u.tapped&&!guardOnly(u)&&(!u.sick||hasKw(u,'rush'));
@@ -799,7 +800,7 @@ async function attack(att,target){
   if(att.weapon&&att.weapon.w.randomKillMax){const targets=d.units.filter(u=>!u.dead&&power(u)<=att.weapon.w.randomKillMax);if(targets.length){const victim=targets[Math.floor(Math.random()*targets.length)];destroy(victim);log(`${att.weapon.n}の効果で${victim.card.n}を破壊した`);}}
   if(target!=='face'&&target.dead)return;
   if(att.weapon&&att.weapon.w.gateGrave&&d.shields.length){d.grave.push(d.shields.shift());log(`${att.weapon.n}の効果で${d.name}の城門が1枚墓地へ送られた`);}
-  if(target!=='face'){log(`${att.card.n} → ${target.card.n}`);const bk=await askBlock(d,att,target);if(bk){bk.tapped=true;log(`${bk.card.n}が${target.card.n}を守った!`);await battle(att,bk,true);return;}await battle(att,target,false);return;}
+  if(target!=='face'){att.attackingUnit=true;log(`${att.card.n} → ${target.card.n}`);const bk=await askBlock(d,att,target);if(bk){bk.tapped=true;log(`${bk.card.n}が${target.card.n}を守った!`);await battle(att,bk,true);return;}await battle(att,target,false);return;}
   p.faceAtks++;
   log(`${p.name}:${att.card.n}が攻撃!`);
   const blk=await askBlock(d,att);
@@ -807,7 +808,7 @@ async function attack(att,target){
   if(!d.shields.length){win(p,`${att.card.n}が本丸に迫った`);return;}
   await breakShields(att,d,hasKw(att,'double')?2:1);
   render();
- }finally{att.attacking=false;}
+ }finally{att.attacking=false;att.attackingUnit=false;}
 }
 function win(p,why){
  G.over={winner:p,why};log(`${p.name}の勝利! ${why}`);
@@ -836,6 +837,7 @@ async function startTurn(i){
   else if(c.ps==='refill'&&p.shields.length<=4&&p.deck.length)p.shields.push(p.deck.shift());
   else if(c.ps==='chacha'&&p.units.some(u=>u.weapon))draw(p,1);
   else if(c.ps==='nene'&&d.hand.length>p.hand.length)draw(p,1);
+  else if(c.ps==='drawWhenAhead'&&p.hand.length>d.hand.length)draw(p,1);
   else if(c.ps==='hatsu'&&p.mana.length<d.mana.length)ramp(p,1);
  }
  ui.sel=ui.selU=ui.info=ui.pay=null;render();await sleep(300);
@@ -864,7 +866,7 @@ async function aiTurn(p){
  for(const u of p.units.slice()){
   if(G.over)return;
   if(u.dead||!canAtkU(u))continue;
-  const tg=d.units.filter(x=>x.tapped&&power(x)<power(u)).sort((a,b)=>power(b)-power(a));
+  const tg=d.units.filter(x=>x.tapped&&power(x)<power(u)+(u.card.attackUnitBonus||0)).sort((a,b)=>power(b)-power(a));
   let target;
   if(tg.length)target=tg[0];
   else if(!faceOk(u))continue;

@@ -3,13 +3,13 @@ defineHouse('otomo','e1560w',{name:'大友家'},mk=>{
 mk('so','u','斎藤鎮実',2,1000,3,{e:[{t:'draw',n:1}]});
 mk('so','u','高橋鑑種',2,2000,3);
 mk('so','u','臼杵鑑速',3,2000,2,{e:[{t:'draw',n:1}]});
-mk('so','u','吉岡長増',3,2000,2,{blockedBonus:1000});
+mk('so','u','吉岡長増',3,3000,2);
 mk('so','u','吉弘鑑理',3,2000,2,{e:[{t:'drawWeapon'}]});
-mk('so','u','田原親賢',4,3000,2,{wdisc:true});
+mk('so','u','田原親賢',4,2000,2,{wdisc:true});
 mk('so','u','戸次鑑連',5,4000,2,{e:[{t:'killGuard'}]});
 mk('so','u','大友宗麟【豊後の王】',6,6000,1,{pr:['SR','SSR'],e:[{t:'draw',n:1},{t:'ramp',n:1}]});
 mk('so','p','奈多夫人',4,0,1,{ps:'chacha'});
 mk('so','c','臼杵城',5,0,1,{e:[{t:'draw',n:1},{t:'toMana'}]});
-mk('so','w','国崩し',4,0,1,{w:{pow:2000,gateGrave:true}});
+mk('so','w','国崩し',4,0,1,{w:{pow:1000,gateGrave:true}});
 mk('so','x','南蛮貿易',4,0,2,{e:[{t:'draw',n:1},{t:'ramp',n:1}]});
 });
