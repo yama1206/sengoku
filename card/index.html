@@ -215,7 +215,7 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 <body>
 <div id="app"></div>
 <script>
-const VERSION='0.44';
+const VERSION='0.45';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -640,6 +640,7 @@ function canCast(p,c){
  const un=p.mana.filter(m=>!m.tapped);
  if(un.length<effCost(c)||(c.i!=='ne'&&!un.some(m=>m.card.i===c.i)))return false;
  if(c.t==='w'&&!p.units.length)return false;
+ if((c.t==='c'||c.t==='p')&&p.fields.some(f=>f.t===c.t))return false;
  return true;
 }
 // 戦術(奇襲)の効果に有効な対象があるか(AIが空打ちしないため)
@@ -847,7 +848,7 @@ async function aiTurn(p){
   p.hand=p.hand.filter(x=>x!==best);p.mana.push({card:best,tapped:false});p.charged=true;log(`${p.name}は兵糧を蓄えた`);render();await sleep(500);
  }
  for(let n=0;n<10&&!G.over;n++){
-  const opts=p.hand.filter(c=>canCast(p,c)&&(c.t!=='x'||fxUseful(p,c))&&!((c.t==='p'||c.t==='c')&&p.fields.some(f=>f.id===c.id)));
+  const opts=p.hand.filter(c=>canCast(p,c)&&(c.t!=='x'||fxUseful(p,c)));
   if(!opts.length)break;
   opts.sort((a,b)=>b.c-a.c);
   await playCard(p,opts[0]);await sleep(600);
@@ -1027,6 +1028,7 @@ function rulesHTML(){
  ・毎手番: 1枚引く → 手札1枚を兵糧にする(任意・1回) → 札を使う → 武将で攻撃。<br>
  ・費えは兵糧を横にして支払う。使う札と同じ思想の兵糧が最低1枚必要。<br>
  ・武将は登場した手番は攻撃できない(突撃を除く)。攻撃すると横になる。<br>
+ ・各プレイヤーは場に城1つ・姫1人まで置けます。同じ種類の札が場にある間は、追加で出せません。<br>
  ・武器は味方の武将1体に装備して場に残ります。武将が場を離れると武器は墓地へ。1体に装備できるのは1枚で、入れ替えると古い武器は墓地へ。<br>
  ・札売り場で戦銭を使って包みを開け、新しい札を集められます。
  ・攻撃先は相手の城門か、横向きの武将。兵力が高い方が勝ち、同じなら相打ち。<br>
