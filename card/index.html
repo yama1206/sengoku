@@ -210,6 +210,21 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 .dkw small{font-size:9px;opacity:.7;margin-top:6px}
 .face.gates.hl .sb{box-shadow:inset 0 0 0 2px #2a0e0a,0 0 8px #ff7a4a}
 .mc.ps{background:rgba(255,225,74,.3);box-shadow:0 0 0 2px #ffe14a;opacity:1}
+.fieldbook{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}.fieldbook button{font-size:12px;padding:4px 8px}
+.bookpanel{z-index:92}.bookart{float:left;width:46px;height:60px;object-fit:cover;margin-right:9px;border-radius:3px}.bookpanel article{display:flow-root;border-top:1px solid #856944;padding:8px 0}.bookpanel nav{position:sticky;top:0;background:#211b15;padding:4px 0}.bookpanel button[aria-pressed=true]{color:var(--gold)}
+.gatefx{position:fixed;pointer-events:none;z-index:19;width:82px;height:54px;perspective:160px;transform:translate(-50%,-50%);text-align:center;color:#ffdfa0;font:bold 19px serif;text-shadow:0 2px 4px #000}
+.gatefx i{position:absolute;top:0;width:50%;height:100%;border:2px solid #412f20;background:linear-gradient(0deg,transparent 40%,#36302a 41% 53%,transparent 54%),repeating-linear-gradient(90deg,#846044 0 8px,#533924 9px 11px);animation:gateFall .5s both;transform-origin:left}
+.gatefx i+i{right:0;transform-origin:right;--angle:-85deg}.gatefx i:first-of-type{left:0}.gatefx .gatecard{position:absolute;inset:2px 24px;border:2px solid #c39d59;border-radius:3px;background:repeating-linear-gradient(45deg,#583b27 0 4px,#725638 4px 7px) center/cover;font:9px serif;display:grid;align-items:end}
+.gatefx i:first-of-type:after{content:"";position:absolute;right:0;top:0;width:6px;height:100%;background:#261b14;clip-path:polygon(80% 0,0 45%,65% 50%,15% 100%,100% 48%,45% 41%);animation:stamp .15s both}
+.gatefx em{position:absolute;left:50%;top:45%;width:7px;height:3px;background:#c48e59;animation:gateChip .35s .09s both}@keyframes gateChip{from{opacity:0}20%{opacity:1}to{transform:translate(var(--dx),var(--dy)) rotate(70deg);opacity:0}}.gatefx b{display:block;padding-top:13px}.gatefx.amb b{background:#401b12;border:1px solid #bc955d;animation:stamp .32s both;padding:6px}
+@keyframes gateFall{0%{transform:scale(1)}17%{transform:scale(.90);filter:brightness(1.5)}100%{transform:translateY(16px) rotateY(var(--angle,85deg)) rotateX(42deg);opacity:0}}
+@keyframes stamp{from{transform:scale(1.35);opacity:.2}to{transform:scale(1);opacity:1}}
+.gatefx.entrance{z-index:22;width:220px;height:70px;animation:entranceSlide .75s ease-out both}
+.gatefx.entrance img{float:left;width:42px;height:60px;object-fit:cover;border:1px solid #dfb65b;border-radius:3px;margin:4px 7px 0 0}
+.gatefx.entrance b{border:1px solid #dfb65b;background:linear-gradient(90deg,#281911,#70431d,#281911);padding:13px 12px;box-shadow:0 0 20px #c58c47b0}
+.gatefx.entrance.princess b{border-color:#ebbdcf;background:linear-gradient(90deg,#271d2d,#744564,#271d2d);box-shadow:0 0 18px #da9ab7}
+@keyframes entranceSlide{0%{transform:translate(-50%,0) scale(.65);opacity:0}35%{transform:translate(-50%,-35%) scale(1.1);opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:0}}
+@media(prefers-reduced-motion:reduce){.gatefx i,.gatefx.amb b,.gatefx.entrance{animation:none}.gatefx i,.gatefx em{display:none}}
 </style>
 </head>
 <body>
@@ -398,7 +413,7 @@ async function remoteAsk(o){const q=++askN;netSend(Object.assign({t:'ask',q},o))
 function snapFor(){
  const hide=a=>a.map(()=>0);
  const pl=(p,mine)=>({name:p.name,idx:1-p.idx,hand:mine?p.hand:hide(p.hand),deck:hide(p.deck),shields:hide(p.shields),mana:p.mana,grave:p.grave,fields:p.fields,charged:p.charged,faceAtks:p.faceAtks,units:p.units.map(u=>Object.assign({},u,{owner:null}))});
- return {P:[pl(G.P[1],true),pl(G.P[0],false)],cur:1-G.cur,turnNo:G.turnNo,log:G.log.slice(-10),cpuIds:G.myIds||[],myTurn:G.cur===1&&!!G.rwait&&!G.over,over:G.over?{w:1-G.over.winner.idx,why:G.over.why}:null};
+ return {P:[pl(G.P[1],true),pl(G.P[0],false)],cur:1-G.cur,turnNo:G.turnNo,log:G.log.slice(-10),tactics:G.tactics.map(e=>({...e,side:1-e.side})),siege:G.siege,cpuIds:G.myIds||[],myTurn:G.cur===1&&!!G.rwait&&!G.over,over:G.over?{w:1-G.over.winner.idx,why:G.over.why}:null};
 }
 function sendState(){clearTimeout(stT);stT=0;if(G&&G.pvp&&NET&&NET.host)netSend({t:'state',g:snapFor()});}
 function hydrate(g){g.P.forEach(p=>p.units.forEach(u=>u.owner=p));g.over=g.over?{winner:g.P[g.over.w],why:g.over.why}:null;g.guest=true;g.pvp=true;g.once={};g.rewarded=true;g.reward=0;return g;}
@@ -406,7 +421,7 @@ function cleanDeck(d){const r={};let n=0;for(const k in(d||{})){const c=cardById
 function onNet(m){
  if(m.t==='start'){
   if(G&&G.pvp&&!G.over)return;
-  NET={mid:m.mid,host:!!m.host,opp:String(m.opp||'相手').slice(0,20)};remoteQ=[];remoteWait=null;G=null;pk=null;ui.rules=false;ui.modal=ui.pick=null;screen='pvp';pvpMsg='';
+  ui.book=null;NET={mid:m.mid,host:!!m.host,opp:String(m.opp||'相手').slice(0,20)};remoteQ=[];remoteWait=null;G=null;pk=null;ui.rules=false;ui.modal=ui.pick=null;screen='pvp';pvpMsg='';
   if(!NET.host)netSend({t:'deck',deck:myDeck,host:NET.opp}); // 受けた側は自分の陣立てを送る
   render();return;
  }
@@ -422,6 +437,7 @@ function onNet(m){
   else if(m.t==='act'||m.t==='ans')remotePush(m);
   return;
  }
+ if(m.t==='cue'){showBattleCue(m.kind,1-m.side,m.card);return;}
  if(m.t==='state'&&m.g){
   const keep={modal:ui.modal,pick:ui.pick};G=hydrate(m.g);screen='game';pk=null;
   ui.busy=!m.g.myTurn;ui.modal=keep.modal;ui.pick=keep.pick;
@@ -453,7 +469,7 @@ async function remoteTurn(p){
   if(!G||G.over||m.t==='quit')return;
   if(m.t!=='act')continue;
   if(m.a==='end')return;
-  if(m.a==='charge'){const c=p.hand.find(x=>x.uid===m.uid);if(c&&!p.charged){p.hand=p.hand.filter(x=>x!==c);p.mana.push({card:c,tapped:false});p.charged=true;log(`${p.name}は兵糧を蓄えた`);}}
+  if(m.a==='charge'){const c=p.hand.find(x=>x.uid===m.uid);if(c&&!p.charged){p.hand=p.hand.filter(x=>x!==c);p.mana.push({card:c,tapped:false});p.charged=true;battleCue("charge",p.idx);log(`${p.name}は兵糧を蓄えた`);}}
   else if(m.a==='cast'){const c=p.hand.find(x=>x.uid===m.uid);if(c&&canCast(p,c))await playCard(p,c,m.pay);}
   else if(m.a==='attack'){const u=find(m.uid);if(u&&u.owner===p&&canAtkU(u)){if(m.target==='face'){if(faceOk(u))await attack(u,'face');}else{const t=find(m.target);if(t&&t.owner===d&&t.tapped)await attack(u,t);}}}
   render();
@@ -724,6 +740,9 @@ async function applyFx(p,e){
  render();
 }
 async function playCard(p,c,pay){
+ if(c.t==='x')recordTactic(p,c,false);
+ if(c.t==='p')battleCue('princess',p.idx,c.id);
+ else if(c.t==='u')battleCue(c.pr&&c.pr.includes('SSR')?'daimyo':'summon',p.idx,c.id);
  payMana(p,c,pay);p.hand=p.hand.filter(x=>x!==c);
  log(`${p.name}:${c.n}を${c.t==='u'?'召喚':c.t==='w'?'装備':'使用'}`);
  if(c.t==='u'){const u=newUnit(p,c);p.units.push(u);render();for(const e of c.e){if(G.over)return;await applyFx(p,e);}}
@@ -741,10 +760,15 @@ async function playCard(p,c,pay){
 
 // ===== battle =====
 async function breakShields(att,d,n){
+ const originalMatch=G;
+ if(d.shields.length)d.keepExposed=false;
  let refill=false;
  try{
   for(let i=0;i<n;i++){
    if(!d.shields.length||G.over)return;
+   const match=G;
+   battleCue('gate',d.idx,d.shields[0].id);
+   if(!TEST&&!G.auto){await sleep(500);if(G!==match||G.over)return;}
    const c=d.shields.shift();log(`${d.name}の城門が破られた!`);
    if(att&&hasPs(att.owner,'rushDraw')&&hasKw(att,'rush')&&once('rd'+att.owner.idx)){draw(att.owner,1);log('小松姫の効果で1枚引いた');}
    if(hasPs(d,'kasuga')&&once('ks'+d.idx))refill=true;
@@ -753,13 +777,14 @@ async function breakShields(att,d,n){
     if(d.ai)use=fxUseful(d,c)&&!c.e.some(e=>e.t==='pumpTemp');
     else if(d.remote)use=(await remoteAsk({k:'modal',msg:`城門が破られた!\n奇襲「${c.n}」が出た。\n${desc(c)}`,btns:['無料で発動する','手札に加えて温存']}))===0;
     else use=await modal(`城門が破られた!\n奇襲「${c.n}」が出た。\n${desc(c)}`,[{l:'無料で発動する',v:true},{l:'手札に加えて温存',v:false}]);
-    if(use){log(`奇襲「${c.n}」を無料で発動!`);for(const e of c.e)await applyFx(d,e);d.grave.push(c);render();if(att&&att.dead)return;continue;}
+    if(use){if(c.t==='x')recordTactic(d,c,true);battleCue('ambush',d.idx,c.id);if(!TEST&&!G.auto){await sleep(150);if(G!==match||G.over)return;}log(`奇襲「${c.n}」を無料で発動!`);for(const e of c.e)await applyFx(d,e);d.grave.push(c);render();if(att&&att.dead)return;continue;}
    }
    d.hand.push(c);render();
   }
  }finally{
   // 春日局: 破られた処理がすべて終わってから城門を補充する(連破で補充分が破られない)
-  if(refill&&d.deck.length){d.shields.push(d.deck.shift());log('春日局の効果で城門が増えた');}
+  if(G===originalMatch&&refill&&d.deck.length){d.shields.push(d.deck.shift());log('春日局の効果で城門が増えた');}
+  if(G===originalMatch&&!G.over&&!d.shields.length&&!d.keepExposed){d.keepExposed=true;G.siege=true;battleCue('keep',d.idx);}
  }
 }
 async function battle(a,b,blk){
@@ -805,7 +830,7 @@ async function attack(att,target){
   log(`${p.name}:${att.card.n}が攻撃!`);
   const blk=await askBlock(d,att);
   if(blk){blk.tapped=true;log(`${blk.card.n}が守った!`);await battle(att,blk,true);return;}
-  if(!d.shields.length){win(p,`${att.card.n}が本丸に迫った`);return;}
+  if(!d.shields.length){battleCue('victory',p.idx);win(p,`${att.card.n}が本丸に迫った`);return;}
   await breakShields(att,d,hasKw(att,'double')?2:1);
   render();
  }finally{att.attacking=false;att.attackingUnit=false;}
@@ -822,7 +847,7 @@ function win(p,why){
 // ===== turn flow =====
 async function startTurn(i){
  if(G.over)return;
- G.cur=i;G.turnNo++;G.once={};const p=G.P[i],d=G.P[1-i];
+ G.cur=i;G.turnNo++;battleCue("turn",i);G.once={};const p=G.P[i],d=G.P[1-i];
  p.mana.forEach(m=>m.tapped=false);
  p.units.forEach(u=>{if(u.skipUntap)u.skipUntap=false;else u.tapped=false;u.sick=false;}); // 影縫い: 次に縦に戻すの1回を飛ばす
  p.charged=false;p.faceAtks=0;
@@ -855,7 +880,7 @@ async function aiTurn(p){
  const d=opp(p);
  if(p.mana.length<8&&p.hand.length){
   const best=pickChargeCard(p,p.hand);
-  p.hand=p.hand.filter(x=>x!==best);p.mana.push({card:best,tapped:false});p.charged=true;log(`${p.name}は兵糧を蓄えた`);render();await sleep(500);
+  p.hand=p.hand.filter(x=>x!==best);p.mana.push({card:best,tapped:false});p.charged=true;battleCue("charge",p.idx);log(`${p.name}は兵糧を蓄えた`);render();await sleep(500);
  }
  for(let n=0;n<10&&!G.over;n++){
   const opts=p.hand.filter(c=>canCast(p,c)&&(c.t!=='x'||fxUseful(p,c)));
@@ -881,7 +906,8 @@ function startGame(deckMap,auto,pvp){ // pvp={deck,name,me}：人との手合わ
  const cpuSt=pvp?null:(window.CARD_TEST?.opponent||((auto||!cpuSel)?shuffle(STARTERS.filter(x=>x.series!=='e1560e'))[0]:STARTERS.find(x=>x.id===cpuSel.id)||STARTERS[0])),cpuLv=(!pvp&&!auto&&cpuSel&&CPU_LV[cpuSel.lv])||CPU_LV.n;
  const cpuDeck=pvp?pvp.deck:starterDeck(cpuSt),cpuIds=deckIdeos(cpuDeck);
  const mkP=(name,idx,deck,ai)=>({name,idx,ai,deck,hand:[],mana:[],shields:[],units:[],fields:[],grave:[],charged:false,faceAtks:0});
- G={P:[mkP(pvp?pvp.me:'あなた',0,mkDeck(deckMap),!!auto),mkP(pvp?pvp.name:'相手',1,mkDeck(cpuDeck),!pvp)],cur:0,turnNo:0,log:[],over:null,cpuIds,once:{},auto:!!auto,rewarded:false,reward:0,pvp:!!pvp,myIds:deckIdeos(deckMap),cpu:(!pvp&&!auto&&cpuSel)?{id:cpuSt.id,lv:cpuSel.lv}:null,senReward:0,unlockedPack:false};
+ ui.book=null;
+ G={P:[mkP(pvp?pvp.me:'あなた',0,mkDeck(deckMap),!!auto),mkP(pvp?pvp.name:'相手',1,mkDeck(cpuDeck),!pvp)],cur:0,turnNo:0,log:[],tactics:[],siege:false,over:null,cpuIds,once:{},auto:!!auto,rewarded:false,reward:0,pvp:!!pvp,myIds:deckIdeos(deckMap),cpu:(!pvp&&!auto&&cpuSel)?{id:cpuSt.id,lv:cpuSel.lv}:null,senReward:0,unlockedPack:false};
  if(pvp)G.P[1].remote=true;
  for(const p of G.P){p.shields=p.deck.splice(0,5);p.hand=p.deck.splice(0,5);}
  if(!pvp&&!auto&&cpuSt){const e=G.P[1];e.shields.push(...e.deck.splice(0,cpuLv.shield));e.hand.push(...e.deck.splice(0,cpuLv.hand));for(let k=0;k<cpuLv.mana&&e.deck.length;k++)e.mana.push({card:e.deck.shift(),tapped:false});log(`相手: ${cpuSt.name}(${cpuLv.name})`);}
@@ -969,6 +995,7 @@ function listBigHTML(){
 }
 // どの場面でも右上に出す戻るボタン。場面ごとに押した時の動きを変える
 function backAction(){
+ if(ui.book&&screen==='game')return 'bookClose';
  if(pk)return pk.big!=null?'bigClose':'packEnd';
  if(ui.rules)return 'rulesClose';
  if(screen==='title')return loginMsg?'toastClose':EMBED?'exitEmbed':'';
@@ -996,6 +1023,20 @@ function editHTML(){
  ${list.map(row).join('')}
  <div class="acts" style="position:sticky;bottom:0;background:#120f0d;padding:8px 0"><button data-a="save" ${ok?'':'disabled'} style="flex:1;background:#5a3a1c">保存して戻る</button><button data-a="discard">破棄して戻る</button></div></div>`;
 }
+const bookTabs=[['enemy','相手の墓地'],['mine','自分の墓地'],['tactics','相手の戦術履歴']];
+function recordTactic(p,c,ambush){G.tactics.push({side:p.idx,id:c.id,turn:G.turnNo,ambush});}
+function bookButtons(){
+ return '<div class="fieldbook">'+bookTabs.map(([key,label])=>{
+  const n=key==='tactics'?(G.tactics||[]).filter(e=>e.side===1).length:G.P[key==='enemy'?1:0].grave.length;
+  return `<button data-a="book" data-id="${key}" aria-pressed="${ui.book===key}">${label}（${n}）</button>`;
+ }).join('')+'</div>';
+}
+function bookHTML(){
+ const history=ui.book==='tactics';
+ const entries=history?(G.tactics||[]).filter(e=>e.side===1).map(e=>({card:cardById(e.id),label:`第${e.turn}手・${e.ambush?'奇襲で発動':'手札から使用'}`}))
+ :G.P[ui.book==='mine'?0:1].grave.map(card=>({card,label:TL[card.t]}));
+ return `<div class="ov bookpanel"><section class="mb" data-tab="${ui.book}" role="dialog" aria-label="対戦の札"><nav>${bookButtons()}<button data-a="bookClose">盤面に戻る</button></nav>${entries.reverse().filter(e=>e.card).map(({card,label})=>`<article><img class="bookart" src="${baseImg(card)}" alt="" onerror="this.hidden=true"><small>${escH(label)} · ${IDEO[card.i].n} · 費え${card.c}${card.t==='u'?' · 兵力'+card.p:''}</small><br><b>${escH(card.n)}</b><br>${escH(desc(card)||'効果なし')}</article>`).join('')||(history?'相手はまだ戦術を使っていません。':'墓地にはまだ札がありません。')}</section></div>`;
+}
 function gameHTML(){
  const me=G.P[0],en=G.P[1];
  const su=ui.selU?find(ui.selU):null;
@@ -1014,10 +1055,10 @@ function gameHTML(){
   acts+='<button data-a="end" style="margin-left:auto">手番を終える</button>';
  }
  let ov='';
- if(ui.modal)ov=`<div class="ov"><div class="mb">${ui.modal.msg.replace(/\n/g,'<br>')}${ui.modal.btns.map((b,i)=>`<button data-a="mb" data-id="${i}">${b.l}</button>`).join('')}</div></div>`;
- else if(G.over){const w=G.over.winner===me;ov=`<div class="ov"><div class="mb"><div class="res">${w?'勝利!':'敗北…'}</div><div style="text-align:center">${G.over.why}</div>${G.reward?`<div style="text-align:center;color:var(--gold);margin-top:6px">${GACHA.coin} +${G.reward}</div>`:''}${G.senReward?`<div style="text-align:center;color:var(--gold);margin-top:4px">初めての勝利! ${GACHA.sen} +${G.senReward}</div>`:''}${G.unlockedPack?`<div style="text-align:center;color:var(--gold);margin-top:4px">初陣組をすべて倒した!奥羽・四国の包みと、関東・甲斐・北陸の追加札が解放されました</div>`:''}${G.pvp?'':'<button data-a="again">もう一度</button>'}<button data-a="toTitle">表紙へ</button></div></div>`;}
+ if(ui.modal)ov=`<div class="ov"><div class="mb">${ui.modal.msg.replace(/\n/g,'<br>')}${bookButtons()}${ui.modal.btns.map((b,i)=>`<button data-a="mb" data-id="${i}">${b.l}</button>`).join('')}</div></div>`;
+ else if(G.over){const w=G.over.winner===me;ov=`<div class="ov"><div class="mb"><div class="res">${w?'勝利!':'敗北…'}</div><div style="text-align:center">${G.over.why}</div>${bookButtons()}${G.reward?`<div style="text-align:center;color:var(--gold);margin-top:6px">${GACHA.coin} +${G.reward}</div>`:''}${G.senReward?`<div style="text-align:center;color:var(--gold);margin-top:4px">初めての勝利! ${GACHA.sen} +${G.senReward}</div>`:''}${G.unlockedPack?`<div style="text-align:center;color:var(--gold);margin-top:4px">初陣組をすべて倒した!奥羽・四国の包みと、関東・甲斐・北陸の追加札が解放されました</div>`:''}${G.pvp?'':'<button data-a="again">もう一度</button>'}<button data-a="toTitle">表紙へ</button></div></div>`;}
  return `<div class="top"><span>第${G.turnNo}手・${G.cur===0?'あなたの番':'相手の番'}</span></div>
- <div class="zone"><div class="pinfo"><b>相手</b> 手札${en.hand.length} 思想:${G.cpuIds.map(i=>IDEO[i].n).join('')}</div>
+ ${bookButtons()}<div class="zone"><div class="pinfo"><b>相手</b> 手札${en.hand.length} 思想:${G.cpuIds.map(i=>IDEO[i].n).join('')}</div>
  <div class="row mrow">${manaRow(en)}</div>
  <div class="row">${fieldChips(en)}</div>
  <button class="face gates ${faceHl?'hl':''}" data-a="eface">${gateRow(en,true)}</button>
@@ -1029,7 +1070,7 @@ function gameHTML(){
  <div class="detail">${infoHTML(me)}</div>
  <div class="acts">${acts}</div>
  <div class="hand">${me.hand.map(c=>handTile(c,me)).join('')}</div></div>
- <button class="logbtn" data-a="logT">${ui.logOpen?'記録を閉じる':'記録'}</button>${ui.logOpen?`<div class="logpop" data-a="logT"><div class="log" id="log">${G.log.slice(-30).join('<br>')}</div></div>`:''}${ov}`;
+ <button class="logbtn" data-a="logT">${ui.logOpen?'記録を閉じる':'記録'}</button>${ui.logOpen?`<div class="logpop" data-a="logT"><div class="log" id="log">${G.log.slice(-30).join('<br>')}</div></div>`:''}${ov}${ui.book?bookHTML():''}`;
 }
 function rulesHTML(){
  return `<div class="ov"><div class="mb"><b style="color:var(--gold)">遊び方</b><br>
@@ -1051,17 +1092,25 @@ function rulesHTML(){
 // ===== サウンド(外部ファイルなし。ブラウザのWebAudioで音を作る) =====
 const AUD={ctx:null,on:true,scene:null,timer:null,step:0,nextT:0,stepDur:0.25};
 try{AUD.on=localStorage.getItem('sengoku_snd')!=='off';}catch(e){}
+function readVolume(key){
+ try{const v=localStorage.getItem('sengoku_volume_'+key);if(v!==null&&Number.isFinite(+v))return Math.max(0,Math.min(1,+v));}catch(e){}
+ return 1;
+}
+AUD.level={bgm:readVolume('bgm'),sfx:readVolume('sfx')};
+const audioBase={bgm:.16,sfx:.55};
 function audInit(){
  if(AUD.ctx||typeof window==='undefined')return;
  try{
   const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
   const c=new AC();AUD.ctx=c;
   AUD.master=c.createGain();AUD.master.gain.value=AUD.on?1:0;AUD.master.connect(c.destination);
-  AUD.bgm=c.createGain();AUD.bgm.gain.value=0.16;AUD.bgm.connect(AUD.master);
-  AUD.sfx=c.createGain();AUD.sfx.gain.value=0.55;AUD.sfx.connect(AUD.master);
+  AUD.bgm=c.createGain();AUD.bgm.gain.value=audioBase.bgm*AUD.level.bgm;AUD.bgm.connect(AUD.master);
+  AUD.sfx=c.createGain();AUD.sfx.gain.value=audioBase.sfx*AUD.level.sfx;AUD.sfx.connect(AUD.master);
   const len=Math.floor(c.sampleRate*1.6),ir=c.createBuffer(2,len,c.sampleRate);
   for(let ch=0;ch<2;ch++){const d=ir.getChannelData(ch);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.5);}
-  AUD.rev=c.createConvolver();AUD.rev.buffer=ir;const rg=c.createGain();rg.gain.value=0.35;AUD.rev.connect(rg);rg.connect(AUD.master);
+  for(const bus of [AUD.bgm,AUD.sfx]){
+   bus.reverb=c.createConvolver();bus.reverb.buffer=ir;const wet=c.createGain();wet.gain.value=.35;bus.reverb.connect(wet);wet.connect(bus);
+  }
  }catch(e){AUD.ctx=null;}
 }
 function audResume(){audInit();if(AUD.ctx&&AUD.ctx.state==='suspended')AUD.ctx.resume();audStart();}
@@ -1070,7 +1119,7 @@ const hz=m=>440*Math.pow(2,(m-69)/12);
 function tone(t,m,dur,type,vol,dest,rev){
  const c=AUD.ctx,o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=hz(m);
  g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
- o.connect(g);g.connect(dest);if(rev)g.connect(AUD.rev);o.start(t);o.stop(t+dur+0.05);
+ o.connect(g);g.connect(dest);if(rev)g.connect(dest.reverb);o.start(t);o.stop(t+dur+0.05);
 }
 function noiseBurst(t,dur,f0,f1,vol,dest){
  const c=AUD.ctx,len=Math.ceil(c.sampleRate*dur),b=c.createBuffer(1,len,c.sampleRate),d=b.getChannelData(0);
@@ -1085,6 +1134,53 @@ function thump(t,f,dur,vol,dest){
  o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(Math.max(20,f*0.35),t+dur);
  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
  o.connect(g);g.connect(dest);o.start(t);o.stop(t+dur+0.05);
+}
+function battleCue(kind,side,card){
+ if(TEST||!G||G.auto)return;
+ showBattleCue(kind,side,kind==='gate'&&side!==0?null:card);
+ if(G.pvp&&NET&&NET.host)netSend({t:'cue',kind,side,card:kind==='gate'&&side!==1?null:card});
+}
+function showBattleCue(kind,side,id){
+ if(typeof document==='undefined'||screen!=='game')return;
+ if(kind==='gate'||kind==='ambush'||kind==='keep'||kind==='daimyo'||kind==='princess'){
+  const gate=(kind==='daimyo'||kind==='princess')?document.querySelectorAll('.zone')[side===0?1:0]?.querySelector('.row'):document.querySelector(side===0?'.gates.mine':'.face.gates');
+  if(gate){
+   const r=gate.getBoundingClientRect(),fx=document.createElement('div');
+   fx.className='gatefx'+(kind==='ambush'?' amb':'')+(kind==='daimyo'||kind==='princess'?' entrance '+kind:'');
+   fx.style.left=(r.left+r.width/2)+'px';fx.style.top=(r.top+r.height/2)+'px';
+   fx.innerHTML=kind==='gate'?'<b>破城</b><i></i><i></i>':kind==='keep'?'<b>本丸</b>':kind==='daimyo'?'<b>出陣</b>':kind==='princess'?'<b>姫、登場</b>':'<b>奇襲</b>';
+   const card=id&&cardById(id);
+   if(kind==='gate'){
+    const face=document.createElement('span');face.className='gatecard';
+    if(card){face.style.backgroundImage='url("'+baseImg(card)+'")';face.textContent=card.n;}
+    fx.prepend(face);
+    for(const [x,y] of [[-36,14],[30,22],[-16,-18],[42,-12]]){
+     const chip=document.createElement('em');chip.style.setProperty('--dx',x+'px');chip.style.setProperty('--dy',y+'px');fx.append(chip);
+    }
+   }else if(kind==='ambush'&&card){fx.querySelector('b').append(document.createElement('br'),card.n);}
+   if((kind==='daimyo'||kind==='princess')&&card){const label=fx.querySelector('b'),portrait=document.createElement('img');portrait.src=baseImg(card);portrait.alt='';portrait.onerror=()=>portrait.remove();label.append(document.createElement('br'),card.n);fx.prepend(portrait);}
+   document.body.appendChild(fx);setTimeout(()=>fx.remove(),kind==='gate'?500:kind==='daimyo'||kind==='princess'?850:420);
+  }
+ }
+ if(!audOk())return;
+ const t=AUD.ctx.currentTime+.01,d=AUD.sfx;
+ const clap=at=>{noiseBurst(at,.045,2800,800,.65,d);tone(at,79,.09,'triangle',.38,d,false);};
+ if(kind==='gate'){
+  const gain=AUD.bgm.gain,v=audioBase.bgm*AUD.level.bgm;
+  gain.cancelScheduledValues(t);gain.setValueAtTime(v*.35,t);gain.linearRampToValueAtTime(v,t+.50);
+  thump(t,145,.17,.85,d);noiseBurst(t+.09,.15,1800,450,.95,d);tone(t+.28,74,.16,'triangle',.47,d,false);tone(t+.36,68,.10,'triangle',.25,d,false);
+ }else if(kind==='ambush'){clap(t);clap(t+.14);}
+ else if(kind==='keep'){thump(t,116,.32,.9,d);thump(t+.28,88,.45,.85,d);}
+ else if(kind==='charge'){noiseBurst(t,.14,650,170,.55,d);thump(t,110,.12,.5,d);}
+ else if(kind==='daimyo'){
+  thump(t,90,.35,.85,d);thump(t+.2,75,.44,.95,d);
+  tone(t+.06,57,.44,'sawtooth',.18,d,true);tone(t+.25,62,.52,'triangle',.26,d,true);
+ }else if(kind==='princess'){
+  noiseBurst(t,.36,2900,1100,.15,d);
+  [79,83,86].forEach((m,i)=>tone(t+.09+i*.16,m,.55,'sine',.23,d,true));
+ }else if(kind==='summon'){thump(t,160,.10,.6,d);thump(t+.12,125,.14,.65,d);}
+ else if(kind==='turn')clap(t);
+ else if(kind==='victory')[62,67,69,74].forEach((m,i)=>tone(t+i*.12,m,.45,'triangle',.38,d,true));
 }
 function audOk(){return AUD.ctx&&AUD.on;}
 // 包みを破る音(紙を裂く音+きらめき)
@@ -1131,6 +1227,7 @@ function bgmStep(step,t){
  if(bgmPat){const n=bgmPat[pos];if(n>=0)tone(t,BGM_S[n],battle?0.35:0.9,'triangle',battle?0.5:0.45,b,true);}
  if(!battle&&pos===4&&Math.random()<0.5)tone(t,BGM_S[Math.floor(Math.random()*5)]+12,1.2,'sine',0.2,b,true);
  if(battle){
+  if(G&&G.siege&&!G.over&&(pos===3||pos===10||pos===15))thump(t,105,.18,.72,b);
   if(pos%4===0)thump(t,pos===0?95:80,0.25,pos===0?0.9:0.55,b);
   if(pos===6||pos===14)noiseBurst(t,0.08,1800,900,0.18,b);
  }
@@ -1155,7 +1252,17 @@ function audSetOn(on){
 if(typeof document!=='undefined'){
  const mk=()=>{if(document.getElementById('sndbtn'))return;const b=document.createElement('button');b.id='sndbtn';b.textContent=AUD.on?'♪':'×';b.title='音を出す・止める';
   b.style.cssText='position:fixed;right:8px;bottom:8px;z-index:95;width:40px;height:40px;border-radius:50%;font-size:18px;padding:0;opacity:.85';
-  b.addEventListener('click',e=>{e.stopPropagation();audResume();audSetOn(!AUD.on);});document.body.appendChild(b);};
+  b.addEventListener('click',e=>{e.stopPropagation();audResume();audSetOn(!AUD.on);});document.body.appendChild(b);
+  const panel=document.createElement('details');panel.style.cssText='position:fixed;right:54px;bottom:8px;z-index:95;background:#211b15;color:#f1dbba;padding:4px 7px;border-radius:5px;font-size:12px';
+  panel.innerHTML='<summary>音量</summary>';
+  for(const [key,label] of [['bgm','音楽'],['sfx','効果音']]){
+   const line=document.createElement('label'),slider=document.createElement('input');
+   line.style.display='block';line.append(label);slider.type='range';slider.min=0;slider.max=100;slider.value=AUD.level[key]*100;
+   slider.oninput=()=>{const v=slider.value/100;AUD.level[key]=v;if(AUD[key]){AUD[key].gain.cancelScheduledValues(AUD.ctx.currentTime);AUD[key].gain.value=audioBase[key]*v;}try{localStorage.setItem('sengoku_volume_'+key,v);}catch(e){}};
+   line.append(slider);panel.append(line);
+  }
+  document.body.appendChild(panel);};
+
  if(document.body)mk();else document.addEventListener('DOMContentLoaded',mk);
  const first=()=>{audResume();};
  document.addEventListener('pointerdown',first,true);document.addEventListener('keydown',first,true);
@@ -1172,7 +1279,8 @@ function render(){
  if(pk)h+=packHTML();
  if(loginMsg&&screen==='title'&&!pk)h+=toastHTML();
  h+=backHTML();
- app.innerHTML=h;document.body.dataset.scr=screen;
+ const oldBook=app.querySelector('.bookpanel .mb'),scroll=oldBook&&oldBook.dataset.tab===ui.book?oldBook.scrollTop:0;
+ app.innerHTML=h;const newBook=app.querySelector('.bookpanel .mb');if(newBook)newBook.scrollTop=scroll;document.body.dataset.scr=screen;
  const lg=document.getElementById('log');if(lg)lg.scrollTop=lg.scrollHeight;
  if(typeof padRefresh==='function')padRefresh();
 }
@@ -1303,6 +1411,9 @@ const toastHTML=()=>`<div class="ov"><div class="mb" style="text-align:center">$
 
 // ===== input =====
 async function onClick(a,id){
+ if(a==='book'||a==='bookClose'){
+  if(screen==='game'&&G){ui.book=a==='book'&&bookTabs.some(([key])=>key===id)?id:null;render();}return;
+ }
  if(a==='update'){location.href=location.pathname+'?v='+Date.now();return;}
  if(a==='rules'){ui.rules=true;render();return;}
  if(a==='rulesClose'){ui.rules=false;render();return;}
@@ -1422,7 +1533,7 @@ async function onClick(a,id){
  if(G.guest&&['charge','cast','enemyunit','eface','end'].includes(a)){guestAct(a,id);return;} // 受けた側は操作をホストへ送るだけ
  switch(a){
   case 'hand':ui.sel=ui.sel===+id?null:+id;ui.selU=null;ui.info=null;render();break;
-  case 'charge':{const c=me.hand.find(x=>x.uid===ui.sel);if(c&&!me.charged){me.hand=me.hand.filter(x=>x!==c);me.mana.push({card:c,tapped:false});me.charged=true;ui.sel=null;log(`${c.n}を兵糧にした`);render();}break;}
+  case 'charge':{const c=me.hand.find(x=>x.uid===ui.sel);if(c&&!me.charged){me.hand=me.hand.filter(x=>x!==c);me.mana.push({card:c,tapped:false});me.charged=true;battleCue("charge",me.idx);ui.sel=null;log(`${c.n}を兵糧にした`);render();}break;}
   case 'cast':{const c=me.hand.find(x=>x.uid===ui.sel);if(c&&canCast(me,c)&&payChoice(me,c)){ui.pay={uid:c.uid,sel:autoPayUids(me,c)};render();break;}if(c&&canCast(me,c)){ui.sel=null;ui.busy=true;await playCard(me,c);if(!G.over){ui.busy=false;}render();}break;}
   case 'myunit':{const u=find(+id);if(!u)break;if(ui.selU===u.uid)ui.selU=null;else{ui.selU=u.uid;ui.sel=null;ui.info=null;}render();break;}
   case 'enemyunit':{
@@ -1554,3 +1665,4 @@ if(new URLSearchParams(location.search).has('balanceTest')){
 </script>
 </body>
 </html>
+
