@@ -8,7 +8,7 @@ mk('so','u','服部小平太',3,2000,2,{e:[{t:'tapE'}]});
 mk('so','u','池田恒興',3,2000,2,{k:['rush']});
 mk('so','u','柴田勝家',5,4000,2,{killBreak:true});
 mk('so','u','織田信長【桶狭間】',6,6000,1,{pr:['SR','SSR'],k:['rush'],e:[{t:'kill',max:4000}]});
-mk('so','p','帰蝶',4,0,1,{ps:'rampStart'});
+mk('so','p','帰蝶',5,0,1,{ps:'rampStart'});
 mk('so','c','清洲城',4,0,1,{ps:'aura'});
 mk('so','w','三間槍',2,0,1,{w:{pow:1000,tie:true}});
 mk('so','x','田楽狭間の強襲',4,0,2,{e:[{t:'kill',tapped:true}]});
