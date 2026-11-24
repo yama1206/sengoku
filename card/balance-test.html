@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>戦国思想録 対戦テスト</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#171b23;color:#f2ead9;max-width:850px;margin:auto;padding:24px}
+h1{font-size:1.5rem}label{display:inline-grid;gap:5px;margin:8px 12px 8px 0}
+select,input,button{font:inherit;padding:8px;background:#293242;color:inherit;border:1px solid #728093;border-radius:6px}
+button{background:#a67c39;color:white;cursor:pointer}button:disabled{opacity:.5;cursor:default}
+table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border-bottom:1px solid #4b5563;padding:8px;text-align:left}
+td:nth-child(n+2),th:nth-child(n+2){text-align:right}#status{min-height:1.5em}
+iframe{display:none}
+</style>
+<h1>戦国思想録 対戦テスト</h1>
+<label>調べる家<select id="house"></select></label>
+<label>相手<select id="opponent"><option value="all">全家</option></select></label>
+<label>各家との対戦回数<input id="count" type="number" min="2" max="1000" step="2" value="10"></label>
+<button id="run" disabled>対戦開始</button>
+<p id="status">札データを読み込んでいます</p>
+<table><thead><tr><th>相手</th><th>勝</th><th>敗</th><th>勝率</th></tr></thead><tbody id="results"></tbody></table>
+<iframe id="game" src="index.html?balanceTest=1"></iframe>
+<script>
+const frame=document.getElementById('game');
+const house=document.getElementById('house');
+const opponent=document.getElementById('opponent');
+const count=document.getElementById('count');
+const button=document.getElementById('run');
+const status=document.getElementById('status');
+const results=document.getElementById('results');
+frame.onload=()=>{
+ const starters=frame.contentWindow.CARD_TEST?.starters;
+ if(!starters){status.textContent='札データを読み込めませんでした';return;}
+ for(const starter of starters){
+  for(const select of [house,opponent]){
+   const option=document.createElement('option');option.value=starter.id;option.textContent=starter.name;select.append(option);
+  }
+ }
+ house.value=starters.find(s=>s.id==='st_kono')?.id||starters[0].id;
+ button.disabled=false;status.textContent=`${starters.length}家を読み込みました`;
+};
+button.onclick=async()=>{
+ const games=Number(count.value);
+ if(!Number.isInteger(games)||games<2||games>1000||games%2){status.textContent='対戦回数は2～1000の偶数にしてください';return;}
+ const game=frame.contentWindow.CARD_TEST;
+ const opponents=game.starters.filter(s=>s.id!==house.value&&(opponent.value==='all'||s.id===opponent.value));
+ if(!opponents.length){status.textContent='別の相手を選んでください';return;}
+ button.disabled=true;results.replaceChildren();
+ let totalWins=0,totalGames=0;
+ try{
+  for(const [index,rival] of opponents.entries()){
+   let wins=0;
+   for(let n=0;n<games;n++){
+    status.textContent=`${rival.name} ${n+1}/${games}戦目（${index+1}/${opponents.length}家）`;
+    await new Promise(resolve=>setTimeout(resolve,0));
+    const result=await game.run(house.value,rival.id,n%2,20261124+index*1009+n);
+    if(result.winner===0)wins++;
+   }
+   totalWins+=wins;totalGames+=games;
+   const row=results.insertRow();
+   for(const value of [rival.name,wins,games-wins,`${(wins/games*100).toFixed(1)}%`])row.insertCell().textContent=value;
+  }
+  const row=results.insertRow();
+  for(const value of ['合計',totalWins,totalGames-totalWins,`${(totalWins/totalGames*100).toFixed(1)}%`])row.insertCell().textContent=value;
+  status.textContent=`完了：${totalGames}戦`;
+ }catch(error){status.textContent=`対戦を中断しました：${error.message}`;}
+ finally{button.disabled=false;}
+};
+</script>
+</html>
