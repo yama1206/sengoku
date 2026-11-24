@@ -215,7 +215,7 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 <body>
 <div id="app"></div>
 <script>
-const VERSION='0.43';
+const VERSION='0.44';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -292,7 +292,7 @@ const STARTERS=[
  {id:'st_kono',name:'河野家の初陣組',sub:'水軍で追い返し、堅く守る',series:'e1560e',house:'kono'},
  {id:'st_date',name:'伊達家の初陣組',sub:'外交で相手の手札と動きを崩す',series:'e1560e',house:'date'},
  {id:'st_ashina',name:'蘆名家の初陣組',sub:'守りを崩し、謀略で揺さぶる',series:'e1560e',house:'ashina'},
- {id:'st_mogami',name:'最上家の初陣組',sub:'延沢の剛力と城門の補充',series:'e1560e',house:'mogami'},
+ {id:'st_mogami',name:'佐竹家の初陣組',sub:'守りを固め、城門を補充する',series:'e1560e',house:'mogami'},
  {id:'st_asakura',name:'朝倉家の初陣組',sub:'一乗谷の富で兵糧を増やす',series:'e1560e',house:'asakura'},
  {id:'st_nanbu',name:'南部家の初陣組',sub:'騎馬の突撃と九戸の剛力',series:'e1560e',house:'nanbu'},
  {id:'st_hatakeyama',name:'能登畠山家の初陣組',sub:'七尾の堅城と、倒れても残る備え',series:'e1560e',house:'hatakeyama'}
@@ -301,12 +301,13 @@ const STARTERS=[
 // 普通…そのままの陣立て。強い…相手は手札+1・城門+1・最初から兵糧1枚(数字を変えれば強さを調整できる)
 const CPU_LV={n:{name:'普通',hand:0,shield:0,mana:0},s:{name:'強い',hand:1,shield:1,mana:1}};
 const CPU_FIRST_SEN=10; // 初めて勝った時の戦銭(家×強さごとに1回)
-// 包みの解放に必要な初陣組(最初に用意した11家)。普通でも強いでも、1回勝てば数える
+// 追加札の解放に必要な初陣組。普通でも強いでも、1回勝てば数える
 const cpuReq=()=>STARTERS.filter(st=>st.series!=='e1560e');
 const cpuDone=(st,lv)=>!!(SV.cpu&&SV.cpu[st.id+':'+lv]);
 const cpuCleared=st=>cpuDone(st,'n')||cpuDone(st,'s');
 const cpuClearCount=()=>cpuReq().filter(cpuCleared).length;
-const packLocked=p=>p&&p.unlock==='cpuAll'&&cpuClearCount()<cpuReq().length;
+const expansionLocked=()=>cpuClearCount()<cpuReq().length;
+const packLocked=p=>p&&p.unlock==='cpuAll'&&expansionLocked();
 let cpuSel=null,cpuMsg=''; // cpuSel={id,lv}: いま戦っている相手
 // 全家から、異なる初陣組を2家まで受け取れる
 const FREE_STARTER_LIMIT=2;
@@ -457,14 +458,14 @@ async function remoteTurn(p){
  }
 }
 function cpuHTML(){
- const ok=deckValid(myDeck),req=cpuReq(),n=cpuClearCount(),pk0=gachaPacks().find(x=>x.unlock),locked=packLocked(pk0);
+ const ok=deckValid(myDeck),req=cpuReq(),n=cpuClearCount(),locked=expansionLocked();
  let h=`<div style="padding-top:44px"><h2 style="color:var(--gold);margin:0 0 4px">CPU対戦</h2><div class="dim" style="font-size:12px;line-height:1.6">相手の初陣組と、自分の陣立てで勝負します。「${CPU_LV.s.name}」は相手の手札・城門・兵糧が増えます。初めて勝つと、家と強さごとに${GACHA.sen}${CPU_FIRST_SEN}枚もらえます</div>`;
- if(pk0)h+=`<div class="pcard" style="--c:${locked?'#888':'#d4a94a'}"><div class="pcl"><b>${pk0.name}の包み</b><div class="dim" style="font-size:12px">${locked?`初陣組(最初の${req.length}家)にすべて勝つと開けられます  ${n}/${req.length}`:'解放済み・札売り場で開けられます'}</div></div></div>`;
+ h+=`<div class="pcard" style="--c:${locked?'#888':'#d4a94a'}"><div class="pcl"><b>奥羽・四国の包みと、一部の追加札</b><div class="dim" style="font-size:12px">${locked?`初陣組(最初の${req.length}家)にすべて勝つと開けられます  ${n}/${req.length}`:'解放済み・札売り場で開けられます'}</div></div></div>`;
  if(cpuMsg)h+=`<div class="msg2">${escH(cpuMsg)}</div>`;
  if(!ok)h+='<div class="msg2">陣立てが36枚になっていません。先に陣立てを組んでください</div><button data-a="toEdit" style="width:100%;margin:6px 0">陣立てを組む</button>';
  const row=st=>{const done=cpuCleared(st)&&req.includes(st);return `<div class="pcard" style="--c:${IDEO[(CARDS.find(c=>c.series===st.series&&c.h===st.house)||{i:'ne'}).i].c}"><div class="pcl"><b>${st.name}${done?' ✔':''}</b><div class="dim" style="font-size:12px">${st.sub}</div></div>${Object.keys(CPU_LV).map(lv=>`<button data-a="cpuGo" data-id="${st.id}:${lv}" ${ok?'':'disabled'} style="margin-left:6px">${CPU_LV[lv].name}<br>${cpuDone(st,lv)?'勝利済み':GACHA.sen+'+'+CPU_FIRST_SEN}</button>`).join('')}</div>`;};
  h+='<h3 style="margin:14px 0 2px">初陣組</h3>'+req.map(row).join('');
- h+='<h3 style="margin:14px 0 2px">新しい包みの家</h3><div class="dim" style="font-size:12px">包みの解放には数えません</div>'+STARTERS.filter(x=>!req.includes(x)).map(row).join('');
+ h+='<h3 style="margin:14px 0 2px">追加札の家</h3><div class="dim" style="font-size:12px">包みの解放には数えません</div>'+STARTERS.filter(x=>!req.includes(x)).map(row).join('');
  return h+'</div>';
 }
 function pvpHTML(){
@@ -552,10 +553,23 @@ function rollRarity(min){
  let x=Math.random()*tot;for(let i=st;i<4;i++){x-=GACHA.rates[RORD[i]];if(x<0)return RORD[i];}
  return RORD[3];
 }
-// 包み = era(時代)を持つシリーズ。シリーズを追加すると包みも増える
-const gachaPacks=()=>SERIES.filter(s=>s.era).map(s=>({id:s.id,name:s.name,era:s.era,cost:s.packCost||GACHA.packCost,color:s.color||'#d4a94a',unlock:s.unlock}));
+// 地方別の包み。札の所属シリーズは札ID・画像・セーブとの互換性のため維持する。
+const REGIONAL_PACKS=[
+ {id:'ou',name:'奥羽',houses:['date','ashina','nanbu'],unlock:'cpuAll'},
+ {id:'kanto_kai',name:'関東・甲斐',houses:['hojo','takeda','mogami'],common:true},
+ {id:'tokai',name:'東海',houses:['oda','imagawa','matsudaira'],common:true},
+ {id:'hokuriku',name:'北陸',houses:['uesugi','asakura','hatakeyama'],common:true},
+ {id:'shikoku',name:'四国',houses:['miyoshi','chosokabe','kono'],unlock:'cpuAll'},
+ {id:'chugoku',name:'中国',houses:['mouri','amago']},
+ {id:'kyushu',name:'九州',houses:['otomo','shimazu','ryuzoji']}
+];
+const gachaPacks=()=>REGIONAL_PACKS.map(p=>({...p,era:'1560年代',cost:GACHA.packCost,color:'#d4a94a'}));
+function packCards(pack){
+ const locked=expansionLocked();
+ return CARDS.filter(c=>(pack.houses.includes(c.h)||(pack.common&&!c.h&&c.series==='e1560'))&&(!locked||c.series!=='e1560e'));
+}
 function pullPack(pack){
- const pool=[];for(const c of CARDS){if(c.series!==pack.id)continue;for(const r of(c.pr||[]))pool.push({c,r});}
+ const pool=[];for(const c of packCards(pack))for(const r of(c.pr||[]))pool.push({c,r});
  if(!pool.length)return [];
  const out=[];
  for(let n=0;n<GACHA.cards;n++){
@@ -792,7 +806,7 @@ function win(p,why){
  G.over={winner:p,why};log(`${p.name}の勝利! ${why}`);
  if(G.pvp){G.rewarded=true;render();if(NET&&NET.host){sendState();parentSend({t:'end',mid:NET.mid});}return;} // 人との手合わせは賞金なし
  if(!G.auto&&!G.rewarded){G.rewarded=true;G.reward=p.idx===0?GACHA.reward.win:GACHA.reward.lose;coinChange(G.reward);
-  if(p.idx===0&&G.cpu){const key=G.cpu.id+':'+G.cpu.lv;if(!SV.cpu[key]){const before=packLocked(gachaPacks().find(x=>x.unlock));SV.cpu[key]=1;SV.sen+=CPU_FIRST_SEN;G.senReward=CPU_FIRST_SEN;if(before&&!packLocked(gachaPacks().find(x=>x.unlock)))G.unlockedPack=true;}} // 初めて勝った相手(強さごと)には戦銭。初陣組を全部倒すと新しい包みが開く
+  if(p.idx===0&&G.cpu){const key=G.cpu.id+':'+G.cpu.lv;if(!SV.cpu[key]){const before=expansionLocked();SV.cpu[key]=1;SV.sen+=CPU_FIRST_SEN;G.senReward=CPU_FIRST_SEN;if(before&&!expansionLocked())G.unlockedPack=true;}} // 初めて勝った相手(強さごと)には戦銭。初陣組を全部倒すと新しい包みが開く
   saveSave();}
  render();
 }
@@ -990,7 +1004,7 @@ function gameHTML(){
  }
  let ov='';
  if(ui.modal)ov=`<div class="ov"><div class="mb">${ui.modal.msg.replace(/\n/g,'<br>')}${ui.modal.btns.map((b,i)=>`<button data-a="mb" data-id="${i}">${b.l}</button>`).join('')}</div></div>`;
- else if(G.over){const w=G.over.winner===me;ov=`<div class="ov"><div class="mb"><div class="res">${w?'勝利!':'敗北…'}</div><div style="text-align:center">${G.over.why}</div>${G.reward?`<div style="text-align:center;color:var(--gold);margin-top:6px">${GACHA.coin} +${G.reward}</div>`:''}${G.senReward?`<div style="text-align:center;color:var(--gold);margin-top:4px">初めての勝利! ${GACHA.sen} +${G.senReward}</div>`:''}${G.unlockedPack?`<div style="text-align:center;color:var(--gold);margin-top:4px">初陣組をすべて倒した!「1560年代 四国・奥羽・北陸」の包みが開けられるようになりました</div>`:''}${G.pvp?'':'<button data-a="again">もう一度</button>'}<button data-a="toTitle">表紙へ</button></div></div>`;}
+ else if(G.over){const w=G.over.winner===me;ov=`<div class="ov"><div class="mb"><div class="res">${w?'勝利!':'敗北…'}</div><div style="text-align:center">${G.over.why}</div>${G.reward?`<div style="text-align:center;color:var(--gold);margin-top:6px">${GACHA.coin} +${G.reward}</div>`:''}${G.senReward?`<div style="text-align:center;color:var(--gold);margin-top:4px">初めての勝利! ${GACHA.sen} +${G.senReward}</div>`:''}${G.unlockedPack?`<div style="text-align:center;color:var(--gold);margin-top:4px">初陣組をすべて倒した!奥羽・四国の包みと、関東・甲斐・北陸の追加札が解放されました</div>`:''}${G.pvp?'':'<button data-a="again">もう一度</button>'}<button data-a="toTitle">表紙へ</button></div></div>`;}
  return `<div class="top"><span>第${G.turnNo}手・${G.cur===0?'あなたの番':'相手の番'}</span></div>
  <div class="zone"><div class="pinfo"><b>相手</b> 手札${en.hand.length} 思想:${G.cpuIds.map(i=>IDEO[i].n).join('')}</div>
  <div class="row mrow">${manaRow(en)}</div>
@@ -1255,10 +1269,10 @@ function shopHTML(){
  let body='';
  if(shopTab==='pack'){
   const packs=gachaPacks();
-  body=SEN_GIFTS.filter(g=>!SV.grants[g.id]).map(g=>`<div class="pcard" style="--c:#e0b341"><div class="pcl"><b>${g.name}</b><div class="dim" style="font-size:12px">${GACHA.sen}${g.n}枚を進呈・1回のみ</div></div><button data-a="gift" data-id="${g.id}">受け取る</button></div>`).join('')+`<div class="pcard" style="--c:#888"><div class="pcl"><b>${GACHA.sen}に替える</b><div class="dim" style="font-size:12px">${GACHA.senRate}${GACHA.coin}→${GACHA.sen}1枚・戻せません</div></div><button data-a="sen" data-id="1" ${SV.coin>=GACHA.senRate?'':'disabled'}>1枚<br>${GACHA.senRate}${GACHA.coin}</button><button data-a="sen" data-id="10" ${SV.coin>=GACHA.senRate*10?'':'disabled'} style="margin-left:6px">10枚<br>${GACHA.senRate*10}${GACHA.coin}</button></div>`+freeStarterHTML()+(packs.length?packs.map(p=>{let tot=0,have=0;for(const c of CARDS.filter(c=>c.series===p.id))for(const r of(c.pr||[])){tot++;if(printCount(c,r)>0)have++;}
+  body=SEN_GIFTS.filter(g=>!SV.grants[g.id]).map(g=>`<div class="pcard" style="--c:#e0b341"><div class="pcl"><b>${g.name}</b><div class="dim" style="font-size:12px">${GACHA.sen}${g.n}枚を進呈・1回のみ</div></div><button data-a="gift" data-id="${g.id}">受け取る</button></div>`).join('')+`<div class="pcard" style="--c:#888"><div class="pcl"><b>${GACHA.sen}に替える</b><div class="dim" style="font-size:12px">${GACHA.senRate}${GACHA.coin}→${GACHA.sen}1枚・戻せません</div></div><button data-a="sen" data-id="1" ${SV.coin>=GACHA.senRate?'':'disabled'}>1枚<br>${GACHA.senRate}${GACHA.coin}</button><button data-a="sen" data-id="10" ${SV.coin>=GACHA.senRate*10?'':'disabled'} style="margin-left:6px">10枚<br>${GACHA.senRate*10}${GACHA.coin}</button></div>`+freeStarterHTML()+(packs.length?packs.map(p=>{let tot=0,have=0;for(const c of packCards(p))for(const r of(c.pr||[])){tot++;if(printCount(c,r)>0)have++;}
    return `<div class="pcard" style="--c:${p.color}"><div class="pcl"><b>${p.name}</b><div class="dim" style="font-size:12px">${p.era} ・ 収集 ${have}/${tot}</div></div>${packLocked(p)?`<button disabled>解放前</button></div><div class="dim" style="font-size:12px;margin:-2px 0 8px 4px">CPU対戦で初陣組${cpuReq().length}家にすべて勝つと開けられます(${cpuClearCount()}/${cpuReq().length})</div>`:`<button data-a="buy" data-id="${p.id}" ${SV.sen>=p.cost?'':'disabled'}>${p.cost}${GACHA.sen}<br>開封</button><button data-a="buy10" data-id="${p.id}" ${SV.sen>=p.cost*10?'':'disabled'} style="margin-left:6px">${p.cost*10}${GACHA.sen}<br>10連</button></div>`}`;}).join(''):'<div class="dim" style="margin:14px 0">時代ごとの包みは準備中です</div>')
   +(DEMO?`<div class="pcard" style="--c:#888"><div class="pcl"><b>演出試し</b><div class="dim" style="font-size:12px">無料・保存されません</div></div><button data-a="buy" data-id="test">開封</button></div>`:'')
-  +`<div class="dim" style="font-size:12px;line-height:1.6;margin-top:8px">包みは時代ごとにあります。1包み${GACHA.cards}枚・最後の1枚は${RN[GACHA.guarantee]}以上確定<br>出る割合: ${RORD.map(r=>`${RN[r]} ${GACHA.rates[r]}%`).join(' / ')}<br>${GACHA.coin}は対戦(勝利+${GACHA.reward.win}・敗北+${GACHA.reward.lose})${EMBED?'':'と参上(+'+GACHA.reward.login+')'}で入手。${GACHA.senRate}${GACHA.coin}で${GACHA.sen}1枚に替えられます(戦銭は${GACHA.coin}に戻せません)</div>`;
+  +`<div class="dim" style="font-size:12px;line-height:1.6;margin-top:8px">包みは地方ごとにあります。CPU戦で条件を満たすと、奥羽・四国の包みと関東・甲斐・北陸の追加札が解放されます。1包み${GACHA.cards}枚・最後の1枚は${RN[GACHA.guarantee]}以上確定<br>出る割合: ${RORD.map(r=>`${RN[r]} ${GACHA.rates[r]}%`).join(' / ')}<br>${GACHA.coin}は対戦(勝利+${GACHA.reward.win}・敗北+${GACHA.reward.lose})${EMBED?'':'と参上(+'+GACHA.reward.login+')'}で入手。${GACHA.senRate}${GACHA.coin}で${GACHA.sen}1枚に替えられます(戦銭は${GACHA.coin}に戻せません)</div>`;
  }else{
   body=`<div class="dim" style="font-size:12px;margin:4px 0">${shopTab==='coll'?'同じ札は3枚まで持てて、超えた分は自動で分解して軍功になります。ここでは3枚以下の札も分解できます(各版1枚と陣立て使用分は残ります)':'軍功で好きな版と交換できます'}</div><div>${['all',...Object.keys(IDEO)].map(k=>`<span class="sc ${collFilter===k?'on':''}" data-a="cf" data-id="${k}">${k==='all'?'全思想':IDEO[k].n}</span>`).join('')}</div><div>${['all',...RORD].map(k=>`<span class="sc ${collRar===k?'on':''}" data-a="cr" data-id="${k}">${k==='all'?'全部':RN[k]}</span>`).join('')}</div>`+printRows(shopTab);
  }
