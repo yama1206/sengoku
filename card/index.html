@@ -230,7 +230,7 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 <body>
 <div id="app"></div>
 <script>
-const VERSION='0.48';
+const VERSION='0.49';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -507,6 +507,7 @@ const SAVE_KEY=SAVE_PREFIX+'_v2',LEGACY_SAVE_KEY=SAVE_PREFIX+'_v1';
 let SV={deck:{},coin:0,pt:0,prints:{},lastLogin:'',starters:{}};
 let myDeck={},editFilter='all',editAll=false,editMsg='';
 let listF={sort:'no',ideo:'all',type:'all',cost:'all',own:'all'};
+let starterPreview=null;
 let listBig=null,shopBig=null,shopTab='pack',packIdeo='so',collFilter='all',collRar='all',disSel={},shopMsg='',pk=null,loginMsg='';
 const cardById=id=>CARDS.find(c=>c.id===id);
 const printKey=(c,r)=>c.id+'|'+r;
@@ -1000,7 +1001,7 @@ function backAction(){
  if(ui.rules)return 'rulesClose';
  if(screen==='title')return loginMsg?'toastClose':EMBED?'exitEmbed':'';
  if(screen==='list')return listBig?'listbigClose':'toTitle';
- if(screen==='shop')return shopBig?'shopbigClose':'toTitle';
+ if(screen==='shop')return starterPreview?'starterPreviewClose':shopBig?'shopbigClose':'toTitle';
  if(screen==='edit')return 'editBack';
  if(screen==='pvp')return 'pvpBack';
  if(screen==='cpu')return 'cpuBack';
@@ -1275,6 +1276,7 @@ function render(){
  const app=document.getElementById('app');if(!app)return;
  if(G&&G.pvp&&NET&&NET.host&&!stT)stT=setTimeout(sendState,80); // 相手へ盤面を送る(少しまとめて)
  let h=screen==='title'?titleHTML():screen==='pvp'?pvpHTML():screen==='cpu'?cpuHTML():screen==='edit'?editHTML():screen==='list'?listHTML():screen==='shop'?shopHTML():gameHTML();
+ if(screen==='shop'&&starterPreview)h='<div inert>'+h+'</div>'+starterPreviewHTML(starterPreview);
  if(ui.rules)h+=rulesHTML();
  if(pk)h+=packHTML();
  if(loginMsg&&screen==='title'&&!pk)h+=toastHTML();
@@ -1380,9 +1382,16 @@ function printRows(mode){
 }
 function freeStarterHTML(){
  const remaining=freeStarterRemaining();
- const title='<div class="dim" style="margin:8px 0">無料の初陣組（残り'+remaining+'家／'+FREE_STARTER_LIMIT+'家）</div>';
+ const title='<div class="dim" style="margin:8px 0">初陣組（残り'+remaining+'家／'+FREE_STARTER_LIMIT+'家）</div>';
  if(remaining<=0)return title;
- return title+STARTERS.filter(st=>!SV.starters[st.id]).map(st=>`<div class="pcard" style="--c:#c0392b"><div class="pcl"><b>${st.name}</b><div class="dim" style="font-size:12px">${st.sub}<br>12種×3枚=36枚・無料</div></div><button data-a="starter" data-id="${st.id}">受け取る</button></div>`).join('');
+ return title+STARTERS.filter(st=>!SV.starters[st.id]).map(st=>`<div class="pcard" style="--c:#c0392b"><div class="pcl"><b>${st.name}</b><button style="display:block;margin-top:6px;padding:6px 10px;font-size:14px" data-a="starterPreview" data-id="${st.id}">デッキの中身を見る</button></div><button data-a="starter" data-id="${st.id}">受け取る</button></div>`).join('');
+}
+function starterPreviewHTML(st){
+ const rows=Object.entries(starterDeck(st)).map(([id,n])=>{
+  const c=cardById(id);
+  return `<article><img class="bookart" src="${printImg(c,c.pr[0])}" alt="" onerror="imgFb(this,'${baseImg(c)}')"><b>${escH(c.n)} ×${n}</b><br><small>${TL[c.t]} · 費え${c.c}${c.t==='u'?' · 兵力'+c.p:''}</small><br>${escH(desc(c)||'効果なし')}</article>`;
+ }).join('');
+ return `<div class="ov bookpanel"><section class="mb" role="dialog" aria-modal="true" aria-label="${escH(st.name)}"><nav><b>${escH(st.name)}</b> <button data-a="starterPreviewClose">閉じる</button></nav>${rows}</section></div>`;
 }
 function shopHTML(){
  let total=0,have=0;for(const c of CARDS)for(const r of(c.pr||[])){total++;if(printCount(c,r)>0)have++;}
@@ -1462,6 +1471,21 @@ async function onClick(a,id){
  }
  if(screen==='shop'){
   const split=k=>{const [cid,r]=k.split('|');return [cardById(cid),r];};
+  if(starterPreview){
+   if(a==='starterPreviewClose'){
+    const prev=starterPreview;
+    starterPreview=null;
+    render();
+    document.querySelector(`[data-a="starterPreview"][data-id="${prev.id}"]`)?.focus({preventScroll:true});
+   }
+   return;
+  }
+  if(a==='starterPreview'){
+   starterPreview=STARTERS.find(st=>st.id===id)||null;
+   render();
+   document.querySelector('.bookpanel [data-a="starterPreviewClose"]')?.focus({preventScroll:true});
+   return;
+  }
   if(a==='shopbig'){shopBig=id;}
   else if(a==='shopbigClose'){shopBig=null;}
   else if(a==='toTitle'){screen='title';}
