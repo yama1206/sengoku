@@ -239,7 +239,7 @@ button.effect-link:hover:not(:disabled){background:none;color:#fff0b0;outline:no
  <form method="dialog"><button autofocus>閉じる</button></form>
 </dialog>
 <script>
-const VERSION='0.59';
+const VERSION='0.60';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -1456,7 +1456,7 @@ function packHTML(){
   inner=`<div class="pk-title">${p.pack.name}</div><div class="pack" id="pack" style="--c:${col}"><div class="packtop" id="ptop"><div class="tearfill" id="tearfill"></div><span class="tearhint">▶ 右へなぞって開封</span></div><div class="packbody"><div class="plogo">戦国思想録</div><div class="pname">${p.pack.name}</div></div><div class="burst"></div></div><button data-a="tearNow" style="margin-top:20px">押して開ける</button>`;
  }else if(p.stage==='multi'){
   const per=GACHA.cards,tops=[];for(let i=0;i<p.n;i++){const cs=p.all.slice(i*per,i*per+per);let g='N';for(const x of cs)if(RORD.indexOf(x.r)>RORD.indexOf(g))g=x.r;tops.push(g);}
-  inner=`<div class="pkbadge">10連</div><div class="pk-title">${p.pack.name} 10連</div><div class="mgrid" id="mgrid" style="--c:${col}">${tops.map((g,i)=>`<div class="mpk g-${g}" data-i="${i}"><div class="mt"></div><span>戦国<br>思想録</span></div>`).join('')}</div><div id="mgo"><button data-a="multiGo">押して10包みを開ける</button></div><div class="mflash" id="mflash"></div>`;
+  inner=`<div class="pk-title">${p.pack.name}の包み（十包み）</div><div class="mgrid" id="mgrid" style="--c:${col}">${tops.map((g,i)=>`<div class="mpk g-${g}" data-i="${i}"><div class="mt"></div><span>戦国<br>思想録</span></div>`).join('')}</div><div id="mgo"><button data-a="multiGo">十包みを開ける</button></div><div class="mflash" id="mflash"></div>`;
  }else if(p.stage==='pksum'){
   const last=p.pi>=p.n-1;
   inner=`<div class="pkbadge">包み ${p.pi+1}/${p.n}</div><div class="pk-title">包み ${p.pi+1} の結果</div><div class="sumgrid" style="max-width:540px">${p.cards.map((x,k)=>`<div class="smw" data-a="bigcard" data-id="${k}"><div class="smi">${cardFace(x.c,x.r,x.isNew,x.auto)}</div></div>`).join('')}</div><div class="pk-hint" style="margin:0 0 12px">札を押すと、大きな絵が見られます</div><div class="acts" style="justify-content:center"><button data-a="nextPack">${last?'全部の結果へ':'次の包み ▶'}</button>${last?'':'<button data-a="allSum">まとめて結果へ</button>'}</div>`;
@@ -1534,21 +1534,24 @@ function packDetailsHTML(pack){
  const table=RORD.map(r=>`<tr><th scope="row" class="rt-${r}">${RN[r]}</th><td>${percent(rates[r])}</td><td>${percent(guaranteed[r])}</td></tr>`).join('');
  const cards=[...RORD].reverse().filter(r=>available.includes(r)).map(r=>`<h3 class="rt-${r}">${RN[r]}</h3>`+
   pool.filter(x=>x.r===r).map(({c})=>`<article><img class="bookart" src="${printImg(c,r)}" loading="lazy" alt="" onerror="imgFb(this,'${baseImg(c)}')"><b>${escH(c.n)}</b><br><small>${c.h?HOUSES[c.h].name:'共通札'} · ${TL[c.t]} · 費え${c.c}</small></article>`).join('')).join('');
- return `<div class="ov bookpanel"><section class="mb" role="dialog" aria-modal="true" aria-label="${pack.name}のガチャ詳細">
- <nav><b>${pack.name}のガチャ詳細</b> <button data-a="packDetailsClose">閉じる</button></nav>
+ return `<div class="ov bookpanel"><section class="mb" role="dialog" aria-modal="true" aria-label="${pack.name}の包みに入っている札">
+ <nav><b>${pack.name}の包みに入っている札</b> <button data-a="packDetailsClose">閉じる</button></nav>
  <p>1包み${GACHA.cards}枚。それまでに${RN[GACHA.guarantee]}以上が出なかった場合、最後の1枚に確定枠の排出率が適用されます。</p>
- <p>排出対象に未所持の札があれば、1包みにつき1枚以上入ります。全種そろった後は、3枚未満の札があれば1枚以上入ります。所持枚数はレア度をまたいで数え、10連は包みごとに判定します。下の排出率は所持枚数による調整前のものです。</p>
+ <p>排出対象に未所持の札があれば、1包みにつき1枚以上入ります。全種そろった後は、3枚未満の札があれば1枚以上入ります。所持枚数はレア度をまたいで数え、十包みを開ける場合も、包みごとに判定します。下の排出率は所持枚数による調整前のものです。</p>
  <table style="width:100%;text-align:center"><thead><tr><th scope="col">レア度</th><th scope="col">通常</th><th scope="col">確定枠</th></tr></thead><tbody>${table}</tbody></table>
  <h2>排出される札（${pool.length}種）</h2>${cards}</section></div>`;
 }
 function packRowHTML(pack){
  const pool=packPrints(pack),have=pool.filter(({c,r})=>printCount(c,r)>0).length;
- const houses=pack.houses.map(h=>HOUSES[h].name+(pool.some(({c})=>c.h===h)?'':'（解放前）')).join('、');
+ const houses=pack.houses.map(h=>{
+  const showWithoutStatus=pack.id==='hokuriku'&&(h==='asakura'||h==='hatakeyama');
+  return HOUSES[h].name+(showWithoutStatus||pool.some(({c})=>c.h===h)?'':'（解放前）');
+ }).join('、');
  return `<div class="pcard" style="--c:${pack.color};flex-wrap:wrap">
- <div class="pcl" style="flex-basis:100%"><b>${pack.name}</b><div style="font-size:14px">${houses}</div><div class="dim" style="font-size:12px">収集 ${have}/${pool.length}</div></div>
- <button data-a="packDetails" data-id="${pack.id}">ガチャの詳細</button>
+ <div class="pcl" style="flex-basis:100%"><b>${pack.name}の包み</b><div style="font-size:14px">${houses}</div><div class="dim" style="font-size:12px">収集 ${have}/${pool.length}</div></div>
+ <button data-a="packDetails" data-id="${pack.id}">入っている札</button>
  <button data-a="buy" data-id="${pack.id}" ${SV.sen>=pack.cost?'':'disabled'}>${pack.cost}${GACHA.sen}<br>開封</button>
- <button data-a="buy10" data-id="${pack.id}" ${SV.sen>=pack.cost*10?'':'disabled'}>${pack.cost*10}${GACHA.sen}<br>10連</button></div>`;
+ <button data-a="buy10" data-id="${pack.id}" ${SV.sen>=pack.cost*10?'':'disabled'}>${pack.cost*10}${GACHA.sen}<br>十包み開ける</button></div>`;
 }
 function shopHTML(){
  let total=0,have=0;for(const c of CARDS)for(const r of(c.pr||[])){total++;if(printCount(c,r)>0)have++;}
