@@ -212,6 +212,8 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 .mc.ps{background:rgba(255,225,74,.3);box-shadow:0 0 0 2px #ffe14a;opacity:1}
 .fieldbook{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}.fieldbook button{font-size:12px;padding:4px 8px}
 .bookpanel{z-index:92}.bookart{float:left;width:46px;height:60px;object-fit:cover;margin-right:9px;border-radius:3px}.bookpanel article{display:flow-root;border-top:1px solid #856944;padding:8px 0}.bookpanel nav{position:sticky;top:0;background:#211b15;padding:4px 0}.bookpanel button[aria-pressed=true]{color:var(--gold)}
+.list-house-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 8px}
+.list-house-options .sc{margin:0;min-height:36px}
 .gatefx{position:fixed;pointer-events:none;z-index:19;width:82px;height:54px;perspective:160px;transform:translate(-50%,-50%);text-align:center;color:#ffdfa0;font:bold 19px serif;text-shadow:0 2px 4px #000}
 .gatefx i{position:absolute;top:0;width:50%;height:100%;border:2px solid #412f20;background:linear-gradient(0deg,transparent 40%,#36302a 41% 53%,transparent 54%),repeating-linear-gradient(90deg,#846044 0 8px,#533924 9px 11px);animation:gateFall .5s both;transform-origin:left}
 .gatefx i+i{right:0;transform-origin:right;--angle:-85deg}.gatefx i:first-of-type{left:0}.gatefx .gatecard{position:absolute;inset:2px 24px;border:2px solid #c39d59;border-radius:3px;background:repeating-linear-gradient(45deg,#583b27 0 4px,#725638 4px 7px) center/cover;font:9px serif;display:grid;align-items:end}
@@ -239,7 +241,7 @@ button.effect-link:hover:not(:disabled){background:none;color:#fff0b0;outline:no
  <form method="dialog"><button autofocus>閉じる</button></form>
 </dialog>
 <script>
-const VERSION='0.60';
+const VERSION='0.61';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -547,7 +549,8 @@ const SAVE_PREFIX=EMBED?'sengoku_card_embed':'sengoku_card';
 const SAVE_KEY=SAVE_PREFIX+'_v2',LEGACY_SAVE_KEY=SAVE_PREFIX+'_v1';
 let SV={deck:{},coin:0,pt:0,prints:{},lastLogin:'',starters:{}};
 let myDeck={},editFilter='all',editAll=false,editMsg='';
-let listF={sort:'no',ideo:'all',type:'all',cost:'all',own:'all'};
+let listF={sort:'no',ideo:'all',type:'all',cost:'all',own:'all',house:'all'};
+let listHouseOpen=false;
 let starterPreview=null,packDetails=null;
 let listBig=null,shopBig=null,shopTab='pack',packIdeo='so',collFilter='all',collRar='all',disSel={},shopMsg='',pk=null,loginMsg='';
 const cardById=id=>CARDS.find(c=>c.id===id);
@@ -1091,11 +1094,20 @@ function shopStage(line){return `<div class="tstage"><img class="who" src="../as
 // 2.106.19 札目録の並べ替えと絞り込み（思想・種類・費え・持っているか）
 const LSORT={no:'札の順',cu:'費え 少ない順',cd:'費え 多い順',pw:'兵力 強い順',nm:'名前順',id:'思想順'};
 const LCOST={all:'全て',0:'0〜1',2:'2',3:'3',4:'4',5:'5以上'};
+function listHouseHTML(){
+ if(!listHouseOpen)return '';
+ const choices=[['all','すべての家'],['common','共通札'],...Object.values(HOUSES).map(h=>[h.id,h.name])];
+ return `<div class="ov bookpanel"><section class="mb" role="dialog" aria-modal="true" aria-label="家で絞り込み">
+ <nav><b>家で絞り込み</b> <button data-a="listHouseClose">閉じる</button></nav>
+ <div class="list-house-options">${choices.map(([id,name])=>`<button class="sc ${listF.house===id?'on':''}" data-a="lf_house" data-id="${id}" aria-pressed="${listF.house===id}">${escH(name)}</button>`).join('')}</div>
+ </section></div>`;
+}
 function listCostOk(c){const k=listF.cost;if(k==='all')return true;const n=+k;return n===0?c.c<=1:n===5?c.c>=5:c.c===n;}
 function listRowHTML(c){const own=ownedOf(c);return `<div class="lr" style="cursor:pointer" data-a="listbig" data-id="${c.id}"><img src="${imgPath(c)}" onerror="this.outerHTML='<div class=\\'ph\\' style=\\'--c:${IDEO[c.i].c}\\'></div>'" alt=""><div><b style="color:${IDEO[c.i].c}">【${IDEO[c.i].n}】${c.n}</b> ${TL[c.t]} 費え${c.c}${c.t==='u'?' 兵力'+c.p:''} <span class="${own?'okc':'dim'}" style="font-size:12px">${own?'持っている'+Math.min(own,99)+'枚':'未所持'}</span><br>${descHTML(c)}</div></div>`;}
 function listHTML(){
  const f=listF,ik=Object.keys(IDEO);
- const ok=c=>(f.ideo==='all'||c.i===f.ideo)&&(f.type==='all'||c.t===f.type)&&listCostOk(c)&&(f.own==='all'||(f.own==='own')===(ownedOf(c)>0));
+ const houseName=f.house==='common'?'共通札':HOUSES[f.house]?.name;
+ const ok=c=>(f.house==='all'||(c.h||'common')===f.house)&&(f.ideo==='all'||c.i===f.ideo)&&(f.type==='all'||c.t===f.type)&&listCostOk(c)&&(f.own==='all'||(f.own==='own')===(ownedOf(c)>0));
  const chips=(key,opts)=>Object.keys(opts).map(k=>`<span class="sc ${String(f[key])===k?'on':''}" data-a="lf_${key}" data-id="${k}">${opts[k]}</span>`).join('');
  const cmp={cu:(a,b)=>a.c-b.c,cd:(a,b)=>b.c-a.c,pw:(a,b)=>(b.t==='u'?b.p:-1)-(a.t==='u'?a.p:-1)||a.c-b.c,nm:(a,b)=>a.n.localeCompare(b.n,'ja'),id:(a,b)=>ik.indexOf(a.i)-ik.indexOf(b.i)||a.c-b.c}[f.sort];
  let body,cnt=0;
@@ -1109,9 +1121,10 @@ function listHTML(){
  <div style="font-size:12px"><span class="dim">種類: </span>${chips('type',Object.assign({all:'全て'},TL))}</div>
  <div style="font-size:12px"><span class="dim">費え: </span>${chips('cost',LCOST)}</div>
  <div style="font-size:12px"><span class="dim">持ち札: </span>${chips('own',{all:'全て',own:'持っている',none:'未所持'})}<span class="sc" data-a="lfReset">絞り込みをやめる</span></div>
+ <button class="sc ${houseName?'on':''}" data-a="listHouseOpen" aria-haspopup="dialog">家${houseName?' · '+escH(houseName):''}</button>
  <div class="dim" style="font-size:12px;margin-top:4px">${cnt}種</div>
  ${body||'<div class="dim" style="margin:16px 0">当てはまる札がありません</div>'}
- <button data-a="toTitle" style="width:100%;margin-top:12px">戻る</button>${listBigHTML()}</div>`;
+ <button data-a="toTitle" style="width:100%;margin-top:12px">戻る</button>${listBigHTML()}${listHouseHTML()}</div>`;
 }
 // 札目録で札を押した時の大きな絵
 function listBigHTML(){
@@ -1125,7 +1138,7 @@ function backAction(){
  if(pk)return pk.big!=null?'bigClose':'packEnd';
  if(ui.rules)return 'rulesClose';
  if(screen==='title')return loginMsg?'toastClose':EMBED?'exitEmbed':'';
- if(screen==='list')return listBig?'listbigClose':'toTitle';
+ if(screen==='list')return listHouseOpen?'listHouseClose':listBig?'listbigClose':'toTitle';
  if(screen==='shop')return packDetails?'packDetailsClose':starterPreview?'starterPreviewClose':shopBig?'shopbigClose':'toTitle';
  if(screen==='edit')return 'editBack';
  if(screen==='pvp')return 'pvpBack';
@@ -1635,8 +1648,20 @@ async function onClick(a,id){
   return;
  }
  if(screen==='list'){
-  if(a.startsWith('lf_')){const k=a.slice(3);if(k in listF){listF[k]=String(id);render();}}
-  else if(a==='lfReset'){listF=Object.assign({},listF,{ideo:'all',type:'all',cost:'all',own:'all'});render();}
+  if(listHouseOpen){
+   if(a==='lf_house')listF.house=id;
+   if(a==='lf_house'||a==='listHouseClose'){
+    listHouseOpen=false;render();
+    document.querySelector('[data-a="listHouseOpen"]')?.focus({preventScroll:true});
+   }
+   return;
+  }
+  if(a==='listHouseOpen'){
+   listHouseOpen=true;render();
+   document.querySelector('[data-a="lf_house"][aria-pressed="true"]')?.focus();
+  }
+  else if(a.startsWith('lf_')){const k=a.slice(3);if(k in listF){listF[k]=String(id);render();}}
+  else if(a==='lfReset'){listF=Object.assign({},listF,{ideo:'all',type:'all',cost:'all',own:'all',house:'all'});render();}
   else if(a==='listbig'){listBig=id;render();}
   else if(a==='listbigClose'){listBig=null;render();}
   else if(a==='toTitle'){listBig=null;screen='title';render();}
