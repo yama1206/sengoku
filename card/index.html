@@ -239,7 +239,7 @@ button.effect-link:hover:not(:disabled){background:none;color:#fff0b0;outline:no
  <form method="dialog"><button autofocus>閉じる</button></form>
 </dialog>
 <script>
-const VERSION='0.56';
+const VERSION='0.57';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -308,8 +308,9 @@ const artTag=(c,r)=>`<img class="art" src="${printImg(c,r||displayRarity(c))}" o
 defineSeries('e1560','東海・関東・甲斐・北陸');
 defineSeries('e1560w','中国・九州');
 defineSeries('e1560e','四国・奥羽・北陸');
+defineSeries('e1560k','畿内');
 // 家の札データを読み込む(順番どおりに同期で読む)。順番は札IDの連番に効くので変えない。新しい家は末尾に足す
-const HOUSE_FILES=['oda','uesugi','takeda','hojo','imagawa','matsudaira','_common','mouri','amago','otomo','shimazu','ryuzoji','chosokabe','miyoshi','kono','date','ashina','mogami','asakura','nanbu','hatakeyama'];
+const HOUSE_FILES=['oda','uesugi','takeda','hojo','imagawa','matsudaira','_common','mouri','amago','otomo','shimazu','ryuzoji','chosokabe','miyoshi','kono','date','ashina','mogami','asakura','nanbu','hatakeyama','ashikaga','rokkaku','azai'];
 HOUSE_FILES.forEach(f=>document.write(`<script src="houses/${f}.js?v=${VERSION}"><\/script>`));
 </script>
 <script>
@@ -619,6 +620,7 @@ const REGIONAL_PACKS=[
  {id:'tokai',name:'東海',houses:['oda','imagawa','matsudaira'],common:true},
  {id:'hokuriku',name:'北陸',houses:['uesugi','asakura','hatakeyama'],common:true},
  {id:'shikoku',name:'四国',houses:['miyoshi','chosokabe','kono'],availableFromStart:true},
+ {id:'kinai',name:'畿内',houses:['ashikaga','rokkaku','azai'],availableFromStart:true},
  {id:'chugoku',name:'中国',houses:['mouri','amago']},
  {id:'kyushu',name:'九州',houses:['otomo','shimazu','ryuzoji']}
 ];
