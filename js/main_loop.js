@@ -16,9 +16,19 @@ function actInput(AB) {
   const inp = { mx: pm[0] + (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0), my: pm[1] + (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0), atk: !!(G.actAtk || G.padAtk), dash: !!G.actDash, aim: null };
   G.actDash = false;
   if (G.tL) { const k = 55, dx = Math.max(-1, Math.min(1, (G.tL.x - G.tL.sx) / k)), dy = Math.max(-1, Math.min(1, (G.tL.y - G.tL.sy) / k)); inp.mx += dx; inp.my += dy; }
-  if (G.tAtk) { inp.atk = true; G.tAtk = false; }
+  if (h && h.wep && h.wep.name === SIM.ACT.WEP.yumi.name && G.tR) {
+    G.tR.bowHeld = true;
+    inp.atk = true;
+  }
+  inp.tap = !!G.tAtk;
+  if (inp.tap) { inp.atk = true; G.tAtk = false; }
+  const cancelBow = !!G.tCancelBow;
+  G.tCancelBow = false;
+  inp.cancelBow = cancelBow;
+  inp.blk = cancelBow;
+  inp.sw = !!G.actSw; G.actSw = false;
   if (!ML() && G.tAim != null && (G.tR || inp.atk)) inp.aim = G.tAim;
-  if (ML()) { const y = R.acam.yaw || 0, f = -inp.my, r = inp.mx; inp.mx = Math.cos(y) * f - Math.sin(y) * r; inp.my = Math.sin(y) * f + Math.cos(y) * r; inp.aim = y; inp.blk = !!(G.actBlk || G.padBlk); inp.sw = !!G.actSw; inp.jmp = !!G.actJmp; inp.ride = !!G.actRide; G.actSw = G.actJmp = G.actRide = false; return inp; }
+  if (ML()) { const y = R.acam.yaw || 0, f = -inp.my, r = inp.mx; inp.mx = Math.cos(y) * f - Math.sin(y) * r; inp.my = Math.sin(y) * f + Math.cos(y) * r; inp.aim = y; inp.blk = cancelBow || !!(G.actBlk || G.padBlk); inp.jmp = !!G.actJmp; inp.ride = !!G.actRide; G.actJmp = G.actRide = false; return inp; }
   if (h && G.actTouch) { const [x, y] = R.actToWorld(G.actTouch[0], G.actTouch[1]), d = Math.hypot(x - h.x, y - h.y); inp.aim = Math.atan2(y - h.y, x - h.x); if (d > 3.5) { inp.mx = (x - h.x) / d; inp.my = (y - h.y) / d; } inp.atk = d < 6; }
   else if (G.padAim != null) inp.aim = G.padAim;
   else if (h && G.mouseXY && !G.padUsed) { const [x, y] = R.actToWorld(G.mouseXY[0], G.mouseXY[1]); inp.aim = Math.atan2(y - h.y, x - h.x); }
@@ -85,10 +95,10 @@ function frame0(now) {
         if (G.mode === 'host') { AB.act.inp[G.myPid] = inp; if (inp.dash) AB.act.dq[G.myPid] = true; if (inp.sw) (AB.act.wq = AB.act.wq || {})[G.myPid] = true; if (inp.jmp) (AB.act.jq = AB.act.jq || {})[G.myPid] = true; if (inp.ride) (AB.act.rq = AB.act.rq || {})[G.myPid] = true; if (!(menuOpen && soloHost())) SIM.actStep(G.world, AB, dt); }
         else { // 0.62.0 参加者：入力をホストへ送り（かわすはすぐ）、自分の本人は手もとで先に動かす
           G.actSendAcc = (G.actSendAcc || 0) + dt; const key = `${inp.mx.toFixed(2)},${inp.my.toFixed(2)},${inp.aim == null ? '' : inp.aim.toFixed(2)},${inp.atk},${inp.blk}`;
-          if (inp.dash || inp.sw || inp.jmp || inp.ride || (key !== G.actLastKey && G.actSendAcc > 0.05) || G.actSendAcc > 0.5) { G.actSendAcc = 0; G.actLastKey = key; command(Object.assign({ type: 'actIn' }, inp)); }
+          if (inp.dash || inp.sw || inp.jmp || inp.ride || inp.tap || inp.cancelBow || (key !== G.actLastKey && G.actSendAcc > 0.05) || G.actSendAcc > 0.5) { G.actSendAcc = 0; G.actLastKey = key; command(Object.assign({ type: 'actIn' }, inp)); }
           SIM.actSmooth(AB, dt, G.myPid, inp);
         }
-        R.actPad = !!G.padUsed; R.actCur = G.vcurOn && G.vcur ? { p: G.vcur, d: G.padRD } : null; R.aimXY = aimXY(); R.drawAction(ctx, AB, G.myPid, G.selUnit, dt, BT.ter); renderBattle(BT);
+        R.actPad = !!G.padUsed; R.actTouchUI = document.body.classList.contains('touch'); R.actCur = G.vcurOn && G.vcur ? { p: G.vcur, d: G.padRD } : null; R.aimXY = aimXY(); R.drawAction(ctx, AB, G.myPid, G.selUnit, dt, BT.ter); renderBattle(BT);
       } else { R.drawBattle(ctx, BT, G.disp, G.myPid, G.selUnit); renderBattle(BT); }
       if (G.bcur && !AB) { const L = R.battleLayout(SIM.FIELD); drawCross(L.ox + G.bcur[0] * L.sc, L.oy + G.bcur[1] * L.sc, '#f2c14e'); }
       { // 0.59.0 向きを決める矢印

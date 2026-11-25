@@ -282,9 +282,13 @@ function mobSub() {
   else L = Object.entries(SIM.ACT.FORMS).map(([k, t]) => [`f:${k}`, t]);
   el.innerHTML = L.map(([k, t, on]) => `<button data-ms="${k}"${on ? ' class="on"' : ''}>${t}</button>`).join('');
 }
-setInterval(() => { const mb = !!actB() && document.body.classList.contains('touch'); if (mb === $('mobBar').classList.contains('hidden')) { $('mobBar').classList.toggle('hidden', !mb); if (!mb) G.mobTab = null; mobSub(); } }, 300);
+setInterval(() => { const mb = !!actB() && $('gameMenu').classList.contains('hidden') && document.body.classList.contains('touch'); if (mb === $('mobBar').classList.contains('hidden')) { $('mobBar').classList.toggle('hidden', !mb); if (!mb) G.mobTab = null; mobSub(); } }, 300);
 $('mobBar').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return; e.stopPropagation();
+  if (b.id === 'mobWeapon') {
+    if (actB() && $('gameMenu').classList.contains('hidden')) G.actSw = true;
+    return;
+  }
   if (b.dataset.mb) { G.mobTab = G.mobTab === b.dataset.mb ? null : b.dataset.mb; mobSub(); return; }
   const [k, v] = b.dataset.ms.split(':');
   if (k === 'u') { G.selUnit = v === 'all' ? 'all' : +v; G.mobTab = 'ord'; mobSub(); return; }

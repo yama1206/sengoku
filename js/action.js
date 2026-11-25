@@ -23,6 +23,8 @@
     SOLDIER_R: 0.5,
     GUN_BRACE: 0.45,
     BOW_MOVE: 0.5,
+    BOW_DRAW: 0.8,
+    bowSpread: (draw) => (6 - 5.35 * draw) * Math.PI / 180,
     MELEE_RECOVER: 0.22,
   };
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -415,7 +417,7 @@
       }
       /* 1.6.41 槍・弓は押して構え（溜め）、離すと突く・放つ。長く構えるほど少し強い（0.8秒で+40%） */
       const rel = kk === 'yari' || kk === 'yumi'; let fire = !!inp.atk, chg = 0;
-      if (rel) { if (hero.blk) hero.hold = 0; else if (inp.atk) hero.hold = (hero.hold || 0) + dt; else if (hero.hold > 0) { hero.rq = Math.min(1, hero.hold / 0.8); hero.hold = 0; } fire = hero.rq != null && hero.cd <= 0; if (fire) { chg = hero.rq; hero.rq = null; } } else hero.hold = 0;
+      if (rel) { if (hero.blk) hero.hold = 0; else if (inp.atk) hero.hold = (hero.hold || 0) + dt; else if (hero.hold > 0) { hero.rq = Math.min(1, hero.hold / ACT.BOW_DRAW); hero.hold = 0; } fire = hero.rq != null && hero.cd <= 0; if (fire) { chg = hero.rq; hero.rq = null; } } else hero.hold = 0;
       if (fire && !hero.blk && hero.cd <= 0 && (kk !== 'teppo' || !hero.gunCd)) {
         const pa = A.byG[hero.g], am = (pa && pa.am) || 1, base = TR.hero.atk * am * (1 + 0.4 * chg);
         hero.cd = W.cd;
@@ -424,7 +426,11 @@
           hero.gunBrace = ACT.GUN_BRACE;
         }
         if (W.shot) hero.at = performance.now() / 1000;
-        if (W.shot) { A.pr.push({ x0: hero.x, y0: hero.y, x: hero.x, y: hero.y, vx: Math.cos(hero.f) * W.spd, vy: Math.sin(hero.f) * W.spd, side: hero.side, dmg: base * W.dmg * 0.5 * (W.spd > 100 && SIM.wxGun ? SIM.wxGun() : 1), life: W.shot / W.spd, gun: W.spd > 100, src: hero }); sfx(hero, W.spd > 100 ? 'gun' : 'bow'); }
+        if (W.shot) {
+          const shotAngle = kk === 'yumi' ? hero.f + (2 * rr() - 1) * ACT.bowSpread(chg) : hero.f;
+          A.pr.push({ x0: hero.x, y0: hero.y, x: hero.x, y: hero.y, vx: Math.cos(shotAngle) * W.spd, vy: Math.sin(shotAngle) * W.spd, side: hero.side, dmg: base * W.dmg * 0.5 * (W.spd > 100 && SIM.wxGun ? SIM.wxGun() : 1), life: W.shot / W.spd, gun: W.spd > 100, src: hero });
+          sfx(hero, W.spd > 100 ? 'gun' : 'bow');
+        }
         else {
           hero.recover = 0;
           hero.sw = { t: W.sw || 0.18, d: W.sw || 0.18, a: hero.f, arc: W.arc, r: W.reach }; sfx(hero, 'slash');
@@ -743,6 +749,19 @@
     for (const id in cen) { const q = cen[id], d = (q.x / q.n - gx) ** 2 + (q.y / q.n - gy) ** 2; if (d < bd) { bd = d; best = +id; } }
     return best;
   };
+  function rangedReticle(ctx, x, y, hero) {
+    const bow = hero && hero.wep && hero.wep.name === ACT.WEP.yumi.name;
+    const spread = bow ? ACT.bowSpread(Math.min(1, (hero.hold || 0) / ACT.BOW_DRAW)) : 0;
+    const gap = bow ? 4 + 110 * spread : 4, end = gap + 6;
+    ctx.beginPath();
+    ctx.moveTo(x - end, y); ctx.lineTo(x - gap, y);
+    ctx.moveTo(x + gap, y); ctx.lineTo(x + end, y);
+    ctx.moveTo(x, y - end); ctx.lineTo(x, y - gap);
+    ctx.moveTo(x, y + gap); ctx.lineTo(x, y + end);
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(16,13,12,.78)'; ctx.stroke();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = '#fff'; ctx.stroke();
+  }
+
   R.drawAction = function (ctx, b, myPid, sel, dt, ter) {
     const A = b.act, cv = ctx.canvas, d = window.devicePixelRatio || 1; W = cv.width / d; H = cv.height / d;
     const hero = A.s.find((s) => s.pc === myPid);
@@ -762,7 +781,7 @@
     for (const t of b.ter || []) { const [a, c] = S(t.x, t.y); ctx.fillStyle = t.k === 'f' ? 'rgba(40,70,30,.45)' : t.k === 'h' ? 'rgba(150,130,80,.35)' : 'rgba(60,80,110,.4)'; ctx.beginPath(); ctx.arc(a, c, t.r * z, 0, 7); ctx.fill(); }
     // 倒れた者
     for (const p of A.dead) { const [a, c] = S(p.x, p.y); if (a < -5 || c < -5 || a > W + 5 || c > H + 5) continue; ctx.fillStyle = p.side === 'A' ? 'rgba(30,40,70,.45)' : 'rgba(80,25,20,.45)'; ctx.fillRect(a - 0.5 * z, c - 0.2 * z, z, 0.4 * z); }
-    const selG = sel;
+    const selG = sel, ownSide = hero ? hero.side : 'A';
     for (const s of A.s) {
       if (!live(s)) continue;
       const [a, c] = S(s.x, s.y); if (a < -20 || c < -20 || a > W + 20 || c > H + 20) continue;
@@ -773,6 +792,12 @@
       if (s.fl) col = '#fff';
       const isSel = own && !s.hero && (u.id === selG || selG === 'all'); ctx.fillStyle = col; ctx.strokeStyle = isSel ? '#ffe680' : 'rgba(0,0,0,.6)'; ctx.lineWidth = isSel ? 2 : 1;
       ctx.beginPath(); ctx.arc(a, c, r, 0, 7); ctx.fill(); ctx.stroke();
+      if (s.side !== ownSide) {
+        const y = c - r - (s.hero ? 13 : 4);
+        ctx.beginPath(); ctx.moveTo(a - 4, y - 5); ctx.lineTo(a + 4, y - 5); ctx.lineTo(a, y); ctx.closePath();
+        ctx.fillStyle = '#ff545b'; ctx.fill();
+        ctx.strokeStyle = '#390d11'; ctx.lineWidth = 1; ctx.stroke();
+      }
       // 向き（槍・弓の印）
       const f = s.f || 0, L = s.hero ? 1.6 : s.type && TR[s.type].ranged ? 0.8 : 1.3;
       ctx.strokeStyle = 'rgba(30,20,10,.85)'; ctx.lineWidth = s.hero ? 2.5 : 1.2;
@@ -803,7 +828,9 @@
       ctx.fillStyle = u.side === 'B' ? '#ffb4a8' : own && (u.id === selG || selG === 'all') ? '#ffe680' : '#dfe9f5'; ctx.fillText(t, a, c + 2);
     }
     // 照準
-    if (hero && live(hero)) { const [a, c] = S(hero.x + Math.cos(hero.f) * 6, hero.y + Math.sin(hero.f) * 6); ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(a, c, 5, 0, 7); ctx.stroke(); }
+    if (hero && live(hero)) { const [a, c] = S(hero.x + Math.cos(hero.f) * 6, hero.y + Math.sin(hero.f) * 6); ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5; if (hero.wep && (hero.wep.name === ACT.WEP.yumi.name || hero.wep.name === ACT.WEP.teppo.name)) rangedReticle(ctx, a, c, hero);
+      else { ctx.beginPath(); ctx.arc(a, c, 5, 0, 7); ctx.stroke(); }
+    }
     // 0.61.0 コントローラーのカーソル（右スティック）
     const C = R.actCur;
     if (C) {
@@ -851,10 +878,9 @@
         ctx.fillStyle = s.side === 'B' ? '#ffb4a8' : s.pc ? '#ffcf8a' : '#cfe6ff'; ctx.fillText(nm, a, c);
       } }
     // 照準（画面の真ん中）
-    const cx = W / 2, cy = H / 2; ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1.5;
-    if (R.actPad) { // 0.67.0 照準はコントローラーのときだけ出す
-      ctx.beginPath(); ctx.moveTo(cx - 9, cy); ctx.lineTo(cx - 3, cy); ctx.moveTo(cx + 3, cy); ctx.lineTo(cx + 9, cy); ctx.moveTo(cx, cy - 9); ctx.lineTo(cx, cy - 3); ctx.moveTo(cx, cy + 3); ctx.lineTo(cx, cy + 9); ctx.stroke();
-    }
+    const cx = W / 2, cy = H / 2;
+    const weapon = hero && live(hero) && hero.wep && hero.wep.name;
+    if (R.actPad || weapon === ACT.WEP.yumi.name || weapon === ACT.WEP.teppo.name) rangedReticle(ctx, cx, cy, weapon ? hero : null);
     // 指図メニューを開いているとき：照準の先の地面に旗印
     const OM = R.ordMenu;
     if (hero && hero.wep && hero.wep.name === ACT.WEP.teppo.name && !OM) {
@@ -872,13 +898,21 @@
     }
     if (OM) { const [gx, gy] = X.toWorld(cx, cy), [a, c] = S(gx, gy, 0), [, c2] = S(gx, gy, 3); ctx.strokeStyle = '#ffe070'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a, c); ctx.lineTo(a, c2); ctx.stroke(); ctx.fillStyle = '#ffe070'; ctx.fillRect(a, c2, 14, 9); ctx.beginPath(); ctx.ellipse(a, c, 10, 4, 0, 0, 7); ctx.stroke(); }
     // 体力（左下）
-    if (hero) { const fr = Math.max(0, hero.hp / hero.mh); ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(16, H - 34, 204, 16); ctx.fillStyle = fr > 0.5 ? '#6c3' : fr > 0.25 ? '#ec3' : '#e33'; ctx.fillRect(18, H - 32, 200 * fr, 12); ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(`${hero.wep ? hero.wep.name : ''}${hero.blk ? '　防御中' : ''}`, 18, H - 40); }
+    if (hero) {
+      const fr = Math.max(0, hero.hp / hero.mh), y = R.actTouchUI ? 54 : H - 34;
+      ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(16, y, 204, 16);
+      ctx.fillStyle = fr > 0.5 ? '#6c3' : fr > 0.25 ? '#ec3' : '#e33'; ctx.fillRect(18, y + 2, 200 * fr, 12);
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+      ctx.fillText(`${hero.wep ? hero.wep.name : ''}${hero.blk ? '　防御中' : ''}`, 18, y - 6);
+    }
     // 選んでいる隊（下の真ん中）
-    const mine = b.units.filter((u) => u.idx && (u.owner === myPid || u.cmd === myPid) && u.hp > 0 && !u.gone).sort((p, q) => p.idx - q.idx);
     ctx.textAlign = 'center'; ctx.font = '13px sans-serif';
-    const items = [['0 全軍', sel === 'all' || sel == null], ...mine.map((u) => [`${u.idx - 1} ${TR[u.type].short || TR[u.type].name}${u.n}`, sel === u.id || sel === 'all' || sel == null])];
-    let x0 = W / 2 - items.length * 42;
-    for (const [t, on] of items) { ctx.fillStyle = on ? 'rgba(90,70,20,.85)' : 'rgba(0,0,0,.55)'; ctx.fillRect(x0, H - 30, 80, 22); ctx.fillStyle = on ? '#ffe680' : '#ccc'; ctx.fillText(t, x0 + 40, H - 14); x0 += 84; }
+    if (!R.actTouchUI) {
+      const mine = b.units.filter((u) => u.idx && (u.owner === myPid || u.cmd === myPid) && u.hp > 0 && !u.gone).sort((p, q) => p.idx - q.idx);
+      const items = [['0 全軍', sel === 'all' || sel == null], ...mine.map((u) => [`${u.idx - 1} ${TR[u.type].short || TR[u.type].name}${u.n}`, sel === u.id || sel === 'all' || sel == null])];
+      let x0 = W / 2 - items.length * 42;
+      for (const [t, on] of items) { ctx.fillStyle = on ? 'rgba(90,70,20,.85)' : 'rgba(0,0,0,.55)'; ctx.fillRect(x0, H - 30, 80, 22); ctx.fillStyle = on ? '#ffe680' : '#ccc'; ctx.fillText(t, x0 + 40, H - 14); x0 += 84; }
+    }
     // 指図メニュー
     if (OM) {
       const L = R.ordItems || []; ctx.textAlign = 'left'; const bw = 132, x1 = W / 2 - (L.length * (bw + 4)) / 2, y1 = H - 70;

@@ -145,6 +145,14 @@
       [new T.BoxGeometry(1.25, 0.065, 0.065).translate(0.4, 0, 0), 0x2b2420],
       [new T.BoxGeometry(0.45, 0.13, 0.08).translate(-0.38, -0.02, 0), 0x5a3a1c],
     ]), vc, CAP.body);
+    const marker = new T.BufferGeometry();
+    marker.setAttribute('position', new T.Float32BufferAttribute([
+      -0.15, 0.1, 0, 0, -0.14, 0, 0.15, 0.1, 0,
+      -0.103, 0.075, 0.002, 0, -0.09, 0.002, 0.103, 0.075, 0.002,
+    ], 3));
+    const dark = new T.Color(0x390d11), red = new T.Color(0xff545b);
+    marker.setAttribute('color', new T.Float32BufferAttribute([...dark, ...dark, ...dark, ...red, ...red, ...red], 3));
+    mk('enemyMark', marker, new T.MeshBasicMaterial({ vertexColors: true, side: T.DoubleSide, toneMapped: false }), CAP.body, false);
     mk('flash', new T.SphereGeometry(0.16, 6, 4), new T.MeshBasicMaterial({ color: 0xffe080 }), 80, false);
     // 馬
     const horse = new T.BoxGeometry(1.7, 0.75, 0.55).translate(0, 1.15, 0);
@@ -1105,6 +1113,7 @@
     for (const k in M) cnt[k] = 0;
     const S3 = SGK.SOLD3D, skOn = !!(S3 && S3.ready); if (skOn) S3.begin();
     const A = b.act, live = (s) => s.hp > 0 && !s.gone;
+    const ownSide = A.s.find((s) => s.pc === myPid)?.side || 'A';
     const mats = {};
     for (const s of A.s) {
       if (!live(s)) continue;
@@ -1170,6 +1179,14 @@
       if (wk === 'spearS' || wk === 'spearL' || wk === 'gun') Mx.multiply(L4.m.makeTranslation(0, 0, -0.14)); // 両手で持つので少し体の中ほどへ
       put(wk, Mx);
       if (ps.fl) { Mx.multiply(L4.m.makeTranslation(1.1, 0, 0)); put('flash', Mx); }
+      }
+      if (s.side !== ownSide && ex * dx + ez * dz > 0) {
+        const jump = (s.jp > 0 ? Math.sin(Math.PI * (1 - s.jp / 0.55)) * (s.nj ? 1.1 : 0.55) : 0) + (s.cu || 0) * 3.3;
+        const markScale = Math.max(0.8, Math.min(4, Math.hypot(ex, ez) / 13));
+        O.position.set(s.x, gy + (cav ? 3.35 : s.hero ? 2.45 : 2.11) + jump, s.y);
+        O.quaternion.copy(cam3.quaternion);
+        O.scale.setScalar(markScale); O.updateMatrix();
+        put('enemyMark', O.matrix);
       }
       // 足もとの輪：自分の本人・選んだ隊
       const isSel = own && !s.hero && u && (u.id === sel || sel === 'all');

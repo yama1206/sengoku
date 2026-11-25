@@ -37,7 +37,10 @@ window.addEventListener('pointermove', (e) => {
 }, true);
 const actUp = (e) => {
   if (!actB()) { if (e.pointerType === 'touch') { if (G.tL && G.tL.id === e.pointerId) { G.tL = G.tL2; G.tL2 = null; } else if (G.tL2 && G.tL2.id === e.pointerId) G.tL2 = null; if (G.tR && G.tR.id === e.pointerId) G.tR = null; } return; } // 2.99.3 戦の外で離しても指の記録を消す（戦が終わってから離すと残り、次の戦で前へ進み続けていた）
-  if (e.pointerType === 'touch') { if (G.tL2 && G.tL2.id === e.pointerId) { G.tL2 = null; if (G.tL) { G.tL.sx = G.tL.x; G.tL.sy = G.tL.y; } } else if (G.tL && G.tL.id === e.pointerId) { G.tL = G.tL2; G.tL2 = null; if (G.tL) { G.tL.sx = G.tL.x; G.tL.sy = G.tL.y; } } if (G.tR && G.tR.id === e.pointerId) { G.tR = null; G.tAtk = true; } e.stopPropagation(); return; }
+  if (e.pointerType === 'touch') { if (G.tL2 && G.tL2.id === e.pointerId) { G.tL2 = null; if (G.tL) { G.tL.sx = G.tL.x; G.tL.sy = G.tL.y; } } else if (G.tL && G.tL.id === e.pointerId) { G.tL = G.tL2; G.tL2 = null; if (G.tL) { G.tL.sx = G.tL.x; G.tL.sy = G.tL.y; } } if (G.tR && G.tR.id === e.pointerId) { if (e.type === 'pointercancel') {
+      if (G.tR.bowHeld) G.tCancelBow = true;
+    } else if (!G.tR.bowHeld) G.tAtk = true;
+    G.tR = null; } e.stopPropagation(); return; }
   G.actAtk = false; G.actTouch = null; if (e.target === cv) e.stopPropagation();
   if (ML() && e.pointerType !== 'touch') { if (e.button === 2) G.actBlk = false; G.actRD = null; return; }
   const D = G.actRD; G.actRD = null;
