@@ -239,23 +239,25 @@ button.effect-link:hover:not(:disabled){background:none;color:#fff0b0;outline:no
  <form method="dialog"><button autofocus>閉じる</button></form>
 </dialog>
 <script>
-const VERSION='0.55';
+const VERSION='0.56';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
  so:{n:'創',c:'#e0b341',who:'織田信長・豊臣秀吉',d:'札引き・武器が得意。新しい力で手数を稼ぐ'},
  gi:{n:'義',c:'#4a8fe7',who:'上杉謙信',d:'守りと城門が得意。堅く守って粘り勝つ'},
- bu:{n:'武',c:'#e0524f',who:'武田信玄',d:'突撃と高い兵力。力で押し切る'},
+ bu:{n:'武',c:'#e0524f',who:'武田信玄',d:'先駆けと高い兵力。力で押し切る'},
  bo:{n:'謀',c:'#a477e0',who:'毛利元就・竹中半兵衛',d:'妨害と奇策。相手の動きを崩す'},
  ni:{n:'耐',c:'#4cae6a',who:'徳川家康',d:'兵糧を増やし、耐えて後半に勝つ'},
  ne:{n:'汎',c:'#9aa0a6',who:'足軽・兵士',d:'どの思想の陣立てにも入れられる共通札(思想の数に数えない・どの兵糧でも出せる)'}
 };
 const TL={u:'武将',w:'武器',p:'姫',c:'城',x:'戦術'};
-const KW={rush:'突',guard:'守',double:'連'};
+const KW={rush:'先',guard:'殿',double:'連',duel:'一',slayer:'刺'};
 // 札・装備・一時付与で参照する共通札効果。
 const COMMON_CARD_EFFECTS={
- rush:{name:'突撃',detail:'登場した手番から攻撃できる。'},
- guard:{name:'守',detail:'縦のとき、相手が城門や味方の武将を攻撃したら代わりに戦える。費え5以下の武将が攻撃するには、味方に号令を持つ武将が必要。'},
+ rush:{name:'先駆け',detail:'登場した手番から攻撃できる。'},
+ guard:{name:'殿',detail:'しんがり。縦のとき、相手が城門や味方の武将を攻撃したら代わりに戦える。費え5以下の武将が攻撃するには、味方に号令を持つ武将が必要。'},
+ duel:{name:'一騎打ち',detail:'登場した手番に、縦・横どちらの相手武将にも攻撃できる。'},
+ slayer:{name:'刺し違え',detail:'武将と戦闘した後、相手の武将を破壊する。'},
  double:{name:'連破',detail:'相手の城門を攻撃したとき、城門を2枚破る。'},
  ambush:{name:'奇襲',detail:'破られた城門から出たとき、無料で発動するか、手札に加えて温存するかを選べる。'},
 };
@@ -318,21 +320,21 @@ const STARTERS=[
  {id:'st_imagawa',name:'今川家の初陣組',sub:'知略と同盟で盤石に戦う',series:'e1560',house:'imagawa'},
  {id:'st_matsudaira',name:'松平家の初陣組',sub:'耐えて兵糧を貯め、後半に勝つ',series:'e1560',house:'matsudaira'},
  {id:'st_uesugi',name:'上杉家の初陣組',sub:'守りを固めて関東管領へ',series:'e1560',house:'uesugi'},
- {id:'st_takeda',name:'武田家の初陣組',sub:'突撃で城門を破り続ける',series:'e1560',house:'takeda'},
+ {id:'st_takeda',name:'武田家の初陣組',sub:'先駆けで城門を破り続ける',series:'e1560',house:'takeda'},
  {id:'st_hojo',name:'北条家の初陣組',sub:'堅く守り、相手の動きを封じる',series:'e1560',house:'hojo'},
  {id:'st_mouri',name:'毛利家の初陣組',sub:'調略と知略で中国を制す',series:'e1560w',house:'mouri'},
  {id:'st_amago',name:'尼子家の初陣組',sub:'難攻不落の月山富田城で粘る',series:'e1560w',house:'amago'},
  {id:'st_otomo',name:'大友家の初陣組',sub:'南蛮の力で手数を稼ぐ',series:'e1560w',house:'otomo'},
- {id:'st_shimazu',name:'島津家の初陣組',sub:'薩摩の突撃で押し切る',series:'e1560w',house:'shimazu'},
+ {id:'st_shimazu',name:'島津家の初陣組',sub:'薩摩の先駆けで押し切る',series:'e1560w',house:'shimazu'},
  {id:'st_ryuzoji',name:'龍造寺家の初陣組',sub:'耐えて兵糧を貯め、肥前を握る',series:'e1560w',house:'ryuzoji'},
- {id:'st_chosokabe',name:'長宗我部家の初陣組',sub:'一領具足の突撃と武器の使い回し',series:'e1560e',house:'chosokabe'},
+ {id:'st_chosokabe',name:'長宗我部家の初陣組',sub:'一領具足の先駆けと武器の使い回し',series:'e1560e',house:'chosokabe'},
  {id:'st_miyoshi',name:'三好家の初陣組',sub:'大軍で止められずに押し切る',series:'e1560e',house:'miyoshi'},
  {id:'st_kono',name:'河野家の初陣組',sub:'水軍で追い返し、堅く守る',series:'e1560e',house:'kono'},
  {id:'st_date',name:'伊達家の初陣組',sub:'外交で相手の手札と動きを崩す',series:'e1560e',house:'date'},
  {id:'st_ashina',name:'蘆名家の初陣組',sub:'守りを崩し、謀略で揺さぶる',series:'e1560e',house:'ashina'},
  {id:'st_mogami',name:'佐竹家の初陣組',sub:'守りを固め、城門を補充する',series:'e1560e',house:'mogami'},
  {id:'st_asakura',name:'朝倉家の初陣組',sub:'一乗谷の富で兵糧を増やす',series:'e1560e',house:'asakura'},
- {id:'st_nanbu',name:'南部家の初陣組',sub:'騎馬の突撃と九戸の剛力',series:'e1560e',house:'nanbu'},
+ {id:'st_nanbu',name:'南部家の初陣組',sub:'騎馬の先駆けと九戸の剛力',series:'e1560e',house:'nanbu'},
  {id:'st_hatakeyama',name:'能登畠山家の初陣組',sub:'七尾の堅城と、倒れても残る備え',series:'e1560e',house:'hatakeyama'}
 ];
 // ===== CPU対戦(初陣組ごとに「普通」「強い」。それぞれ初めて勝つと戦銭がもらえる) =====
@@ -367,32 +369,32 @@ const FXD={
  tapE:()=>'相手の武将1体を横にする',killAll:e=>`兵力${e.max}以下の相手の武将をすべて破壊`,kill:e=>`相手の${e.tapped?'横向きの':''}武将1体を破壊`+(e.max?`(兵力${e.max}以下)`:''),
  bounce:()=>'相手の武将1体を手札に戻す',discard:e=>`相手の手札を無作為に${e.n}枚捨てさせる`,
  breakS:e=>`相手の城門を${e.n}枚破る`,tapAll:()=>'相手の武将すべてを横にする',
- drawIfFewer:()=>'自分の手札が相手より少なければ1枚引く',drawLowHand:()=>'手札が3枚以下なら山札から1枚引く',retWeapon:()=>'自分の場の武器1枚を手札に戻す',killGuard:()=>'相手の守を持つ武将1体を破壊',drawWeapon:e=>`山札から武器を無作為に1枚手札に加える${e.discount?'。その武器の費えを1下げる':''}`,graveDraw:e=>`自分の墓地から札を${e.n}枚まで選び、手札に戻す`,
+ drawIfFewer:()=>'自分の手札が相手より少なければ1枚引く',drawLowHand:()=>'手札が3枚以下なら山札から1枚引く',retWeapon:()=>'自分の場の武器1枚を手札に戻す',killGuard:()=>'相手の殿を持つ武将1体を破壊',drawWeapon:e=>`山札から武器を無作為に1枚手札に加える${e.discount?'。その武器の費えを1下げる':''}`,graveDraw:e=>`自分の墓地から札を${e.n}枚まで選び、手札に戻す`,
  toMana:()=>'手札から1枚を兵糧に置く',
  pumpTemp:e=>`自分の武将1体に兵力+${e.pow}`+(e.kw?`と${commonEffectLabel(e.kw)}`:'')+'を与える(手番の終わりまで)',
  peekDiscard:()=>'相手の手札を見て、1枚選んで捨てさせる',tapSkip:()=>'相手の武将1体を横にし、次に縦に戻すのを1回飛ばす'
 };
-const PSD={drawStart:'自分の手番の始め、1枚引く',aura:'味方の武将すべて兵力+1000',rushAll:'味方の武将すべてに突撃を与える',
- guardAll:'味方の武将すべてに守を与える',rampStart:'自分の手番の始め、山札の上を兵糧にする',shieldStart:'自分の手番の始め、山札の上を1枚城門にする',graveStart:'自分の手番の始め、墓地から無作為に1枚を手札に戻す',
+const PSD={drawStart:'自分の手番の始め、1枚引く',aura:'味方の武将すべて兵力+1000',rushAll:'味方の武将すべてに先駆けを与える',
+ guardAll:'味方の武将すべてに殿を与える',rampStart:'自分の手番の始め、山札の上を兵糧にする',shieldStart:'自分の手番の始め、山札の上を1枚城門にする',graveStart:'自分の手番の始め、墓地から無作為に1枚を手札に戻す',
  sap:'自分の手番の始め、相手の手札が4枚以上なら1枚捨てさせる',refill:'自分の手番の始め、城門が4枚以下なら山札から1枚加える',
- chacha:'自分の手番の始め、自分の場に武器があれば1枚引く',guardAura:'味方の守を持つ武将すべて兵力+1000',weaponGuard:'武器を装備した味方の武将すべてに守を与える',
- rushDraw:'味方の突撃を持つ武将が城門を破ったとき、1枚引く(1手番に1回)',atkAura:'味方の武将が攻撃している間、兵力+1000',
+ chacha:'自分の手番の始め、自分の場に武器があれば1枚引く',guardAura:'味方の殿を持つ武将すべて兵力+1000',weaponGuard:'武器を装備した味方の武将すべてに殿を与える',
+ rushDraw:'味方の先駆けを持つ武将が城門を破ったとき、1枚引く(1手番に1回)',atkAura:'味方の武将が攻撃している間、兵力+1000',
  nene:'自分の手番の始め、相手の手札が自分より多ければ1枚引く',drawWhenAhead:'自分の手番の始め、自分の手札が相手より多ければ1枚引く',gateLimit:'相手が城門(本丸)を攻撃できるのは、1手番に2回まで',
  hatsu:'自分の手番の始め、自分の兵糧が相手より少なければ山札の上を兵糧にする',
  deathDraw:'味方の武将が戦闘で破壊されるたび、1枚引く(1手番に1回)',kasuga:'自分の城門が破られたとき、山札の上を城門に加える(1手番に1回)'};
 function desc(c){
  const a=[];
  c.k.forEach(k=>a.push(commonEffectLabel(k)));
- if(c.blockBonus)a.push(`守として戦うとき、兵力+${c.blockBonus}。`);
+ if(c.blockBonus)a.push(`殿として戦うとき、兵力+${c.blockBonus}。`);
  if(c.surviveShield)a.push('戦闘で生き残り、自分の城門が1枚以下なら山札の上を城門に加える。');
- if(c.blockedBonus)a.push(`守に止められたとき、兵力+${c.blockedBonus}。`);
+ if(c.blockedBonus)a.push(`殿に止められたとき、兵力+${c.blockedBonus}。`);
  if(c.wdisc)a.push('場にいる間、自分の武器の費えが1下がる(最低1)。');
  if(c.killBreak)a.push('自分の手番中、戦闘で相手の武将を破壊したとき、相手の城門を1枚破る(1手番に1回)。');
  if(c.attackUnitBonus)a.push(`自分の手番中、相手の武将を攻撃するとき兵力+${c.attackUnitBonus}。`);
  if(c.deathRamp)a.push('戦闘で破壊されたとき、山札の上を兵糧にする。');
- if(c.noBlock)a.push('攻撃中は、相手の守に止められない。');
- if(c.untapAfterBlock)a.push('守として戦って生き残ったとき、一度だけ縦に戻る。');
- if(c.guardAtk)a.push('場にいる間、味方の守を持つ武将も攻撃できる。');
+ if(c.noBlock)a.push('攻撃中は、相手の殿に止められない。');
+ if(c.untapAfterBlock)a.push('殿として戦って生き残ったとき、一度だけ縦に戻る。');
+ if(c.guardAtk)a.push('場にいる間、味方の殿を持つ武将も攻撃できる。');
  if(c.w){const b=[];if(c.w.pow)b.push(`兵力+${c.w.pow}`);if(c.w.powPerShield)b.push(`自分の城門1枚につき兵力+${c.w.powPerShield}`);if(c.w.k)b.push(`${commonEffectLabel(c.w.k)}`);if(c.w.tie)b.push('戦闘で兵力が同じなら相手だけ破壊される');if(c.w.gateGrave)b.push('攻撃するたび相手の城門を1枚墓地へ送る(奇襲は発動しない)');if(c.w.drawAtk)b.push('攻撃するたび1枚引く(自分の手番中1回)');if(c.w.randomKillMax)b.push(`攻撃するとき、兵力${c.w.randomKillMax}以下の相手武将を無作為に1体破壊`);a.push('味方の武将1体に装備: '+b.join('、')+'。(武将が場を離れると墓地へ)');}
  if(c.ps)a.push(c.rampTurns?`次の自分の手番から${c.rampTurns}回、手番の始めに山札の上を兵糧にする。`:PSD[c.ps]+'。');
  if(c.e.length){const lab={u:'登場時:',w:'装備時:',p:'設置時:',c:'設置時:',x:'使用時:'}[c.t];a.push(lab+c.e.map(e=>FXD[e.t](e)).join('、')+'。');}
@@ -489,8 +491,8 @@ function guestAct(a,id){
  const me=G.P[0];
  if(a==='charge'){if(ui.sel&&!me.charged){netSend({t:'act',a:'charge',uid:ui.sel});ui.sel=null;ui.busy=true;}}
  else if(a==='cast'){const c=me.hand.find(x=>x.uid===ui.sel);if(c&&canCast(me,c)){if(payChoice(me,c))ui.pay={uid:c.uid,sel:autoPayUids(me,c)};else{netSend({t:'act',a:'cast',uid:c.uid});ui.sel=null;ui.busy=true;}}}
- else if(a==='enemyunit'){const u=find(+id),su=find(ui.selU);if(u&&su&&canAtkU(su)&&u.tapped){netSend({t:'act',a:'attack',uid:su.uid,target:u.uid});ui.selU=null;ui.busy=true;}else if(u){ui.info=u.card;ui.sel=ui.selU=null;}}
- else if(a==='eface'){const su=find(ui.selU);if(su&&canAtkU(su)&&!faceOk(su)){log('月山富田城の効果で、これ以上城門を攻撃できない');}else if(su&&canAtkU(su)){netSend({t:'act',a:'attack',uid:su.uid,target:'face'});ui.selU=null;ui.busy=true;}}
+ else if(a==='enemyunit'){const u=find(+id),su=find(ui.selU);if(canAtkTarget(su,u)){netSend({t:'act',a:'attack',uid:su.uid,target:u.uid});ui.selU=null;ui.busy=true;}else if(u){ui.info=u.card;ui.sel=ui.selU=null;}}
+ else if(a==='eface'){const su=find(ui.selU);if(canAtkFace(su)&&!faceOk(su)){log('月山富田城の効果で、これ以上城門を攻撃できない');}else if(canAtkFace(su)){netSend({t:'act',a:'attack',uid:su.uid,target:'face'});ui.selU=null;ui.busy=true;}}
  else if(a==='end'){netSend({t:'act',a:'end'});ui.busy=true;ui.sel=ui.selU=null;}
  render();
 }
@@ -505,7 +507,7 @@ async function remoteTurn(p){
   if(m.a==='end')return;
   if(m.a==='charge'){const c=p.hand.find(x=>x.uid===m.uid);if(c&&!p.charged){p.hand=p.hand.filter(x=>x!==c);p.mana.push({card:c,tapped:false});p.charged=true;battleCue("charge",p.idx);log(`${p.name}は兵糧を蓄えた`);}}
   else if(m.a==='cast'){const c=p.hand.find(x=>x.uid===m.uid);if(c&&canCast(p,c))await playCard(p,c,m.pay);}
-  else if(m.a==='attack'){const u=find(m.uid);if(u&&u.owner===p&&canAtkU(u)){if(m.target==='face'){if(faceOk(u))await attack(u,'face');}else{const t=find(m.target);if(t&&t.owner===d&&t.tapped)await attack(u,t);}}}
+  else if(m.a==='attack'){const u=find(m.uid);if(u&&u.owner===p){if(m.target==='face'){if(canAtkFace(u)&&faceOk(u))await attack(u,'face');}else{const t=find(m.target);if(canAtkTarget(u,t))await attack(u,t);}}}
   render();
  }
 }
@@ -710,10 +712,14 @@ const hasPs=(p,s)=>p.fields.some(c=>c.ps===s);
 const countPs=(p,s)=>p.fields.filter(c=>c.ps===s).length;
 const hasKw=(u,k)=>!!(u.kws.includes(k)||(u.weapon&&u.weapon.w.k===k)||u.mods.some(m=>m.kw===k)||(k==='rush'&&hasPs(u.owner,'rushAll'))||(k==='guard'&&(hasPs(u.owner,'guardAll')||(u.weapon&&hasPs(u.owner,'weaponGuard')))));
 const power=u=>u.card.p+(u.weapon?(u.weapon.w.pow||0)+(u.weapon.w.powPerShield||0)*u.owner.shields.length:0)+u.mods.reduce((a,m)=>a+(m.pow||0),0)+1000*countPs(u.owner,'aura')+(hasKw(u,'guard')?1000*countPs(u.owner,'guardAura'):0)+(u.attacking?1000*countPs(u.owner,'atkAura'):0)+(u.attackingUnit&&G.cur===u.owner.idx?(u.card.attackUnitBonus||0):0);
-// 守を持つ武将は、コスト6以上でない限り攻撃できない(守は元から持つ場合のみ。城や武器で得た守は対象外)
-const guardOnly=u=>!!u&&u.kws.includes('guard')&&u.card.c<6&&!u.owner.units.some(x=>!x.dead&&x.card.guardAtk); // 号令持ち(guardAtk)が場にいれば守持ちも攻撃できる
-const canAtkU=u=>!!u&&!u.dead&&!u.tapped&&!guardOnly(u)&&(!u.sick||hasKw(u,'rush'));
-const newUnit=(p,card)=>({uid:++uidc,card,owner:p,weapon:null,mods:[],kws:card.k.slice(),tapped:false,sick:true,dead:false,attacking:false,skipUntap:false});
+// 殿を持つ武将は、コスト6以上でない限り攻撃できない(殿は元から持つ場合のみ。城や武器で得た殿は対象外)
+const guardOnly=u=>!!u&&u.kws.includes('guard')&&u.card.c<6&&!u.owner.units.some(x=>!x.dead&&x.card.guardAtk); // 号令持ち(guardAtk)が場にいれば殿持ちも攻撃できる
+const canAttack=u=>!!u&&!u.dead&&!u.tapped&&!guardOnly(u);
+const canAtkFace=u=>canAttack(u)&&(!u.sick||hasKw(u,'rush'));
+const canDuel=u=>u.enteredTurn===G.turnNo&&hasKw(u,'duel');
+const canAtkTarget=(u,t)=>!!t&&!t.dead&&canAttack(u)&&t.owner!==u.owner&&
+ (canDuel(u)||(t.tapped&&(!u.sick||hasKw(u,'rush'))));
+const newUnit=(p,card)=>({uid:++uidc,card,owner:p,weapon:null,mods:[],kws:card.k.slice(),tapped:false,sick:true,enteredTurn:G.turnNo,dead:false,attacking:false,skipUntap:false});
 function find(uid){for(const p of G.P){const u=p.units.find(x=>x.uid===uid);if(u)return u;}return null;}
 function findField(uid){for(const p of G.P){const c=p.fields.find(x=>x.uid===uid);if(c)return c;}return null;}
 
@@ -808,7 +814,7 @@ async function applyFx(p,e){
   case 'breakS':await breakShields(null,d,e.n);break;
   case 'drawWeapon':{const ws=p.deck.filter(c=>c.t==='w');if(ws.length){const c=ws[Math.floor(Math.random()*ws.length)];p.deck.splice(p.deck.indexOf(c),1);if(e.discount)c.costReduction=(c.costReduction||0)+e.discount;p.hand.push(c);log(`山札から${c.n}を手札に加えた`);}break;}
   case 'graveDraw':{for(let i=0;i<e.n&&p.grave.length;i++){const c=await chooseCard(p,p.grave,'墓地から手札に戻す札を選んでください',false);p.grave.splice(p.grave.indexOf(c),1);p.hand.push(c);log(`${p.name}は墓地から${c.n}を手札に戻した`);}break;}
-  case 'killGuard':{const c=d.units.filter(u=>hasKw(u,'guard'));if(c.length){const u=await choose(p,c,'破壊する守を持つ相手の武将を選んでください');destroy(u);}break;}
+  case 'killGuard':{const c=d.units.filter(u=>hasKw(u,'guard'));if(c.length){const u=await choose(p,c,'破壊する殿を持つ相手の武将を選んでください');destroy(u);}break;}
   case 'drawIfFewer':if(p.hand.length<d.hand.length){draw(p,1);log('手札が少ないので1枚引いた');}break;
   case 'retWeapon':{const c=p.units.filter(u=>u.weapon);if(c.length){const u=await choose(p,c,'武器を手札に戻す武将を選んでください');p.hand.push(u.weapon);log(`${u.weapon.n}を手札に戻した`);u.weapon=null;}break;}
   case 'toMana':{if(p.hand.length){const c=await chooseCard(p,p.hand,'兵糧に置く札を選んでください',false);p.hand=p.hand.filter(x=>x!==c);p.mana.push({card:c,tapped:false});log(`${p.name}は手札から兵糧を置いた`);}break;}
@@ -874,11 +880,15 @@ async function battle(a,b,blk){
   const at=a.weapon&&a.weapon.w.tie,bt=b.weapon&&b.weapon.w.tie;
   if(at&&!bt)bd=true;else if(bt&&!at)ad=true;else{ad=true;bd=true;}
  }
+ const aSlayer=hasKw(a,'slayer'),bSlayer=hasKw(b,'slayer');
  if(ad)destroy(a,'battle');if(bd)destroy(b,'battle');
  if(blk&&!bd&&b.card.untapAfterBlock&&!b.untapAfterBlockUsed){b.tapped=false;b.untapAfterBlockUsed=true;log(`${b.card.n}が縦に戻った`);}
  for(const [x,xd,yd] of [[a,ad,bd],[b,bd,ad]]){
   if(!xd&&x.card.surviveShield&&x.owner.shields.length<=1&&x.owner.deck.length){x.owner.shields.push(x.owner.deck.shift());log(`${x.card.n}の効果で城門が増えた`);}
   if(yd&&x.card.killBreak&&G.cur===x.owner.idx&&!G.over&&once('kb'+x.uid))await breakShields(null,opp(x.owner),1);
+ }
+ for(const [source,target,slayer] of [[a,b,aSlayer],[b,a,bSlayer]]){
+  if(slayer&&!target.dead){log(`${source.card.n}の刺し違えが発動した`);destroy(target);}
  }
  render();await sleep(300);
 }
@@ -982,11 +992,15 @@ async function aiTurn(p){
  }
  for(const u of p.units.slice()){
   if(G.over)return;
-  if(u.dead||!canAtkU(u))continue;
-  const tg=d.units.filter(x=>x.tapped&&power(x)<power(u)+(u.card.attackUnitBonus||0)).sort((a,b)=>power(b)-power(a));
+  if(!canAttack(u))continue;
+  const slayer=hasKw(u,'slayer');
+  const atkPower=power(u)+(u.card.attackUnitBonus||0)+1000*countPs(u.owner,'atkAura');
+  const tg=d.units.filter(x=>canAtkTarget(u,x)&&
+   ((power(x)<atkPower&&!hasKw(x,'slayer'))||(slayer&&x.card.c>=u.card.c)))
+   .sort((a,b)=>power(b)-power(a));
   let target;
   if(tg.length)target=tg[0];
-  else if(!faceOk(u))continue;
+  else if(!canAtkFace(u)||!faceOk(u))continue;
   else if(d.shields.length===0||Math.random()<0.85)target='face';
   else continue;
   await attack(u,target);await sleep(700);
@@ -1043,11 +1057,11 @@ function unitTile(u,mine){
  if(u.tapped)cls+=' tap';if(ui.selU===u.uid)cls+=' sel';
  if(ui.pick&&ui.pick.ids.includes(u.uid))cls+=' tg';
  const su=ui.selU?find(ui.selU):null;
- if(!mine&&su&&!ui.busy&&canAtkU(su)&&u.tapped&&!ui.pick)cls+=' tg2';
+ if(!mine&&!ui.busy&&canAtkTarget(su,u)&&!ui.pick)cls+=' tg2';
  let bd=Object.keys(KW).filter(k=>hasKw(u,k)).map(k=>KW[k]).join('');
  if(u.weapon)bd+=' 装';
  if(u.mods.length)bd+=' ↑';
- if(u.sick&&!hasKw(u,'rush'))bd+=' 待';
+ if(u.sick&&!hasKw(u,'rush')&&!canDuel(u))bd+=' 待';
  if(u.tapped)bd+=' 横';
  return `<div class="${cls}" style="--c:${col}" data-a="${mine?'myunit':'enemyunit'}" data-id="${u.uid}">${artTag(u.card)}<b>${u.card.n}</b><i>${power(u)}</i><s>${bd}</s></div>`;
 }
@@ -1151,7 +1165,7 @@ function gameHTML(){
  const me=G.tag&&G.tag.activeBySide[0]===2?Object.assign({},G.P[0],G.tag.members[0]):G.P[0],en=G.P[1];
  const tagNames=G.tagView?.names||G.tag?.members.map(m=>m.name),activeTag=G.tagView?.active??G.tag?.turn;
  const su=ui.selU?find(ui.selU):null;
- const faceHl=!ui.busy&&su&&canAtkU(su)&&faceOk(su);
+ const faceHl=!ui.busy&&canAtkFace(su)&&faceOk(su);
  let acts='';
  if(ui.pick)acts=`<div class="msg">${ui.pick.msg}</div>`;
  else if(ui.pay&&!ui.busy&&!G.over){const c=me.hand.find(x=>x.uid===ui.pay.uid);if(c){const nd=payNeed(c);acts=`<div class="msg">横にする兵糧を${nd}枚選ぶ(${ui.pay.sel.length}/${nd})${c.i!=='ne'?`・${IDEO[c.i].n}を1枚以上`:''}</div><button data-a="payOk" ${payOk(me,c,ui.pay.sel)?'':'disabled'}>この札で払う</button><button data-a="payNo">やめる</button>`;}}
@@ -1189,14 +1203,17 @@ function rulesHTML(){
  ・勝利条件: 相手の城門(5枚)をすべて破り、本丸に攻撃を当てる。<br>
  ・毎手番: 1枚引く → 手札1枚を兵糧にする(任意・1回) → 札を使う → 武将で攻撃。<br>
  ・費えは兵糧を横にして支払う。使う札と同じ思想の兵糧が最低1枚必要。<br>
- ・武将は登場した手番は攻撃できない(突撃を除く)。攻撃すると横になる。<br>
+ ・攻撃すると武将は横になる。登場した手番から攻撃できる共通札効果は次のとおり。<br>
+ ・先駆けを持つ武将は登場した手番から攻撃できる。<br>
+ ・一騎打ちを持つ武将は、登場した手番に縦・横どちらの相手武将にも攻撃できる。<br>
+ ・刺し違えを持つ武将は、武将との戦闘後にその相手を破壊する。<br>
  ・各プレイヤーは場に城1つ・姫1人まで置けます。同じ種類の札が場にある間は、追加で出せません。<br>
  ・武器は味方の武将1体に装備して場に残ります。武将が場を離れると武器は墓地へ。1体に装備できるのは1枚で、入れ替えると古い武器は墓地へ。<br>
  ・札売り場で戦銭を使って包みを開け、新しい札を集められます。
  ・攻撃先は相手の城門か、横向きの武将。兵力が高い方が勝ち、同じなら相打ち。<br>
  ・城門は山札の上5枚(裏向き)。破られた札は手札に入る。<br>
  ・戦術は通常の札として、自分の手番に費えを払って使える。【奇襲】を持つ戦術は、城門から出た時に無料で発動するか、手札に加えて温存するかを選べる。<br>
- ・守を持つ武将は、城門や味方の武将への攻撃を代わりに受けられる。ただしコスト5以下の守持ちは攻撃できない(号令の武将が場にいれば攻撃できる)。<br>
+ ・殿を持つ武将は、城門や味方の武将への攻撃を代わりに受けられる。ただしコスト5以下の殿持ちは攻撃できない(号令の武将が場にいれば攻撃できる)。<br>
  <button data-a="rulesClose">閉じる</button></div></div>`;
 }
 
@@ -1728,10 +1745,10 @@ async function onClick(a,id){
   case 'myunit':{const u=find(+id);if(!u)break;if(ui.selU===u.uid)ui.selU=null;else{ui.selU=u.uid;ui.sel=null;ui.info=null;}render();break;}
   case 'enemyunit':{
    const u=find(+id),su=find(ui.selU);if(!u)break;
-   if(su&&canAtkU(su)&&u.tapped){ui.selU=null;ui.busy=true;await attack(su,u);if(!G.over)ui.busy=false;render();}
+   if(canAtkTarget(su,u)){ui.selU=null;ui.busy=true;await attack(su,u);if(!G.over)ui.busy=false;render();}
    else{ui.info=u.card;ui.sel=null;ui.selU=null;render();}
    break;}
-  case 'eface':{const su=find(ui.selU);if(su&&canAtkU(su)&&!faceOk(su)){log('月山富田城の効果で、これ以上城門を攻撃できない');render();break;}if(su&&canAtkU(su)){ui.selU=null;ui.busy=true;await attack(su,'face');if(!G.over)ui.busy=false;render();}break;}
+  case 'eface':{const su=find(ui.selU);if(canAtkFace(su)&&!faceOk(su)){log('月山富田城の効果で、これ以上城門を攻撃できない');render();break;}if(canAtkFace(su)){ui.selU=null;ui.busy=true;await attack(su,'face');if(!G.over)ui.busy=false;render();}break;}
   case 'field':ui.info=findField(+id);ui.sel=ui.selU=null;render();break;
   case 'end':await endTurn();break;
  }
