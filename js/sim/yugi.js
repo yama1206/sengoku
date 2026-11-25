@@ -18,10 +18,11 @@
     if (m.t === 'state') b.q = b.q.filter((x) => !(x.m.t === 'state' && x.m.mid === m.mid)); // 古い盤面はまだ届いていなければ置き換える
     b.n++; b.q.push({ s: b.n, m }); if (b.q.length > 60) b.q.splice(0, b.q.length - 60);
   };
-  const inMatch = (w, pid) => Object.values(Y(w).match).find((M) => M.a === pid || M.b === pid);
+  const participants = (M) => M.members ? M.members.filter(Boolean) : [M.a, M.b];
+  const inMatch = (w, pid) => Object.values(Y(w).match).find((M) => participants(M).includes(pid));
   const endMatch = (w, mid, quitter) => {
     const y = Y(w), M = y.match[mid]; if (!M) return; delete y.match[mid];
-    if (quitter) { const other = quitter === M.a ? M.b : M.a; post(w, other, { t: 'quit', mid }); }
+    if (quitter) for (const pid of participants(M)) if (pid !== quitter) post(w, pid, { t: 'quit', mid, quitter: M.members ? M.members.indexOf(quitter) : participants(M).indexOf(quitter) });
   };
   SIM.commands.yugiInv = (w, p, c) => {
     const y = Y(w), q = w.players[c.to];
@@ -32,8 +33,24 @@
     SAY(p.id, `${q.name}に戦国思想録の手合わせを申し込んだ。返事を待っています`);
     SAY(q.id, `${p.name}が戦国思想録の手合わせを申し込んできた。この町の遊戯屋の「人と手合わせ」で受けられます`);
   };
+  SIM.commands.yugiTagInv = (w, p, c) => {
+    const y = Y(w), ids = Array.isArray(c.members) ? c.members.slice(0, 3) : [];
+    if (ids.length !== 3 || new Set([p.id, ...ids]).size !== 4) return;
+    if (inMatch(w, p.id) || ids.some((id) => !near(w, p, w.players[id]) || inMatch(w, id))) return SAY(p.id, '4人が同じ町で手合わせできる状態にしてください');
+    y.n++; const id = 't' + y.n;
+    y.inv[id] = { id, from: p.id, members: [p.id, ...ids], accepted: [p.id], t: Date.now() };
+    for (const pid of ids) SAY(pid, `${p.name}から戦国思想録のタッグ戦に誘われた。遊戯屋で返事をしてください`);
+  };
+  SIM.commands.yugiTagCpuInv = (w, p, c) => {
+    const y = Y(w), q = w.players[c.to];
+    if (!near(w, p, q) || inMatch(w, p.id) || inMatch(w, q.id)) return;
+    y.n++; const id = 't' + y.n;
+    y.inv[id] = { id, from: p.id, members: [p.id, null, q.id, null], accepted: [p.id], cpu: true, t: Date.now() };
+    SAY(q.id, `${p.name}から戦国思想録のCPUタッグ戦に誘われた。遊戯屋で返事をしてください`);
+  };
   SIM.commands.yugiDecline = (w, p, c) => {
-    const y = Y(w), v = y.inv[c.id]; if (!v || (v.to !== p.id && v.from !== p.id)) return; delete y.inv[c.id];
+    const y = Y(w), v = y.inv[c.id]; if (!v || (v.members ? !v.members.includes(p.id) : v.to !== p.id && v.from !== p.id)) return; delete y.inv[c.id];
+    if (v.members) { for (const pid of v.members) if (pid && pid !== p.id) SAY(pid, `${p.name}がタッグ戦の誘いを取り下げた`); return; }
     const other = v.from === p.id ? v.to : v.from;
     SAY(other, v.from === p.id ? `${p.name}は手合わせの申し込みを取り下げた` : `${p.name}は手合わせを断った`);
   };
@@ -44,18 +61,32 @@
     delete y.inv[c.id]; y.n++; const mid = 'm' + y.n; y.match[mid] = { a: a.id, b: p.id, t: Date.now() };
     post(w, a.id, { t: 'start', mid, host: 1, opp: p.name }); post(w, p.id, { t: 'start', mid, host: 0, opp: a.name });
   };
+  SIM.commands.yugiTagAccept = (w, p, c) => {
+    const y = Y(w), v = y.inv[c.id];
+    if (!v || !v.members || !v.members.includes(p.id) || v.accepted.includes(p.id)) return;
+    if (v.members.some((id) => id && id !== p.id && !near(w, p, w.players[id])) || v.members.some((id) => id && inMatch(w, id))) { delete y.inv[c.id]; return SAY(p.id, '参加者が町を離れたため、タッグ戦を取りやめた'); }
+    v.accepted.push(p.id);
+    if (v.accepted.length !== (v.cpu ? 2 : 4)) return;
+    delete y.inv[c.id]; y.n++; const mid = 'm' + y.n;
+    y.match[mid] = { a: v.members[0], b: v.members[1], members: v.members, t: Date.now() };
+    v.members.forEach((pid, slot) => { if(pid)post(w, pid, { t: 'start', mid, host: slot === 0 ? 1 : 0, slot, tagCpu:!!v.cpu, members: v.members.map((id,i) => id ? w.players[id].name : i===1?'敵の先鋒CPU':'敵の次鋒CPU'), opp: w.players[v.members[slot===0?2:0]].name }); });
+  };
   SIM.commands.yugiSend = (w, p, c) => {
-    const M = Y(w).match[c.mid]; if (!M || (M.a !== p.id && M.b !== p.id) || !c.m || typeof c.m !== 'object') return;
+    const M = Y(w).match[c.mid]; if (!M || !participants(M).includes(p.id) || !c.m || typeof c.m !== 'object') return;
     let n = 0; try { n = JSON.stringify(c.m).length; } catch (e) { return; } if (n > 200000) return;
-    M.t = Date.now(); post(w, M.a === p.id ? M.b : M.a, Object.assign({}, c.m, { mid: c.mid }));
+    M.t = Date.now();
+    if (M.members) {
+      const to = M.members[c.m.to];
+      if (to && to !== p.id) post(w, to, Object.assign({}, c.m, { mid: c.mid, from: M.members.indexOf(p.id) }));
+    } else post(w, M.a === p.id ? M.b : M.a, Object.assign({}, c.m, { mid: c.mid }));
   };
   SIM.commands.yugiAck = (w, p, c) => { const b = Y(w).box[p.id]; if (b) b.q = b.q.filter((x) => x.s > +c.n); };
-  SIM.commands.yugiEnd = (w, p, c) => { const M = Y(w).match[c.mid]; if (M && (M.a === p.id || M.b === p.id)) endMatch(w, c.mid, c.quit ? p.id : null); };
+  SIM.commands.yugiEnd = (w, p, c) => { const M = Y(w).match[c.mid]; if (M && participants(M).includes(p.id)) endMatch(w, c.mid, c.quit ? p.id : null); };
   SIM.systems.push(function yugiTick(w) {
     if (!w.yugi) return; const y = w.yugi, now = Date.now();
     for (const id in y.inv) { const v = y.inv[id]; if (now - v.t > 180000) { delete y.inv[id]; SAY(v.from, '手合わせの申し込みに返事がなかった'); } }
-    for (const mid in y.match) { const M = y.match[mid], a = w.players[M.a], b = w.players[M.b]; // 抜けた・町を離れた人がいれば、相手に知らせて終わる
-      for (const [x, o] of [[a, M.b], [b, M.a]]) if (!x || x.off || x.at == null || x.tx != null) { endMatch(w, mid, x ? x.id : (o === M.a ? M.b : M.a)); break; }
+    for (const mid in y.match) { const M = y.match[mid]; // 抜けた・町を離れた人がいれば、相手に知らせて終わる
+      for (const pid of participants(M)) { const x = w.players[pid]; if (!x || x.off || x.at == null || x.tx != null) { endMatch(w, mid, pid); break; } }
       if (y.match[mid] && now - (M.t || 0) > 30 * 60000) endMatch(w, mid, null); // 30分なにもなければ片付ける
     }
   });
@@ -65,7 +96,7 @@
     const y = Y(w), b = y.box[pid], nm = (id) => (w.players[id] ? w.players[id].name : '？');
     r.me.yugi = {
       people: Object.values(w.players).filter((q) => near(w, p, q)).map((q) => ({ id: q.id, name: q.name })),
-      inv: Object.values(y.inv).filter((v) => v.to === pid || v.from === pid).map((v) => ({ id: v.id, mine: v.from === pid, who: nm(v.from === pid ? v.to : v.from) })),
+      inv: Object.values(y.inv).filter((v) => v.members ? v.members.includes(pid) : v.to === pid || v.from === pid).map((v) => ({ id: v.id, mine: v.from === pid, who: nm(v.from === pid ? (v.to || v.members?.find((id) => id && id !== pid)) : v.from), tag: !!v.members, cpu: !!v.cpu, accepted: !!v.accepted?.includes(pid), ready: v.accepted?.length || 0 })),
       box: b && b.q.length ? b.q : null,
     };
     return r;

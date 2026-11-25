@@ -16,6 +16,9 @@
     else if (m.t === 'close') Y.close();
     else if (m.t === 'net' && m.mid && m.m) SGK.cmd({ type: 'yugiSend', mid: m.mid, m: m.m }); // 2.106.7 対戦のことづてを相手へ
     else if (m.t === 'inv' && m.to) SGK.cmd({ type: 'yugiInv', to: m.to });
+    else if (m.t === 'tagInv' && Array.isArray(m.members)) SGK.cmd({ type: 'yugiTagInv', members: m.members });
+    else if (m.t === 'tagCpuInv' && m.to) SGK.cmd({ type: 'yugiTagCpuInv', to: m.to });
+    else if (m.t === 'tagAccept' && m.id) SGK.cmd({ type: 'yugiTagAccept', id: m.id });
     else if (m.t === 'accept' && m.id) SGK.cmd({ type: 'yugiAccept', id: m.id });
     else if (m.t === 'decline' && m.id) SGK.cmd({ type: 'yugiDecline', id: m.id });
     else if (m.t === 'end' && m.mid) SGK.cmd({ type: 'yugiEnd', mid: m.mid, quit: !!m.quit });
