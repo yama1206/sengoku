@@ -1,5 +1,13 @@
 // 描画（2D見下ろし地図）
 (function () {
+  function drawBoat(ctx, x, y, color) {
+    ctx.fillStyle = color; ctx.strokeStyle = '#29211b'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x - 9, y + 1); ctx.lineTo(x + 9, y + 1);
+    ctx.lineTo(x + 5, y + 6); ctx.lineTo(x - 5, y + 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 2, y); ctx.lineTo(x - 2, y - 8);
+    ctx.lineTo(x + 5, y - 1); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+
   const R = SGK.RENDER = {};
   const cam = R.cam = { x: 20, y: 38, scale: 14, follow: true };
   let W = 0, H = 0;
@@ -191,6 +199,11 @@
       const d = disp[n.id] || n; const [x, y] = R.toScreen(d.x, d.y);
       if (n.id === selectedId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 11, 0, 7); ctx.stroke(); }
       if (n.kind === 'merchant') { ctx.fillStyle = '#9b3fc4'; ctx.strokeStyle = '#fff8e6'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x, y, 4.2, 0, 7); ctx.fill(); ctx.stroke(); } // 2.59.3 行商人は紫に白の縁（茶色だと道と見分けにくかった）
+      else if (n.kind === 'pirate') {
+        drawBoat(ctx, x, y, '#a22f27');
+        ctx.font = 'bold 11px sans-serif'; ctx.textBaseline = 'top'; ctx.lineWidth = 3; ctx.strokeStyle = '#f5eed7';
+        ctx.strokeText('海賊船', x, y + 9); ctx.fillStyle = '#5a1a12'; ctx.fillText('海賊船', x, y + 9);
+      }
       else if (n.kind === 'bandit') {
         ctx.fillStyle = 'rgba(245,238,215,.85)'; ctx.strokeStyle = '#e0281e'; ctx.lineWidth = 3; // 敵対：赤い枠
         ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.fill(); ctx.stroke();
@@ -251,7 +264,8 @@
       const mine = p.id === myPid;
       if (p.id === selectedId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 12, 0, 7); ctx.stroke(); }
       ctx.fillStyle = mine ? '#f2c14e' : '#e8e8e8'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
-      const mb = SGK.KAMON.monBadge(ctx, p.mon, x, y, 18, mine ? '#f2c14e' : '#e8e8e8', 2.5); // 0.36.0 家紋を決めていれば紋の印
+      if (p.afloat) drawBoat(ctx, x, y, ctx.fillStyle);
+      const mb = p.afloat || SGK.KAMON.monBadge(ctx, p.mon, x, y, 18, mine ? '#f2c14e' : '#e8e8e8', 2.5); // 0.36.0 家紋を決めていれば紋の印
       if (!mb) { ctx.beginPath(); ctx.arc(x, y, mine ? 7 : 6, 0, 7); ctx.fill(); ctx.stroke(); }
       const ty = y - (mb ? 11 : 9);
       ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText(p.name, x, ty);

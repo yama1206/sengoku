@@ -115,7 +115,7 @@
     e.x = nx; e.y = ny; return false;
   }
   SIM.HIDE_MIN = 180; SIM.hidden = (w, p) => (p.hideT || 0) > w.time.min; /* 1.6.20 逃げたり戦が終わったあと3時間は敵に見つからない */
-  const inField = (p) => !p.off && !p.battle && !(p.at && p.tx == null); // 拠点にいる人は襲われない（2.105.2 いま入っていない人も。前は野盗や敵の軍勢に襲われて合戦中になっていた）
+  const inField = (p) => !p.off && !p.battle && !(p.at && p.tx == null) && !SIM.sailingSpeed(p); // 拠点にいる人は襲われない（2.105.2 いま入っていない人も。前は野盗や敵の軍勢に襲われて合戦中になっていた）
   function playerPower(p) { return power(p.troops) + TR.hero.hp * TR.hero.atk; }
 
   function banditTick(w, dt) {

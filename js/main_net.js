@@ -268,9 +268,12 @@ function buildView() {
     const w = G.world;
     const m = w.players[G.myPid], sr = m ? SIM.sightRadius(w, m) : 0;
     const vis = (e) => !m || e === m || SIM.canSee(m, sr, e.x, e.y);
-    G.view = { t: w.time.min, sr, settlements: w.settlements, factions: w.factions, people: w.people, wars: Object.keys(w.wars || {}), players: Object.values(w.players).filter((p) => p === m || !p.off), /* 1.6.52 プレイヤーは視界の外でも出す */
+    G.view = { t: w.time.min, sr, settlements: w.settlements, factions: w.factions, people: w.people, wars: Object.keys(w.wars || {}), players: Object.values(w.players).filter((p) => p === m || !p.off).map((p) => {
+      const sailing = SIM.sailingSpeed(p);
+      return sailing ? { ...p, afloat: true, spd: sailing } : p;
+    }), /* 1.6.52 プレイヤーは視界の外でも出す */
       // 0.54.3 ホストでも参加者と同じ形に（大将の名前・率いる武将・用件を付ける。前はホストだけ「武将の隊」と出ていた）
-      npcs: Object.values(w.npcs).filter(vis).map((n) => Object.assign({}, n, { battle: n.battle ? 1 : n.fight ? 2 : 0, at: n.tx == null ? n.at || null : null, pname: SIM.npcName ? SIM.npcName(w, n) : null,
+      npcs: Object.values(w.npcs).filter(vis).map((n) => Object.assign({}, n, { spd: n.kind === 'pirate' ? n.speed : n.spd, battle: n.battle ? 1 : n.fight ? 2 : 0, at: n.tx == null ? n.at || null : null, pname: SIM.npcName ? SIM.npcName(w, n) : null,
         extra: n.kind === 'bushou' ? n.purpose : n.kind === 'ronin' ? [n.need, n.fee] : null, lead: SIM.npcLead ? SIM.npcLead(w, n) : null })), bm: SIM.battleMarks ? SIM.battleMarks(w, G.myPid) : [] };
   } else if (G.mode === 'client' && G.dyn) {
     const d = G.dyn, s = G.stat;
@@ -279,7 +282,7 @@ function buildView() {
     G.view = {
       t: d.t, sr: d.sr, settlements: withOwners(d.ns && d.ns.length ? s.settlements.filter((x) => !d.ns.some((n) => n.id === x.id)).concat(d.ns) : s.settlements, d.ow),
       factions: d.pf && Object.keys(d.pf).length ? Object.assign({}, s.factions, d.pf) : s.factions, people: s.people, wars: d.wars || [],
-      players: d.p.map(([id, name, x, y, at, tx, ty, status, path, spd]) => ({ id, name, x, y, at, tx, ty, status, path, spd, mon: d.mons && d.mons[id] })),
+      players: d.p.map(([id, name, x, y, at, tx, ty, status, path, spd, afloat]) => ({ id, name, x, y, at, tx, ty, status, path, spd, afloat, mon: d.mons && d.mons[id] })),
       npcs: d.n.map(([id, kind, faction, x, y, size, battle, dest, cargo, army, home, at, pname, extra, lead, spd]) => ({ id, kind, faction, x, y, size, battle, dest, at, cargo: cargo && { item: cargo[0], qty: cargo[1] }, army, home, pname, lead, extra, spd })),
       bm: d.bm || [], /* 1.6.51 味方の合戦の印 */
     };
@@ -295,5 +298,5 @@ function command(cmd) {
   else if (G.mode === 'client' && G.net) G.net.send(cmd);
 }
 SGK.cmd = command; // 2.11.0 釣り・虫取りの画面（gather.js）から使う
-function moveTo(x, y, dest) { command({ type: 'move', x, y, dest: dest || null }); if (!dest && SIM.isSea(x, y)) toast('海の上には移動できません', 1500); }
+function moveTo(x, y, dest) { command({ type: 'move', x, y, dest: dest || null }); }
 

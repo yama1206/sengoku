@@ -157,12 +157,20 @@
     }
     return out;
   }
-  SIM.findPath = function (x0, y0, x1, y1) {
+  SIM.findPath = function (x0, y0, x1, y1, boatMul = 0) {
     const { g, gw, gh } = G();
     const ci = (x) => Math.max(0, Math.min(gw - 1, Math.floor(x / CELL))), cj = (y) => Math.max(0, Math.min(gh - 1, Math.floor(y / CELL)));
     const s = cj(y0) * gw + ci(x0), t = cj(y1) * gw + ci(x1);
     if (s === t) return [[x1, y1]];
-    const best = SPEED.road;
+    const best = Math.max(SPEED.road, boatMul);
+    const speed = (v) => boatMul && v % 4 === 0 ? boatMul : MULT[v];
+    const pass = (v) => PASS[v] || (boatMul && v === 0);
+    function clearBoat(ax, ay, bx, by) {
+      const steps = Math.ceil(Math.hypot(bx - ax, by - ay) / 0.4);
+      for (let i = 1; i < steps; i++) if (!pass(cellAt(ax + (bx - ax) * i / steps, ay + (by - ay) * i / steps))) return false;
+      return true;
+    }
+    if (boatMul && Math.hypot(x1 - x0, y1 - y0) <= 4 && clearBoat(x0, y0, x1, y1)) return [[x1, y1]];
     // 作業用の配列は使い回す（毎回作ると重い）。stamp が今回の番号でないマスは未訪問
     if (!buf || buf.n !== gw * gh) buf = { n: gw * gh, cost: new Float32Array(gw * gh), from: new Int32Array(gw * gh), stamp: new Uint32Array(gw * gh), done: new Uint32Array(gw * gh), run: 0 };
     const run = ++buf.run, { stamp, done } = buf, C = buf.cost, F = buf.from;
@@ -177,15 +185,18 @@
       if (k === t) { found = true; break; }
       if (done[k] === run) continue;
       done[k] = run;
-      const i = k % gw, j = (k - i) / gw, mk = MULT[g[k]];
+      const i = k % gw, j = (k - i) / gw, mk = speed(g[k]);
       for (const [di, dj, dl] of DIR) {
         const ni = i + di, nj = j + dj;
         if (ni < 0 || nj < 0 || ni >= gw || nj >= gh) continue;
         const n = nj * gw + ni;
-        if (!PASS[g[n]] && n !== t && PASS[g[k]]) continue; // 海・湖・道のない山（目的地のマスだけは岸辺として許す。通れない所にいるときは抜け出せる）
-        if (g[n] === 0 && n !== t) continue;
-        if (di && dj && !(g[k] >= 3 && g[n] >= 3) && (g[j * gw + ni] === 0 || g[nj * gw + i] === 0)) continue; // 岸の角を斜めにすり抜けない（渡し船の道どうしは斜めにつながってよい）
-        const c = C[k] + (dl * CELL) / ((mk + (MULT[g[n]] || SPEED.plain)) / 2);
+        if (!pass(g[n]) && n !== t && pass(g[k])) continue; // 海・湖・道のない山（目的地のマスだけは岸辺として許す。通れない所にいるときは抜け出せる）
+        if (!boatMul && g[n] === 0 && n !== t) continue;
+        if (di && dj) {
+          const a = g[j * gw + ni], b = g[nj * gw + i];
+          if (boatMul ? (!pass(a) || !pass(b)) : (!(g[k] >= 3 && g[n] >= 3) && (a === 0 || b === 0))) continue;
+        } // 岸の角を斜めにすり抜けない（渡し船の道どうしは斜めにつながってよい）
+        const c = C[k] + (dl * CELL) / ((mk + (speed(g[n]) || SPEED.plain)) / 2);
         if (c < getC(n)) { stamp[n] = run; C[n] = c; F[n] = k; open.push(c + h(n), n); }
       }
     }
@@ -196,6 +207,13 @@
     cells.reverse();
     const { rd, rpos } = grid, R = SGK.DATA.terrain.roads || [];
     const cx = (k) => ((k % gw) + 0.5) * CELL, cy = (k) => (Math.floor(k / gw) + 0.5) * CELL;
+    if (boatMul) {
+      // 折れ曲がる場所を残し、同じ向きに進むマスはまとめる。
+      const out = cells.filter((k, i) => i === 0 || i === cells.length - 1 || k - cells[i - 1] !== cells[i + 1] - k)
+        .map((k) => [cx(k), cy(k)]).concat([[x1, y1]]);
+      if (clearBoat(x0, y0, ...out[1])) out.shift();
+      return out;
+    }
     const isRoad = (k) => g[k] >= 3 && rd[k] >= 0;
     // 道 ri の位置 pos の座標
     const at = (ri, pos) => { const P = R[ri].pts, n = Math.min(P.length - 2, Math.max(0, Math.floor(pos))), f = pos - n; return [P[n][0] + (P[n + 1][0] - P[n][0]) * f, P[n][1] + (P[n + 1][1] - P[n][1]) * f]; };

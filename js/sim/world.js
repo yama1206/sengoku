@@ -100,9 +100,12 @@
       let x = Math.max(0, Math.min(B.w, +c.x)), y = Math.max(0, Math.min(B.h, +c.y));
       let dest = null;
       if (c.dest) { const s = SIM.settlement(w, c.dest); if (s) { x = s.x; y = s.y; dest = s.id; } }
-      if (!dest && SIM.isSea(x, y)) return; // 海の上は目的地にできない（船は後日）
-      const path = SIM.findPath(p.x, p.y, x, y);
-      if (!path) return SIM.say(p.id, 'そこへは陸路で行けません');
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      const boat = SIM.playerBoat(p), water = SIM.isSea(x, y), afloat = SIM.sailingSpeed(p);
+      if (!dest && water && !boat) { if (!c.steer) SIM.say(p.id, '水上を移動するには湊で舟を買ってください'); return; }
+      const landPath = !afloat && !(water && boat) && SIM.findPath(p.x, p.y, x, y);
+      const path = landPath || (boat && SIM.findPath(p.x, p.y, x, y, boat.speed / Math.max(1, p.speed)));
+      if (!path) return SIM.say(p.id, boat ? 'そこへは移動できません' : 'そこへは陸路で行けません');
       p.tx = x; p.ty = y; p.dest = dest; p.at = null; p.path = path; p.follow = null; endMeet(w, p); p.denied = null;
     },
     stop(w, p) { p.tx = p.ty = null; p.dest = null; p.path = null; p.follow = null; endMeet(w, p); },
@@ -110,7 +113,8 @@
     // 部隊（CPU・他プレイヤー）を追いかける。見えているあいだ道筋を引き直し続ける
     follow(w, p, c) {
       const t = w.npcs[c.id] || w.players[c.id];
-      if (!t || t === p || t.off || p.battle) return;
+      if (!t || t === p || t.off || p.battle || t.kind === 'pirate') return;
+      if (SIM.sailingSpeed(p) || SIM.sailingSpeed(t)) return SIM.say(p.id, '舟で移動中の相手とは地図で行き先を指定してください');
       if (p.busy) return SIM.say(p.id, `${p.busy.label}の最中です（取りやめると報酬はもらえません）`);
       if (!SIM.canSee(p, SIM.sightRadius(w, p), t.x, t.y)) return SIM.say(p.id, '見えない相手は追えません');
       endMeet(w, p); p.follow = t.id; p.dest = null; p.at = null; p.tx = p.ty = null; p.path = null;
@@ -134,7 +138,7 @@
     while (left > 0 && e.path.length) {
       const [wx, wy] = e.path[0];
       const dx = wx - e.x, dy = wy - e.y, d = Math.hypot(dx, dy);
-      const v = (e.speed / 1440) * SIM.moveMul(e, e.x, e.y); // km/分（1.6.47 森では騎馬の速さが出ない）
+      const v = SIM.travelSpeed(e) / 1440; // km/分（1.6.47 森では騎馬の速さが出ない）
       if (d <= v * left) { e.x = wx; e.y = wy; left -= v > 0 ? d / v : left; e.path.shift(); continue; }
       e.x += (dx / d) * v * left; e.y += (dy / d) * v * left; left = 0;
     }
@@ -142,6 +146,12 @@
     return false;
   }
   SIM.moveEntity = moveEntity;
+  SIM.travelSpeed = (e) => {
+    if (e.kind === 'pirate') return e.speed;
+    const sailing = SIM.sailingSpeed && SIM.sailingSpeed(e);
+    if (sailing) return sailing;
+    return e.speed * SIM.moveMul(e, e.x, e.y);
+  };
   // 0.54.9 噂は、自分の家（勢力）が出てくる話か、自分の家の城が出てくる話だけ届ける（浪人には届かない）
   SIM.newsTo = (w, msg) => {
     for (const p of Object.values(w.players)) {
@@ -155,7 +165,7 @@
   function endMeet(w, p) { const n = p.meet && w.npcs[p.meet]; if (n && n.hold && n.hold.by === p.id) delete n.hold; p.meet = null; }
   function followStep(w, p) {
     const t = w.npcs[p.follow] || w.players[p.follow];
-    if (!t || p.battle) { p.follow = null; return; }
+    if (!t || p.battle || SIM.sailingSpeed(p) || SIM.sailingSpeed(t)) { p.follow = null; return; }
     if (!SIM.canSee(p, SIM.sightRadius(w, p), t.x, t.y)) { p.follow = null; SIM.say(p.id, '見失いました（最後に見えた所へ向かいます）'); return; }
     // 0.73.4 追いかけて近づいたら、双方止まって「話しかける／攻めかかる」の窓を出す
     if (MEET_KINDS.includes(t.kind) && !t.battle && !t.fight && Math.hypot(t.x - p.x, t.y - p.y) <= MEET_KM) {
@@ -194,7 +204,7 @@
     },
     function npcLife(w, dt) {
       for (const n of Object.values(w.npcs)) {
-        if (n.kind === 'bandit' || n.kind === 'army' || n.kind === 'bushou' || n.kind === 'ronin' || n.fight || n.battle || (n.ref && n.tx == null)) continue; /* 1.6.33 城に逃げ込んだ隊はとどまる */ // 野盗は military.js、軍勢は army.js で動かす
+        if (n.kind === 'pirate' || n.kind === 'bandit' || n.kind === 'army' || n.kind === 'bushou' || n.kind === 'ronin' || n.fight || n.battle || (n.ref && n.tx == null)) continue; /* 1.6.33 城に逃げ込んだ隊はとどまる */ // 野盗は military.js、軍勢は army.js で動かす
         if (n.hold && n.hold > w.time.min) continue; // 0.40.0 護衛の行商人が野盗に足止めされている
         if (n.tx == null) {
           n.wait -= dt;
@@ -242,8 +252,11 @@
     return {
       sr: me ? r(sr) : null,
       t: w.time.min,
-      p: Object.values(w.players).filter((p) => !p.off).map( /* 1.6.52 プレイヤーは視界の外でも地図に出す */ (p) => [p.id, p.name, r(p.x), r(p.y), p.at, p.tx == null ? null : r(p.tx), p.ty == null ? null : r(p.ty), p.status,
-        p.tx != null && p.path ? p.path.map(([x, y]) => [r(x), r(y)]) : null, Math.round(p.speed || 0)]),
+      p: Object.values(w.players).filter((p) => !p.off).map( /* 1.6.52 プレイヤーは視界の外でも地図に出す */ (p) => {
+        const sailing = SIM.sailingSpeed(p);
+        return [p.id, p.name, r(p.x), r(p.y), p.at, p.tx == null ? null : r(p.tx), p.ty == null ? null : r(p.ty), p.status,
+          p.tx != null && p.path ? p.path.map(([x, y]) => [r(x), r(y)]) : null, Math.round(sailing || p.speed || 0), !!sailing];
+      }),
       n: Object.values(w.npcs).filter(vis).map((n) => [n.id, n.kind, n.faction, r(n.x), r(n.y), n.size || 0, n.battle ? 1 : n.fight ? 2 : 0,
         n.dest || null, n.cargo ? [n.cargo.item, n.cargo.qty] : null, n.kind === 'bandit' || n.kind === 'patrol' || n.kind === 'army' || n.kind === 'bushou' || n.kind === 'ronin' ? n.army || null : null, n.home || null, n.tx == null ? n.at || null : null,
         SIM.npcName ? SIM.npcName(w, n) : null, n.kind === 'bushou' ? n.purpose : n.kind === 'ronin' ? [n.need, n.fee] : null, SIM.npcLead ? SIM.npcLead(w, n) : null, Math.round(n.speed || 0)]),

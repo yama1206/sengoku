@@ -41,7 +41,7 @@ function frame0(now) {
     const m = me(); dirSendAcc += dt;
     if (BT) { mx = my = 0; }
     if (m && (mx || my)) {
-      if (dirSendAcc > 0.1) { dirSendAcc = 0; const l = Math.hypot(mx, my); command({ type: 'move', x: m.x + (mx / l) * 2, y: m.y + (my / l) * 2 }); R.cam.follow = true; }
+      if (dirSendAcc > 0.1) { dirSendAcc = 0; const l = Math.hypot(mx, my); command({ type: 'move', x: m.x + (mx / l) * 2, y: m.y + (my / l) * 2, steer: true }); R.cam.follow = true; }
       wasDirMoving = true;
     } else if (wasDirMoving) { wasDirMoving = false; command({ type: 'stop' }); }
     // なめらか表示

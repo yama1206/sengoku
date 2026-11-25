@@ -2,7 +2,7 @@
 // 2.57.2 main.js を画面ごとに分けた。main*.js は外側の関数で包まず、名前（G・$・toast など）を大域で分け合う。index.html の順に読み込むこと
 // ---------- 拠点の情報 ----------
 function selectSettlement(s) {
-  G.selected = s ? s.id : null; G.selKind = s ? 's' : null; G.lookJob = null; $('infoGo').textContent = 'ここへ向かう'; $('infoAct').classList.add('hidden');
+  G.selected = s ? s.id : null; G.selKind = s ? 's' : null; G.lookJob = null; $('infoGo').textContent = 'ここへ向かう'; $('infoGo').classList.remove('hidden'); $('infoAct').classList.add('hidden');
   if (!s) { $('info').classList.add('hidden'); return; }
   const f = G.view.factions[s.owner], lord = lordName(s);
   const kind = { castle: '城', town: '町', village: '村' }[s.type];
@@ -80,6 +80,7 @@ function unitInfo(u) {
   const f = u.faction && G.view.factions[u.faction], fn = f ? `<b style="color:${f.color}">${f.name}</b>` : '';
   const m = me(), km = m ? Math.hypot(u.x - m.x, u.y - m.y).toFixed(1) : '?';
   const where = `${u.at ? sName(u.at) + 'に滞在中' : u.dest ? sName(u.dest) + 'へ向かっている' : '野外'}　（ここから ${km}km・${SIM.placeName(u.x, u.y)}）`;
+  if (u.kind === 'pirate') return { name: '海賊船', body: where + '<br>近くの舟を追いかけます。追いつかれると所持金の一部を奪われます。', go: '' };
   // 0.60.0 移動の速さ（足もとの地形の倍率込み）と、自分との比べ
   const myS = G.priv && G.priv.me && G.priv.me.speed;
   const spdTxt = u.spd ? (() => {
@@ -148,7 +149,7 @@ function refreshUnitInfo() {
   const i = unitInfo(u), html = `${i.name}|${i.body}|${i.go}|${i.act ? i.act.label : ''}`;
   if (html === G.infoHtml) return; G.infoHtml = html;
   const pic = u.pname && SGK.bushoImg && SGK.bushoImg(u.pname); // 2.14.0 武将の絵
-  $('infoName').textContent = i.name; $('infoBody').innerHTML = (pic ? `<img class="uPic" src="${pic}" data-bt="${u.pname}" alt="">` : '') + i.body; $('infoGo').textContent = i.go;
+  $('infoName').textContent = i.name; $('infoBody').innerHTML = (pic ? `<img class="uPic" src="${pic}" data-bt="${u.pname}" alt="">` : '') + i.body; $('infoGo').textContent = i.go; $('infoGo').classList.toggle('hidden', !i.go);
   G.infoCmd = i.act ? i.act.cmd : null; $('infoAct').classList.toggle('hidden', !i.act); if (i.act) $('infoAct').textContent = i.act.label;
 }
 $('infoClose').onclick = () => { bushoClose(); if (G.priv && G.priv.me && G.priv.me.meet) command({ type: 'meetEnd' }); selectSettlement(null); };

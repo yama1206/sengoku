@@ -72,7 +72,16 @@
     const me = P.me, H = P.here, KG = SIM.KAIGAI, K = me.kaigai || { crew: [] };
     if (me.gachaRes && me.gachaRes.t !== lastG) { lastG = me.gachaRes.t; const L = me.gachaRes.list; setTimeout(() => showGacha(L), 0); } // 求人の結果が届いたら、めくる画面を出す
     const sr = H.port.sho, RN = (r) => SIM.GOSHO.RANKS[r].name;
-    let h = `<div class="muted" style="margin-bottom:6px">所持金 ${M(me.money)}　海の向こう（天川・呂宋・交趾・暹羅）との商い。船は船員が動かすので、出帆したら待たずに動けます</div>`;
+    let h = `<div class="muted" style="margin-bottom:6px">所持金 ${M(me.money)}</div><div class="secH">移動用の舟</div>
+      <div class="muted">どの身分でも購入できます。地図で水面を指定すると舟で進み、陸に着くと徒歩に戻ります。</div>`;
+    const back = SIM.boatTradeIn(me);
+    for (const [id, B] of SIM.BOATS) {
+      const owned = me.boat === id, cost = Math.max(0, B.cost - back);
+      h += `<div class="card"><div><b>${B.name}</b><br><span class="muted">水上 ${B.speed}km/日・${M(B.cost)}${!owned && back ? `（下取り ${M(back)}）` : ""}</span></div>
+        <button id="boat-${id}" data-act="buyBoat" data-id="${id}" ${owned || me.busy || me.money < cost ? "disabled" : ""}>${owned ? "所持中" : back ? "買い替える" : "買う"}</button></div>`;
+    }
+    if (!H.port.gacha) return h;
+    h += `<div class="secH">南蛮貿易</div><div class="muted">天川・呂宋・交趾・暹羅との商い。船は船員が動かします。</div>`;
     if (!sr) return h + `<div class="card" style="display:block"><b>南蛮貿易は商人だけ</b><br><span class="muted">大きな町（京・堺・博多など）の豪商に奉公して商人になると、ここで船員を雇い、船を出せます。求人は丁稚から、船は${RN(2)}（弁才船）・${RN(3)}（唐船）・${RN(4)}（大船）から</span></div>`
       + (K.ship || (K.crew || []).length ? `<div class="muted">持っている船・船員はそのまま残っています${K.voy ? `（航海中の船は${K.voy.left}日ほどで戻ります）` : ''}</div>` : '');
     // 船
