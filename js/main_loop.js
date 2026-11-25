@@ -2,6 +2,7 @@
 // 2.57.2 main.js を画面ごとに分けた。main*.js は外側の関数で包まず、名前（G・$・toast など）を大域で分け合う。index.html の順に読み込むこと
 // ---------- 毎フレーム ----------
 let lastFrame = performance.now(), dirSendAcc = 0, wasDirMoving = false;
+let mapFrameReady = false, questsHtml = null;
 function hitShow(wn, d) { /* 1.6.18 攻撃が当たったら画面の上に武器の名前とダメージ */
   let el = document.getElementById('hitLog');
   if (!el) { el = document.createElement('div'); el.id = 'hitLog'; el.style.cssText = 'position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:50;pointer-events:none;text-align:center;font-weight:bold;text-shadow:0 0 4px #000,0 0 2px #000;color:#fff'; document.body.appendChild(el); }
@@ -60,8 +61,9 @@ function frame0(now) {
     }
     const md = m && G.disp[m.id];
     if (R.cam.follow && md) { R.cam.x += (md.x - R.cam.x) * k; R.cam.y += (md.y - R.cam.y) * k; }
-    const P = G.priv, marks = questMarks();
+    const P = G.priv;
     if (BT) {
+      mapFrameReady = false;
       for (const u of BT.units) {
         const key = 'u' + BT.id + '_' + u[0], d = G.disp[key];
         if (!d) G.disp[key] = { x: u[5], y: u[6] }; else { d.x += (u[5] - d.x) * k; d.y += (u[6] - d.y) * k; }
@@ -103,8 +105,14 @@ function frame0(now) {
       G.bcur = null;
       G.view.myClan = P && P.me && P.me.rank ? P.me.rank.clan || null : null;
       G.view.myHome = P && P.me && P.me.home ? P.me.home.id : null; // 2.40.0 自宅のある拠点を地図で目立たせる
-      R.draw(ctx, G.view, G.disp, G.myPid, G.selected, marks);
-      if (G.pcurOn) drawMapCur(G.pcur[0], G.pcur[1]);
+      const mapCovered = $('yugiHall') || $('gbHall') || $('ptGame');
+      const townOpen = !$('town').classList.contains('hidden');
+      // 町の周りには最後に描いた地図を残す。全画面の遊びの裏では描かない。
+      if (!mapCovered && (!townOpen || !mapFrameReady)) {
+        R.draw(ctx, G.view, G.disp, G.myPid, G.selected, questMarks());
+        if (G.pcurOn) drawMapCur(G.pcur[0], G.pcur[1]);
+        mapFrameReady = true;
+      }
     }
     { const mt = P && P.me && P.me.meet; if (mt && mt !== G.lastMeet && !BT) { const u = findUnit(mt); if (u) { selectUnit(u); toast('追いつきました。話しかけるか、攻めかかるかを選んでください（閉じると相手は動き出します）', 3500); } } G.lastMeet = mt || null; } // 0.73.4
     if (G.selKind === 'u' && !BT) refreshUnitInfo();
@@ -138,8 +146,12 @@ function frame0(now) {
       { const wb = P.me.warBoard || [], el = $('warBoard'), h = wb.length ? '<b>戦況</b>' + wb.map((x) => `<div style="color:${x.atk ? '#e0c060' : '#ff6a4a'}">${SGK.ICON.html(x.atk ? 'swords' : 'warn', 16)} ${x.text}</div>`).join('') : '';
         el.classList.toggle('hidden', !h || !!(G.priv && G.priv.battle)); if (el.dataset.h !== h) { el.innerHTML = h; el.dataset.h = h; } }
       renderCaptive(P.me);
-      $('quests').innerHTML = `所持金 ${SIM.money(P.me.money)}　${loadTxt(P.me)}　名声 ${P.me.fame}${P.me.infamy ? `　<span style="color:#e07a6a">悪名 ${P.me.infamy}</span>` : ''}${P.me.rank && P.me.rank.clan ? `　功績 ${P.me.rank.merit}${(() => { const n = SIM.RANKS[P.me.rank.rank + 1]; return n && !n.indep ? '/' + n.merit : ''; })()}` : ''}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.wage ? `<br>兵の給金 ${SIM.money(P.me.wage)}/日${P.me.money < P.me.wage ? '　<b style="color:#e07a6a">払えません</b>' : '（約' + Math.floor(P.me.money / P.me.wage) + '日分）'}` : '') + (P.me.riceNeed ? `<br>士気 <b style="color:${P.me.morale < 35 ? '#e07a6a' : P.me.morale < 60 ? '#e0c060' : '#6fbf73'}">${P.me.morale}</b>　兵糧 ${P.me.foodList || 'なし'}（米に直して1日${P.me.riceNeed}俵・${P.me.hungry ? '<b style="color:#e07a6a">食料が足りません</b>' : '約' + P.me.riceDays + '日分'}）` : '') + (P.me.follow ? `<br>追跡中：${P.me.follow}` : '') + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
+      const nextQuestsHtml = `所持金 ${SIM.money(P.me.money)}　${loadTxt(P.me)}　名声 ${P.me.fame}${P.me.infamy ? `　<span style="color:#e07a6a">悪名 ${P.me.infamy}</span>` : ''}${P.me.rank && P.me.rank.clan ? `　功績 ${P.me.rank.merit}${(() => { const n = SIM.RANKS[P.me.rank.rank + 1]; return n && !n.indep ? '/' + n.merit : ''; })()}` : ''}　兵 ${SIM.troopCount(P.me.troops)}/${P.me.troopCap}　行軍 ${P.me.speed}km/日` + (P.me.wage ? `<br>兵の給金 ${SIM.money(P.me.wage)}/日${P.me.money < P.me.wage ? '　<b style="color:#e07a6a">払えません</b>' : '（約' + Math.floor(P.me.money / P.me.wage) + '日分）'}` : '') + (P.me.riceNeed ? `<br>士気 <b style="color:${P.me.morale < 35 ? '#e07a6a' : P.me.morale < 60 ? '#e0c060' : '#6fbf73'}">${P.me.morale}</b>　兵糧 ${P.me.foodList || 'なし'}（米に直して1日${P.me.riceNeed}俵・${P.me.hungry ? '<b style="color:#e07a6a">食料が足りません</b>' : '約' + P.me.riceDays + '日分'}）` : '') + (P.me.follow ? `<br>追跡中：${P.me.follow}` : '') + (P.me.busy ? `<br>${P.me.busy.label}中…` : '')
         + P.me.quests.map((q) => `<div class="q">◆ ${q.title}（${q.where || (q.type === 'deliver' ? sName(q.to) + 'へ' : sName(q.from) + 'へ納品')}・${dayLeft(q.deadline)}）</div>`).join('') + (P.me.nin && P.me.nin.q ? `<div class="q">◆ ${SIM.NIN.jobs[P.me.nin.q.k].name}（${sName(P.me.nin.q.to)}・${dayLeft(P.me.nin.q.deadline)}）</div>` : '') + (P.me.nin && P.me.nin.def ? `<div class="q" style="color:#ff8a6a">◆ 城の守り：曲者を捕らえる（${sName(P.me.nin.def.to)}・${dayLeft(P.me.nin.def.deadline)}）</div>` : '');
+      if (questsHtml !== nextQuestsHtml) {
+        $('quests').innerHTML = nextQuestsHtml;
+        questsHtml = nextQuestsHtml;
+      }
     }
     // HUD
     const dEl = $('date'); dEl.textContent = SIM.formatDate(G.view.t) + (G.speed === 0 ? '（停止中）' : G.speed > 1 ? (G.inBattle ? '（戦闘中のため×1）' : `（×${G.speed}）`) : '');
@@ -152,7 +164,7 @@ function frame0(now) {
   }
   requestAnimationFrame(frame);
 }
-const fit = () => R.resize(cv);
+const fit = () => { R.resize(cv); mapFrameReady = false; };
 let fitW = 0, fitH = 0; setInterval(() => { const w = cv.clientWidth, h = cv.clientHeight; if (w && h && (w !== fitW || h !== fitH)) { fitW = w; fitH = h; fit(); } }, 300); // 2.99.3 縦横を切り替えた時、大きさの知らせが来なくても地図を合わせ直す
 window.addEventListener('resize', fit); fit();
 requestAnimationFrame(frame);

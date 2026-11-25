@@ -51,7 +51,7 @@
     drawLobby();
   };
   const chGet = () => { try { return JSON.parse(localStorage.getItem('sgk-hide-ch') || '{}'); } catch (e) { return {}; } };
-  const myCh = () => { const c = chGet(), H = SGK.HIDE.CH; return { h: H.h.some((x) => x.k === c.h) ? c.h : H.h[0].k, s: H.s.some((x) => x.k === c.s) ? c.s : H.s[0].k }; };
+  const myCh = () => { if (!SGK.HIDE) return null; const c = chGet(), H = SGK.HIDE.CH; return { h: H.h.some((x) => x.k === c.h) ? c.h : H.h[0].k, s: H.s.some((x) => x.k === c.s) ? c.s : H.s[0].k }; };
   const chName = (r, k) => { const x = SGK.HIDE.CH[r].find((y) => y.k === k) || SGK.HIDE.CH[r][0]; return x.n; };
   const defOpts = () => { const o = {}; for (const op of SGK.HIDE.OPTS) o[op.k] = op.v[0][0]; return o; };
   const optTxt = (o) => SGK.HIDE.OPTS.map((op) => `${op.n}：${(op.v.find((x) => x[0] === o[op.k]) || op.v[0])[1]}`).join('　');

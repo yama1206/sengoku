@@ -109,17 +109,34 @@
     el.addEventListener('click', onClick);
     sfx('zawa'); render(true);
   };
-  UI.close = () => { if (el) el.remove(); el = null; P = null; if (SGK.ASOBIUI) SGK.ASOBIUI.closeCraft(); };
+  UI.close = () => { loadingTab = failedTab = null; if (el) el.remove(); el = null; P = null; if (SGK.ASOBIUI) SGK.ASOBIUI.closeCraft(); };
   UI.die = die; UI.roll = roll; // 2.62.0 双六の賽（asobiui.js）
   UI.isOpen = () => !!el;
   UI.tab = () => tab; // 2.62.2 遊びのタブ（独楽・貝絵合わせ・双六）では遊びの曲
   UI.update = (priv) => { if (!el) return; P = priv; const gb = P && P.here && P.here.gamble; if (!gb) return UI.close(); render(false); };
 
-  function onClick(e) {
+  let tabRequest = 0, loadingTab = null, failedTab = null;
+  async function onClick(e) {
     if (SGK.ASOBIUI && SGK.ASOBIUI.has(tab) && !e.target.closest('button[data-tab],button[data-add],button[data-x]')) { if (SGK.ASOBIUI.click(e, P, sel, el.querySelector('#gbStage'))) return; } // 2.62.0 独楽・貝・双六
     const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
     if (d.x) return UI.close();
-    if (d.tab) { tab = d.tab; lastHtml = {}; render(true); return; }
+    if (d.tab) {
+      const hall = el, request = ++tabRequest;
+      loadingTab = failedTab = null;
+      if (['koma', 'kai', 'sugoroku'].includes(d.tab) && !SGK.ASOBIUI) {
+        loadingTab = d.tab; render(false);
+        try {
+          await SGK_loadMiniGameScript('js/asobiui.js');
+        } catch (error) {
+          if (el === hall && request === tabRequest) {
+            loadingTab = null; failedTab = d.tab; render(false);
+          }
+          return;
+        }
+        if (el !== hall || request !== tabRequest) return;
+      }
+      loadingTab = null; tab = d.tab; lastHtml = {}; render(true); return;
+    }
     if (d.add != null) { sel = G.betStep(sel, d.add, touched, P && P.me ? P.me.money : 0); touched = true; render(false); return; } // 2.103.0 押すたびに足す
     if (d.cmd) { const c = { type: d.cmd, id: d.id }; if (d.kind != null) c.kind = d.kind; if (d.cmd === 'gbBet') c.qty = sel; SGK.cmd(c); sfx(d.cmd === 'gbBet' ? 'coin' : 'click'); }
   }
@@ -128,7 +145,7 @@
     const gb = P.here.gamble, me = P.me;
     el.querySelector('#gbMoney').innerHTML = `${SGK.ICON ? SGK.ICON.html('coins', 20) : ''} ${money(me.money)}`;
     el.querySelector('#gbBets').innerHTML = `<b style="margin:0 6px">${money(sel)}</b>` + G.BETS.map((v) => `<button data-add="${v}">+${money(v)}</button>`).join('') + `<button data-add="-1">-100文</button><button data-add="0">戻す</button><button data-add="max">全額</button>`; // 2.103.0 押すたびに足す
-    el.querySelector('#gbTabs').innerHTML = Object.entries(NAMES).map(([k, n]) => `<button data-tab="${k}" class="${k === tab ? 'on' : ''}">${n}</button>`).join('');
+    el.querySelector('#gbTabs').innerHTML = Object.entries(NAMES).map(([k, n]) => `<button data-tab="${k}" class="${k === tab ? 'on' : ''}">${k === loadingTab ? n + '（読み込み中）' : k === failedTab ? n + '（再試行）' : n}</button>`).join('');
     const st = el.querySelector('#gbStage');
     if (SGK.ASOBIUI && SGK.ASOBIUI.has(tab)) { // 2.62.0
       if (full || st.dataset.g !== tab) { st.dataset.g = tab; SGK.ASOBIUI.mount(st, tab); }

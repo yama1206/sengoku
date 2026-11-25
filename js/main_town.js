@@ -59,6 +59,21 @@ function kemariHtml(h) { // 2.62.0 蹴鞠大会（毎月5日・大きな町）�
 }
 const dayLeft = (dl) => { const d = (dl - G.view.t) / 1440; return d >= 1 ? `あと${Math.floor(d)}日` : 'まもなく期限'; };
 const sName = (id) => (G.view.settlements.find((x) => x.id === id) || {}).name || '?';
+let townGameLoading = false;
+async function openTownGame(load, open) {
+  if (townGameLoading) return;
+  const pid = G.myPid, mode = G.mode, net = G.net, place = G.priv?.here?.id, tab = townTab;
+  townGameLoading = true;
+  try {
+    await load();
+    if (G.myPid === pid && G.mode === mode && G.net === net && G.priv?.here?.id === place &&
+        townTab === tab && !$('town').classList.contains('hidden')) open();
+  } catch (error) {
+    toast('遊びを読み込めませんでした。もう一度お試しください', 3000);
+  } finally {
+    townGameLoading = false;
+  }
+}
 function openTown(open, keep) {
   const t = $('town');
   if (open === false || !G.priv || !G.priv.here) { t.classList.add('hidden'); return; }
@@ -92,7 +107,7 @@ function renderTown() {
   else if (NJ && NJ.def && NJ.def.pvp) html += `<div class="card" style="display:block;border-color:#c33"><b>急報：城の守り（人の忍び）</b><br><span class="muted">${njDefTxt(NJ.def)}。${NJ.def.toName}へ駆けつけて待ち構えてください（${dayLeft(NJ.def.deadline)}）。間に合わなければ相手は見張りだけを相手にします</span><div class="row" style="margin-top:4px"><button id="nj-deflook" data-look="${NJ.def.to}">地図で見る</button></div></div>`;
   else if (NJ && NJ.def && NJ.def.at) html += `<div class="card" style="display:block;border-color:#c33"><b>城の守り</b>（${NJ.def.toName}）<br><span class="muted">${njDefTxt(NJ.def)}。城の中で曲者を探し、追って当て身で捕らえる（生け捕りにすると敵の動きが分かる）。${NJ.def.d ? `${NJ.def.d.ck === 'yama' ? '山城' : NJ.def.d.ck === 'mizu' ? '水城' : '平城'}・${NJ.def.d.night ? '夜（曲者が見えにくい）' : '昼'}・` : ''}${dayLeft(NJ.def.deadline)}・報酬${SIM.money(NJ.def.reward)}</span><div class="row" style="margin-top:4px"><button id="nj-def" data-njdef="go">曲者を探す</button></div></div>`;
   else if (NJ && NJ.def) html += `<div class="card" style="display:block;border-color:#c33"><b>急報：城の守り</b><br><span class="muted">${njDefTxt(NJ.def)}。期限までに${NJ.def.toName}へ駆けつけてください（${dayLeft(NJ.def.deadline)}）。間に合わないと工作を果たされます</span><div class="row" style="margin-top:4px"><button id="nj-deflook" data-look="${NJ.def.to}">地図で見る</button></div></div>`;
-  if (townTab === 'street' && SGK.PARTY) html += '<div class="card" style="display:block"><b>みんなで遊ぶ</b>（同じ町にいる人を誘えます。2人から）<div class="row" style="margin-top:4px"><button data-party="race">馬の障害レース</button><button data-party="archery">弓の的当て</button><button data-party="fish">釣り大会</button><button data-party="cart">荷運び競争</button><button data-party="kemari">蹴鞠</button><button data-party="hayashi">囃子合わせ</button><button data-party="hide">かくれんぼ？</button></div>' + kemariHtml(h) + '</div>';
+  if (townTab === 'street') html += '<div class="card" style="display:block"><b>みんなで遊ぶ</b>（同じ町にいる人を誘えます。2人から）<div class="row" style="margin-top:4px"><button data-party="race">馬の障害レース</button><button data-party="archery">弓の的当て</button><button data-party="fish">釣り大会</button><button data-party="cart">荷運び競争</button><button data-party="kemari">蹴鞠</button><button data-party="hayashi">囃子合わせ</button><button data-party="hide">かくれんぼ？</button></div>' + kemariHtml(h) + '</div>';
   if (townTab === 'street') html += `<div class="muted">${hs && hs.type === 'village' ? '村' : '町'}の通りです。上のボタンから行き先を選んでください</div>`;
   if (townTab === 'renpei' && h.otoko) { const m = h.otoko, gifts = Object.keys(me.inv || {}).filter((k) => me.inv[k] > 0 && IT[k]); // 2.61.0 練兵所の男（看板娘と同じ。命令は data-id="man"）
     html += `<div class="card" style="display:block"><b>${m.name}</b>（${m.role}・${m.age}歳くらい）　仲 ${m.a}/100・${m.stName}${m.like ? `　好きな品：${IT[m.like].name}` : '　好きな品：？（顔なじみになると分かる）'}`
@@ -270,7 +285,7 @@ function renderTown() {
   } else if (sec === 'yugi') { // 2.102.0 遊戯屋
     html += `<div class="card"><div><b>遊戯屋に入る</b><br><span class="muted">札遊び「戦国思想録」。札の包みを買って札を集め、陣立てを組んで遊べます。勝負の賞金は天下往来のお金（文）で受け取り、包みは「戦銭」1枚で開けます（300文で戦銭1枚に替えられます。戦銭は文に戻せません）。いまは店の者が相手をします</span></div><button id="yg-open" data-act="yugiOpen">入る</button></div>`;
   } else if (sec === 'gamble') {
-    if (P.here && P.here.gamble && SGK.GAMBLEUI) html += `<div class="card"><div><b>賭場に入る</b><br><span class="muted">行灯の灯る部屋で、壺振りの丁半・賽の目増と四五六・馬くらべ・天正かるた・独楽回し（自分で削った独楽）・貝絵合わせ・絵双六</span></div><button id="gb-open" data-act="gbOpen">入る</button></div><details style="margin-top:6px"><summary class="muted">文字だけで遊ぶ</summary>${SGK.GAMBLE.html(P, G.gbSel, G.myPid)}</details>`; // 2.12.4
+    if (P.here && P.here.gamble) html += `<div class="card"><div><b>賭場に入る</b><br><span class="muted">行灯の灯る部屋で、壺振りの丁半・賽の目増と四五六・馬くらべ・天正かるた・独楽回し（自分で削った独楽）・貝絵合わせ・絵双六</span></div><button id="gb-open" data-act="gbOpen">入る</button></div><details style="margin-top:6px"><summary class="muted">文字だけで遊ぶ</summary>${SGK.GAMBLE.html(P, G.gbSel, G.myPid)}</details>`; // 2.12.4
     else html += SGK.GAMBLE.html(P, G.gbSel, G.myPid);
   } else {
     html += `<div class="card"><div>ここの人に話を聞く<br><span class="muted">相場の噂などが聞けます</span></div><button id="tk" data-act="talk">話しかける</button></div>`;
@@ -381,7 +396,7 @@ setInterval(() => {
 $('townBody').addEventListener('click', (e) => {
   const lb = e.target.closest('button[data-look]'); if (lb) return lookAt(lb.dataset.look, lb.dataset.job);
   const lx = e.target.closest('button[data-lookxy]'); if (lx) { const [x, y] = lx.dataset.lookxy.split(',').map(Number); openTown(false); R.cam.follow = false; R.cam.x = x; R.cam.y = y; G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; return; }
-  const pb = e.target.closest('button[data-party]'); if (pb) { SGK.PARTY.openLobby(pb.dataset.party); return; } /* 2.69.4 町の窓は開けたまま（やめるで遊びを選ぶ画面へ戻る。遊びを始める時に閉じる） */ // 2.42.0
+  const pb = e.target.closest('button[data-party]'); if (pb) { const game = pb.dataset.party; openTownGame(() => loadParty(game), () => SGK.PARTY.openLobby(game)); return; } /* 2.69.4 町の窓は開けたまま（やめるで遊びを選ぶ画面へ戻る。遊びを始める時に閉じる） */ // 2.42.0
   const nj = e.target.closest('button[data-nj]'); // 0.77.0 忍び込む
   if (nj) { const N = G.priv && G.priv.me.nin; if (!N || !N.atTgt) return; if (N.pvp && N.pvp.here) { command({ type: 'ninPvpGo' }); toast('守りの忍びと対戦します…', 2000); return; } openTown(false); startNinja(N, null); return; } // 2.57.1 守る人がいれば対戦
   const nu = e.target.closest('button[data-nusumigo]'); // 2.107.0 豪商の蔵へ忍び込む
@@ -391,8 +406,8 @@ $('townBody').addEventListener('click', (e) => {
   const gs = e.target.closest('button[data-gbadd]'); if (gs) { G.gbSel = SGK.GAMBLE.betStep(G.gbSel, gs.dataset.gbadd, G.gbTouched, G.priv && G.priv.me.money); G.gbTouched = true; townHtml = ''; renderTown(); return; } // 2.8.0 賭場の掛け金（2.103.0 押すたびに足す）
   const b = e.target.closest('button[data-act]'); if (!b) return;
   if (b.dataset.act === 'smithPlay') { if (SGK.SMITHUI) SGK.SMITHUI.open(b.dataset.id, G.priv && G.priv.me); return; } // 2.29.0 鍛冶のミニゲーム
-  if (b.dataset.act === 'yugiOpen') { if (SGK.YUGIUI) SGK.YUGIUI.open(G.priv); return; } // 2.102.0 遊戯屋
-  if (b.dataset.act === 'gbOpen') { if (SGK.GAMBLEUI) SGK.GAMBLEUI.open(G.priv, G.myPid); return; } // 2.12.4 賭場の画面
+  if (b.dataset.act === 'yugiOpen') { openTownGame(() => SGK_loadMiniGameScript('js/yugiui.js'), () => SGK.YUGIUI.open(G.priv)); return; } // 2.102.0 遊戯屋
+  if (b.dataset.act === 'gbOpen') { openTownGame(() => SGK_loadMiniGameScript('js/gambleui.js'), () => SGK.GAMBLEUI.open(G.priv, G.myPid)); return; } // 2.12.4 賭場の画面
   if (b.dataset.act === 'openNawaEdit') { const me2 = G.priv && G.priv.me, C2 = me2 && (me2.castles || []).find((x) => x.id === b.dataset.id); if (C2 && C2.nawa && SGK.NAWAEDIT) SGK.NAWAEDIT.open({ mode: 'edit', id: C2.id, plan: C2.nawa, ck: C2.nawa.ck, money: me2.money }); return; } // 2.12.0 縄張りを描き直す
   const c = { type: b.dataset.act };
   if (b.dataset.item) c.item = b.dataset.item;

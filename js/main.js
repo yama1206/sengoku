@@ -54,7 +54,7 @@ function titleMsg(text) { $('titleMsg').textContent = text || ''; }
 // 2.106.17 世界に入るまでの「読み込み中」。text を渡すと出す（文字を変える）、null で消す。画面を切り替えた時（show）は必ず消す
 function loadMsg(text) { const m = $('loadMask'); if (!m) return; if (text == null) { m.classList.add('hidden'); return; } $('loadText').textContent = text; m.classList.remove('hidden'); }
 const loadPaint = () => new Promise((r) => setTimeout(r, 40)); // 重い処理の前に「読み込み中」を描かせる（rAF は隠れた画面で止まるので setTimeout）
-function show(id) { loadMsg(null); ['title', 'game'].forEach((s) => $(s).classList.toggle('hidden', s !== id)); if (id === 'game') requestAnimationFrame(() => R.resize($('map'))); }
+function show(id) { loadMsg(null); ['title', 'game'].forEach((s) => $(s).classList.toggle('hidden', s !== id)); if (id === 'game') requestAnimationFrame(() => fit()); }
 
 // ---------- メニュー操作（キー・コントローラー：押した方向へ移動／決定してもカーソル位置は保つ） ----------
 const focusMem = {};

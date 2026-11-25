@@ -124,13 +124,37 @@ function startHost(world, msg, ent) {
 // 2.41.0 忍びの協力任務のやりとりを、宛先の人へそのまま届ける（ホストが中継役）
 function ninRelay(from, cmd) {
   const m = cmd.m, to = cmd.to; if (!m || !Array.isArray(to)) return;
-  for (const t of to.slice(0, CFG.MAX_PLAYERS || 10)) { /* 2.60.4 前は4人までしか中継しなかった（みんなで遊ぶは10人まで） */ if (t === G.myPid) { { const Rv = m.ch === 'party' ? SGK.PARTY : SGK.NINJA3D; if (Rv && Rv.recv) Rv.recv(from, m); } } else if (G.net && G.net.sendTo) G.net.sendTo(t, { t: 'nin', from, m }); }
+  for (const t of to.slice(0, CFG.MAX_PLAYERS || 10)) { /* 2.60.4 前は4人までしか中継しなかった（みんなで遊ぶは10人まで） */ if (t === G.myPid) { receiveNin(from, m); } else if (G.net && G.net.sendTo) G.net.sendTo(t, { t: 'nin', from, m }); }
 }
 SGK.ninSend = (to, m) => { if (G.mode === 'host') ninRelay(G.myPid, { m, to }); else if (G.mode === 'client' && G.net) G.net.send({ type: 'ninRelay', to, m }); };
 SIM.online = () => [G.myPid, ...(G.mode === 'host' && G.net && G.net.pids ? G.net.pids() : [])]; // 2.57.1 いまつながっている人（人と人の忍びの対戦の相手を選ぶ）
 // 2.42.0 みんなで遊ぶミニゲーム（party.js）に、自分の名前・同じ町の人・送る道具を渡す
-if (SGK.PARTY) SGK.PARTY.init({ me: () => G.myPid, name: () => myName(), send: (to, m) => SGK.ninSend(to, m), cmd: (c) => command(c), toast: (s) => toast(s, 2500),
-  others: () => { const m0 = me(); return m0 && m0.at ? G.view.players.filter((p) => p.id !== G.myPid && p.at === m0.at).map((p) => ({ id: p.id, name: p.name })) : []; } });
+const partyEnv = { me: () => G.myPid, name: () => myName(), send: (to, m) => SGK.ninSend(to, m), cmd: (c) => command(c), toast: (s) => toast(s, 2500),
+  others: () => { const m0 = me(); return m0 && m0.at ? G.view.players.filter((p) => p.id !== G.myPid && p.at === m0.at).map((p) => ({ id: p.id, name: p.name })) : []; } };
+let partyLoading;
+function loadParty(game) {
+  if (!partyLoading) {
+    partyLoading = SGK_loadMiniGameScript('js/party.js')
+      .then(() => { SGK.PARTY.init(partyEnv); })
+      .catch((error) => { partyLoading = null; throw error; });
+  }
+  const extra = game === 'hide' ? 'js/kakurenbo.js' : game === 'hayashi' ? 'js/hayashi.js' : null;
+  return extra ? Promise.all([partyLoading, SGK_loadMiniGameScript(extra)]) : partyLoading;
+}
+function receiveNin(from, m) {
+  if (!m || m.ch !== 'party') {
+    if (SGK.NINJA3D && SGK.NINJA3D.recv) SGK.NINJA3D.recv(from, m);
+    return;
+  }
+  if (m.k !== 'inv') {
+    if (SGK.PARTY) SGK.PARTY.recv(from, m);
+    return;
+  }
+  const pid = G.myPid, net = G.net, mode = G.mode;
+  loadParty(m.g).then(() => {
+    if (G.myPid === pid && G.net === net && G.mode === mode) SGK.PARTY.recv(from, m);
+  }).catch(() => toast('遊びの招待を読み込めませんでした', 3000));
+}
 function hostTick() { if (G.mode !== 'host' || !G.world) { timerWorker.postMessage(0); return; } /* 2.59.1 ホストでなくなったのに時計が残っていたら止める */ try { hostTick0(); } catch (e) { const t = 'エラー(ホストの進行): ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastHostErr !== t) { G.lastHostErr = t; errToast(t); } } }
 // 2.40.4 参加者ごとの「自分用の情報」は、前に送ったものから変わっていなければ送らない（参加者は前のものを使い続ける。念のため5秒ごとには送り直す）
 function privFor(pid, now) {
@@ -217,7 +241,7 @@ function startClient(ent, code, again) {
     onLost: (why) => rejoin(why),
     onPing: (ms) => { G.ping = G.ping ? G.ping * 0.6 + ms * 0.4 : ms; }, // 2.49.0 通信の遅れ（往復）
     onMine: (m) => { if (m.p && m.p.id === G.myPid) G.mine = { p: m.p, ma: SGK.CLOUD.now() }; },
-    onNin: (m) => { const Rv = m.m && m.m.ch === 'party' ? SGK.PARTY : SGK.NINJA3D; if (Rv && Rv.recv) Rv.recv(m.from, m.m); },
+    onNin: (m) => receiveNin(m.from, m.m),
   });
 }
 
