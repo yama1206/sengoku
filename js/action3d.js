@@ -1,7 +1,7 @@
 // 0.63.0 自分で戦う：3D表示（three.js）。1.6.65 兵・本人・馬は人型モデル（js/soldier3d.js。t1〜t4の格ごと、Mixamoの動きつき）で描く。0.65.0 見た目の質を上げた（空・雲・草・木・地面の模様・具足・歩く足）。計算は action.js のまま、見た目だけを3Dで描く
 // three.js が読めないときや WebGL が使えないときは、これまでの2D表示に戻る
 (function () {
-  const R = SGK.RENDER, SIM = SGK.SIM, TR = SIM.TROOPS;
+  const R = SGK.RENDER, SIM = SGK.SIM, TR = SIM.TROOPS, ACT = SIM.ACT;
   const X = R.act3d = { on: true, ready: false, failed: false };
   try { const v = localStorage.getItem('sgk-act3d'); if (v === '0') X.on = false; } catch (e) { /* 保存できない環境 */ }
   // 0.75.0 ビデオ設定：影（0切・1低・2高）、草の量（0なし・1少なめ・2普通・3多め）
@@ -851,7 +851,9 @@
   function putPart(name, base, x, y, z, a, col) { const L = L4.m.makeRotationZ(a); L.setPosition(x, y, z); Mx.multiplyMatrices(base, L); put(name, Mx, col); }
   // 0.66.0 構え・攻撃の姿勢。aR/aL＝右腕/左腕を前へ上げる角度（0で下ろす）、tilt＝武器の傾き、lean＝前かがみ、tw＝上半身のひねり
   const ease = (x) => x * x * (3 - 2 * x), lerp = (a, b, k) => a + (b - a) * k;
+  const BOW_RELEASE = 0.22, BOW_RECOVER = 0.24, THROW_TIME = 0.35;
   function pose(s, wk, stp, now) {
+    const throwing = wk === 'shuri';
     if (wk === 'waki' || wk === 'shuri') wk = 'sword'; // 0.81.0 脇差・手裏剣は刀と同じ構え
     const P = { aR: 0.35, aL: 0.25, tilt: 0.3, lean: 0, tw: 0, fl: false };
     const sw = stp * 0.45; // 歩くときの腕の振り
@@ -859,11 +861,26 @@
     if (wk === 'sword') { P.aR = 0.55 - sw * 0.5; P.aL = 0.25 + sw; P.tilt = 1.0; }
     else if (wk === 'spearS' || wk === 'spearL') { P.aR = 0.75; P.aL = 0.95; P.tilt = 0.22 + sw * 0.1; }
     else if (wk === 'bow') { P.aL = 0.7; P.aR = 0.35 - sw * 0.5; P.tilt = 0.5; }
-    else if (wk === 'gun') { P.aR = 0.9; P.aL = 1.1; P.tilt = 0.55; }
+    else if (wk === 'gun') {
+      const phase = ACT.gunPhase(s), [, lean, left, right, open] = SGK.SOLD3D.gunPose(phase);
+      P.aR = 1.45 - right; P.aL = 1.5 - left;
+      P.tilt = 0.08 - left * 1.7; P.lean = lean; P.tw = open * 0.6;
+      P.fl = phase < 0.06 && now - s.at < 0.1;
+    }
     if (s.hero && s.blk) { P.aR = 1.3; P.aL = 1.2; P.tilt = 1.5; return P; }
+    if (throwing && s.at && now - s.at < THROW_TIME) {
+      const flick = Math.sin(Math.PI * Math.max(0, now - s.at) / THROW_TIME);
+      P.aR += 1.4 * flick; P.lean = 0.2 * flick; P.tw = -0.35 * flick;
+      return P;
+    }
     if (s.hero && s.hold && !s.sw) { /* 1.6.41 構え：槍は引いて構える、弓は引きしぼる */
       if (wk === 'spearS' || wk === 'spearL') { P.aR = 0.45; P.aL = 0.7; P.tilt = 0.25; P.lean = -0.1; return P; }
-      if (wk === 'bow') { P.aL = 1.55; P.aR = 1.5; P.tilt = 0; P.tw = 0.25; return P; }
+      if (wk === 'bow') {
+        const draw = ease(Math.min(1, s.hold / 0.18));
+        P.aL = lerp(P.aL, 1.55, draw); P.aR = lerp(P.aR, 1.5, draw);
+        P.tilt *= 1 - draw; P.tw = 0.25 * draw;
+        return P;
+      }
     }
     if (s.hero && s.sw && (wk === 'spearS' || wk === 'spearL')) { /* 1.6.41 槍は突き出す */
       const k = 1 - Math.max(0, s.sw.t) / (s.sw.d || 0.18), e = k < 0.4 ? ease(k / 0.4) : 1 - (k - 0.4) / 0.6;
@@ -873,6 +890,14 @@
       const k = 1 - Math.max(0, s.sw.t) / (s.sw.d || 0.18), a = s.sw.a + s.sw.arc * (1 - 2 * k);
       P.tw = -(a - (s.f || 0)); P.aR = 1.45; P.aL = 0.5; P.tilt = wk === 'bow' || wk === 'gun' ? 0.2 : 0; P.lean = 0.12; return P;
     }
+    if (wk === 'bow' && s.at && now - s.at < BOW_RELEASE + BOW_RECOVER) {
+      const elapsed = Math.max(0, now - s.at);
+      const settle = ease(Math.max(0, (elapsed - BOW_RELEASE) / BOW_RECOVER));
+      const loose = Math.sin(Math.PI * Math.min(1, elapsed / BOW_RELEASE));
+      P.aL = lerp(1.55, P.aL, settle); P.aR = lerp(1.5 - loose * 0.65, P.aR, settle);
+      P.tilt *= settle; P.tw = (0.25 - loose * 0.16) * (1 - settle);
+      return P;
+    }
     if (at < 1) {
       if (wk === 'sword') { // 振りかぶって、振り下ろす
         if (at < 0.35) { const k = ease(at / 0.35); P.aR = lerp(P.aR, 2.7, k); P.tilt = lerp(1.0, 2.4, k); P.aL = lerp(P.aL, 2.4, k); P.lean = -0.08 * k; }
@@ -880,10 +905,6 @@
       } else if (wk === 'spearS' || wk === 'spearL') { // 突く
         const k = at < 0.3 ? -ease(at / 0.3) * 0.4 : ease(Math.min(1, (at - 0.3) / 0.25)) * (1 - Math.max(0, at - 0.7) / 0.3);
         P.aR = 0.75 + k * 0.8; P.aL = 0.95 + k * 0.6; P.tilt = 0.2 - k * 0.1; P.lean = k * 0.25;
-      } else if (wk === 'bow') { // 引いて放つ
-        const k = ease(Math.min(1, at / 0.5)); P.aL = lerp(0.7, 1.55, Math.min(1, at * 3)); P.tilt = lerp(0.5, 0, Math.min(1, at * 3)); P.aR = 1.5; P.tw = 0.25 * (1 - k);
-      } else if (wk === 'gun') { // 撃つ（はねかえり）
-        P.aR = 1.45; P.aL = 1.5; P.tilt = at < 0.15 ? 0.3 * (at / 0.15) : 0.3 * (1 - (at - 0.15) / 0.85); P.fl = at < 0.12;
       }
     }
     return P;
@@ -985,13 +1006,34 @@
     const W = S3.win[atk] || { a: 0, b: 1, pk: 0.5 };
     // 1.6.65 動きながらの攻撃は、足は歩く・走る（low）、上半身だけ攻撃の動き
     const low = mv >= 0.4 ? { nm: mv < 3.6 ? 'walk' : 'run', t: ph, loop: true } : null;
-    const hit = (k) => ({ nm: atk, t: W.a + (W.b - W.a) * Math.min(1, Math.max(0, k)), loop: false, atk: true, low });
+    const clip = (nm, t, grip) => ({ nm, t, grip, loop: false, atk: true, low });
+    const settle = (k) => clip(atk + 'Recover', k, 1 - ease(k));
+    const hit = (k) => {
+      if (atk === 'sword' && k < 0.3) {
+        const lead = k / 0.3;
+        return clip('swordLead', 1 - lead, ease(lead));
+      }
+      const swing = atk === 'sword' ? (k - 0.3) / 0.7 : k;
+      return clip(atk, lerp(W.a, W.b, Math.min(1, swing)));
+    };
     if (s.cu > 0.05 && S3.tiers[0] && S3.tiers[0].rows.climb_ladder) return { nm: 'climb_ladder', t: nowS * 1.3, loop: true }; // 2.69.1 壁を登る間は梯子を登る動き
-    if (s.hero && s.sw) return hit(1 - Math.max(0, s.sw.t) / (s.sw.d || 0.18));
-    if (s.hero && s.hold && (atk === 'bow' || atk === 'spear')) return { nm: atk, t: atk === 'bow' ? W.pk : W.a, loop: false, atk: true, low };
-    const a = s.at ? (nowS - s.at) / (wk === 'gun' || wk === 'bow' ? 0.5 : 0.4) : 9;
-    if (a >= 0 && a < 1) return atk === 'gun' ? { nm: 'gun', t: ph, loop: true, atk: true, low } : hit(a);
-    if (mv < 0.4) return { nm: wk === 'gun' ? 'gun' : 'idle', t: ph, loop: true }; // 鉄砲は止まるとしゃがんで構える
+    if (wk === 'gun') return clip('gunCycle', ACT.gunPhase(s));
+    const elapsed = s.at ? Math.max(0, nowS - s.at) : Infinity;
+    if (wk === 'shuri') {
+      if (elapsed < THROW_TIME) return clip('throw', elapsed / THROW_TIME);
+    } else if (wk === 'bow') {
+      const duration = BOW_RELEASE + BOW_RECOVER;
+      if (elapsed < duration) return clip('bowRecover', elapsed / duration);
+      if (s.hero && s.hold) return clip('bow', lerp(W.a, W.pk, ease(Math.min(1, s.hold / 0.18))));
+    } else if (s.hero && s.pc) {
+      if (s.sw) return hit(1 - s.sw.t / s.sw.d);
+      if (s.recover > 0) return settle(1 - s.recover / ACT.MELEE_RECOVER);
+      if (s.hold && atk === 'spear') return clip('spear', W.a);
+    } else {
+      if (elapsed < 0.4) return hit(elapsed / 0.4);
+      if (elapsed < 0.4 + ACT.MELEE_RECOVER) return settle((elapsed - 0.4) / ACT.MELEE_RECOVER);
+    }
+    if (mv < 0.4) return { nm: 'idle', t: ph, loop: true };
     return low;
   }
   function drawSk(s, u, cav, mv, nowS, gy, f, own, col, ph) {
@@ -1020,10 +1062,10 @@
     const wn = (lookOf(s) && lookOf(s).wn) || wepName(wk, tr), kind = wk === 'spearS' || wk === 'spearL' ? 'spear' : wk === 'bow' || wk === 'gun' ? wk : 'sword';
     if (wn || wk === 'shuri') {
       const rowW = kind === 'spear' && !c.atk && (c.nm === 'walk' || c.nm === 'run') ? S3.rowAt(b, 'idle', 0, true) : row; // 2.26.1 歩く・走るあいだ槍は構えを保つ（手の振りでブラブラしない）
-      Mw.multiplyMatrices(Mx, S3.weapon(b, rowW, kind, c.nm, Mh, c.low ? Mcw : null));
+      Mw.multiplyMatrices(Mx, S3.weapon(b, rowW, kind, c.grip == null ? c.nm : kind, Mh, c.low ? Mcw : null, c.grip));
       if (wk === 'waki') Mw.multiply(Ms.makeScale(0.7, 0.7, 0.7));
       if (wn) S3.putW(wn, Mw); else put('shuri', Mw);
-      if (wk === 'gun' && s.at && nowS - s.at < 0.06) { Mw.multiply(Ms.makeTranslation(0, 1.0, 0)); put('flash', Mw); }
+      if (wk === 'gun' && c.nm === 'gunCycle' && c.t < 0.06 && nowS - s.at < 0.1) { Mw.multiply(Ms.makeTranslation(0, 1.0, 0)); put('flash', Mw); }
     }
     { const LK = lookOf(s); if (LK) { if (!Mhd) { Mhd = new T.Matrix4(); Mbk = new T.Matrix4(); } const cw = c.low ? Mcw : null;
       putLook(LK, boneMat(b, 'Head', row, cw, Mhd) || Mhd.copy(Mu).multiply(Ms.makeTranslation(0, 1.5, 0)), boneMat(b, 'Spine2', row, cw, Mbk) || Mbk.copy(Mu).multiply(Ms.makeTranslation(0, 1.3, 0)), cav ? Mu : null); } } // 2.17.0 名物兵の飾り（2.18.0 馬鎧）

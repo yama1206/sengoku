@@ -60,11 +60,11 @@
     uragashira: { name: '瀬戸内浦弓頭', short: '浦弓頭', tier: 4, hp: 13, atk: 3.3, def: 1, spd: 4.3, range: 50, ranged: true, meleeOk: true, cost: 1700, wage: 36, wk: 'bow',
       note: '船の上から敵を射すくめる弓の頭。いちばん遠くまで届く弓', look: { cloth: '#1f4d66', parts: [['kasa2', '#c9b47a'], ['ebira'], ['baori', '#2c6482'], ['mempo', '#2a2622']] } },
     // 南海：紀州の鉄砲
-    kitsutsu: { name: '紀州筒足軽', short: '紀足', tier: 2, hp: 7, atk: 3.4, def: 0, spd: 3.6, range: 38, ranged: true, gun: true, cost: 700, wage: 18, up: ['kishu'], wk: 'gun',
+    kitsutsu: { name: '紀州筒足軽', short: '紀足', tier: 2, hp: 7, atk: 3.4, def: 0, spd: 3.6, range: 60, ranged: true, gun: true, cost: 700, wage: 18, up: ['kishu'], wk: 'gun',
       note: '紀伊の村で鉄砲を習った足軽。2段なのに鉄砲を撃てる', look: { cloth: '#4a5634', parts: [['hachi', '#2a2622'], ['dor']] } },
-    kishu: { name: '紀州撃ち手', short: '紀筒', tier: 3, hp: 7, atk: 4.9, def: 0, spd: 3.6, range: 46, ranged: true, gun: true, cost: 1300, wage: 32, up: ['kishugashira'], wk: 'gun',
+    kishu: { name: '紀州撃ち手', short: '紀筒', tier: 3, hp: 7, atk: 4.9, def: 0, spd: 3.6, range: 75, ranged: true, gun: true, cost: 1300, wage: 32, up: ['kishugashira'], wk: 'gun',
       note: '鉄砲で名高い紀伊の撃ち手。攻撃と射程はいちばんだが、体がもろく値も張る', look: { cloth: '#3e4a2a', parts: [['kasa2', '#2a2622'], ['dor']], wn: 'teppo_t4' } },
-    kishugashira: { name: '紀州筒頭', short: '紀筒頭', tier: 4, hp: 9, atk: 6.2, def: 0.5, spd: 3.6, range: 52, ranged: true, gun: true, cost: 2600, wage: 50, fame: 10, wk: 'gun',
+    kishugashira: { name: '紀州筒頭', short: '紀筒頭', tier: 4, hp: 9, atk: 6.2, def: 0.5, spd: 3.6, range: 85, ranged: true, gun: true, cost: 2600, wage: 50, fame: 10, wk: 'gun',
       note: '撃ち手を束ねる鉄砲の名人。ひと撃ちで侍も倒すが、近づかれるともろい', look: { cloth: '#2e3820', parts: [['kasa2', '#2a2622'], ['dor'], ['baori', '#1e1e1e'], ['sashi', '#c8b040']] } },
     // 西海：隼人の刀
     hayaashi: { name: '隼人足軽', short: '隼足', tier: 2, hp: 10, atk: 2.4, def: 0.3, spd: 4.5, range: 2.5, mo: 8, cost: 380, wage: 12, up: ['hayato'], wk: 'sword',

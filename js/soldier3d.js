@@ -98,6 +98,68 @@
     }
     SI.needsUpdate = SW.needsUpdate = true; return n;
   };
+  const GUN_POSES = [
+    // 進行度、胴の反り、左腕の上下、右腕の上下、右腕の開き
+    [0, 0, 0, 0, 0],
+    [0.025, -0.12, -0.12, -0.14, 0],
+    [0.09, 0, 0.12, 0.15, 0],
+    [0.24, 0.12, 0.35, 0.55, -0.30],
+    [0.42, 0.08, -0.32, -0.52, -0.12],
+    [0.57, 0.11, -0.22, -0.26, -0.22],
+    [0.70, 0.08, -0.31, -0.48, -0.10],
+    [0.85, 0.04, 0.15, 0.22, -0.08],
+    [1, 0, 0, 0, 0],
+  ];
+  S.gunPose = (phase) => {
+    const i = GUN_POSES.findIndex(([t]) => t >= phase);
+    if (i <= 0) return GUN_POSES[i === 0 ? 0 : GUN_POSES.length - 1];
+    const a = GUN_POSES[i - 1], b = GUN_POSES[i], k = (phase - a[0]) / (b[0] - a[0]);
+    const blend = k * k * (3 - 2 * k);
+    return a.map((v, j) => v + (b[j] - v) * blend);
+  };
+
+  // 構えの一コマを基に、射撃後から構え直しまでの全身ポーズを焼く。
+  // 角度はモデルの軸で指定し、各骨の親座標へ変換して適用する。
+  function gunCyclePose(root, bones, phase, turn, axis, parent) {
+    const [, spine, left, right, open] = S.gunPose(phase);
+    bendBone(root, bones.Spine, spine, 0, turn, axis, parent);
+    bendBone(root, bones.LeftArm, left, 0, turn, axis, parent);
+    bendBone(root, bones.RightArm, right, open, turn, axis, parent);
+    bendBone(root, bones.RightForeArm, right * 0.32, 0, turn, axis, parent);
+  }
+
+  function bendBone(root, bone, x, z, turn, axis, parent, y = 0) {
+    if (!bone || !(x || y || z)) return;
+    bone.parent.getWorldQuaternion(parent).invert();
+    axis.set(x, y, z).normalize().applyQuaternion(parent);
+    bone.quaternion.premultiply(turn.setFromAxisAngle(axis, Math.hypot(x, y, z)));
+    root.updateMatrixWorld(true);
+  }
+
+  const ATTACK_CLIPS = ['spear', 'sword', 'bow'];
+  const TRANSITIONS = [
+    ['spearRecover', 'spear', 'b'],
+    ['swordRecover', 'sword', 'b'],
+    ['swordLead', 'sword', 'a'],
+    ['bowRecover', 'bow', 'b'],
+  ];
+  const smooth = (k) => k * k * (3 - 2 * k);
+
+  function attackWindow(rows, hands, name) {
+    const R = rows[name];
+    // 弓素材の末尾が弓を引き切った構え。放った後は別のポーズで補う。
+    if (name === 'bow') return { a: Math.max(0, R.dur - 0.32), b: R.dur, pk: R.dur };
+    const z = (hand, row) => hands[hand][row * 16 + 14];
+    let best = -Infinity, frame = 0;
+    for (let i = 0; i < R.n; i++) {
+      const row = R.r0 + i;
+      const reach = z('RightHand', row) - z('Hips', row);
+      if (reach > best) { best = reach; frame = i; }
+    }
+    const pk = Math.min(R.dur, frame / S.fps);
+    return { a: Math.max(0, pk - 0.5), b: Math.min(R.dur, pk + 0.25), pk };
+  }
+
   // 動きを焼き込む。1行＝1コマ、1行に骨の数×4画素（行列1つ＝4画素）
   // hipK：腰の位置を体の大きさに合わせる倍率（動きはt3の体で作られているため）
   function bake(gl, clips, hipK, fixArms) {
@@ -112,15 +174,65 @@
     const mixer = new T.AnimationMixer(root), rows = {};
     let H = 0;
     for (const [nm, c] of clips) { const n = Math.max(1, Math.round(c.duration * S.fps) + 1); rows[nm] = { r0: H, n, dur: Math.max(c.duration, 1e-3), clip: c }; H += n; }
+    if (rows.gun) {
+      rows.gunCycle = { r0: H, n: S.fps + 1, dur: 1, clip: rows.gun.clip };
+      H += rows.gunCycle.n;
+    }
+    const idle = rows.idle && rows.idle.clip;
+    for (const [name, from, edge] of TRANSITIONS) if (idle && rows[from]) {
+      const n = 12;
+      rows[name] = { r0: H, n, dur: 1, clip: rows[from].clip, from, edge };
+      H += n;
+    }
+    if (idle && rows.sword) {
+      const n = 21;
+      rows.throw = { r0: H, n, dur: 1, clip: idle };
+      H += n;
+    }
     const W = nb * 4, data = new Float32Array(W * H * 4), att = {};
     for (const a of ATT) if (bones[a]) att[a] = new Float32Array(H * 16);
     const m = new T.Matrix4(), base = new T.Matrix4().copy(sm.matrixWorld).multiply(sm.bindMatrixInverse);
+    const turn = new T.Quaternion(), axis = new T.Vector3(), parent = new T.Quaternion();
+    const posedBones = [bones.Spine, bones.LeftArm, bones.RightArm, bones.RightForeArm].filter(Boolean);
+    const restPose = posedBones.map(() => new T.Quaternion());
+    const hipPosition = new T.Vector3();
     for (const nm in rows) {
       const R = rows[nm]; mixer.stopAllAction();
       const act = mixer.clipAction(R.clip); act.setLoop(T.LoopOnce); act.clampWhenFinished = true; act.reset().play();
+      const rest = R.from ? mixer.clipAction(idle).reset().play() : null;
+      const cycle = nm === 'gunCycle', throwing = nm === 'throw', bowRelease = nm === 'bowRecover';
       for (let i = 0; i < R.n; i++) {
-        mixer.setTime(Math.min(R.clip.duration, i / S.fps));
-        if (hipK && hips) hips.position.multiplyScalar(hipK);
+        const phase = i / (R.n - 1);
+        if (rest) {
+          const weight = smooth(bowRelease ? Math.max(0, (phase - 0.27) / 0.73) : phase);
+          const window = S.win[R.from];
+          act.time = window[R.edge];
+          rest.time = 0;
+          act.setEffectiveWeight(1 - weight);
+          rest.setEffectiveWeight(weight);
+          mixer.update(0);
+        } else {
+          mixer.setTime(Math.min(R.clip.duration, cycle ? 1 : throwing ? 0 : i / S.fps));
+        }
+        if (hipK && hips) {
+          hipPosition.copy(hips.position);
+          hips.position.multiplyScalar(hipK);
+        }
+        if (cycle || throwing || bowRelease) {
+          posedBones.forEach((bone, j) => restPose[j].copy(bone.quaternion));
+          if (cycle) gunCyclePose(root, bones, phase, turn, axis, parent);
+          else if (bowRelease) {
+            const k = phase < 0.18 ? phase / 0.18 : (1 - phase) / 0.82;
+            const loose = smooth(k);
+            bendBone(root, bones.RightArm, -0.18 * loose, 0.12 * loose, turn, axis, parent, 0.26 * loose);
+            bendBone(root, bones.RightForeArm, 0.27 * loose, 0, turn, axis, parent);
+          } else {
+            const flick = Math.sin(Math.PI * phase);
+            bendBone(root, bones.Spine, 0.18 * flick, 0, turn, axis, parent, -0.32 * flick);
+            bendBone(root, bones.RightArm, -1.55 * flick, -0.26 * flick, turn, axis, parent);
+            bendBone(root, bones.RightForeArm, 0.55 * flick * (1 - phase), 0, turn, axis, parent);
+          }
+        }
         root.updateMatrixWorld(true);
         const row = R.r0 + i;
         for (let b = 0; b < nb; b++) {
@@ -128,7 +240,10 @@
           m.toArray(data, (row * W + b * 4) * 4);
         }
         for (const a in att) bones[a].matrixWorld.toArray(att[a], row * 16);
+        if (cycle || throwing || bowRelease) posedBones.forEach((bone, j) => bone.quaternion.copy(restPose[j]));
+        if (hipK && hips) hips.position.copy(hipPosition);
       }
+      if (ATTACK_CLIPS.includes(nm) && !S.win[nm]) S.win[nm] = attackWindow(rows, att, nm);
       delete R.clip;
     }
     mixer.stopAllAction();
@@ -244,14 +359,6 @@
         const rr = b.rows.ride; b.hipSit = rr && b.att.Hips ? b.att.Hips[rr.r0 * 16 + 13] : 0.53; // 座った姿勢の腰の高さ
         S.tiers.push(b);
       }
-      // 攻撃の「当たる瞬間」（腕がいちばん前に出たコマ）を探し、その前後を攻撃の動きに使う
-      const t1 = S.tiers[0], z = (a, r) => t1.att[a][r * 16 + 14];
-      for (const nm of ['spear', 'sword', 'bow', 'gun']) {
-        const R = t1.rows[nm]; if (!R) continue;
-        let best = -1e9, bi = 0;
-        for (let i = 0; i < R.n; i++) { const r = R.r0 + i, v = nm === 'bow' ? z('LeftHand', r) - z('RightHand', r) : z('RightHand', r) - z('Hips', r); if (v > best) { best = v; bi = i; } }
-        const pk = bi / S.fps; S.win[nm] = { a: Math.max(0, pk - 0.5), b: Math.min(R.dur, pk + 0.25), pk };
-      }
       // 馬：立つ・歩く・駆ける
       for (const [k, gi] of [['brown', 5], ['white', 6]]) {
         const hc = g[gi].animations.filter((c) => /\|(Idle|Walk|Gallop)$/.test(c.name)).map((c) => [c.name.replace(/^.*\|/, '').toLowerCase(), c]);
@@ -298,21 +405,23 @@
   S.hand = (b, row, side, out) => out.fromArray(b.att[side === 'L' ? 'LeftHand' : 'RightHand'], row * 16);
   // 武器の行列（体の中で）。kind：spear・gun・sword・bow。両手で持つ動き（突く・構える・斬る）では、両手を結ぶ線を武器の向きにする
   const TWO = { spear: ['spear', 1], gun: ['gun', 1], sword: ['sword', -1] };
-  let v1, v2, v3, v4, mT;
+  let v1, v2, v3, v4, mT, handRot, twoRot;
   // cw：歩きながら攻撃するとき、上半身を腰につなぐ行列（S.combo の cw）
-  S.weapon = (b, row, kind, clip, out, cw) => { weapon0(b, row, kind, clip, out); if (cw) out.premultiply(cw); return out; };
-  const weapon0 = (b, row, kind, clip, out) => {
-    if (!v1) { v1 = new T.Vector3(); v2 = new T.Vector3(); v3 = new T.Vector3(); v4 = new T.Vector3(); mT = new T.Matrix4(); }
+  S.weapon = (b, row, kind, clip, out, cw, grip = 1) => { weapon0(b, row, kind, clip, out, grip); if (cw) out.premultiply(cw); return out; };
+  const weapon0 = (b, row, kind, clip, out, grip) => {
+    if (!v1) { v1 = new T.Vector3(); v2 = new T.Vector3(); v3 = new T.Vector3(); v4 = new T.Vector3(); mT = new T.Matrix4(); handRot = new T.Quaternion(); twoRot = new T.Quaternion(); }
     const side = kind === 'bow' ? 'L' : 'R';
     S.hand(b, row, side, out).multiply(S.grip(side));
-    const tw = TWO[kind]; if (!tw || tw[0] !== clip) return out;
+    const tw = TWO[kind]; if (!grip || !tw || (tw[0] !== clip && !(kind === 'gun' && clip === 'gunCycle'))) return out;
     const r = b.att.RightHand, l = b.att.LeftHand, o = row * 16;
     v1.set(l[o + 12] - r[o + 12], l[o + 13] - r[o + 13], l[o + 14] - r[o + 14]); if (v1.lengthSq() < 1e-4) return out;
     v1.normalize().multiplyScalar(tw[1]); // 武器の向き（+Y）
     v2.set(0, 1, 0); if (Math.abs(v1.y) > 0.95) v2.set(0, 0, 1);
     v3.crossVectors(v1, v2).normalize(); v4.crossVectors(v3, v1);
     v2.setFromMatrixPosition(out); mT.makeBasis(v3, v1, v4).setPosition(v2);
-    return out.copy(mT);
+    if (grip === 1) return out.copy(mT);
+    handRot.setFromRotationMatrix(out).slerp(twoRot.setFromRotationMatrix(mT), grip);
+    return out.makeRotationFromQuaternion(handRot).setPosition(v2);
   };
   const gm = {};
   S.grip = (side) => {
