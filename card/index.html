@@ -241,7 +241,7 @@ button.effect-link:hover:not(:disabled){background:none;color:#fff0b0;outline:no
  <form method="dialog"><button autofocus>閉じる</button></form>
 </dialog>
 <script>
-const VERSION='0.66';
+const VERSION='0.67';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -288,8 +288,9 @@ function defineSeries(id,name,fn,opts){
 // 札を足す。札IDは「シリーズID_思想_連番」で、連番はシリーズ・思想ごとに足した順につく(順番を変えるとIDがずれて、持っている札や陣立てが壊れる)。house を渡すと札に h(家ID)が付く
 const CARD_SEQ={};
 function addCards(s,fn,house){
- fn((i,t,n,c,p,cp,o)=>{const q=s.id+'_'+i;CARD_SEQ[q]=(CARD_SEQ[q]||0)+1;
-  const card=Object.assign({id:`${s.id}_${i}_${String(CARD_SEQ[q]).padStart(2,'0')}`,series:s.id,i,t,n,c,p,cp,k:[],e:[]},o||{});
+ // 思想を変更した家も従来の札IDを使い、所持札・陣立て・画像の参照を保つ。
+ fn((i,t,n,c,p,cp,o)=>{const q=s.id+'_'+(HOUSES[house]?.idIdeology??i);CARD_SEQ[q]=(CARD_SEQ[q]||0)+1;
+  const card=Object.assign({id:`${q}_${String(CARD_SEQ[q]).padStart(2,'0')}`,series:s.id,i,t,n,c,p,cp,k:[],e:[]},o||{});
   if(house)card.h=house;
   if(t==='x'&&!card.k.includes('ambush'))card.k.push('ambush');
   if(!card.pr)card.pr=s.id==='base'?[]:(PRINTS_ADD[t]||['N']).slice();
