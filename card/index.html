@@ -241,7 +241,7 @@ button.effect-link:hover:not(:disabled){background:none;color:#fff0b0;outline:no
  <form method="dialog"><button autofocus>閉じる</button></form>
 </dialog>
 <script>
-const VERSION='0.63';
+const VERSION='0.64';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -296,6 +296,9 @@ function addCards(s,fn,house){
   s.cards.push(card);CARDS.push(card);});
 }
 // 家ごとの札データは houses/家ID.js に置く。defineHouse(家ID, シリーズID, {家の情報}, mk=>{ mk(...); })。家の効果などは、この {家の情報} に足していく
+// 再調整中の家。札IDを維持したまま、札目録とプレイヤー向けの入手先から外す。
+const PAUSED_HOUSES=new Set(['ashina','mogami','matsudaira','hatakeyama','miyoshi','rokkaku','amago','otomo']);
+const houseAvailable=id=>!PAUSED_HOUSES.has(id);
 const HOUSES={};
 function seriesOf(id){const s=SERIES.find(x=>x.id===id);if(!s)throw new Error('シリーズ未定義: '+id);return s;}
 function defineHouse(id,series,info,fn){HOUSES[id]=Object.assign({id,series},info||{});addCards(seriesOf(series),fn,id);}
@@ -362,7 +365,7 @@ function starterDeck(st){
 // 持っている札で初陣組そのままの陣立てが組めるか(陣立てで選べるお手本)
 const canBuildStarter=st=>{const d=starterDeck(st);const ks=Object.keys(d);return ks.length>0&&ks.every(k=>{const c=cardById(k);return c&&ownedOf(c)>=d[k];});};
 function claimStarter(id){
- const st=STARTERS.find(x=>x.id===id);if(!st||SV.starters[id]||freeStarterRemaining()<=0)return false;
+ const st=STARTERS.find(x=>x.id===id);if(!st||!houseAvailable(st.house)||SV.starters[id]||freeStarterRemaining()<=0)return false;
  const d=starterDeck(st);
  for(const k in d){const c=cardById(k);if(c.series==='base')continue;const r0=c.pr[0],key=printKey(c,r0);const cur=SV.prints[key]||0,add=Math.min(d[k],MAX_COPY-cur);SV.prints[key]=cur+Math.max(0,add);if(d[k]>add)SV.pt+=GACHA.dismantle[r0]*(d[k]-Math.max(0,add));} // 3枚を超える分は自動で分解
  SV.starters[id]=1;myDeck=d;saveSave();return true;
@@ -546,7 +549,7 @@ const RN={N:'並',R:'上',SR:'特上',SSR:'極上'}; // 版の表示名(中の�
 const DECK_SIZE=36,MAX_COPY=3,INITIAL_SEN=200;
 const SAVE_PREFIX=EMBED?'sengoku_card_embed':'sengoku_card';
 // 旧版を開いたままのタブと、初期化後の所持データを分ける
-const SAVE_KEY=SAVE_PREFIX+'_v2',LEGACY_SAVE_KEY=SAVE_PREFIX+'_v1';
+const SAVE_KEY=SAVE_PREFIX+'_v3',PREVIOUS_SAVE_KEY=SAVE_PREFIX+'_v2',LEGACY_SAVE_KEY=SAVE_PREFIX+'_v1';
 let SV={deck:{},coin:0,pt:0,prints:{},lastLogin:'',starters:{}};
 let myDeck={},editFilter='all',editAll=false,editMsg='';
 let listF={sort:'no',ideo:'all',type:'all',cost:'all',own:'all',house:'all'};
@@ -579,14 +582,15 @@ function autoDeck(idl,all){
 }
 function saveSave(){SV.deck=myDeck;try{localStorage.setItem(SAVE_KEY,JSON.stringify(SV));}catch(e){}}
 function loadSave(){
- let s={},initialize=true;
+ let s={},initialize=true,sen=INITIAL_SEN;
  try{
   const current=localStorage.getItem(SAVE_KEY);
-  const data=JSON.parse((current??localStorage.getItem(LEGACY_SAVE_KEY))||'null');
-  if(data&&typeof data==='object'&&!Array.isArray(data)){s=data;initialize=current===null;}
+  const recent=current??localStorage.getItem(PREVIOUS_SAVE_KEY);
+  const data=JSON.parse((recent??localStorage.getItem(LEGACY_SAVE_KEY))||'null');
+  if(data&&typeof data==='object'&&!Array.isArray(data)){s=data;initialize=current===null;if(recent!==null)sen=s.sen||0;}
  }catch(e){}
  const fresh=!('coin' in s);
- SV={sen:initialize?INITIAL_SEN:(s.sen||0),deck:initialize?{}:(s.deck||{}),coin:fresh?GACHA.reward.initial:(s.coin||0),pt:s.pt||0,prints:initialize?{}:(s.prints||{}),lastLogin:s.lastLogin||'',starters:initialize?{}:(s.starters||{}),grants:s.grants||{},cpu:s.cpu||{}};
+ SV={sen,deck:initialize?{}:(s.deck||{}),coin:fresh?GACHA.reward.initial:(s.coin||0),pt:s.pt||0,prints:initialize?{}:(s.prints||{}),lastLogin:s.lastLogin||'',starters:initialize?{}:(s.starters||{}),grants:s.grants||{},cpu:s.cpu||{}};
  let grantMsg='';
  if(!SV.grants[GRANT_NOW.id]){SV.grants[GRANT_NOW.id]=1;if(!fresh&&!EMBED){SV.coin+=GRANT_NOW.coin;grantMsg=`初期配布の増額分として${GACHA.coin}+${GRANT_NOW.coin}を進呈しました。`;}}
  for(const k of Object.keys(SV.prints)){const n=SV.prints[k];if(n>MAX_COPY){const r=k.split('|')[1];SV.pt+=(GACHA.dismantle[r]||0)*(n-MAX_COPY);SV.prints[k]=MAX_COPY;}} // 3枚を超えて持っていた分は分解
@@ -600,7 +604,7 @@ function loadSave(){
  }else if(grantMsg)loginMsg=grantMsg;
  if(initialize){
   const intro=fresh?'ようこそ！':'所持札と陣立てを初期化しました。';
-  loginMsg=[intro+'戦銭'+INITIAL_SEN+'枚で、札売り場から初陣組を2家まで選べます。',loginMsg].filter(Boolean).join('<br>');
+  loginMsg=[intro+'札売り場で無料の初陣組を2家まで選べます。',loginMsg].filter(Boolean).join('<br>');
  }
  saveSave();
 }
@@ -618,16 +622,16 @@ function rollRarity(min){
 }
 // 地方別の包み。札の所属シリーズは札ID・画像・セーブとの互換性のため維持する。
 const REGIONAL_PACKS=[
- {id:'ou',name:'奥羽',houses:['date','nanbu'],availableFromStart:true},
- {id:'kanto_kai',name:'関東・甲斐',houses:['hojo','takeda'],common:true},
- {id:'tokai',name:'東海',houses:['oda','imagawa'],common:true},
- {id:'hokuriku',name:'北陸',houses:['uesugi','asakura'],common:true},
- {id:'shikoku',name:'四国',houses:['chosokabe','kono'],availableFromStart:true},
- {id:'kinai',name:'畿内',houses:['ashikaga','azai'],availableFromStart:true},
- {id:'chugoku',name:'中国',houses:['mouri']},
- {id:'kyushu',name:'九州',houses:['shimazu','ryuzoji']}
+ {id:'ou',name:'奥羽',houses:['date','ashina','nanbu'],availableFromStart:true},
+ {id:'kanto_kai',name:'関東・甲斐',houses:['hojo','takeda','mogami'],common:true},
+ {id:'tokai',name:'東海',houses:['oda','imagawa','matsudaira'],common:true},
+ {id:'hokuriku',name:'北陸',houses:['uesugi','asakura','hatakeyama'],common:true},
+ {id:'shikoku',name:'四国',houses:['miyoshi','chosokabe','kono'],availableFromStart:true},
+ {id:'kinai',name:'畿内',houses:['ashikaga','rokkaku','azai'],availableFromStart:true},
+ {id:'chugoku',name:'中国',houses:['mouri','amago']},
+ {id:'kyushu',name:'九州',houses:['otomo','shimazu','ryuzoji']}
 ];
-const gachaPacks=()=>REGIONAL_PACKS.map(p=>({...p,cost:GACHA.packCost,color:'#d4a94a'}));
+const gachaPacks=()=>REGIONAL_PACKS.map(p=>({...p,houses:p.houses.filter(houseAvailable),cost:GACHA.packCost,color:'#d4a94a'}));
 function packCards(pack){
  const locked=!pack.availableFromStart&&expansionLocked();
  return CARDS.filter(c=>(pack.houses.includes(c.h)||(pack.common&&!c.h&&c.series==='e1560'))&&(!locked||c.series!=='e1560e'));
@@ -706,7 +710,7 @@ function testPull(){
 // 分解できるのは重複分のみ(各版1枚は残す)。陣立てに必要な枚数も残す
 function maxDismantle(c,r){return Math.max(0,Math.min(printCount(c,r)-1,ownedOf(c)-(myDeck[c.id]||0)));}
 function dismantle(c,r,k){k=Math.min(k,maxDismantle(c,r));if(k<=0)return 0;SV.prints[printKey(c,r)]-=k;SV.pt+=GACHA.dismantle[r]*k;saveSave();return k;}
-function exchange(c,r){const cost=GACHA.exchange[r];if(printCount(c,r)>=MAX_COPY)return 'max';if(SV.pt<cost)return false;SV.pt-=cost;SV.prints[printKey(c,r)]=printCount(c,r)+1;saveSave();return true;}
+function exchange(c,r){const cost=GACHA.exchange[r];if(!houseAvailable(c.h))return false;if(printCount(c,r)>=MAX_COPY)return 'max';if(SV.pt<cost)return false;SV.pt-=cost;SV.prints[printKey(c,r)]=printCount(c,r)+1;saveSave();return true;}
 function loadExtra(){SERIES_FILES.forEach(f=>{const s=document.createElement('script');s.src=f;s.onload=()=>render();s.onerror=()=>{};document.head.appendChild(s);});}
 
 const opp=p=>G.P[1-p.idx];
@@ -1105,7 +1109,7 @@ const LSORT={no:'札の順',cu:'費え 少ない順',cd:'費え 多い順',pw:'�
 const LCOST={all:'全て',0:'0〜1',2:'2',3:'3',4:'4',5:'5以上'};
 function listHouseHTML(){
  if(!listHouseOpen)return '';
- const choices=[['all','すべての家'],['common','共通札'],...Object.values(HOUSES).map(h=>[h.id,h.name])];
+ const choices=[['all','すべての家'],['common','共通札'],...Object.values(HOUSES).filter(h=>houseAvailable(h.id)).map(h=>[h.id,h.name])];
  return `<div class="ov bookpanel"><section class="mb" role="dialog" aria-modal="true" aria-label="家で絞り込み">
  <nav><b>家で絞り込み</b> <button data-a="listHouseClose">閉じる</button></nav>
  <div class="list-house-options">${choices.map(([id,name])=>`<button class="sc ${listF.house===id?'on':''}" data-a="lf_house" data-id="${id}" aria-pressed="${listF.house===id}">${escH(name)}</button>`).join('')}</div>
@@ -1116,11 +1120,11 @@ function listRowHTML(c){const own=ownedOf(c);return `<div class="lr" style="curs
 function listHTML(){
  const f=listF,ik=Object.keys(IDEO);
  const houseName=f.house==='common'?'共通札':HOUSES[f.house]?.name;
- const ok=c=>(f.house==='all'||(c.h||'common')===f.house)&&(f.ideo==='all'||c.i===f.ideo)&&(f.type==='all'||c.t===f.type)&&listCostOk(c)&&(f.own==='all'||(f.own==='own')===(ownedOf(c)>0));
+ const ok=c=>houseAvailable(c.h)&&(f.house==='all'||(c.h||'common')===f.house)&&(f.ideo==='all'||c.i===f.ideo)&&(f.type==='all'||c.t===f.type)&&listCostOk(c)&&(f.own==='all'||(f.own==='own')===(ownedOf(c)>0));
  const chips=(key,opts)=>Object.keys(opts).map(k=>`<span class="sc ${String(f[key])===k?'on':''}" data-a="lf_${key}" data-id="${k}">${opts[k]}</span>`).join('');
  const cmp={cu:(a,b)=>a.c-b.c,cd:(a,b)=>b.c-a.c,pw:(a,b)=>(b.t==='u'?b.p:-1)-(a.t==='u'?a.p:-1)||a.c-b.c,nm:(a,b)=>a.n.localeCompare(b.n,'ja'),id:(a,b)=>ik.indexOf(a.i)-ik.indexOf(b.i)||a.c-b.c}[f.sort];
  let body,cnt=0;
- if(!cmp)body=SERIES.map(s=>{const cs=s.cards.filter(ok);cnt+=cs.length;return cs.length?`<h3 style="margin:14px 0 2px">${s.name} <span class="dim" style="font-size:12px">(${cs.length}/${s.cards.length}種)</span></h3>`+cs.map(listRowHTML).join(''):'';}).join('');
+ if(!cmp)body=SERIES.map(s=>{const available=s.cards.filter(c=>houseAvailable(c.h));const cs=available.filter(ok);cnt+=cs.length;return cs.length?`<h3 style="margin:14px 0 2px">${s.name} <span class="dim" style="font-size:12px">(${cs.length}/${available.length}種)</span></h3>`+cs.map(listRowHTML).join(''):'';}).join('');
  else{const cs=SERIES.flatMap(s=>s.cards).filter(ok).sort(cmp);cnt=cs.length;body=cs.map(listRowHTML).join('');}
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
  <div style="padding-top:44px"><h2 style="color:var(--gold);margin:0 0 4px">札目録</h2>
@@ -1137,7 +1141,7 @@ function listHTML(){
 }
 // 札目録で札を押した時の大きな絵
 function listBigHTML(){
- const c=listBig&&cardById(listBig);if(!c)return '';
+ const c=listBig&&cardById(listBig);if(!c||!houseAvailable(c.h))return '';
  const description=descHTML(c);
  return `<div class="bigov" style="--c:${IDEO[c.i].c}" data-a="listbigClose"><img src="${imgPath(c)}" onerror="this.style.visibility='hidden'" alt=""><div class="bn">【${IDEO[c.i].n}】${c.n}</div><div class="bd">${TL[c.t]} 費え${c.c}${c.t==='u'?' 兵力'+c.p:''}${description?'<br>'+description:''}</div><div class="bh">押すと閉じる</div></div>`;
 }
@@ -1158,7 +1162,7 @@ function backAction(){
 function backHTML(){const a=backAction();return a?`<button class="backfix" data-a="${a}">戻る</button>`:'';}
 function editHTML(){
  const tot=deckTotal(myDeck),ide=deckIdeos(myDeck),ok=deckValid(myDeck);
- const list=CARDS.filter(c=>(editFilter==='all'||c.i===editFilter)&&(editAll||ownedOf(c)>0||(myDeck[c.id]||0)>0));
+ const list=CARDS.filter(c=>houseAvailable(c.h)&&(editFilter==='all'||c.i===editFilter)&&(editAll||ownedOf(c)>0||(myDeck[c.id]||0)>0));
  const row=c=>{const n=myDeck[c.id]||0,cap=Math.min(MAX_COPY,ownedOf(c)),col=IDEO[c.i].c;
   return `<div class="er" style="--c:${col}"><div class="cb">${c.c}</div><div class="tx"><b>${c.n}</b> <span style="color:${col}">${IDEO[c.i].n}</span> ${TL[c.t]}${c.t==='u'?' '+c.p:''}<br><span class="dim">${descHTML(c)||'(効果なし)'}</span></div><div class="ctr"><button data-a="dec" data-id="${c.id}" ${n?'':'disabled'}>−</button><span>${n}/${cap}</span><button data-a="inc" data-id="${c.id}" ${n>=cap?'disabled':''}>＋</button></div></div>`;};
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
@@ -1527,7 +1531,7 @@ function arriveFx(){
 }
 function printRows(mode){
  const rows=[];
- for(const c of CARDS){if(collFilter!=='all'&&c.i!==collFilter)continue;for(const r of(c.pr||[])){if(collRar!=='all'&&r!==collRar)continue;rows.push({c,r});}}
+ for(const c of CARDS){if(!houseAvailable(c.h))continue;if(collFilter!=='all'&&c.i!==collFilter)continue;for(const r of(c.pr||[])){if(collRar!=='all'&&r!==collRar)continue;rows.push({c,r});}}
  rows.sort((a,b)=>RORD.indexOf(b.r)-RORD.indexOf(a.r));
  return rows.map(({c,r})=>{
   const n=printCount(c,r),k=printKey(c,r),col=IDEO[c.i].c,m=maxDismantle(c,r);let ctl='';
@@ -1540,7 +1544,7 @@ function freeStarterHTML(){
  const remaining=freeStarterRemaining();
  const title='<div class="dim" style="margin:8px 0">初陣組（残り'+remaining+'家／'+FREE_STARTER_LIMIT+'家）</div>';
  if(remaining<=0)return title;
- return title+STARTERS.filter(st=>!SV.starters[st.id]).map(st=>`<div class="pcard" style="--c:#c0392b"><div class="pcl"><b>${st.name}</b><button style="display:block;margin-top:6px;padding:6px 10px;font-size:14px" data-a="starterPreview" data-id="${st.id}">デッキの中身を見る</button></div><button data-a="starter" data-id="${st.id}">受け取る</button></div>`).join('');
+ return title+STARTERS.filter(st=>houseAvailable(st.house)&&!SV.starters[st.id]).map(st=>`<div class="pcard" style="--c:#c0392b"><div class="pcl"><b>${st.name}</b><button style="display:block;margin-top:6px;padding:6px 10px;font-size:14px" data-a="starterPreview" data-id="${st.id}">デッキの中身を見る</button></div><button data-a="starter" data-id="${st.id}">受け取る</button></div>`).join('');
 }
 function starterPreviewHTML(st){
  const rows=Object.entries(starterDeck(st)).map(([id,n])=>{
@@ -1703,7 +1707,7 @@ async function onClick(a,id){
    return;
   }
   if(a==='starterPreview'){
-   starterPreview=STARTERS.find(st=>st.id===id)||null;
+   starterPreview=STARTERS.find(st=>st.id===id&&houseAvailable(st.house))||null;
    render();
    document.querySelector('.bookpanel [data-a="starterPreviewClose"]')?.focus({preventScroll:true});
    return;
