@@ -22,6 +22,7 @@
     ENGAGE: 12,      // 待機中の兵が自分から向かっていく距離
     SOLDIER_R: 0.5,
     GUN_BRACE: 0.45,
+    GUN_SET: 0.28,
     BOW_MOVE: 0.5,
     BOW_DRAW: 0.8,
     bowSpread: (draw) => (6 - 5.35 * draw) * Math.PI / 180,
@@ -305,10 +306,14 @@
   }
 
   // ---- 1フレームの計算 ----
+  function canSetGun(s, blk) {
+    return !blk && !s.rd && !(s.jp > 0) && !(s.cu > 0.05)
+      && s.cd != null && s.cd <= 0 && ACT.gunPhase(s) >= 1;
+  }
+
   function rangedMove(s, atk, blk) {
     const name = s.wep && s.wep.name;
-    if (name === ACT.WEP.teppo.name && (s.gunBrace > 0 || (atk && !blk
-      && (s.cd ?? 0) <= 0 && ACT.gunPhase(s) >= 1))) return 0;
+    if (name === ACT.WEP.teppo.name && (s.gunBrace > 0 || ((atk || s.gunSet > 0) && canSetGun(s, blk)))) return 0;
     if (name === ACT.WEP.yumi.name && atk && !blk) return ACT.BOW_MOVE;
     return 1;
   }
@@ -385,13 +390,16 @@
       hero.gunCd = Math.max(0, (hero.gunCd || 0) - dt);
       hero.cd -= dt; hero.dcd -= dt; hero.dash -= dt; hero.blk = !!inp.blk && hero.dash <= 0;
       let mx = inp.mx || 0, my = inp.my || 0; const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }
+      const hasH = !!(pl && pl.equip && pl.equip.horse); A.rq = A.rq || {};
+      if (A.rq[hero.pc]) { A.rq[hero.pc] = false; if (!hasH) SIM.say(hero.pc, '馬を装備していません'); else { hero.off = !hero.off; SIM.say(hero.pc, hero.off ? '馬から降りました' : '馬に乗りました'); } } // 1.6.17 △長押し／Rキー
+      hero.rd = hasH && !hero.off ? 1 : 0; // 1.6.16 馬を装備していれば本人も馬に乗る
       const move = rangedMove(hero, inp.atk, hero.blk);
       if (move === 0) { mx = my = 0; hero.hv = 0; }
       if (move < 1 && hero.dash > 0) hero.dash = 0;
       if (move === 1 && inp.dash && hero.dcd <= 0 && (mx || my)) { hero.dash = ACT.DASH.t; hero.dcd = ACT.DASH.cd; hero.dx = mx; hero.dy = my; }
-      const hasH = !!(pl && pl.equip && pl.equip.horse); A.rq = A.rq || {};
-      if (A.rq[hero.pc]) { A.rq[hero.pc] = false; if (!hasH) SIM.say(hero.pc, '馬を装備していません'); else { hero.off = !hero.off; SIM.say(hero.pc, hero.off ? '馬から降りました' : '馬に乗りました'); } } // 1.6.17 △長押し／Rキー
-      hero.rd = hasH && !hero.off ? 1 : 0; // 1.6.16 馬を装備していれば本人も馬に乗る
+      const settingGun = kk === 'teppo' && move === 0 && canSetGun(hero, hero.blk) && (inp.atk || hero.gunSet > 0);
+      const gunWasSet = hero.gunSet >= ACT.GUN_SET;
+      hero.gunSet = settingGun ? Math.min(ACT.GUN_SET, (hero.gunSet || 0) + dt) : 0;
       const sp = (hero.rd ? TR.kiba.spd : TR.hero.spd) * ACT.SPD * 1.1 * (hero.blk ? 0.5 : 1) * (!hero.rd && (hero.sw || (hero.hold > 0 && !W.shot)) ? 0.45 : 1) * (hero.tate ? 0.85 : 1) * (pl && pl.nin ? SIM.NIN.actSpd : 1) * (1 - 0.5 * (hero.cu || 0)); // 0.77.0 忍びは速い（2.69.0 壁を登っている間はゆっくり）
       if (hero.rd) { /* 1.6.75 馬：真横には動けない。前は速く、後ろはゆっくり。動きながらの向き変えはゆっくり */
         if (hero.hh == null) hero.hh = hero.f || 0;
@@ -418,12 +426,14 @@
       /* 1.6.41 槍・弓は押して構え（溜め）、離すと突く・放つ。長く構えるほど少し強い（0.8秒で+40%） */
       const rel = kk === 'yari' || kk === 'yumi'; let fire = !!inp.atk, chg = 0;
       if (rel) { if (hero.blk) hero.hold = 0; else if (inp.atk) hero.hold = (hero.hold || 0) + dt; else if (hero.hold > 0) { hero.rq = Math.min(1, hero.hold / ACT.BOW_DRAW); hero.hold = 0; } fire = hero.rq != null && hero.cd <= 0; if (fire) { chg = hero.rq; hero.rq = null; } } else hero.hold = 0;
-      if (fire && !hero.blk && hero.cd <= 0 && (kk !== 'teppo' || !hero.gunCd)) {
+      if (kk === 'teppo') fire = settingGun && gunWasSet;
+      if (fire && !hero.blk && hero.cd <= 0) {
         const pa = A.byG[hero.g], am = (pa && pa.am) || 1, base = TR.hero.atk * am * (1 + 0.4 * chg);
         hero.cd = W.cd;
         if (kk === 'teppo') {
           hero.gunCd = hero.gunCycle = W.cd;
           hero.gunBrace = ACT.GUN_BRACE;
+          hero.gunSet = 0;
         }
         if (W.shot) hero.at = performance.now() / 1000;
         if (W.shot) {
@@ -453,6 +463,7 @@
       if (T.gun) s.gunCd = Math.max(0, (s.gunCd || 0) - elapsed);
       if (!u) continue;
       if (u.order === 'rout' || u.order === 'retreat') {
+        s.gunSet = 0;
         const ex = s.side === 'A' ? -6 : F.w + 6, wy = CW && SIM.wallWay(CW, s, ex, s.y, gG(A, b, s)); s.f = s.side === 'A' ? Math.PI : 0; /* 1.6.25 城の中からは門を通って逃げる */
         if (wy) { const l = Math.hypot(wy[0] - s.x, wy[1] - s.y) || 1, st = spd * (u.order === 'rout' ? 1.1 : 0.9) * dt; s.x += (wy[0] - s.x) / l * st; s.y += (wy[1] - s.y) / l * st; s.f = Math.atan2(wy[1] - s.y, wy[0] - s.x); } else s.x += Math.sign(ex - s.x) * spd * (u.order === 'rout' ? 1.1 : 0.9) * dt;
         if (s.x < 2 || s.x > F.w - 2) s.gone = true;
@@ -494,12 +505,15 @@
         if (d <= R) {
           s.f = ang(s, e);
           if (u.isAI && e.hero && !T.ranged && s.cd > 0.6) { s.x -= Math.cos(s.f) * spd * 0.45 * dt; s.y -= Math.sin(s.f) * spd * 0.45 * dt; } // 打ったら少し引いて、振り回しを避ける
-          if (s.cd <= 0 && (!T.gun || close || !s.gunCd)) {
+          const settingGun = T.gun && !close && canSetGun(s, false);
+          const gunWasSet = s.gunSet >= ACT.GUN_SET;
+          s.gunSet = settingGun ? Math.min(ACT.GUN_SET, (s.gunSet || 0) + dt) : 0;
+          if (s.cd <= 0 && (!T.gun || close || (settingGun && gunWasSet))) {
             if (T.ranged && !close) {
               const sp = T.gun ? 140 : 45, tt = d / sp, ex = e.x + (rr() - 0.5) * d * 0.12, ey = e.y + (rr() - 0.5) * d * 0.12, a = Math.atan2(ey - s.y, ex - s.x);
               A.pr.push({ L: d, x0: s.x, y0: s.y, x: s.x, y: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, side: s.side, dmg: T.atk * (u.am || 1) * fmod(u, 'ra') * (sp > 100 ? 2.6 * (SIM.wxGun ? SIM.wxGun() : 1) /* 2.53.0 雨の鉄砲 */ : 2.2) * (0.55 + 0.45 * u.mor / 100) * (1 + Math.max(-0.15, Math.min(0.3, dh * 0.015))), life: T.gun ? Math.min(R / sp, tt * 1.3) : tt * 1.3, gun: sp > 100, src: s });
               s.cd = (T.gun ? ACT.WEP.teppo.cd : 2.4) + rr();
-              if (T.gun) s.gunCd = s.gunCycle = s.cd;
+              if (T.gun) { s.gunCd = s.gunCycle = s.cd; s.gunSet = 0; }
               s.at = performance.now() / 1000; // 0.66.0 3Dの射る・撃つ動き
             } else { const atk = T.atk * (u.am || 1) * fmod(u, 'ma') * (close ? 0.8 : 1) * (0.55 + 0.45 * u.mor / 100); const CW = cpuWep(s, close); if (!swing(g, s, s.f, CW, (o, k) => melee(b, A, s, o, atk * k))) melee(b, A, s, e, atk); s.cd = CW.cd * 2.2 + rr() * 0.6; s.at = performance.now() / 1000; } // 0.73.10 武器ごとの振りの速さ（刀1.1秒・槍1.76秒＋ゆらぎ） // 0.73.9 CPUも一振りで範囲の敵全員に
           }
@@ -514,6 +528,7 @@
       } else if (u.tgt && (o === 'charge' || o === 'flank' || o === 'guard')) {
         gx = u.tgt.x + s.oy * 0.6 * (o === 'flank' ? 3 : 1); gy = u.tgt.y + s.oy * (o === 'flank' ? 2.5 : 1);
       } else { const c = Math.cos(u.af), n = Math.sin(u.af); gx = u.ax + s.ox * c - s.oy * n; gy = u.ay + s.ox * n + s.oy * c; }
+      s.gunSet = 0;
       if (s.post && T.ranged && s.side === b.cside && o === 'hold' && !s.kat) { gx = s.post.x; gy = s.post.y; } /* 1.6.38 弓・鉄砲の守り手は狭間（塀のすぐ内側）につく */
       if (CW) { const wy = SIM.wallWay(CW, s, gx, gy, gG(A, b, s)); if (wy) { gx = wy[0]; gy = wy[1]; /* 1.6.25 塀は門を通って回り込む */
         if (wy[2] && s.side !== b.cside && Math.hypot(wy[3] - s.x, wy[4] - s.y) < 4.2) { s.f = Math.atan2(wy[4] - s.y, wy[3] - s.x); s.mv = 0; if (s.cd <= 0) { gateDmg(A, wy[2], T.atk * (u.am || 1) * (T.ranged ? 0.5 : 1) * (s.hero ? 2 : 1)); s.cd = ACT.WEP.tachi.cd * 2.2 + rr() * 0.6; s.at = performance.now() / 1000; } continue; } } } /* 1.6.38 閉じた門は打ち破る */
@@ -640,8 +655,11 @@
     for (const p of A.pr) o.pr.push(q10(p.x), q10(p.y), Math.round(p.vx), Math.round(p.vy), p.gun ? 1 : 0, q10(p.h || 0));
     o.h = A.s.filter((s) => s.pc && live(s)).map((s) => [s.id, s.sw ? [Math.round(s.sw.t * 100), Math.round(s.sw.a * 100), Math.round(s.sw.arc * 100), q10(s.sw.r), Math.round((s.sw.d || 0.18) * 100)] : null, s.wep ? s.wep.name : '', s.blk ? 1 : 0, Math.round((s.jp || 0) * 100), s.rd ? 1 : 0, s.hn || 0, s.hw || '', s.hd || 0, s.tate ? 1 : 0, s.hold > 0 ? Math.max(2, Math.min(80, Math.round(s.hold * 100))) : 0, s.rd && s.hh != null ? Math.round(s.hh * 100) : null, s.nj ? 1 : 0, Math.round((s.cu || 0) * 100), s.wep && s.wep.name === ACT.WEP.teppo.name ? Math.ceil(Math.max(0, s.cd || 0) * 100) : null,
       Math.ceil((s.gunBrace || 0) * 100), Math.ceil((s.recover || 0) * 100)]);
-    o.gun = [];
-    for (const s of L) if (s.gunCd > 0) o.gun.push(s.id, Math.ceil(s.gunCd / s.gunCycle * 1000));
+    o.gun = []; o.gs = [];
+    for (const s of L) {
+      if (s.gunCd > 0) o.gun.push(s.id, Math.ceil(s.gunCd / s.gunCycle * 1000));
+      if (s.gunSet > 0) o.gs.push(s.id, Math.max(1, Math.round(s.gunSet * 100)));
+    }
     if (A.gt) o.gt = A.gt;
     o.u = b.units.filter((u) => u.hp > 0 && !u.gone).map((u) => [u.id, u.side, u.owner || u.cmd || null, u.type, u.n, u.order, u.idx || 0, u.gname || '']);
     if (full) o.st = A.s.filter(live).map((s) => [s.id, s.side === 'A' ? 0 : 1, s.g, s.type || '', s.hero ? 1 : 0, s.pc || 0]);
@@ -658,7 +676,7 @@
       let s = V.byId[id]; const tx = o.s[i + 1] / 10, ty = o.s[i + 2] / 10;
       if (!s) s = V.byId[id] = Object.assign({ id, x: tx, y: ty }, st);
       s.tx = tx; s.ty = ty; s.f = o.s[i + 3] / 100; s.hp = o.s[i + 4] / 100; s.mh = 1; s.fl = o.s[i + 5] & 1 ? 0.15 : 0; if (o.s[i + 5] & 2) { const nw = performance.now() / 1000; if (!s.at || nw - s.at > 0.5) s.at = nw; } s.gone = false; s.kat = o.s[i + 5] & 4 ? 1 : 0;
-      s.gunPhase = 1;
+      s.gunPhase = 1; s.gunSet = 0;
       list.push(s);
     }
     for (const id in V.byId) if (!seen.has(+id)) delete V.byId[id];
@@ -666,6 +684,11 @@
     for (let i = 0; i < gun.length; i += 2) {
       const s = V.byId[gun[i]];
       if (s) s.gunPhase = 1 - gun[i + 1] / 1000;
+    }
+    const gs = o.gs || [];
+    for (let i = 0; i < gs.length; i += 2) {
+      const s = V.byId[gs[i]];
+      if (s) s.gunSet = gs[i + 1] / 100;
     }
     A.s = list; A.pr = [];
     for (let i = 0; i < o.pr.length; i += 6) A.pr.push({ x: o.pr[i] / 10, y: o.pr[i + 1] / 10, vx: o.pr[i + 2], vy: o.pr[i + 3], gun: !!o.pr[i + 4], h: o.pr[i + 5] / 10 });
@@ -884,17 +907,17 @@
     // 指図メニューを開いているとき：照準の先の地面に旗印
     const OM = R.ordMenu;
     if (hero && hero.wep && hero.wep.name === ACT.WEP.teppo.name && !OM) {
-      const phase = ACT.gunPhase(hero), loading = phase < 1, ready = !loading && hero.cd != null && hero.cd <= 0 && !hero.blk;
-      const label = loading ? '弾込め中' : hero.blk ? '防御中' : ready ? '射撃可' : '構え直し';
+      const phase = ACT.gunPhase(hero), loading = phase < 1, ready = canSetGun(hero, hero.blk) && hero.gunSet >= ACT.GUN_SET;
+      const label = loading ? '弾込め中' : hero.rd ? '騎乗中は撃てません' : hero.blk ? '防御中' : ready ? '射撃可' : hero.gunSet > 0 ? '構え中' : '押して構える';
       const color = ready ? '#b7f4ab' : '#ffd283';
       ctx.fillStyle = 'rgba(20,17,13,.82)';
-      ctx.fillRect(cx - 48, cy + 18, 96, 26);
+      ctx.fillRect(cx - 64, cy + 18, 128, 26);
       ctx.fillStyle = color;
       ctx.fillText(label, cx, cy + 33);
       ctx.fillStyle = 'rgba(255,255,255,.25)';
       ctx.fillRect(cx - 38, cy + 38, 76, 3);
       ctx.fillStyle = color;
-      ctx.fillRect(cx - 38, cy + 38, 76 * (ready ? 1 : loading ? phase : 0), 3);
+      ctx.fillRect(cx - 38, cy + 38, 76 * (loading ? phase : (hero.gunSet || 0) / ACT.GUN_SET), 3);
     }
     if (OM) { const [gx, gy] = X.toWorld(cx, cy), [a, c] = S(gx, gy, 0), [, c2] = S(gx, gy, 3); ctx.strokeStyle = '#ffe070'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a, c); ctx.lineTo(a, c2); ctx.stroke(); ctx.fillStyle = '#ffe070'; ctx.fillRect(a, c2, 14, 9); ctx.beginPath(); ctx.ellipse(a, c, 10, 4, 0, 0, 7); ctx.stroke(); }
     // 体力（左下）

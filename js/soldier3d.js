@@ -142,6 +142,7 @@
     ['swordRecover', 'sword', 'b'],
     ['swordLead', 'sword', 'a'],
     ['bowRecover', 'bow', 'b'],
+    ['gunSet', 'gun', 'pose'],
   ];
   const smooth = (k) => k * k * (3 - 2 * k);
 
@@ -205,8 +206,7 @@
         const phase = i / (R.n - 1);
         if (rest) {
           const weight = smooth(bowRelease ? Math.max(0, (phase - 0.27) / 0.73) : phase);
-          const window = S.win[R.from];
-          act.time = window[R.edge];
+          act.time = R.from === 'gun' ? 1 : S.win[R.from][R.edge];
           rest.time = 0;
           act.setEffectiveWeight(1 - weight);
           rest.setEffectiveWeight(weight);
@@ -412,7 +412,7 @@
     if (!v1) { v1 = new T.Vector3(); v2 = new T.Vector3(); v3 = new T.Vector3(); v4 = new T.Vector3(); mT = new T.Matrix4(); handRot = new T.Quaternion(); twoRot = new T.Quaternion(); }
     const side = kind === 'bow' ? 'L' : 'R';
     S.hand(b, row, side, out).multiply(S.grip(side));
-    const tw = TWO[kind]; if (!grip || !tw || (tw[0] !== clip && !(kind === 'gun' && clip === 'gunCycle'))) return out;
+    const tw = TWO[kind]; if (!grip || !tw || (tw[0] !== clip && !(kind === 'gun' && (clip === 'gunCycle' || clip === 'gunSet')))) return out;
     const r = b.att.RightHand, l = b.att.LeftHand, o = row * 16;
     v1.set(l[o + 12] - r[o + 12], l[o + 13] - r[o + 13], l[o + 14] - r[o + 14]); if (v1.lengthSq() < 1e-4) return out;
     v1.normalize().multiplyScalar(tw[1]); // 武器の向き（+Y）

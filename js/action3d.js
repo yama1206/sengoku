@@ -1025,7 +1025,15 @@
       return clip(atk, lerp(W.a, W.b, Math.min(1, swing)));
     };
     if (s.cu > 0.05 && S3.tiers[0] && S3.tiers[0].rows.climb_ladder) return { nm: 'climb_ladder', t: nowS * 1.3, loop: true }; // 2.69.1 壁を登る間は梯子を登る動き
-    if (wk === 'gun') return clip('gunCycle', ACT.gunPhase(s));
+    if (wk === 'gun') {
+      const phase = ACT.gunPhase(s);
+      if (phase < 1) return clip('gunCycle', phase);
+      if (s.gunSet > 0) {
+        const set = s.gunSet / ACT.GUN_SET;
+        return { nm: 'gunSet', t: 1 - set, loop: false, atk: true, gunAim: ease(set) };
+      }
+      return low || { nm: 'idle', t: ph, loop: true };
+    }
     const elapsed = s.at ? Math.max(0, nowS - s.at) : Infinity;
     if (wk === 'shuri') {
       if (elapsed < THROW_TIME) return clip('throw', elapsed / THROW_TIME);
@@ -1044,7 +1052,25 @@
     if (mv < 0.4) return { nm: 'idle', t: ph, loop: true };
     return low;
   }
-  function drawSk(s, u, cav, mv, nowS, gy, f, own, col, ph) {
+  let barrelAxis, sightAxis, gripPoint, sightTurn, sightMatrix;
+  function aimGun(matrix, f, local, skinned, weight) {
+    if (!barrelAxis) {
+      barrelAxis = new T.Vector3(); sightAxis = new T.Vector3(); gripPoint = new T.Vector3();
+      sightTurn = new T.Quaternion(); sightMatrix = new T.Matrix4();
+    }
+    barrelAxis.setFromMatrixColumn(matrix, skinned ? 1 : 0).normalize();
+    gripPoint.setFromMatrixPosition(matrix);
+    if (local) {
+      cam3.getWorldDirection(sightAxis);
+      // 照準の中心を通る視線上に、銃口の軸を合わせる。
+      sightAxis.multiplyScalar(ACT.WEP.teppo.shot).add(cam3.position).sub(gripPoint).normalize();
+    } else sightAxis.set(Math.cos(f), 0, Math.sin(f));
+    if (weight < 1) sightAxis.lerp(barrelAxis, 1 - weight).normalize();
+    sightTurn.setFromUnitVectors(barrelAxis, sightAxis);
+    matrix.premultiply(sightMatrix.makeRotationFromQuaternion(sightTurn)).setPosition(gripPoint);
+  }
+
+  function drawSk(s, u, cav, mv, nowS, gy, f, own, col, ph, local) {
     const S3 = SGK.SOLD3D, tr = Math.min(4, Math.max(1, s.hero ? 4 : (s.type && TR[s.type] && TR[s.type].tier) || 2)), b = S3.tiers[tr - 1];
     const wk = weaponOf(s), sc = s.hero ? 1.1 : 1;
     const jh = (s.jp > 0 ? Math.sin(Math.PI * (1 - s.jp / 0.55)) * (s.nj ? 1.1 : 0.55) : 0) + (s.cu || 0) * 3.3; // 2.69.0 ジャンプは忍び以外は半分の高さ／忍びは壁を登る分だけ持ち上がる
@@ -1071,6 +1097,8 @@
     if (wn || wk === 'shuri') {
       const rowW = kind === 'spear' && !c.atk && (c.nm === 'walk' || c.nm === 'run') ? S3.rowAt(b, 'idle', 0, true) : row; // 2.26.1 歩く・走るあいだ槍は構えを保つ（手の振りでブラブラしない）
       Mw.multiplyMatrices(Mx, S3.weapon(b, rowW, kind, c.grip == null ? c.nm : kind, Mh, c.low ? Mcw : null, c.grip));
+      const gunAim = c.gunAim || (c.nm === 'gunCycle' && c.t < 0.025 ? 1 - c.t / 0.025 : 0);
+      if (gunAim) aimGun(Mw, f, local, true, gunAim);
       if (wk === 'waki') Mw.multiply(Ms.makeScale(0.7, 0.7, 0.7));
       if (wn) S3.putW(wn, Mw); else put('shuri', Mw);
       if (wk === 'gun' && c.nm === 'gunCycle' && c.t < 0.06 && nowS - s.at < 0.1) { Mw.multiply(Ms.makeTranslation(0, 1.0, 0)); put('flash', Mw); }
@@ -1138,7 +1166,7 @@
         if (pp) { pp[3] = pp[3] == null ? mv : pp[3] + (mv - pp[3]) * Math.min(1, dt * 3); pp[4] = pp[4] ? pp[3] > 0.35 : pp[3] > 0.9; ms = pp[4] ? Math.max(0.5, pp[3]) : 0; }
         const rate = ms < 0.4 ? 1 : ms < 3.6 ? Math.min(1.8, Math.max(0.6, ms / 1.5)) : Math.min(1.5, Math.max(0.7, ms / 5));
         if (pp) pp[2] = (pp[2] || s.id * 0.37) + dt * rate;
-        if (ex * dx + ez * dz > -4) drawSk(s, u, cav, ms, nowS, gy, f, own, col, pp ? pp[2] : s.id * 0.37);
+        if (ex * dx + ez * dz > -4) drawSk(s, u, cav, ms, nowS, gy, f, own, col, pp ? pp[2] : s.id * 0.37, s.pc === myPid);
       } else {
       if (cav) {
         O.position.set(s.x, gy + bob * 0.5, s.y); O.rotation.set(0, -f, 0); O.scale.set(1, 1, 1); O.updateMatrix();
@@ -1146,7 +1174,10 @@
         putPart('hlegF', O.matrix, 0.62, 0.82, 0, stp * 0.55); putPart('hlegB', O.matrix, -0.62, 0.82, 0, -stp * 0.55);
       }
       const jh = (s.jp > 0 ? Math.sin(Math.PI * (1 - s.jp / 0.55)) * (s.nj ? 1.1 : 0.55) : 0) + (s.cu || 0) * 3.3; // 0.64.0 ジャンプ（2.69.0 忍び以外は半分の高さ・忍びは壁を登る分だけ持ち上がる）
-      O.position.set(s.x, gy + ride + bob + jh, s.y); O.rotation.set(0, -f, 0); O.scale.set(sc, sc, sc); O.updateMatrix();
+      const set = ease(Math.min(1, (s.gunSet || 0) / ACT.GUN_SET));
+      const crouch = set || (s.gunBrace > 0 ? Math.min(1, s.gunBrace / 0.16) : 0);
+      O.position.set(s.x, gy + ride + bob + jh, s.y); O.rotation.set(0, -f, 0);
+      O.scale.set(sc, sc * (1 - 0.27 * crouch), sc); O.updateMatrix();
       const tr = s.hero ? 5 : (s.type && TR[s.type] && TR[s.type].tier) || 2; /* 1.6.36 格ごとの見た目 */
       if (!C2) C2 = new T.Color();
       if (tr <= 2 && !s.fl) C.lerp(C2.setHex(0x7a6a4a), tr === 1 ? 0.7 : 0.35); // 農兵・足軽は色あせた野良着
@@ -1177,6 +1208,8 @@
       L4.m.makeRotationZ(aa); L4.m.setPosition(0.02, 1.12, left ? -0.33 : 0.33); Mx.multiplyMatrices(Mu, L4.m);
       Mx.multiply(L4.m.makeTranslation(0, -0.58, 0)); Mx.multiply(L4.m.makeRotationZ(ps.tilt - aa));
       if (wk === 'spearS' || wk === 'spearL' || wk === 'gun') Mx.multiply(L4.m.makeTranslation(0, 0, -0.14)); // 両手で持つので少し体の中ほどへ
+      const gunAim = set || (ps.fl ? 1 : 0);
+      if (wk === 'gun' && gunAim) aimGun(Mx, f, s.pc === myPid, false, gunAim);
       put(wk, Mx);
       if (ps.fl) { Mx.multiply(L4.m.makeTranslation(1.1, 0, 0)); put('flash', Mx); }
       }
@@ -1205,7 +1238,9 @@
     }
     // 飛び道具
     for (const p of A.pr) {
-      const a = Math.atan2(p.vy, p.vx); O.position.set(p.x, hgt(p.x, p.y) + 1.3 + (p.h || 0), p.y); // 0.75.3 弓は山なり O.rotation.set(0, -a, 0); O.scale.set(1, 1, 1); O.updateMatrix();
+      const a = Math.atan2(p.vy, p.vx);
+      O.position.set(p.x, hgt(p.x, p.y) + 1.3 + (p.h || 0), p.y);
+      O.rotation.set(0, -a, 0); O.scale.set(1, 1, 1); O.updateMatrix();
       put(p.gun ? 'bullet' : 'arrow', O.matrix);
     }
     if (skOn) S3.end();
