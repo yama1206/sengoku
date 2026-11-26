@@ -416,6 +416,15 @@
     if (!v1) { v1 = new T.Vector3(); v2 = new T.Vector3(); v3 = new T.Vector3(); v4 = new T.Vector3(); mT = new T.Matrix4(); handRot = new T.Quaternion(); twoRot = new T.Quaternion(); }
     const side = kind === 'bow' ? 'L' : 'R';
     S.hand(b, row, side, out).multiply(S.grip(side));
+    if (clip === 'carry') {
+      // 刀は体の外側へ低く、槍の柄は体の横を前後に通す。
+      if (kind === 'spear') v1.set(0, 0.16, 1);
+      else v1.set(-0.16, -0.22, 1);
+      v1.normalize();
+      v2.setFromMatrixColumn(out, 1).normalize();
+      v3.setFromMatrixPosition(out);
+      return out.premultiply(mT.makeRotationFromQuaternion(handRot.setFromUnitVectors(v2, v1))).setPosition(v3);
+    }
     const tw = TWO[kind]; if (!grip || !tw || (tw[0] !== clip && !(kind === 'gun' && (clip === 'gunCycle' || clip === 'gunSet')))) return out;
     const r = b.att.RightHand, l = b.att.LeftHand, o = row * 16;
     v1.set(l[o + 12] - r[o + 12], l[o + 13] - r[o + 13], l[o + 14] - r[o + 14]); if (v1.lengthSq() < 1e-4) return out;

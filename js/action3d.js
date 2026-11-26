@@ -1093,14 +1093,18 @@
     } else c = skClip(s, wk, mv, nowS, ph);
     Mu.copy(O.matrix); Mu.elements[13] += up; if (fw) Mu.multiply(Ms.makeTranslation(Math.max(-0.3, Math.min(0.3, fw)), 0, 0)); // 体の位置（前が +X）。指物などはこれに付ける
     Mx.copy(Mu).multiply(SK90); if (sc !== 1) Mx.multiply(Ms.makeScale(sc, sc, sc));
+    // 徒歩移動中は足だけ歩かせ、武器を持つ上半身は構えを保つ。
+    const carry = (wk === 'sword' || wk === 'waki' || wk === 'spearS' || wk === 'spearL')
+      && (c.nm === 'walk' || c.nm === 'run');
+    if (carry) c = { nm: 'idle', t: 0, loop: false, low: c };
     const row = S3.rowAt(b, c.nm, c.t, c.loop), rowL = c.low ? S3.rowAt(b, c.low.nm, c.low.t, c.low.loop) : row;
     if (c.low) S3.combo(b, rowL, row, Mc, Mcw);
     S3.put(b, Mx, rowL, s.fl ? 0.22 * Math.min(1, s.fl / 0.15) : 0, c.low ? row : null, c.low ? Mc : null, skTint); // 1.6.68 （2.12.5 skTint＝服の色） 打たれた光りを控えめに（0.6→0.22）
     // 武器を手に持たせる（弓は左手）
     const wn = (lookOf(s) && lookOf(s).wn) || wepName(wk, tr), kind = wk === 'spearS' || wk === 'spearL' ? 'spear' : wk === 'bow' || wk === 'gun' ? wk : 'sword';
     if (wn || wk === 'shuri') {
-      const rowW = kind === 'spear' && !c.atk && (c.nm === 'walk' || c.nm === 'run') ? S3.rowAt(b, 'idle', 0, true) : row; // 2.26.1 歩く・走るあいだ槍は構えを保つ（手の振りでブラブラしない）
-      Mw.multiplyMatrices(Mx, S3.weapon(b, rowW, kind, c.grip == null ? c.nm : kind, Mh, c.low ? Mcw : null, c.grip));
+      const weaponPose = carry ? 'carry' : c.grip == null ? c.nm : kind;
+      Mw.multiplyMatrices(Mx, S3.weapon(b, row, kind, weaponPose, Mh, c.low ? Mcw : null, c.grip));
       const gunAim = c.gunAim || (c.nm === 'gunCycle' && c.t < 0.025 ? 1 - c.t / 0.025 : 0);
       if (gunAim) aimGun(Mw, f, local, true, gunAim);
       if (wk === 'waki') Mw.multiply(Ms.makeScale(0.7, 0.7, 0.7));
