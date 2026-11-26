@@ -241,7 +241,7 @@ button.effect-link:hover:not(:disabled){background:none;color:#fff0b0;outline:no
  <form method="dialog"><button autofocus>閉じる</button></form>
 </dialog>
 <script>
-const VERSION='0.65';
+const VERSION='0.66';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -297,7 +297,7 @@ function addCards(s,fn,house){
 }
 // 家ごとの札データは houses/家ID.js に置く。defineHouse(家ID, シリーズID, {家の情報}, mk=>{ mk(...); })。家の効果などは、この {家の情報} に足していく
 // 再調整中の家。札IDを維持したまま、札目録とプレイヤー向けの入手先から外す。
-const PAUSED_HOUSES=new Set(['ashina','mogami','matsudaira','hatakeyama','miyoshi','rokkaku','amago','otomo']);
+const PAUSED_HOUSES=new Set(['ashina','mogami','matsudaira','hatakeyama','miyoshi','rokkaku','otomo']);
 const houseAvailable=id=>!PAUSED_HOUSES.has(id);
 const HOUSES={};
 function seriesOf(id){const s=SERIES.find(x=>x.id===id);if(!s)throw new Error('シリーズ未定義: '+id);return s;}
