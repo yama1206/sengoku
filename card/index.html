@@ -241,7 +241,7 @@ button.effect-link:hover:not(:disabled){background:none;color:#fff0b0;outline:no
  <form method="dialog"><button autofocus>閉じる</button></form>
 </dialog>
 <script>
-const VERSION='0.62';
+const VERSION='0.63';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -618,14 +618,14 @@ function rollRarity(min){
 }
 // 地方別の包み。札の所属シリーズは札ID・画像・セーブとの互換性のため維持する。
 const REGIONAL_PACKS=[
- {id:'ou',name:'奥羽',houses:['date','ashina','nanbu'],availableFromStart:true},
- {id:'kanto_kai',name:'関東・甲斐',houses:['hojo','takeda','mogami'],common:true},
- {id:'tokai',name:'東海',houses:['oda','imagawa','matsudaira'],common:true},
- {id:'hokuriku',name:'北陸',houses:['uesugi','asakura','hatakeyama'],common:true},
- {id:'shikoku',name:'四国',houses:['miyoshi','chosokabe','kono'],availableFromStart:true},
- {id:'kinai',name:'畿内',houses:['ashikaga','rokkaku','azai'],availableFromStart:true},
- {id:'chugoku',name:'中国',houses:['mouri','amago']},
- {id:'kyushu',name:'九州',houses:['otomo','shimazu','ryuzoji']}
+ {id:'ou',name:'奥羽',houses:['date','nanbu'],availableFromStart:true},
+ {id:'kanto_kai',name:'関東・甲斐',houses:['hojo','takeda'],common:true},
+ {id:'tokai',name:'東海',houses:['oda','imagawa'],common:true},
+ {id:'hokuriku',name:'北陸',houses:['uesugi','asakura'],common:true},
+ {id:'shikoku',name:'四国',houses:['chosokabe','kono'],availableFromStart:true},
+ {id:'kinai',name:'畿内',houses:['ashikaga','azai'],availableFromStart:true},
+ {id:'chugoku',name:'中国',houses:['mouri']},
+ {id:'kyushu',name:'九州',houses:['shimazu','ryuzoji']}
 ];
 const gachaPacks=()=>REGIONAL_PACKS.map(p=>({...p,cost:GACHA.packCost,color:'#d4a94a'}));
 function packCards(pack){
