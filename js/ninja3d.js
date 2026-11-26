@@ -593,6 +593,7 @@
 #nj3 .eye i u{display:block;height:100%;width:0;background:#ec3}
 #nj3 .alert{color:#ff7a5a;font-weight:bold}
 #nj3 .pr{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);text-align:center;font-size:16px;white-space:nowrap}
+#nj3 .pr .climb{pointer-events:auto;touch-action:manipulation;min-height:44px;padding:6px 15px;border:1px solid #f2c14e;border-radius:8px;background:rgba(30,24,18,.9);color:#f4ead0;font:inherit;cursor:pointer}
 #nj3 .pr kbd{display:inline-block;min-width:16px;padding:0 5px;margin:0 3px;border:1px solid #f2c14e;border-radius:4px;background:rgba(0,0,0,.5);color:#f2c14e;font:bold 13px sans-serif}
 #nj3 .bar{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);width:200px;height:7px;background:rgba(0,0,0,.5);border-radius:4px;overflow:hidden;display:none}
 #nj3 .bar u{display:block;height:100%;background:#ffe070}
@@ -609,6 +610,9 @@
 #nj3 .joy i{position:absolute;left:35px;top:35px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.35)}
 </style><div class="tl"><div class="goal"></div><div class="tools"></div></div><div class="eye"><span class="el">気配</span><i><u></u></i></div>
 <div class="pr"></div><div class="bar"><u></u></div><div class="help"></div><div class="msg"></div><button class="quit" data-q="1">退く</button><div class="load">読み込み中…</div><div class="end" style="display:none"></div><div class="tc"></div><div class="joy"><i></i></div>`;
+    hud.querySelector('.pr').addEventListener('click', (e) => {
+      if (e.target.closest('button.climb') && st && !st.end && !st.p.lock) st.climbTap = true;
+    });
     hud.querySelector('.quit').addEventListener('click', () => { if (st && !st.end) finish({ ok: null, used: st.used }); });
     addEventListener('keydown', (e) => { if (!N3.on) return; const k = e.key.toLowerCase(); keys.add(k); if (e.code) keys.add(e.code); if (k !== 'f5' && k !== 'f12') e.preventDefault(); e.stopImmediatePropagation(); }, true);
     addEventListener('keyup', (e) => { if (!N3.on) return; keys.delete(e.key.toLowerCase()); if (e.code) keys.delete(e.code); if (e.key === 'Shift') keys.delete('shift'); e.stopImmediatePropagation(); }, true);
@@ -812,8 +816,10 @@
     if (I.tap('quit')) return finish({ ok: null, used: S.used });
     if (I.tap('help')) S.help = !S.help;
     if (I.tap('t1')) useTool('kemuri'); if (I.tap('t2')) useTool('makibishi'); if (I.tap('t3')) useTool('fukiya');
-    const ctx = context(P);
+    const ctx = context(P), climbTap = S.climbTap;
+    S.climbTap = false;
     if (P.lock) stepLock(P, dt);
+    else if (climbTap && ctx.climb) startClimb(P, ctx.climb);
     else {
       if (I.tap('c') && !P.carry && !P.swim) P.crouch = !P.crouch;
       const cy = C.yaw, fx = Math.sin(cy), fz = Math.cos(cy), rx = -Math.cos(cy), rz = Math.sin(cy);
@@ -1235,6 +1241,11 @@
     if (e === 'ok') { D.lost = true; S.end = 'ng'; S.endT = 2.2; say('工作を果たされ、城下へ抜けられた……', 2.6); }
     else { S.end = 'ok'; S.endT = 1.6; D.pvCaught = cg === 1; D.pvKilled = cg === 2; say(cg === 1 ? '曲者を捕らえた！' : cg === 2 ? '曲者を討ち取った！' : '曲者は見張りに見つかり、逃げ去った', 2.4); }
   }
+  function climbPrompt(climb) {
+    const label = climb.up ? (climb.c.kind === 'noki' ? '鉤縄で登る' : '登る') : '降りる';
+    return isTouch() ? `<button type="button" class="climb">${label}</button>` : `<kbd>E</kbd>${label}`;
+  }
+
   function hudDef() {
     const S = st, D = S.def, P = S.p, x = S.ctx || {}, J = JOB[S.job.k] || JOB.sabo;
     const left = D.foes.filter((e) => !e.down && !e.gone).length, got = D.foes.filter((e) => e.down).length, run = D.foes.some((e) => e.state === 'flee' && !e.down && !e.gone);
@@ -1247,7 +1258,7 @@
     const pr = [];
     if (!S.end) {
       if (x.ko || x.koP) pr.push('<kbd>E</kbd>当て身（生け捕り）', '<kbd>Q</kbd>斬る');
-      if (x.climb && !x.ko) pr.push(`<kbd>E</kbd>${x.climb.up ? (x.climb.c.kind === 'noki' ? '鉤縄で登る' : '登る') : '降りる'}`);
+      if (x.climb && !P.lock && (isTouch() || (!x.ko && !x.koP && !x.work))) pr.push(climbPrompt(x.climb));
       if (x.noClimb) pr.push('鉤縄があれば登れる');
       if (S.reticle.visible) pr.push(D.pvp ? '<kbd>3</kbd>吹き矢（しびれさせる）' : '<kbd>3</kbd>吹き矢（眠らせて生け捕り）');
     }
@@ -1435,7 +1446,7 @@
       if (x.koP) pr.push('<kbd>E</kbd>当て身（守りの忍びを倒す）'); // 2.57.1
       else if (x.ko) pr.push('<kbd>E</kbd>当て身', '<kbd>Q</kbd>暗殺');
       else if (x.work) pr.push(`<kbd>E</kbd>長押しで${k === 'rumor' ? '噂を流す' : J.verb}`);
-      if (x.climb && !x.ko) pr.push(`<kbd>E</kbd>${x.climb.up ? (x.climb.c.kind === 'noki' ? '鉤縄で登る' : '登る') : '降りる'}`);
+      if (x.climb && !P.lock && (isTouch() || (!x.ko && !x.koP && !x.work))) pr.push(climbPrompt(x.climb));
       if (x.noClimb) pr.push('鉤縄があれば登れる');
       if (P.carry) pr.push('<kbd>F</kbd>下ろす'); else if (x.body) pr.push('<kbd>F</kbd>担ぐ');
       if (S.reticle.visible) pr.push('<kbd>3</kbd>吹き矢');
