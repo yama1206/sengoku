@@ -241,7 +241,7 @@ button.effect-link:hover:not(:disabled){background:none;color:#fff0b0;outline:no
  <form method="dialog"><button autofocus>閉じる</button></form>
 </dialog>
 <script>
-const VERSION='0.67';
+const VERSION='0.68';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -571,7 +571,7 @@ function displayRarity(c){
 const deckTotal=d=>Object.values(d).reduce((a,b)=>a+b,0);
 const deckIdeos=d=>[...new Set(Object.keys(d).filter(k=>d[k]>0).map(cardById).filter(Boolean).map(c=>c.i).filter(i=>i!=='ne'))];
 function deckValid(d){
- if(deckTotal(d)!==DECK_SIZE||deckIdeos(d).length>2)return false;
+ if(deckTotal(d)!==DECK_SIZE)return false;
  return Object.keys(d).every(k=>{const c=cardById(k);return c&&d[k]>=0&&d[k]<=Math.min(MAX_COPY,ownedOf(c));});
 }
 // 指定した思想の札を1枚ずつ順に足していき、36枚にする(all=trueなら所持に関係なく3枚まで。CPU用)
@@ -1168,7 +1168,7 @@ function editHTML(){
   return `<div class="er" style="--c:${col}"><div class="cb">${c.c}</div><div class="tx"><b>${c.n}</b> <span style="color:${col}">${IDEO[c.i].n}</span> ${TL[c.t]}${c.t==='u'?' '+c.p:''}<br><span class="dim">${descHTML(c)||'(効果なし)'}</span></div><div class="ctr"><button data-a="dec" data-id="${c.id}" ${n?'':'disabled'}>−</button><span>${n}/${cap}</span><button data-a="inc" data-id="${c.id}" ${n>=cap?'disabled':''}>＋</button></div></div>`;};
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
  <div style="padding-top:40px"><div class="ehead"><b style="color:var(--gold)">陣立て</b> <span class="${tot===DECK_SIZE?'okc':'ngc'}">${tot}/${DECK_SIZE}枚</span> 思想: ${ide.map(i=>`<span style="color:${IDEO[i].c}">${IDEO[i].n}</span>`).join(' ')||'なし'}</div>
- <div class="dim" style="font-size:11px">${DECK_SIZE}枚・同名${MAX_COPY}枚まで・思想は2つまで</div>
+ <div class="dim" style="font-size:11px">${DECK_SIZE}枚・同名${MAX_COPY}枚まで</div>
  <div class="msg2">${editMsg}</div>
  <div>${['all',...Object.keys(IDEO)].map(k=>`<span class="sc ${editFilter===k?'on':''}" data-a="ef" data-id="${k}">${k==='all'?'全て':IDEO[k].n}</span>`).join('')}<span class="sc ${editAll?'on':''}" data-a="eall">未所持も表示</span></div>
  <div class="acts"><button data-a="auto">自動構成</button><button data-a="clear">空にする</button></div>
@@ -1228,7 +1228,7 @@ function gameHTML(){
 }
 function rulesHTML(){
  return `<div class="ov"><div class="mb"><b style="color:var(--gold)">遊び方</b><br>
- ・陣立ては36枚(同名3枚まで・思想2つまで)。陣立ての画面で組めます。<br>
+ ・陣立ては36枚(同名3枚まで)。陣立ての画面で組めます。<br>
  ・勝利条件: 相手の城門(5枚)をすべて破り、本丸に攻撃を当てる。<br>
  ・毎手番: 1枚引く → 手札1枚を兵糧にする(任意・1回) → 札を使う → 武将で攻撃。<br>
  ・費えは兵糧を横にして支払う。使う札と同じ思想の兵糧が最低1枚必要。<br>
@@ -1735,17 +1735,16 @@ async function onClick(a,id){
   if(a==='ef'){editFilter=id;}
   else if(a==='eall'){editAll=!editAll;}
   else if(a==='inc'&&c){
-   const ide=deckIdeos(myDeck);editMsg='';
+   editMsg='';
    if(deckTotal(myDeck)>=DECK_SIZE)editMsg=`${DECK_SIZE}枚までです`;
    else if(cur>=Math.min(MAX_COPY,ownedOf(c)))editMsg=`同名札は${MAX_COPY}枚までです`;
-   else if(c.i!=='ne'&&!ide.includes(c.i)&&ide.length>=2)editMsg='思想は2つまでです';
    else myDeck[c.id]=cur+1;
   }
   else if(a==='dec'&&c){editMsg='';if(cur>1)myDeck[c.id]=cur-1;else delete myDeck[c.id];}
   else if(a==='clear'){myDeck={};editMsg='';}
   else if(a==='stdeck'){const st=STARTERS.find(x=>x.id===id);if(st&&canBuildStarter(st)){myDeck=starterDeck(st);editMsg=`${st.name}の陣立てにしました(保存して戻ると決まります)`;}}
-  else if(a==='auto'){const ide=deckIdeos(myDeck).slice(0,2);for(const k of shuffle(availIdeos()))if(ide.length<2&&!ide.includes(k))ide.push(k);myDeck=autoDeck(ide);editMsg='自動で構成しました';}
-  else if(a==='save'){if(deckValid(myDeck)){saveSave();screen='title';editMsg='';}else editMsg='36枚・思想2つまでにしてください';}
+  else if(a==='auto'){const ide=deckIdeos(myDeck);for(const k of shuffle(availIdeos()))if(ide.length<2&&!ide.includes(k))ide.push(k);myDeck=autoDeck(ide);editMsg='自動で構成しました';}
+  else if(a==='save'){if(deckValid(myDeck)){saveSave();screen='title';editMsg='';}else editMsg='36枚・同名3枚までにしてください';}
   else if(a==='discard'){loadSave();screen='title';editMsg='';}
   else if(a==='editBack'){if(deckValid(myDeck))saveSave();else loadSave();screen='title';editMsg='';} // 右上の戻る: 組めていれば保存、組めていなければ元に戻す
   render();return;
