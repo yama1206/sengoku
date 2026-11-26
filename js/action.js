@@ -521,8 +521,8 @@
           if (s.cd <= 0 && (!T.gun || close || (settingGun && gunWasSet))) {
             if (T.ranged && !close) {
               const sp = T.gun ? 140 : 45, tt = d / sp;
-              // 攻城戦では敵の弓矢をばらけさせ、遠くからの狙いを甘くする。
-              const spread = b.cside && s.side === 'B' && !T.gun ? 0.48 : 0.12;
+              // 敵の弓矢は遠くから射るほどばらけやすい。
+              const spread = s.side === 'B' && !T.gun ? 0.48 : 0.12;
               const ex = e.x + (rr() - 0.5) * d * spread, ey = e.y + (rr() - 0.5) * d * spread;
               const a = Math.atan2(ey - s.y, ex - s.x);
               A.pr.push({ L: d, x0: s.x, y0: s.y, x: s.x, y: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, side: s.side, dmg: T.atk * (u.am || 1) * fmod(u, 'ra') * (sp > 100 ? 2.6 * (SIM.wxGun ? SIM.wxGun() : 1) /* 2.53.0 雨の鉄砲 */ : 2.2) * (0.55 + 0.45 * u.mor / 100) * (1 + Math.max(-0.15, Math.min(0.3, dh * 0.015))), life: T.gun ? Math.min(R / sp, tt * 1.3) : tt * 1.3, gun: sp > 100, src: s });
