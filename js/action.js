@@ -801,6 +801,26 @@
     ctx.lineWidth = 1.5; ctx.strokeStyle = '#fff'; ctx.stroke();
   }
 
+  function drawGateBars(ctx, b, project) {
+    const hp = b.act.gt;
+    if (!hp) return;
+    const castle = SIM.nawa(b.ter);
+    if (!castle) return;
+    for (const gate of castle.gates) {
+      const remaining = hp[gate.id];
+      if (!(remaining > 0)) continue;
+      const [x, y] = project(gate.x, gate.y);
+      if (x < 0 || x > W || y < 0 || y > H) continue;
+      const ratio = Math.min(1, remaining / (SIM.GATE_HP[gate.id.slice(-1)] || 600));
+      ctx.fillStyle = 'rgba(26,19,14,.9)';
+      ctx.fillRect(x - 29, y - 5, 58, 10);
+      ctx.fillStyle = '#655345';
+      ctx.fillRect(x - 27, y - 3, 54, 6);
+      ctx.fillStyle = ratio > 0.5 ? '#d9b75e' : ratio > 0.25 ? '#ed984a' : '#df6351';
+      ctx.fillRect(x - 27, y - 3, Math.max(1, 54 * ratio), 6);
+    }
+  }
+
   R.drawAction = function (ctx, b, myPid, sel, dt, ter) {
     const A = b.act, cv = ctx.canvas, d = window.devicePixelRatio || 1; W = cv.width / d; H = cv.height / d;
     const hero = A.s.find((s) => s.pc === myPid);
@@ -866,6 +886,7 @@
       lbl.push({ id: +id, side: u.side, x0: a - tw / 2, y0: c - 9, x1: a + tw / 2, y1: c + 6 }); if (+id === aimG) { ctx.strokeStyle = '#ffd040'; ctx.lineWidth = 2; ctx.strokeRect(a - tw / 2 - 1, c - 10, tw + 2, 17); }
       ctx.fillStyle = u.side === 'B' ? '#ffb4a8' : own && (u.id === selG || selG === 'all') ? '#ffe680' : '#dfe9f5'; ctx.fillText(t, a, c + 2);
     }
+    drawGateBars(ctx, b, (x, y) => S(x, y - 1.4));
     // 照準
     if (hero && live(hero)) { const [a, c] = S(hero.x + Math.cos(hero.f) * 6, hero.y + Math.sin(hero.f) * 6); ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5; if (hero.wep && (hero.wep.name === ACT.WEP.yumi.name || hero.wep.name === ACT.WEP.teppo.name)) rangedReticle(ctx, a, c, hero);
       else { ctx.beginPath(); ctx.arc(a, c, 5, 0, 7); ctx.stroke(); }
@@ -916,6 +937,7 @@
         const [a, c] = S(s.x, s.y, 3); if (a < -50 || a > W + 50 || c < -20 || c > H + 20) continue;
         ctx.fillStyle = s.side === 'B' ? '#ffb4a8' : s.pc ? '#ffcf8a' : '#cfe6ff'; ctx.fillText(nm, a, c);
       } }
+    drawGateBars(ctx, b, (x, y) => S(x, y, 7.2));
     // 照準（画面の真ん中）
     const cx = W / 2, cy = H / 2;
     const weapon = hero && live(hero) && hero.wep && hero.wep.name;
