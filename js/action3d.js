@@ -213,6 +213,7 @@
     mk('dead', new T.BoxGeometry(1.3, 0.22, 0.45).translate(0, 0.11, 0), white(), CAP.dead, false);
     // 飛び道具
     mk('arrow', new T.BoxGeometry(1.1, 0.05, 0.05), new T.MeshBasicMaterial({ color: 0x3a2610 }), CAP.arrow, false);
+    mk('cannonball', new T.SphereGeometry(0.25, 8, 6), new T.MeshBasicMaterial({ color: 0x272322 }), CAP.arrow, false);
     mk('bullet', new T.BoxGeometry(2.4, 0.09, 0.09), new T.MeshBasicMaterial({ color: 0xfff0a0 }), CAP.arrow, false);
     // 足もとの輪（選んだ隊・本人）
     mk('ring', new T.RingGeometry(0.55, 0.75, 16).rotateX(-Math.PI / 2).translate(0, 0.06, 0), new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false }), CAP.body, false);
@@ -702,7 +703,7 @@
   }
 
   // ---- 戦場ごとの地面と木 ----
-  function build(id, list) {
+  function build(id, list, engine) {
     built = id; ter = list || []; NW = SGK.SIM.nawa ? SGK.SIM.nawa(ter) : null; setTod(id); hills = ter.filter((t) => t.k === 'h').map((t) => ({ x: t.x, y: t.y, r: t.r * 1.15, hh: Math.min(14, t.r * 0.16) }));
     if (groundM) { scene.remove(groundM); groundG.dispose(); groundM.material.dispose(); }
     for (const t of trees) { scene.remove(t); t.geometry.dispose(); if (t.material) t.material.dispose(); if (t.dispose) t.dispose(); }
@@ -803,6 +804,36 @@
     /* 1.6.38 門：櫓門（門の上に櫓）と扉。扉は破られたら消える。外の塀の角には隅櫓 */
     gateM = [];
     const mat = (c) => new T.MeshLambertMaterial({ color: c }), addM = (m) => { m.castShadow = m.receiveShadow = true; scene.add(m); trees.push(m); return m; };
+    if (engine) {
+      const { x, y, tx, ty, kind } = engine, a = Math.atan2(ty - y, tx - x);
+      const base = hgt(x, y), c = Math.cos(a), s = Math.sin(a);
+      const part = (geometry, color, along, up, across = 0) => {
+        const m = addM(new T.Mesh(geometry, mat(color)));
+        m.position.set(x + c * along - s * across, base + up, y + s * along + c * across);
+        m.rotation.y = -a;
+        return m;
+      };
+      const wood = 0x6c482c, iron = 0x383938;
+      if (kind === 'cannon') {
+        part(new T.CylinderGeometry(0.34, 0.29, 2.7, 12).rotateZ(Math.PI / 2), iron, 0.3, 1.24);
+        part(new T.BoxGeometry(2.3, 0.7, 1.1), wood, -0.35, 0.62);
+        for (const side of [-0.75, 0.75]) part(new T.CylinderGeometry(0.61, 0.61, 0.2, 12).rotateX(Math.PI / 2), wood, 0, 0.61, side);
+      } else {
+        const run = Math.hypot(engine.wx - x, engine.wy - y);
+        const rise = Math.max(2.5, hgt(engine.wx, engine.wy) + (engine.overGate ? 6.5 : 3.4) - base), climb = Math.atan2(rise, run);
+        if (kind === 'tower') {
+          for (const side of [-1.25, 1.25]) {
+            part(new T.BoxGeometry(2.8, rise, 0.22), wood, 0.5, rise / 2, side);
+            for (const along of [-0.5, 1.55]) part(new T.BoxGeometry(0.28, rise + 0.4, 0.28), 0x3e2a1b, along, rise / 2, side);
+          }
+          part(new T.BoxGeometry(2.8, 0.24, 2.8), wood, 0.5, rise);
+          part(new T.BoxGeometry(run + 2, 0.24, 1.65), wood, run / 2 + 1, rise);
+        } else {
+          for (const side of [-0.52, 0.52]) part(new T.BoxGeometry(Math.hypot(run, rise), 0.15, 0.16).rotateZ(climb), wood, run / 2, rise / 2, side);
+          for (let i = 1; i <= 8; i++) part(new T.BoxGeometry(0.15, 0.15, 1.2), wood, run * i / 9, rise * i / 9);
+        }
+      }
+    }
     for (const gp of SGK.SIM.gatePts(NW)) {
       const g = hgt(gp.x, gp.y), ry = -gp.a, wd = gp.w + 1.2;
       const tw = addM(new T.Mesh(new T.BoxGeometry(2.2, 2.4, wd + 2.4), mat(0xece6d6))); tw.position.set(gp.x, g + 4.7, gp.y); tw.rotation.y = ry;
@@ -1111,7 +1142,7 @@
     if (!X.ready && !init()) return false;
     clock += dt;
     if (w !== W || h !== H) { W = w; H = h; rd.setSize(W, H, false); cam3.aspect = W / Math.max(1, H); cam3.updateProjectionMatrix(); }
-    if (built !== b.id) build(b.id, terList);
+    if (built !== b.id) build(b.id, terList, b.act && b.act.engine);
     { const gt = b.act && b.act.gt; for (const d of gateM) d.visible = !gt || gt[d.userData.gid] > 0; } /* 1.6.38 破れた門の扉は消す */
     cv.style.display = 'block'; clearTimeout(hideT); hideT = setTimeout(() => { cv.style.display = 'none'; }, 250);
     if (!O) { O = new T.Object3D(); O.rotation.order = 'YXZ'; Mx = new T.Matrix4(); Mu = new T.Matrix4(); C = new T.Color(); C2 = new T.Color(); SK90 = new T.Matrix4().makeRotationY(Math.PI / 2); Mh = new T.Matrix4(); Mw = new T.Matrix4(); Ms = new T.Matrix4(); Mc = new T.Matrix4(); Mcw = new T.Matrix4(); }
@@ -1233,7 +1264,7 @@
       const a = Math.atan2(p.vy, p.vx);
       O.position.set(p.x, hgt(p.x, p.y) + 1.3 + (p.h || 0), p.y);
       O.rotation.set(0, -a, 0); O.scale.set(1, 1, 1); O.updateMatrix();
-      put(p.gun ? 'bullet' : 'arrow', O.matrix);
+      put(p.cannon ? 'cannonball' : p.gun ? 'bullet' : 'arrow', O.matrix);
     }
     if (skOn) S3.end();
     for (const k in M) { const im = M[k]; im.count = Math.min(cnt[k], im.instanceMatrix.count); im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; }

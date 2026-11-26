@@ -129,6 +129,11 @@
   }
 
   // ---- 攻城戦（プレイヤーが攻める） ----
+  SIM.SIEGE_ENGINES = {
+    ladder: { name: '梯子', price: 1200, action: '梯子を登る' },
+    tower: { name: '井楼', price: 3600, action: '井楼から兵を渡す' },
+    cannon: { name: '大砲', price: 6000, action: '大砲を撃つ' },
+  };
   SIM._assault = (w, p, c) => { // 総攻め（攻城戦準備を終えてから。army.js の assault から呼ぶ）
     const s = SIM.settlement(w, c.id);
     if (!s || s.type !== 'castle' || s.site || p.battle || p.busy) return;
@@ -138,6 +143,8 @@
     if (!SIM.atWar(w, p.clan, s.owner)) return SIM.say(p.id, `${fName(w, s.owner)}とは戦をしていません`);
     if (dist(p, s) > SIEGE.nearKm) return SIM.say(p.id, `${s.name}の近く（${SIEGE.nearKm}km以内）まで来てください`);
     if (!SIM.troopCount(p.troops)) return SIM.say(p.id, '兵がいないと城は攻められません');
+    const equipment = Object.hasOwn(SIM.SIEGE_ENGINES, c.engine) ? SIM.SIEGE_ENGINES[c.engine] : null;
+    if (equipment && p.money < equipment.price) return SIM.say(p.id, `${equipment.name}の調達費（${SIM.money(equipment.price)}）が足りません`);
     const id = 'b' + w.nextId++, gar = Object.assign({}, s.gar);
     const b = w.battles[id] = { id, npc: null, siege: s.id, war: 1, foe: `${s.name}の守備兵`, foeN: SIM.troopCount(gar), loot: 1500 + SIM.troopCount(gar) * 40,
       pids: [], units: [], next: 1, t: 0, start: {}, routed: false, hd: {}, rd: {}, ter: M.genTerrain(w, s.x, s.y), lk: { A: null, B: { x: SIM.FIELD.ax, y: SIM.FIELD.h / 2 } }, visA: [] };
@@ -154,6 +161,12 @@
       if (fb && fb.types.includes(u.type)) { u.am *= fb.am || 1; u.da += fb.da || 0; u.ra += fb.ra || 0; if (fb.hm) { u.hp *= fb.hm; u.mh *= fb.hm; } }
     }
     SIM.castleLayout(w, b, s, 'B'); // 0.37.0 平城・山城の攻城戦マップ
+    if (equipment) {
+      const start = b.units.find((u) => u.owner === p.id && u.type === 'hero') || { x: SIM.FIELD.ax, y: SIM.FIELD.h / 2 };
+      b.engine = SIM.siegeEngineSite(SIM.nawa(b.ter), c.engine, start);
+      if (b.engine) { p.money -= equipment.price; SIM.say(p.id, `${equipment.name}を調達しました`); }
+      else SIM.say(p.id, `この城では${equipment.name}の設置場所が見つからず、調達費はかかりませんでした`);
+    }
     s.gar = {};
   };
   // 0.50.0 参陣した軍勢の総攻め：プレイヤーと軍勢の兵がいっしょに攻める

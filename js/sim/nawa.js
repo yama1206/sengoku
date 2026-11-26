@@ -245,6 +245,50 @@
   /* 塀のすぐ内側（狭間から撃てる場所）にいるか */
   SIM.atLoophole = (N, x, y) => { if (!N) return false; let r = false; nearSegs(N, x, y, x, y, (s) => { if (dSeg(s, x, y) < 3.2) { r = true; return false; } }); return r; };
 
+  // 攻め手が歩いて近づける塀を選び、塀の両側に乗降口を置く。
+  SIM.siegeEngineSite = (N, kind, start) => {
+    if (!N) return null;
+    const region = (x, y) => {
+      const i = cellAt(N, x, y);
+      return i < 0 ? N.out : N.nav[i] === 0 ? N.reg[i] : -1;
+    };
+    const outside = region(start.x, start.y);
+    const gates = N.gates.filter((g) => g.id && g.side[0][1] === outside)
+      .sort((a, b) => Math.hypot(a.x - start.x, a.y - start.y) - Math.hypot(b.x - start.x, b.y - start.y));
+    const sites = [];
+    if (kind === 'cannon') {
+      for (const g of gates) for (const d of [14, 10, 6]) {
+        const x = g.x + g.nx * d, y = g.y + g.ny * d;
+        if (region(x, y) === outside && !SIM.wallBlock(N, x, y, g.x + g.nx, g.y + g.ny)) {
+          return { kind, x, y, tx: g.x, ty: g.y, gate: g.id };
+        }
+      }
+      return null;
+    }
+    for (const seg of N.segs) {
+      const reach = kind === 'tower' ? 5 : 3;
+      if (seg.len < 4) continue;
+      for (const f of [0.5, 0.25, 0.75]) for (const dir of [-1, 1]) {
+        const wx = seg.x1 + (seg.x2 - seg.x1) * f, wy = seg.y1 + (seg.y2 - seg.y1) * f;
+        const dx = -seg.uy * dir, dy = seg.ux * dir;
+        const x = wx + dx * reach, y = wy + dy * reach, tx = wx - dx * 3, ty = wy - dy * 3;
+        if (region(x, y) !== outside || region(tx, ty) < 0) continue;
+        sites.push({ kind, x, y, tx, ty, wx, wy });
+      }
+    }
+    sites.sort((a, b) => Math.hypot(a.x - start.x, a.y - start.y) - Math.hypot(b.x - start.x, b.y - start.y));
+    if (sites.length) return sites[0];
+    // 水堀で塀に近づけない場合は、土橋が通じる門の前から越える。
+    for (const g of gates) for (const d of [5, 4, 3]) {
+      const x = g.x + g.nx * d, y = g.y + g.ny * d, tx = g.x - g.nx * 4, ty = g.y - g.ny * 4;
+      if (region(x, y) === outside && region(tx, ty) >= 0) {
+        return { kind, x, y, tx, ty, wx: g.x, wy: g.y, overGate: true };
+      }
+    }
+    return null;
+  };
+
+  SIM.wallResetPosition = (s) => LAST.delete(s);
   // ---- 塀・閉じた門・水堀にめり込んだら押し戻す（rad：体の半径） ----
   const LAST = new WeakMap();
   SIM.wallPush = (N, s, rad, G) => {

@@ -99,6 +99,7 @@ window.addEventListener('keydown', (e) => {
   if (SGK.PARTY && SGK.PARTY.current && SGK.PARTY.current()) { keys.clear(); return; } // 2.99.2 みんなで遊ぶの最中は地図・メニューのキーを効かせない（Wで地図が動いていた）
   if (e.target.tagName === 'INPUT') { if (e.key === 'Enter' && G.mode === 'title' && e.target.id === 'codeInput') $('btnJoinGo').click(); return; }
   const k = e.key;
+  if (!e.repeat && k.toLowerCase() === 'g' && actB() && !activeMenuNotBattle()) { const button = $('bEngine'); if (button && !button.disabled) { e.preventDefault(); button.click(); return; } }
   if (actB() && !activeMenuNotBattle() && k.toLowerCase() === 't') { const on = R.act3d && R.act3d.toggle(); if (!on && document.pointerLockElement) document.exitPointerLock(); toast(on ? '3D表示にしました' : '2D表示にしました', 1000); return; }
   if (ML() && !activeMenuNotBattle()) { // 0.63.0 マウント＆ブレイド2風：0〜9で隊を選び、F1・F2…で指図
     const kl = k.toLowerCase(), fm = /^F([1-9])$/.exec(k);

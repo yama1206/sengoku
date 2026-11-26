@@ -29,7 +29,10 @@ function selectSettlement(s) {
     let act = null;
     const sg = W && W.siege && W.siege.sid === s.id ? W.siege : null;
     if (sg) $('infoBody').innerHTML += `<br>${sg.ready ? '総攻めの支度が整っています' : `攻城戦準備中：総攻めまであと${sg.days}日`}`;
-    if (sg && sg.ready && near) act = { label: '総攻めをかける', cmd: { type: 'assault', id: s.id } };
+    if (sg && sg.ready && near) {
+      $('infoBody').insertAdjacentHTML('beforeend', `<br><label>攻城兵器（自分で戦う） <select id="siegeEngine"><option value="">なし</option>${Object.entries(SIM.SIEGE_ENGINES).map(([key, e]) => `<option value="${key}" ${m.money < e.price ? 'disabled' : ''}>${e.name}（${SIM.money(e.price)}）</option>`).join('')}</select></label>`);
+      act = { label: '総攻めをかける', cmd: () => command({ type: 'assault', id: s.id, engine: $('siegeEngine').value }) };
+    }
     else if (sg) act = { label: '攻城戦の準備をやめる', cmd: { type: 'liftSiege' } };
     else if (war && W.canSiege && near && !(W.siege)) act = { label: `攻城戦の準備をする（${W.ar ? W.ar.siegeDays : 5}日後に総攻め）`, cmd: { type: 'siege', id: s.id } };
     else if (W && W.canPersuade && cs.lord && s.owner !== mine && mp && mp.at === s.id) act = { label: `調略する（${SIM.money(W.persuadeCost)}・成功率${W.chance != null ? W.chance : '?'}%）`, cmd: { type: 'persuade' } };

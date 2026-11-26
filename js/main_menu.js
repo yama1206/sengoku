@@ -108,6 +108,18 @@ function renderBattle(bt) {
   if (!AB || (bt.plan && G.selUnit === 'all')) html += `<div class="bu"><span class="nm">全軍</span>${ob('all')}</div>`;
   if (!AB && bt.canAct) html += `<div class="row" style="margin-top:4px"><button id="bAct" data-act="1">自分で戦う</button></div>`;
   else if (!AB && bt.act) html += `<div class="bu"><span class="nm muted">戦場の様子を受け取っています…</span></div>`;
+  const E = AB && AB.act.engine;
+  if (E) {
+    const hero = AB.act.s.find((s) => s.pc === G.myPid && s.hp > 0 && !s.gone && s.side === 'A');
+    if (hero) {
+      const distance = Math.hypot(hero.x - E.x, hero.y - E.y), near = distance <= 4;
+      const remaining = Math.max(0, Math.ceil(E.readyAt - AB.t));
+      const broken = E.kind === 'cannon' && AB.act.gt && AB.act.gt[E.gate] === 0;
+      const action = SIM.SIEGE_ENGINES[E.kind].action;
+      const status = !near ? `兵器まで約${Math.ceil(distance / 5) * 5}m` : hero.rd ? '馬を降りて使う' : broken ? '目標の門は破壊済み' : remaining ? `再使用まで${remaining}秒` : '';
+      html += `<div class="row"><button id="bEngine" data-bact="actEngine" ${status ? 'disabled' : ''}>${action} [G]</button>${status ? `<span class="muted">${status}</span>` : ''}</div>`;
+    }
+  }
   G.btFoe = bt.foe; G.btT = performance.now(); // 2.7.1 スキップ・退却はメニューに移した
   $('battle').classList.toggle('hidden', !html);
   if (html !== battleHtml) { battleHtml = html; $('battleBody').innerHTML = html; G.bpick = null; setFocus($('battle'), null); }

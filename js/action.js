@@ -47,6 +47,7 @@
     for (const u of us) { if (!b.cside) u.x = cx + (u.x - cx) * ACT.SQUEEZE; actAdd(A, b, u); }
     A.byG = {}; for (const u of b.units) A.byG[u.id] = u;
     A.trees = treePts(b.id, b.ter || []);
+    if (b.engine) A.engine = { ...b.engine, readyAt: 0 };
     const ix = {}; for (const u of b.units) { const o = u.owner || u.cmd; if (o && A.pids.includes(o) && u.type !== 'hero' && u.m0) { ix[o] = ix[o] || 2; u.idx = ix[o]++; } }
     for (const q of A.pids) if (q !== pid) SIM.say(q, `${(w.players[pid] || {}).name || '仲間'}が「自分で戦う」にしました。あなたも本人を直接動かせます`);
   };
@@ -373,7 +374,7 @@
     // 本人（プレイヤー）：それぞれの人の入力で動く
     if (A.xq && A.xq.length) { for (const [pc, k, fr, t, kill] of A.xq) { const pl = w.players[pc]; if (pl && SIM.wsFight) SIM.wsFight(pl, k, fr, t, kill); } A.xq = []; }
     for (const hero of heroes) {
-      if (!live(hero)) continue;
+      if (!live(hero) || hero.crossing) continue;
       const inp = A.inp[hero.pc] || {}; inp.dash = inp.dash || A.dq[hero.pc]; A.dq[hero.pc] = false;
       A.wq = A.wq || {}; A.jq = A.jq || {};
       const pl = w.players[hero.pc], k1 = (SIM.heroKind && SIM.heroKind(pl)) || 'tachi', k2r = SIM.heroKind2 && SIM.heroKind2(pl), k2 = k2r === 'tate' ? null : k2r; hero.tate = k2r === 'tate' && k1 === 'waki' ? 1 : 0; /* 1.6.40 脇差＋竹束 */
@@ -461,7 +462,7 @@
     for (const k in sideC) { sideC[k].x /= sideC[k].n; sideC[k].y /= sideC[k].n; }
     for (const s of all) {
       if (s.fl) s.fl = Math.max(0, s.fl - dt);
-      if (s.pc) continue;
+      if (s.pc || s.crossing) continue;
       const u = A.byG[s.g], T = s.hero ? TR.hero : TR[s.type], gen = s.hero && u && !u.owner && !u.cmd, cav = T.cav || gen; // 0.73.8 CPUの武将は騎馬
       const spd = (gen ? TR.kiba.spd : T.spd) * ACT.SPD * (s.hero ? 1 : fmod(u, 'spd')); s.genCav = gen; // 0.80.0 地形の遅さは動くときに terMul で
       const elapsed = dt * (s.hero ? 1 : fmod(u, 'as'));
@@ -557,6 +558,11 @@
       const flight = p.gun ? Math.min(dt, p.life) : dt;
       const dx = p.vx * flight, dy = p.vy * flight;
       let nx = p.x + dx, ny = p.y + dy, hit = null;
+      if (p.cannon) {
+        p.x = nx; p.y = ny; p.life -= dt;
+        if (p.life <= 0) gateDmg(A, p.cannon, 240);
+        continue;
+      }
       if (p.gun) {
         const contact = gunHit(g, p, dx, dy, nx, ny);
         if (contact) { nx = contact.x; ny = contact.y; }
@@ -587,7 +593,7 @@
     A.pr = A.pr.filter((p) => p.life > 0);
     // 押し合い
     for (const s of all) {
-      if (!live(s)) continue;
+      if (!live(s) || s.crossing) continue;
       const r = (o) => (o.hero ? 0.7 : o.type && TR[o.type].cav ? 0.9 : ACT.SOLDIER_R);
       near(g, s.x, s.y, 2, (o) => {
         if (o === s || !live(o) || o.id < s.id) return;
@@ -606,7 +612,15 @@
       const m = (s.hero ? 0.7 : s.type && TR[s.type].cav ? 0.9 : ACT.SOLDIER_R) + 0.4;
       for (const t of F.p) { const dx = s.x - t[0], dy = s.y - t[1]; /* 幹 */ if (Math.abs(dx) >= m || Math.abs(dy) >= m) continue; const d = Math.hypot(dx, dy); if (d < m && d > 1e-4) { s.x = t[0] + dx / d * m; s.y = t[1] + dy / d * m; } }
     }
-    if (CW) for (const s of all) if (live(s)) SIM.wallPush(CW, s, s.hero ? 0.7 : s.type && TR[s.type].cav ? 0.9 : ACT.SOLDIER_R, gG(A, b, s)); /* 2.12.0 押し合いで塀の向こうへ押し出されないよう、もう一度 */
+    if (CW) for (const s of all) if (live(s) && !s.crossing) SIM.wallPush(CW, s, s.hero ? 0.7 : s.type && TR[s.type].cav ? 0.9 : ACT.SOLDIER_R, gG(A, b, s)); /* 2.12.0 押し合いで塀の向こうへ押し出されないよう、もう一度 */
+    // 梯子と井楼では、城壁を越えるまで通常の移動と攻撃を止める。
+    for (const s of all) {
+      if (!s.crossing) continue;
+      const P = s.crossing, E = A.engine, k = Math.min(1, (b.t - P.started) / P.duration);
+      s.x = P.x + (E.tx - P.x) * k; s.y = P.y + (E.ty - P.y) * k;
+      s.cu = Math.sin(k * Math.PI) * (E.overGate ? 1.9 : 1.15);
+      if (k === 1) { s.crossing = null; SIM.wallResetPosition(s); }
+    }
     // 潰走
     for (const u of b.units) {
       if (u.type === 'hero' || u.order === 'rout' || !center[u.id]) continue;
@@ -658,6 +672,34 @@
   // ---- 0.62.0 マルチプレイ：命令と、参加者へ送る戦場の様子 ----
   Object.assign(SIM.commands, {
     actStart(w, p) { const b = w.battles[p.battle]; if (SIM.actCan(w, b)) SIM.actStart(w, b, p.id); },
+    actEngine(w, p) {
+      const b = w.battles[p.battle], A = b && b.act, E = A && A.engine;
+      if (!E || b.plan) return;
+      const hero = A.s.find((s) => s.pc === p.id && s.hero && s.side !== b.cside && live(s));
+      if (!hero || hero.rd || dist(hero, E) > 4) return SIM.say(p.id, '馬を降りて攻城兵器のそばで使ってください');
+      if (hero.crossing || b.t < E.readyAt) return;
+      if (E.kind === 'cannon') {
+        if (!(A.gt && A.gt[E.gate] > 0)) return SIM.say(p.id, 'この大砲が狙っていた門はすでに破られています');
+        const d = Math.hypot(E.tx - E.x, E.ty - E.y);
+        A.pr.push({ x: E.x, y: E.y, vx: (E.tx - E.x) * 30 / d, vy: (E.ty - E.y) * 30 / d, gun: true, cannon: E.gate, life: d / 30 });
+        E.readyAt = b.t + 12;
+        sayAll(A, '大砲を撃ちました');
+        return;
+      }
+      const passengers = [hero];
+      if (E.kind === 'tower') {
+        const troops = A.s.filter((s) => !s.hero && s.side === hero.side && live(s) && !TR[s.type].cav && dist(s, E) <= 7);
+        passengers.push(...troops.slice(0, 6));
+      }
+      for (const s of passengers) {
+        s.crossing = { x: s.x, y: s.y, started: b.t, duration: E.kind === 'tower' ? 2 : 2.6 };
+        s.f = ang(s, { x: E.tx, y: E.ty });
+        s.dash = s.vx = s.vy = s.vel = 0;
+        s.blk = false; s.hold = 0; s.rq = null; s.sw = null;
+        if (A.dq[s.pc]) A.dq[s.pc] = false;
+      }
+      E.readyAt = b.t + 3;
+    },
     actIn(w, p, c) {
       const b = w.battles[p.battle], A = b && b.act; if (!A) return;
       const n = (v) => (Number.isFinite(+v) ? Math.max(-1, Math.min(1, +v)) : 0);
@@ -673,8 +715,8 @@
   SIM.actSnap = (b, full) => {
     if (b.act.newS > 0) { b.act.newS--; full = true; } // 2.23.0 増援が出たら、参加者にも新しい兵の情報を送る
     const A = b.act, L = A.s.filter(live), o = { id: b.id, s: [], pr: [], dc: A.dc, dead: A.dead.slice(-40).map((d) => [q10(d.x), q10(d.y), d.side === 'A' ? 0 : 1]) };
-    for (const s of L) o.s.push(s.id, q10(s.x), q10(s.y), Math.round((s.f || 0) * 100), Math.round((s.hp / s.mh) * 100), (s.fl ? 1 : 0) | (s.at && performance.now() / 1000 - s.at < 0.3 ? 2 : 0) | (s.kat ? 4 : 0));
-    for (const p of A.pr) o.pr.push(q10(p.x), q10(p.y), Math.round(p.vx), Math.round(p.vy), p.gun ? 1 : 0, q10(p.h || 0));
+    for (const s of L) o.s.push(s.id, q10(s.x), q10(s.y), Math.round((s.f || 0) * 100), Math.round((s.hp / s.mh) * 100), (s.fl ? 1 : 0) | (s.at && performance.now() / 1000 - s.at < 0.3 ? 2 : 0) | (s.kat ? 4 : 0) | (Math.min(63, Math.round((s.crossing ? s.cu || 0 : 0) * 30)) << 3));
+    for (const p of A.pr) o.pr.push(q10(p.x), q10(p.y), Math.round(p.vx), Math.round(p.vy), p.cannon ? 2 : p.gun ? 1 : 0, q10(p.h || 0));
     o.h = A.s.filter((s) => s.pc && live(s)).map((s) => [s.id, s.sw ? [Math.round(s.sw.t * 100), Math.round(s.sw.a * 100), Math.round(s.sw.arc * 100), q10(s.sw.r), Math.round((s.sw.d || 0.18) * 100)] : null, s.wep ? s.wep.name : '', s.blk ? 1 : 0, Math.round((s.jp || 0) * 100), s.rd ? 1 : 0, s.hn || 0, s.hw || '', s.hd || 0, s.tate ? 1 : 0, s.hold > 0 ? Math.max(2, Math.min(80, Math.round(s.hold * 100))) : 0, s.rd && s.hh != null ? Math.round(s.hh * 100) : null, s.nj ? 1 : 0, Math.round((s.cu || 0) * 100), s.wep && s.wep.name === ACT.WEP.teppo.name ? Math.ceil(Math.max(0, s.cd || 0) * 100) : null,
       Math.ceil((s.gunBrace || 0) * 100), Math.ceil((s.recover || 0) * 100)]);
     o.gun = []; o.gs = []; o.gb = [];
@@ -684,6 +726,7 @@
       if (s.gunSet > 0) o.gs.push(s.id, Math.max(1, Math.round(s.gunSet * 100)));
     }
     if (A.gt) o.gt = A.gt;
+    if (A.engine) { o.engine = A.engine; o.t = b.t; }
     o.u = b.units.filter((u) => u.hp > 0 && !u.gone).map((u) => [u.id, u.side, u.owner || u.cmd || null, u.type, u.n, u.order, u.idx || 0, u.gname || '']);
     if (full) o.st = A.s.filter(live).map((s) => [s.id, s.side === 'A' ? 0 : 1, s.g, s.type || '', s.hero ? 1 : 0, s.pc || 0]);
     return o;
@@ -698,7 +741,7 @@
       const id = o.s[i], st = V.st[id]; if (!st) continue; seen.add(id);
       let s = V.byId[id]; const tx = o.s[i + 1] / 10, ty = o.s[i + 2] / 10;
       if (!s) s = V.byId[id] = Object.assign({ id, x: tx, y: ty }, st);
-      s.tx = tx; s.ty = ty; s.f = o.s[i + 3] / 100; s.hp = o.s[i + 4] / 100; s.mh = 1; s.fl = o.s[i + 5] & 1 ? 0.15 : 0; if (o.s[i + 5] & 2) { const nw = performance.now() / 1000; if (!s.at || nw - s.at > 0.5) s.at = nw; } s.gone = false; s.kat = o.s[i + 5] & 4 ? 1 : 0;
+      s.tx = tx; s.ty = ty; s.f = o.s[i + 3] / 100; s.hp = o.s[i + 4] / 100; s.mh = 1; s.fl = o.s[i + 5] & 1 ? 0.15 : 0; if (o.s[i + 5] & 2) { const nw = performance.now() / 1000; if (!s.at || nw - s.at > 0.5) s.at = nw; } s.gone = false; s.kat = o.s[i + 5] & 4 ? 1 : 0; s.cu = (o.s[i + 5] >> 3) / 30;
       s.gunPhase = 1; s.gunSet = 0; s.gunBrace = 0;
       list.push(s);
     }
@@ -719,12 +762,14 @@
       if (s) s.gunSet = gs[i + 1] / 100;
     }
     A.s = list; A.pr = [];
-    for (let i = 0; i < o.pr.length; i += 6) A.pr.push({ x: o.pr[i] / 10, y: o.pr[i + 1] / 10, vx: o.pr[i + 2], vy: o.pr[i + 3], gun: !!o.pr[i + 4], h: o.pr[i + 5] / 10 });
+    for (let i = 0; i < o.pr.length; i += 6) A.pr.push({ x: o.pr[i] / 10, y: o.pr[i + 1] / 10, vx: o.pr[i + 2], vy: o.pr[i + 3], gun: !!o.pr[i + 4], cannon: o.pr[i + 4] === 2, h: o.pr[i + 5] / 10 });
     const nd = o.dc - A.dc; if (nd > 0) { for (const [x, y, sd] of o.dead.slice(-Math.min(nd, o.dead.length))) A.dead.push({ x: x / 10, y: y / 10, side: sd ? 'B' : 'A' }); if (A.dead.length > 500) A.dead.splice(0, A.dead.length - 500); } A.dc = o.dc;
     for (const [id, sw, wn, bl, jp, rd, hn, hw, hd, tt, hl, hh, nj, cu, cd, brace, recover] of o.h) { const s = V.byId[id]; if (!s) continue; s.nj = nj ? 1 : 0; s.cu = (cu || 0) / 100; s.hh = hh == null ? null : hh / 100; s.tate = tt ? 1 : 0; s.hold = hl === 1 ? 0.8 : (hl || 0) / 100; s.rd = rd ? 1 : 0; s.hn = hn; s.hw = hw; s.hd = hd; if (s.wep && s.wep.name !== wn) s.at = 0; s.wep = { name: wn }; s.gunBrace = (brace || 0) / 100; s.recover = (recover || 0) / 100; s.cd = cd == null ? null : cd / 100; s.blk = !!bl; if (jp && !(s.jp > 0)) s.jp = jp / 100; const was = s.sw; s.sw = sw ? { t: sw[0] / 100, a: sw[1] / 100, arc: sw[2] / 100, r: sw[3] / 10, d: (sw[4] || 18) / 100 } : null; if (sw && !was && s.pc === SIM.localPid) SGK.AUDIO.sfx('slash'); }
     V.units = o.u.map(([id, side, owner, type, n, order, idx, gname]) => ({ id, side, owner, type, n, order, idx, gname: gname || undefined, hp: n > 0 ? 1 : 0, gone: false }));
     A.byG = {}; for (const u of V.units) A.byG[u.id] = u;
     A.gt = o.gt || null;
+    A.engine = o.engine || null;
+    if (A.engine) V.t = o.t;
     return V;
   };
   // 参加者側：表示をなめらかに。自分の本人は入力ですぐ動かし、ホストの位置へ少しずつ寄せる
@@ -736,7 +781,7 @@
       if (s.sw) {
         s.sw.t = Math.max(0, s.sw.t - dt);
       } else if (s.recover > 0) s.recover = Math.max(0, s.recover - dt);
-      if (s.pc === myPid && inp) {
+      if (s.pc === myPid && inp && !(s.cu > 0 && !s.nj)) {
         const sp = (s.rd ? TR.kiba.spd : TR.hero.spd) * ACT.SPD * 1.1 * rangedMove(s, inp.atk, s.blk || inp.blk); let mx = inp.mx || 0, my = inp.my || 0; const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }
         s.x += mx * sp * dt; s.y += my * sp * dt; const c = Math.min(1, dt * 4); s.x += (s.tx - s.x) * c; s.y += (s.ty - s.y) * c;
         if (Math.hypot(s.tx - s.x, s.ty - s.y) > 6) { s.x = s.tx; s.y = s.ty; }
@@ -899,6 +944,7 @@
       ctx.fillStyle = u.side === 'B' ? '#ffb4a8' : own && (u.id === selG || selG === 'all') ? '#ffe680' : '#dfe9f5'; ctx.fillText(t, a, c + 2);
     }
     drawGateBars(ctx, b, (x, y) => S(x, y - 1.4));
+    drawEngineLabel(ctx, A, hero, S);
     // 照準
     if (hero && live(hero)) { const [a, c] = S(hero.x + Math.cos(hero.f) * 6, hero.y + Math.sin(hero.f) * 6); ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5; if (hero.wep && (hero.wep.name === ACT.WEP.yumi.name || hero.wep.name === ACT.WEP.teppo.name)) rangedReticle(ctx, a, c, hero);
       else { ctx.beginPath(); ctx.arc(a, c, 5, 0, 7); ctx.stroke(); }
@@ -916,6 +962,23 @@
   // ---- 0.63.0 3D表示のときに画面へ重ねるもの（マウント＆ブレイド2風） ----
   const ON3 = { charge: '突撃', guard: '防御', hold: '待機', retreat: '退却', flank: '回り込み', move: '移動', rout: '潰走', follow: '追従', ai: 'AI任せ' };
   ACT.gunPhase = (s) => s.gunPhase ?? (s.gunCd > 0 ? 1 - s.gunCd / s.gunCycle : 1);
+
+  function drawEngineLabel(ctx, A, hero, project) {
+    const E = A.engine;
+    if (!E || !hero || hero.side !== 'A') return;
+    const [x, y] = project(E.x, E.y);
+    if (x < 0 || y < 0 || x > W || y > H) return;
+    const label = SIM.SIEGE_ENGINES[E.kind].name;
+    ctx.save();
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'center';
+    const width = ctx.measureText(label).width + 12;
+    ctx.fillStyle = 'rgba(0,0,0,.7)';
+    ctx.fillRect(x - width / 2, y - 14, width, 19);
+    ctx.fillStyle = '#ffdd87';
+    ctx.fillText(label, x, y);
+    ctx.restore();
+  }
 
   function draw3dOverlay(ctx, A, b, hero, myPid, sel) {
     const X = R.act3d, S = X.S;
@@ -942,6 +1005,7 @@
         ctx.fillStyle = s.side === 'B' ? '#ffb4a8' : s.pc ? '#ffcf8a' : '#cfe6ff'; ctx.fillText(nm, a, c);
       } }
     drawGateBars(ctx, b, (x, y) => S(x, y, 7.2));
+    drawEngineLabel(ctx, A, hero, (x, y) => S(x, y, A.engine.kind === 'cannon' ? 2.7 : 6));
     // 照準（画面の真ん中）
     const cx = W / 2, cy = H / 2;
     const weapon = hero && live(hero) && hero.wep && hero.wep.name;
