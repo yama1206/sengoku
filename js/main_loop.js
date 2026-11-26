@@ -44,8 +44,17 @@ function frame0(now) {
     if (G.mode === 'host') { G.priv = SIM.privateState(G.world, G.myPid); SIM.drain(G.myPid).forEach(toastMsg); }
     // WASDで直接移動
     const BT = G.priv && G.priv.battle;
-    if (BT && $('battle').classList.contains('hidden')) { SGK.AUDIO.sfx('battleStart'); $('battle').classList.remove('hidden'); openTown(false); openChar(false); selectSettlement(null); battleHtml = ''; }
-    if (!BT && !$('battle').classList.contains('hidden')) { setTimeout(() => { if (performance.now() - resultSfxT > 1500) SGK.AUDIO.sfx('battleEnd'); }, 400); /* 1.6.58 勝ち負けの音が鳴るときは重ねない */ $('battle').classList.add('hidden'); battleHtml = ''; }
+    const inBattle = $('game').classList.contains('inBattle');
+    if (!!BT !== inBattle) {
+      $('game').classList.toggle('inBattle', !!BT);
+      $('battleSummary').classList.toggle('hidden', !BT);
+      battleHtml = '';
+      if (BT) { SGK.AUDIO.sfx('battleStart'); openTown(false); openChar(false); selectSettlement(null); }
+      else {
+        $('battle').classList.add('hidden');
+        setTimeout(() => { if (performance.now() - resultSfxT > 1500) SGK.AUDIO.sfx('battleEnd'); }, 400);
+      }
+    }
     let mx = BT ? 0 : padMove[0] + (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0);
     let my = BT ? 0 : padMove[1] + (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0);
     const m = me(); dirSendAcc += dt;

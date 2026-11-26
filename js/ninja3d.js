@@ -569,7 +569,7 @@
   // 遊びの中身
   // =====================================================================
   let rd = null, cv = null, hud = null, scene = null, cam = null, st = null, cb = null, raf = 0, last = 0;
-  const keys = new Set(), prevK = new Set(), vk = new Set(); let prevPad = {}, look = { dx: 0, dy: 0 }, drag = null, joy = null;
+  const keys = new Set(), prevK = new Set(), vk = new Set(), touchTaps = new Set(); let prevPad = {}, look = { dx: 0, dy: 0 }, drag = null, joy = null;
   const eff = () => { const A = SGK.RENDER && SGK.RENDER.act3d; return A && A.eff ? A.eff() : { sh: 2, pr: Math.min(2, window.devicePixelRatio || 1) }; };
   const isTouch = () => !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
 
@@ -605,7 +605,7 @@
 #nj3 .end h2{margin:0 0 6px;color:#f2c14e;font-size:24px}
 #nj3 .ok{color:#9fe08a}#nj3 .ng{color:#aaa}
 #nj3 .tc{position:absolute;inset:0;pointer-events:none}
-#nj3 .tc button{position:absolute;pointer-events:auto;width:58px;height:58px;border-radius:50%;background:rgba(30,24,18,.55);color:#f4ead0;border:1px solid rgba(242,193,78,.6);font:bold 13px sans-serif}
+#nj3 .tc button{position:absolute;pointer-events:auto;touch-action:none;width:58px;height:58px;border-radius:50%;background:rgba(30,24,18,.55);color:#f4ead0;border:1px solid rgba(242,193,78,.6);font:bold 13px sans-serif}
 #nj3 .joy{position:absolute;width:110px;height:110px;border-radius:50%;border:2px solid rgba(255,255,255,.3);display:none}
 #nj3 .joy i{position:absolute;left:35px;top:35px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.35)}
 </style><div class="tl"><div class="goal"></div><div class="tools"></div></div><div class="eye"><span class="el">気配</span><i><u></u></i></div>
@@ -628,18 +628,41 @@
     const tend = (e) => { for (const t of e.changedTouches) { if (joy && t.identifier === joy.id) { joy = null; hud.querySelector('.joy').style.display = 'none'; } if (drag && t.identifier === drag.id) drag = null; } };
     cv.addEventListener('touchend', tend); cv.addEventListener('touchcancel', tend);
     const tall = (e) => { if (e && e.touches && e.touches.length) return; if (joy) { joy = null; hud.querySelector('.joy').style.display = 'none'; } drag = null; vk.clear(); }; // 2.99.3 指が全部離れたら必ず止める（離しても進み続けることがあった）
-    addEventListener('touchend', tall, true); addEventListener('touchcancel', tall, true); addEventListener('blur', () => tall(null));
+    addEventListener('touchend', tall, true); addEventListener('touchcancel', tall, true); addEventListener('blur', () => { tall(null); touchTaps.clear(); });
     return true;
   }
   function touchUi() {
     const tc = hud.querySelector('.tc'); tc.innerHTML = '';
     if (!isTouch()) return;
-    const bt = [['e', '行動', 18, 150], ['q', '暗殺', 86, 190], ['f', '担ぐ', 18, 220], ['c', 'しゃがむ', 86, 120], ['shift', '走る', 154, 160], ['1', '煙玉', 150, 250], ['2', '撒菱', 86, 260], ['3', '吹矢', 18, 290]];
-    for (const [k, l, r, b] of bt) { const e = document.createElement('button'); e.textContent = l; e.style.right = r + 'px'; e.style.bottom = b + 'px'; e.addEventListener('touchstart', (ev) => { vk.add(k); ev.preventDefault(); ev.stopPropagation(); }, { passive: false }); e.addEventListener('touchend', (ev) => { vk.delete(k); ev.preventDefault(); }); tc.appendChild(e); }
+    const bt = [['e', '行動', 18, 150], ['q', '暗殺', 86, 190], ['f', '担ぐ', 18, 220], ['c', 'しゃがむ', 86, 120], ['shift', '走る', 154, 160], ['t1', '煙玉', 150, 250], ['t2', '撒菱', 86, 260], ['t3', '吹矢', 18, 290]];
+    for (const [k, label, right, bottom] of bt) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      button.style.right = `calc(${right}px + env(safe-area-inset-right))`;
+      button.style.bottom = `calc(${bottom}px + env(safe-area-inset-bottom))`;
+      let pointer = null;
+      button.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0 || pointer !== null) return;
+        pointer = e.pointerId;
+        button.setPointerCapture(pointer);
+        vk.add(k);
+        if (k !== 'shift') touchTaps.add(k);
+      });
+      const release = (e) => {
+        if (e.pointerId !== pointer) return;
+        pointer = null;
+        vk.delete(k);
+      };
+      button.addEventListener('pointerup', release);
+      button.addEventListener('pointercancel', release);
+      button.addEventListener('lostpointercapture', release);
+      tc.appendChild(button);
+    }
   }
 
   function readInput() {
-    const has = (...ks) => ks.some((k) => keys.has(k) || vk.has(k));
+    const has = (...ks) => ks.some((k) => keys.has(k));
     const I = { mx: 0, my: 0, run: false, e: false, q: false, f: false, c: false, t1: false, t2: false, t3: false, quit: false, help: false };
     if (has('a', 'arrowleft', 'KeyA')) I.mx -= 1; if (has('d', 'arrowright', 'KeyD')) I.mx += 1; if (has('w', 'arrowup', 'KeyW')) I.my += 1; if (has('s', 'arrowdown', 'KeyS')) I.my -= 1;
     I.run = has('shift'); I.e = has('e', ' '); I.q = has('q'); I.f = has('f', 'g'); I.c = has('c', 'control'); I.t1 = has('1', 'Digit1'); I.t2 = has('2', 'Digit2'); I.t3 = has('3', 'Digit3'); I.quit = has('escape', 'p'); I.help = has('h');
@@ -654,7 +677,11 @@
     const l = Math.hypot(I.mx, I.my); if (l > 1) { I.mx /= l; I.my /= l; }
     // 押した瞬間
     const now = new Set(Object.keys(I).filter((k) => I[k] === true)), was = new Set(prevK);
-    I.tap = (k) => now.has(k) && !was.has(k);
+    const taps = new Set(touchTaps);
+    touchTaps.clear();
+    I.tap = (k) => taps.has(k) || (now.has(k) && !was.has(k));
+    I.e = I.e || vk.has('e');
+    I.run = I.run || vk.has('shift');
     prevK.clear(); for (const k of now) prevK.add(k);
     return I;
   }
@@ -662,7 +689,7 @@
   // ---- 始める ----
   N3.start = (opt, done) => {
     if (!N3.can() || !initRenderer()) { N3.failed = true; if (opt.no2d) return done({ ok: null, no3d: true }); return SGK.NINJA.start(opt.q.k, opt.d, done); } // 2.109.0 no2d＝盗みは2Dの代わりをせず、3Dが使えなければ取りやめる
-    cb = done; CO = opt.co ? { lead: opt.co.leader === opt.co.me, me: opt.co.me, leader: opt.co.leader, members: opt.co.members || [], names: opt.co.names || {}, send: opt.co.send, ghosts: {}, snapT: 0, poseT: 0, rx: performance.now() + 12000, t0: performance.now(), ready: false, snap: null, endMsg: null, pv: opt.co.pvp ? opt.co.pvp.role : null, pvFoe: opt.co.pvp ? opt.co.pvp.foe : null } : null; N3.wantNight = !!(opt.d && opt.d.night); N3.on = true; keys.clear(); vk.clear(); prevK.clear(); prevPad = { 9: true }; look = { dx: 0, dy: 0 };
+    cb = done; CO = opt.co ? { lead: opt.co.leader === opt.co.me, me: opt.co.me, leader: opt.co.leader, members: opt.co.members || [], names: opt.co.names || {}, send: opt.co.send, ghosts: {}, snapT: 0, poseT: 0, rx: performance.now() + 12000, t0: performance.now(), ready: false, snap: null, endMsg: null, pv: opt.co.pvp ? opt.co.pvp.role : null, pvFoe: opt.co.pvp ? opt.co.pvp.foe : null } : null; N3.wantNight = !!(opt.d && opt.d.night); N3.on = true; keys.clear(); vk.clear(); touchTaps.clear(); prevK.clear(); prevPad = { 9: true }; look = { dx: 0, dy: 0 };
     cv.style.display = 'block'; hud.style.display = 'block'; hud.querySelector('.load').style.display = 'flex'; hud.querySelector('.end').style.display = 'none';
     loadModels().then(() => { if (N3.on) setup(opt); }).catch((e) => { console.warn('忍びの3Dを読めませんでした', e); N3.on = false; cv.style.display = 'none'; hud.style.display = 'none'; N3.failed = true; if (opt.no2d) return done({ ok: null, no3d: true }); SGK.NINJA.start(opt.q.k, opt.d, done); });
   };
@@ -725,7 +752,7 @@
       t.mk = mkTarget(); scene.add(t.mk);
     }
     S.exitMk = mkTarget(0x9fe08a); S.exitMk.visible = false; scene.add(S.exitMk);
-    S.reticle = mkRing(); S.reticle.visible = false; scene.add(S.reticle);
+    S.reticle = mkMark(0xff6655); S.reticle.renderOrder = 12; scene.add(S.reticle);
     if (CO) { // 2.41.0 仲間の姿を作り、スタートの位置を少しずつずらす
       const ids = CO.members, idx = Math.max(0, ids.indexOf(CO.me)); if (!CO.pv) P.x += (idx - (ids.length - 1) / 2) * 1.6;
       ids.forEach((pid, i) => { if (pid === CO.me) return; const foe = CO.pvFoe === pid; const ch = mkChar('t1', { tint: foe ? 0x4a1414 : [0x1c2233, 0x33201c, 0x1c3320][i % 3], hood: true, weps: ['katana'] }); attach(ch, 'katana', false); scene.add(ch.root); CO.ghosts[pid] = { id: pid, pvGhost: foe, name: CO.names[pid] || (foe ? '相手' : '仲間'), ch, x: P.x, y: 0, z: P.z, yaw: Math.PI, dx: P.x, dy: 0, dz: P.z, dyaw: Math.PI, crouch: false, run: false, swim: false, moving: false, carry: null, work: 0, climb: false, hide: false, crouchK: 0, lock: null, gone: false, got: false, rx: performance.now() }; });
@@ -744,17 +771,25 @@
   let TX = null;
   function texs() {
     if (TX) return TX;
-    const mark = (s, col) => spriteTex((g, w, h) => { g.font = 'bold 54px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 8; g.strokeStyle = 'rgba(0,0,0,.8)'; g.strokeText(s, w / 2, h / 2 + 2); g.fillStyle = col; g.fillText(s, w / 2, h / 2 + 2); }, 64, 64);
-    TX = { q: mark('？', '#ffd84a'), x: mark('！', '#ff4a3a'), z: mark('z', '#cfe3ff'),
+    const triangle = spriteTex((g) => {
+      g.beginPath(); g.moveTo(6, 10); g.lineTo(58, 10); g.lineTo(32, 49); g.closePath();
+      g.strokeStyle = '#231a13'; g.lineWidth = 6; g.stroke();
+      g.fillStyle = '#fff'; g.fill();
+    }, 64, 64);
+    TX = { triangle,
       tg: spriteTex((g, w, h) => { g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.moveTo(w / 2, 6); g.lineTo(w - 10, h / 2 - 6); g.lineTo(w / 2, h - 18); g.lineTo(10, h / 2 - 6); g.closePath(); g.fill(); g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(w / 2, 12); g.lineTo(w - 18, h / 2 - 6); g.lineTo(w / 2, h - 26); g.lineTo(18, h / 2 - 6); g.closePath(); g.fill(); }, 64, 72),
-      ring: spriteTex((g, w, h) => { g.strokeStyle = '#ff6a50'; g.lineWidth = 5; g.beginPath(); g.arc(w / 2, h / 2, w / 2 - 6, 0, 7); g.stroke(); g.beginPath(); g.moveTo(w / 2, 4); g.lineTo(w / 2, 18); g.moveTo(w / 2, h - 4); g.lineTo(w / 2, h - 18); g.moveTo(4, h / 2); g.lineTo(18, h / 2); g.moveTo(w - 4, h / 2); g.lineTo(w - 18, h / 2); g.stroke(); }, 64, 64),
       smoke: spriteTex((g, w, h) => { const gr = g.createRadialGradient(w / 2, h / 2, 2, w / 2, h / 2, w / 2); gr.addColorStop(0, 'rgba(210,210,205,.95)'); gr.addColorStop(0.6, 'rgba(180,180,175,.55)'); gr.addColorStop(1, 'rgba(160,160,155,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }, 64, 64),
       fire: spriteTex((g, w, h) => { const gr = g.createRadialGradient(w / 2, h * 0.65, 2, w / 2, h * 0.6, w / 2); gr.addColorStop(0, 'rgba(255,240,160,1)'); gr.addColorStop(0.4, 'rgba(255,140,40,.85)'); gr.addColorStop(1, 'rgba(200,40,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }, 64, 64) };
     return TX;
   }
-  const mkMark = () => { const s = new T.Sprite(new T.SpriteMaterial({ map: texs().q, depthTest: false, transparent: true })); s.scale.set(0.6, 0.6, 1); s.visible = false; s.renderOrder = 10; return s; };
+  const mkMark = (color = 0xff6655) => {
+    const s = new T.Sprite(new T.SpriteMaterial({ map: texs().triangle, color, depthTest: false, transparent: true, sizeAttenuation: false }));
+    s.scale.set(0.021, 0.021, 1);
+    s.visible = false;
+    s.renderOrder = 10;
+    return s;
+  };
   const mkTarget = (col) => { const s = new T.Sprite(new T.SpriteMaterial({ map: texs().tg, color: col || 0xf2c14e, depthTest: false, transparent: true, sizeAttenuation: false })); s.scale.set(0.035, 0.04, 1); s.renderOrder = 11; return s; };
-  const mkRing = () => { const s = new T.Sprite(new T.SpriteMaterial({ map: texs().ring, depthTest: false, transparent: true, sizeAttenuation: false })); s.scale.set(0.05, 0.05, 1); s.renderOrder = 12; return s; };
   function say(m, t) { st.msg = m; st.msgT = t || 2.2; }
   function resize() { if (!rd) return; const w = innerWidth, h = innerHeight; rd.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
   addEventListener('resize', () => { if (N3.on && cam) resize(); });
@@ -772,7 +807,7 @@
     CO = null;
     N3.on = false; cancelAnimationFrame(raf);
     if (document.pointerLockElement === cv) try { document.exitPointerLock(); } catch (e) { /* 無視 */ }
-    cv.style.display = 'none'; hud.style.display = 'none'; keys.clear(); vk.clear();
+    cv.style.display = 'none'; hud.style.display = 'none'; keys.clear(); vk.clear(); touchTaps.clear();
     if (scene) scene.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.isSprite && o.material) o.material.dispose(); });
     scene = null; st = null; LV = null;
     const f = cb; cb = null; if (f) f(r);
@@ -1024,7 +1059,7 @@
     for (const q of S.ps) { const ff = seeFactor(g, q.x, q.y + (q.swim ? 0.25 : q.crouch ? 0.75 : 1.3), q.z, q); if (ff > f) { f = ff; vp = q; } }
     if (f > 0 && !N3.god) { g.meter += dt * (0.4 + 2.3 * f * f) * (S.alertAll ? 1.5 : 1); g.seeT = 0; if (g.meter >= 0.28) { toSus(g, vp.x, vp.z); S.unseen = false; } }
     else { g.seeT += dt; if (g.seeT > 1.2) g.meter = Math.max(0, g.meter - dt * 0.2); }
-    if (g.meter >= 1) { S.end = 'ng'; S.endT = 1.8; g.spr.material.map = texs().x; g.spr.visible = true; g.yaw = Math.atan2(vp.x - g.x, vp.z - g.z); play(g.ch, 'spear', { once: true, restart: true }); say(vp === P ? '見つかった！' : `見つかった！（${vp.name || '仲間'}）`, 2); return; }
+    if (g.meter >= 1) { S.end = 'ng'; S.endT = 1.8; g.spr.material.color.setHex(0xff6655); g.spr.visible = true; g.yaw = Math.atan2(vp.x - g.x, vp.z - g.z); play(g.ch, 'spear', { once: true, restart: true }); say(vp === P ? '見つかった！' : `見つかった！（${vp.name || '仲間'}）`, 2); return; }
     // 倒れた仲間に気づく
     if (g.state === 'patrol' || g.state === 'post' || g.state === 'back') for (const b of S.guards) {
       if (!b.down || b.carried || b.hidden || b.found || b === g) continue;
@@ -1072,7 +1107,7 @@
     tick(ch, dt, { look: ch.cur === 'look_around' ? 0 : g.look * 0.6, foot: g.stun > 0 });
     const show = g.meter > 0.05 && !st.end;
     g.spr.visible = show || (st.end === 'ng' && g.meter >= 1);
-    if (show) { g.spr.material.map = g.meter > 0.75 ? texs().x : texs().q; const k = 0.35 + g.meter * 0.5; g.spr.scale.set(k, k, 1); }
+    if (show) g.spr.material.color.setHex(g.meter > 0.75 ? 0xff6655 : 0xffd84a);
     g.spr.position.set(g.x, g.y + 2.3, g.z);
   }
   function stepFolk(f, dt) {
@@ -1098,7 +1133,6 @@
   function setupDef(o, R) {
     const S = st, P = S.p, L = LV, tg = L.targets[0], n = clamp(o.n || 1, 1, 3);
     S.def = { n, foes: [], alarm: null, seen: null, seenT: 0, lost: false, tg };
-    S.def.mk = new T.Sprite(new T.SpriteMaterial({ map: texs().q, depthTest: false, transparent: true })); S.def.mk.scale.set(0.9, 0.9, 1); S.def.mk.renderOrder = 10; S.def.mk.visible = false; S.scene.add(S.def.mk);
     if (o.pvp) { S.def.pvp = true; S.def.stepped = new Set(); say(`${CO ? `「${CO.names[CO.pvFoe] || '相手'}」` : '曲者'}が忍び込んできた！ 見つけて、後ろから当て身で捕らえよ`, 5); return; } // 2.57.1 人の曲者（相手の姿は仲間と同じしくみで届く）
     const rg = { x0: L.OB.x0 + 3, z0: L.OB.z0 + 3, x1: L.OB.x1 - 3, z1: L.OB.z1 - 3 };
     for (let i = 0; i < n; i++) {
@@ -1206,7 +1240,7 @@
     else if (e.moving) { if (e.state === 'flee') play(ch, 'run', { speed: 1.05 }); else { play(ch, crC ? 'crouch_walk' : 'walk', { speed: crC ? 1.1 : 0.7 }); if (!crC) pz = { crouch: 1 }; } }
     else { play(ch, crC ? 'crouch_idle' : 'idle'); if (!crC) pz = { crouch: 1 }; if (e.look) pz = Object.assign(pz || {}, { look: e.look * 0.6 }); }
     tick(ch, dt, pz);
-    e.spr.visible = e.revealT > 0 && !st.end; if (e.spr.visible) { e.spr.material.map = texs().x; e.spr.scale.set(0.7, 0.7, 1); e.spr.position.set(e.x, e.y + 2.2, e.z); }
+    e.spr.visible = e.revealT > 0 && !st.end; if (e.spr.visible) { e.spr.position.set(e.x, e.y + 2.2, e.z); }
   }
   function defResult() {
     const D = st.def;
@@ -1425,7 +1459,7 @@
     const bob = Math.sin(S.t * 3) * 0.12;
     for (const t of LV.targets) if (t.mk) { t.mk.visible = S.def ? !!S.def.alarm && !S.end : !t.done && !S.end;t.mk.position.set(t.x, (t.folk ? 0 : t.y) + 2.4 + bob, t.z); }
     S.exitMk.visible = S.done >= S.need && !S.end; S.exitMk.position.set(LV.CX, 3 + bob, 137);
-    const dg = !P.lock && (S.tools.fukiya - S.used.fukiya) > 0 && !S.end ? dartTarget() : null; S.reticle.visible = !!dg; if (dg) S.reticle.position.set(dg.x, dg.y + 1.4, dg.z);
+    const dg = !P.lock && (S.tools.fukiya - S.used.fukiya) > 0 && !S.end ? dartTarget() : null; S.reticle.visible = !!dg; if (dg) S.reticle.position.set(dg.x, dg.y + 2.3, dg.z);
     if (CO) for (const gh of Object.values(CO.ghosts)) renderGhost(gh, dt);
     hudUpdate();
     rd.render(scene, cam);

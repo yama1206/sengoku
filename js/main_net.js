@@ -253,6 +253,7 @@ function backToTitle() {
     cloudSave().finally(() => { if (net) net.unboard(); }); // 保存が終わってから掲示板を消す（次の人が古い世界を読まないように）
   } else if (G.net) G.net.close();
   Object.assign(G, { mode: 'title', world: null, net: null, dyn: null, view: null, centered: false, roomCode: null, mine: null, autoWait: null, pendingMine: null });
+  $('game').classList.remove('inBattle'); $('battleSummary').classList.add('hidden');
   $('gameMenu').classList.add('hidden'); $('info').classList.add('hidden'); $('town').classList.add('hidden'); $('battle').classList.add('hidden'); $('char').classList.add('hidden'); G.priv = null;
   contBtn();
   show('title');

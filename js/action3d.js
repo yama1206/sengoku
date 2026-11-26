@@ -780,7 +780,7 @@
     const segs = [];
     if (NW) for (const sg of NW.segs) { const n = Math.max(1, Math.round(sg.len / 4)), sl = sg.len / n, ro = -Math.atan2(sg.uy, sg.ux); for (let i = 0; i < n; i++) { const t = (i + 0.5) * sl; segs.push([sg.x1 + sg.ux * t, sg.y1 + sg.uy * t, ro, sl, sg.st]); } }
     { /* 1.6.38 塀（2.12.0 造りは3通り：i 石垣2m＋土塀1.8m＋瓦・d 土塁＋土塀・k 木の柵）。土塀には狭間（四角い窓）を並べる */
-      const KIND = { i: { bh: 2.0, bw: 1.6, bc: 0x7d786c, wall: 1 }, d: { bh: 1.5, bw: 3.4, bc: 0x5f6440, wall: 1 }, k: { bh: 0, bw: 0, bc: 0, wall: 0 } };
+      const KIND = { i: { bh: 2.0, bw: 1.6, bc: 0x7d786c, wall: 1 }, d: { bh: 1.5, bw: 3.4, bc: 0x786550, wall: 1 }, k: { bh: 0, bw: 0, bc: 0, wall: 0 } };
       for (const kd of ['i', 'd', 'k']) {
         const L = segs.filter((q) => (q[4] || 'i') === kd); if (!L.length) continue; const K = KIND[kd], N = L.length, ms = [], o3 = new T.Object3D();
         const mk = (g, c, n) => { const m = new T.InstancedMesh(g, new T.MeshLambertMaterial({ color: c }), n); ms.push(m); return m; };
@@ -798,26 +798,6 @@
           });
         }
         for (const m of ms) { m.castShadow = true; m.receiveShadow = true; scene.add(m); trees.push(m); }
-      }
-    }
-    { /* 2.69.0 忍びが登れる壁：蔦と縄をかけて目印にする（見た目。登れるのは忍びだけ） */
-      const CL = NW ? NW.segs.filter((q) => q.cl) : [];
-      if (CL.length) {
-        const BH = { i: 2.0, d: 1.5 }, BWD = { i: 1.6, d: 3.4 }, o3 = new T.Object3D(), ms = [];
-        const mk = (g, c, n) => { const m = new T.InstancedMesh(g, new T.MeshLambertMaterial({ color: c }), n); ms.push(m); return m; };
-        const lo = mk(new T.BoxGeometry(1, 1, 0.08), 0x3f6a2e, CL.length * 2), up = mk(new T.BoxGeometry(1, 1.8, 0.08), 0x4a7a35, CL.length * 2), rp = mk(new T.BoxGeometry(0.1, 1, 0.1), 0x8a6a3a, CL.length * 6);
-        let ki = 0, ri = 0;
-        CL.forEach((sg) => {
-          const bh = BH[sg.st] || 2.0, bw = BWD[sg.st] || 1.6, ro = -Math.atan2(sg.uy, sg.ux), mx = (sg.x1 + sg.x2) / 2, my = (sg.y1 + sg.y2) / 2, g = hgt(mx, my);
-          [1, -1].forEach((sd) => {
-            const px = -sg.uy * sd, py = sg.ux * sd;
-            o3.rotation.set(0, ro, 0); o3.scale.set(sg.len * 0.96, bh, 1); o3.position.set(mx + px * (bw / 2 + 0.05), g + bh / 2 - 0.1, my + py * (bw / 2 + 0.05)); o3.updateMatrix(); lo.setMatrixAt(ki, o3.matrix);
-            o3.scale.set(sg.len * 0.96, 1, 1); o3.position.set(mx + px * 0.3, g + bh + 0.8, my + py * 0.3); o3.updateMatrix(); up.setMatrixAt(ki, o3.matrix); ki++;
-            for (const t of [-0.3, 0, 0.3]) { o3.rotation.set(0, ro, 0); o3.scale.set(1, bh + 1.8, 1); o3.position.set(mx + sg.ux * sg.len * t + px * (bw / 2 + 0.09), g + (bh + 1.8) / 2 - 0.1, my + sg.uy * sg.len * t + py * (bw / 2 + 0.09)); o3.updateMatrix(); rp.setMatrixAt(ri++, o3.matrix); }
-          });
-        });
-        lo.count = up.count = ki; rp.count = ri;
-        for (const m of ms) { m.castShadow = true; scene.add(m); trees.push(m); }
       }
     }
     /* 1.6.38 門：櫓門（門の上に櫓）と扉。扉は破られたら消える。外の塀の角には隅櫓 */

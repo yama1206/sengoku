@@ -1,7 +1,7 @@
 // 戦闘の操作パネル・捕らえた武将・ゲーム内メニュー・設定
 // 2.57.2 main.js を画面ごとに分けた。main*.js は外側の関数で包まず、名前（G・$・toast など）を大域で分け合う。index.html の順に読み込むこと
 // ---------- 戦闘の操作パネル ----------
-let battleHtml = '';
+let battleHtml = '', battleSummaryKey = '';
 // 0.56.0 アクション戦闘（試作）：1人で遊んでいるホストだけ
 const soloHost = () => G.mode === 'host' && (!G.net || !G.net.pids().length);
 const actB = () => { // 0.62.0 参加者は、ホストから届いた戦場の様子（G.actView）を使う
@@ -72,13 +72,30 @@ function actMoveTo(D, E) {
 const ORDN = { charge: '突撃', guard: '防御', hold: '待機', retreat: '後退', flank: '回り込み', move: '移動中', rout: '潰走中', follow: '追従' };
 function renderBattle(bt) {
   const TR = SIM.TROOPS;
-  const sum = (side) => bt.units.filter((u) => u[1] === side).reduce((a, u) => a + (u[3] === 'hero' ? 1 : u[4]), 0);
-  $('battleTitle').textContent = `${bt.foe}との戦い${bt.ck ? '（' + SIM.ckName(bt.ck) + '）' : ''}`;
-  $('battleInfo').textContent = `味方 ${sum('A')}　敵 ${sum('B')}${bt.routed ? '（敗走中）' : ''}　${bt.t}秒`;
+  const totals = bt.totals || { A: { n: 0, power: 0 }, B: { n: 0, power: 0 } };
+  // 旧版のホストからは、部隊一覧に載る人数と兵種を使う。
+  if (!bt.totals) for (const [, side, , type, n, , , order, , , , hp] of bt.units) {
+    const troop = TR[type], count = type === 'hero' ? 1 : n;
+    totals[side].n += count;
+    if (order !== 'rout' && order !== 'retreat') totals[side].power += (hp ?? count * troop.hp) * troop.atk;
+  }
+  const allies = totals.A, enemies = totals.B;
+  const combined = allies.power + enemies.power;
+  const share = combined ? Math.round(100 * allies.power / combined) : 50;
+  const summaryKey = `${allies.n}:${enemies.n}:${share}`;
+  if (summaryKey !== battleSummaryKey) {
+    battleSummaryKey = summaryKey;
+    $('battleAllies').textContent = `味方 ${allies.n}人`;
+    $('battleEnemies').textContent = `敵 ${enemies.n}人`;
+    const bar = $('battlePower');
+    bar.firstElementChild.style.width = share + '%';
+    bar.setAttribute('aria-valuenow', share);
+    bar.setAttribute('aria-valuetext', `味方 ${share}% ／ 敵 ${100 - share}%`);
+    bar.title = `推定戦力　味方 ${share}% ／ 敵 ${100 - share}%`;
+  }
   let html = ''; // 部隊の一覧は出さない（地図の上でクリックして選ぶ）
   if (bt.plan) { // 2.22.0 軍議：戦は止まっている。隊を置き直して、全員が準備完了で始まる
     const PL = bt.plan, nm = (x) => (bt.names && bt.names[x]) || '仲間', many = PL.ready.length + PL.wait.length > 1;
-    $('battleTitle').textContent = `軍議　${bt.foe}との戦い${bt.ck ? '（' + SIM.ckName(bt.ck) + '）' : ''}`;
     html += `<div class="bu"><span class="nm muted">隊をクリックして選び、置きたい場所をクリック（初めの場所から${PL.reach}mまで）。右ドラッグで向き。突撃・防御・待機で始めの構えも決められます</span></div>`;
     if (many) html += `<div class="bu"><span class="nm">準備完了：${PL.ready.map(nm).join('・') || 'まだ誰も'}${PL.wait.length ? `<span class="muted">　待っている：${PL.wait.map(nm).join('・')}</span>` : ''}${PL.left != null ? `<span class="muted">（あと${PL.left}秒で始まります）</span>` : ''}</span></div>`;
     html += `<div class="row" style="margin-top:4px"><button id="bReady" class="main" data-bact="planReady">${PL.me ? '準備完了を取り消す' : '準備完了（合戦を始める）'}</button></div>`;
@@ -86,15 +103,13 @@ function renderBattle(bt) {
   // 0.46.0 タップでも指図できるように：選んだ隊と全軍への指図ボタン
   const su = bt.units.find((u) => u[0] === G.selUnit && u[2] === G.myPid);
   const AB = actB(), ob = (unit) => ['charge', 'guard', 'hold', ...(AB ? ['follow'] : [])].map((o) => `<button id="bo-${unit}-${o}" data-unit="${unit}" data-order="${o}">${ORDN[o]}</button>`).join('');
-  if (su && su[3] !== 'hero') html += `<div class="bu"><span class="nm">${su[15] ? '本人＋' : ''}${TR[su[3]].short || TR[su[3]].name} ${su[4]}人<span class="muted">［${ORDN[su[7]] || ''}］</span></span>${ob(su[0])}</div>`;
+  if ((!AB || bt.plan) && su && su[3] !== 'hero') html += `<div class="bu"><span class="nm">${su[15] ? '本人＋' : ''}${TR[su[3]].short || TR[su[3]].name} ${su[4]}人<span class="muted">［${ORDN[su[7]] || ''}］</span></span>${ob(su[0])}</div>`;
   else if (!AB) html += `<div class="bu"><span class="nm muted">隊をタップして選び、地面をタップで移動</span></div>`;
-  if (!AB || G.selUnit === 'all') html += `<div class="bu"><span class="nm">全軍</span>${ob('all')}</div>`; // 0.61.0 自分で戦うときは、隊を選んだときだけ指図が出る
-  else if (!su) html += `<div class="bu"><span class="nm muted">隊を選ぶと指図できます（カーソルを隊に合わせてA／LB・RB／数字キー）</span></div>`;
-  if (bt.lead) html += `<div class="bu"><span class="nm">大将：${bt.lead === 2 ? '武将の隊も指図している' : '自分の隊だけ指図している'}</span><button id="bLead" data-lead="${bt.lead === 2 ? 0 : 1}">${bt.lead === 2 ? '自分の隊だけにする' : '武将の隊も指図する'}</button></div>`; // 0.50.0
+  if (!AB || (bt.plan && G.selUnit === 'all')) html += `<div class="bu"><span class="nm">全軍</span>${ob('all')}</div>`;
   if (!AB && bt.canAct) html += `<div class="row" style="margin-top:4px"><button id="bAct" data-act="1">自分で戦う</button></div>`;
   else if (!AB && bt.act) html += `<div class="bu"><span class="nm muted">戦場の様子を受け取っています…</span></div>`;
   G.btFoe = bt.foe; G.btT = performance.now(); // 2.7.1 スキップ・退却はメニューに移した
-  if (false) html += `<div class="row" style="margin-top:4px"><button id="bAuto" data-bact="battleAuto">自動で決着（スキップ）</button><button id="bFlee" data-bact="battleFlee">退却する（兵の3割を失う${bt.foe === '野盗' ? '・所持金の15%を奪われる' : ''}）</button></div>`;
+  $('battle').classList.toggle('hidden', !html);
   if (html !== battleHtml) { battleHtml = html; $('battleBody').innerHTML = html; G.bpick = null; setFocus($('battle'), null); }
 }
 $('battleBody').addEventListener('click', (e) => {
@@ -103,7 +118,6 @@ $('battleBody').addEventListener('click', (e) => {
   else if (b.dataset.sel) { G.selUnit = +b.dataset.sel; battleHtml = ''; }
   else if (b.dataset.order) shout(actB(), b.dataset.unit === 'all' ? 'all' : +b.dataset.unit, b.dataset.order), command({ type: 'order', unit: b.dataset.unit, order: b.dataset.order });
   else if (b.dataset.bact) command({ type: b.dataset.bact });
-  else if (b.dataset.lead) command({ type: 'leadAll', on: b.dataset.lead === '1' });
 });
 
 // ---------- 捕らえた武将（1.6.82：登用か身代金、逃がすこともできる） ----------
@@ -184,6 +198,10 @@ function toggleMenu(open) {
   const m = $('gameMenu'); const o = open ?? m.classList.contains('hidden');
   { const inB = performance.now() - (G.btT || 0) < 1500; $('mBAuto').classList.toggle('hidden', !inB); $('mBFlee').classList.toggle('hidden', !inB);
     $('mBFlee').textContent = `合戦：退却する（兵の3割を失う${G.btFoe === '野盗' ? '・所持金の15%を奪われる' : ''}）`; }
+  const bt = G.priv && G.priv.battle;
+  $('mBattleHelp').classList.toggle('hidden', !bt);
+  $('mBattleLead').classList.toggle('hidden', !bt || !bt.lead);
+  if (bt && bt.lead) $('mBattleLead').textContent = bt.lead === 2 ? '自分の隊だけ指図する' : '武将の隊も指図する';
   if (o !== !m.classList.contains('hidden')) SGK.AUDIO.sfx(o ? 'open' : 'close');
   m.classList.toggle('hidden', !o); $('mMain').classList.remove('hidden'); $('mSet').classList.add('hidden'); $('mSub').classList.add('hidden');
   if (o) setFocus(m, currentFocus(m));
@@ -217,7 +235,15 @@ function setCtrlTab(id) { [['stMap', 'spMap'], ['stBattle', 'spBattle']].forEach
 ['stSound', 'stVideo', 'stCtrl'].forEach((id) => ($(id).onclick = () => setSetTab(id)));
 ['stMap', 'stBattle'].forEach((id) => ($(id).onclick = () => setCtrlTab(id)));
 setCtrlTab('stMap');
-$('mSettings').onclick = () => { act3dLbl(); $('mMain').classList.add('hidden'); $('mSet').classList.remove('hidden'); setSetTab(G.priv && G.priv.battle ? 'stBattle' : 'stMap'); setFocus($('gameMenu'), $('stCtrl')); };
+function openSettings(tab) { act3dLbl(); $('mMain').classList.add('hidden'); $('mSet').classList.remove('hidden'); setSetTab(tab); setFocus($('gameMenu'), $('stCtrl')); }
+$('mSettings').onclick = () => openSettings(G.priv && G.priv.battle ? 'stBattle' : 'stMap');
+$('mBattleHelp').onclick = () => openSettings('stBattle');
+$('mBattleLead').onclick = () => {
+  const bt = G.priv && G.priv.battle;
+  if (!bt || !bt.lead) return;
+  command({ type: 'leadAll', on: bt.lead === 1 });
+  toggleMenu(false);
+};
 $('stBack').onclick = () => (G.mode === 'title' ? titleBack() : menuBack());
 // 0.69.0 タイトル画面からも設定を開く（ゲーム内メニューの設定画面をタイトルへ移して使う）
 $('btnSettings').onclick = () => { $('title').insertBefore($('mSet'), $('titleMsg')); $('mSet').classList.remove('hidden'); $('titleMenu').classList.add('hidden'); setSetTab('stSound'); act3dLbl(); setFocus($('mSet'), $('stSound')); };

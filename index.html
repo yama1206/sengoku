@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="3.11.3">
+<meta name="sgk-ver" content="3.12.0">
 <title>天下往来</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -50,7 +50,19 @@
   .trade { margin-top:6px; padding-top:5px; border-top:1px solid #4a3d27; font-size:13px; line-height:1.9; } .trade button { padding:3px 8px; font-size:12px; margin-right:4px; }
   #speedBox { position:absolute; right:10px; bottom:10px; gap:4px; align-items:center; padding:5px 7px; font-size:13px; }
   #speedBox button { padding:5px 10px; font-size:13px; }
-  #battle:not(.hidden) ~ #speedBox { display:none; }
+  #game.inBattle #hudL, #game.inBattle #hudR button:not(#menuBtn), #game.inBattle #speedBox { display:none; }
+  #game.inBattle:has(#gameMenu:not(.hidden)) #menuBtn { visibility:hidden; }
+  #game.inBattle #menuBtn { top:max(10px, env(safe-area-inset-top)); right:max(10px, env(safe-area-inset-right)); left:auto; bottom:auto; min-height:44px; }
+  #battleSummary { top:max(10px, env(safe-area-inset-top)); left:50%; transform:translateX(-50%); width:min(280px, calc(100% - 220px)); padding:6px 10px; pointer-events:none; }
+  #battleCounts { display:flex; justify-content:space-between; gap:8px; font-size:14px; font-variant-numeric:tabular-nums; }
+  #battleCounts span { white-space:nowrap; }
+  #battleAllies { color:#b7dcff; }
+  #battleEnemies { color:#ffb4a8; }
+  #battlePower { height:7px; margin-top:4px; border-radius:4px; overflow:hidden; background:#b95348; }
+  #battlePower span { display:block; width:50%; height:100%; background:#478fcd; }
+  @media (max-width:560px) {
+    #battleSummary { left:max(10px, env(safe-area-inset-left)); right:calc(max(10px, env(safe-area-inset-right)) + 108px); transform:none; width:auto; max-width:280px; }
+  }
   #roomInfo { text-align:center; font-size:15px; padding:6px; border:1px solid var(--line); border-radius:6px; line-height:1.6; }
   #roomInfo b { color:var(--gold); font-size:20px; letter-spacing:.15em; }
   #hudR { top:10px; right:10px; display:flex; flex-direction:column; align-items:flex-end; gap:6px; font-size:13px; }
@@ -135,8 +147,6 @@
   .bar { height:5px; background:#3a3020; border-radius:3px; margin-top:3px; } .bar i { display:block; height:100%; background:var(--gold); border-radius:3px; }
   .perk.have { border-color:var(--gold); }
   #battle { bottom:10px; left:50%; transform:translateX(-50%); width:auto; max-width:98vw; padding:6px 10px; }
-  #battle .bh { display:flex; justify-content:space-between; font-size:14px; margin-bottom:6px; }
-  #battle .bh b { font-family:"Hiragino Mincho ProN","Yu Mincho",serif; color:var(--gold); font-size:17px; }
   #battle .bu { display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:13px; }
   #battle .bu .nm { flex:1; }
   #battle button { padding:5px 9px; font-size:13px; }
@@ -248,7 +258,8 @@
     <div class="row tabs"><button id="ctab-eq" data-ctab="eq">装備</button><button id="ctab-inv" data-ctab="inv">物資</button><button id="ctab-skill" data-ctab="skill">技能</button><button id="ctab-stat" data-ctab="stat">能力・技能</button><button id="ctab-perk" data-ctab="perk">特技</button><button id="ctab-army" data-ctab="army">部隊・昇格</button><button id="ctab-rank" data-ctab="rank">身分</button><button id="ctab-pol" data-ctab="pol">政策</button><button id="ctab-mon" data-ctab="mon">家紋</button><button id="ctab-hyo" data-ctab="hyo" class="hidden">評定</button></div>
     <div id="charBody"></div>
   </div>
-  <div class="hud hidden" id="battle"><div class="bh"><b id="battleTitle"></b><span id="battleInfo"></span></div><div id="battleBody"></div></div>
+  <div class="hud hidden" id="battleSummary"><div id="battleCounts"><span id="battleAllies"></span><span id="battleEnemies"></span></div><div id="battlePower" role="meter" aria-label="味方の戦力割合" aria-valuemin="0" aria-valuemax="100"><span></span></div></div>
+  <div class="hud hidden" id="battle"><div id="battleBody"></div></div>
   <div class="hud row hostOnly" id="speedBox"><span class="muted">時間</span><button data-speed="0">停止</button><button data-speed="1">×1</button><button data-speed="2">×2</button><button data-speed="4">×4</button><button data-speed="8">×8</button></div>
   <div id="gameMenu" class="hidden">
     <div class="menu hidden" id="mSet">
@@ -309,6 +320,8 @@
       <button id="mClose">ゲームに戻る</button>
       <button id="mBAuto" class="hidden">合戦：自動で決着（スキップ）</button>
       <button id="mBFlee" class="hidden">合戦：退却する</button>
+      <button id="mBattleHelp" class="hidden">戦闘の操作説明</button>
+      <button id="mBattleLead" class="hidden"></button>
       <button id="mSettings">設定（音・操作説明）</button>
       <button id="mChar">人物・部隊</button>
       <button id="mZukan">兵士図鑑</button>

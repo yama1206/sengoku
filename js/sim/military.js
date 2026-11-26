@@ -683,7 +683,14 @@
     if (r.here) { const s = SIM.settlement(w, r.here.id); r.here.recruit = Object.keys(SIM.poolOf(s)).map((k) => [k, Math.floor(s.pool[k] || 0), SIM.hireMul(s, k)]); r.here.chiho = SIM.chihoOf ? SIM.chihoOf(s) : null; }
     const b = p.battle && w.battles[p.battle];
     if (b && b.plan === undefined) planBegin(w, b); // 2.22.0 できたばかりの戦は、まず軍議
-    r.battle = b ? { id: b.id, plan: b.plan ? { me: b.plan.ready[pid] ? 1 : 0, ready: b.pids.filter((x) => b.plan.ready[x]), wait: b.pids.filter((x) => !b.plan.ready[x]), left: b.pids.length > 1 ? Math.max(0, Math.ceil(PLAN.max - b.plan.t)) : null, reach: PLAN.reach } : null, foe: b.foe, t: Math.floor(b.t), routed: b.routed, act: b.act ? 1 : 0, canAct: SIM.actCan && SIM.actCan(w, b) ? 1 : 0, lead: b.lead === pid ? (b.leadAll ? 2 : 1) : 0,
+    const totals = { A: { n: 0, power: 0 }, B: { n: 0, power: 0 } };
+    if (b) for (const u of b.units) {
+      if (!alive(u)) continue;
+      const side = totals[u.side];
+      side.n += u.type === 'hero' ? 1 : u.n;
+      if (u.order !== 'rout' && u.order !== 'retreat') side.power += u.hp * TR[u.type].atk * (u.am || 1);
+    }
+    r.battle = b ? { id: b.id, totals, plan: b.plan ? { me: b.plan.ready[pid] ? 1 : 0, ready: b.pids.filter((x) => b.plan.ready[x]), wait: b.pids.filter((x) => !b.plan.ready[x]), left: b.pids.length > 1 ? Math.max(0, Math.ceil(PLAN.max - b.plan.t)) : null, reach: PLAN.reach } : null, foe: b.foe, t: Math.floor(b.t), routed: b.routed, act: b.act ? 1 : 0, canAct: SIM.actCan && SIM.actCan(w, b) ? 1 : 0, lead: b.lead === pid ? (b.leadAll ? 2 : 1) : 0,
       names: Object.fromEntries(b.pids.map((x) => [x, (w.players[x] || {}).name])),
       ter: b.ter || [], ck: b.ck || null, units: b.units.filter((u) => alive(u) && (u.side === 'A' || (b.visA || []).includes(u.id)))
         .map((u) => [u.id, u.side, u.owner || u.cmd || null, u.type, u.n, r1(u.x), r1(u.y), u.order, Math.round(visRange(b, u)), Math.round(u.mor), Math.round(u.f * 100) / 100, u.type === 'hero' ? Math.ceil(u.hp) : undefined, r1(reachOf(b, u)), u.gname || undefined, u.att != null ? u.att : undefined, u.lead ? 1 : undefined]) } : null;

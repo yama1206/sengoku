@@ -907,14 +907,6 @@
       ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(a, c); ctx.lineTo(a + 12, c + 4); ctx.lineTo(a + 4, c + 12); ctx.closePath(); ctx.stroke();
       ctx.fillStyle = '#fff'; ctx.fill();
     }
-    // 操作の案内
-    const sel0 = sel != null, hx = W - 498, hy = 8; ctx.textAlign = 'left'; ctx.font = '12px sans-serif'; ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(hx, hy, 490, sel0 ? 72 : 56); ctx.fillStyle = '#f4ead0';
-    ctx.fillText(`${hero && hero.wep ? hero.wep.name : ''}｜移動 WASD・左スティック　カーソル マウス・右スティック　攻撃 左クリック・RT`, hx + 6, hy + 16);
-    ctx.fillText('かわす Space・B　隊を選ぶ：カーソルを合わせてA・LB/RB・1〜9（1=全軍）', hx + 6, hy + 32);
-    if (sel0) {
-      ctx.fillText('選んだ隊をそこへ：右クリック・LT（押したまま動かすと向き）　Aで何もない所：選択をやめる', hx + 6, hy + 48);
-      ctx.fillText('指図：Z突撃 X防御 C待機 F追従（十字↑突撃 →防御 ↓追従 ←待機）', hx + 6, hy + 64);
-    } else ctx.fillText('隊を選ぶと、移動や指図ができます', hx + 6, hy + 48);
   };
 
   // ---- 0.63.0 3D表示のときに画面へ重ねるもの（マウント＆ブレイド2風） ----
@@ -968,7 +960,7 @@
     if (OM) { const [gx, gy] = X.toWorld(cx, cy), [a, c] = S(gx, gy, 0), [, c2] = S(gx, gy, 3); ctx.strokeStyle = '#ffe070'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a, c); ctx.lineTo(a, c2); ctx.stroke(); ctx.fillStyle = '#ffe070'; ctx.fillRect(a, c2, 14, 9); ctx.beginPath(); ctx.ellipse(a, c, 10, 4, 0, 0, 7); ctx.stroke(); }
     // 体力（左下）
     if (hero) {
-      const fr = Math.max(0, hero.hp / hero.mh), y = R.actTouchUI ? 54 : H - 34;
+      const fr = Math.max(0, hero.hp / hero.mh), y = R.actTouchUI ? 76 : H - 34;
       ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(16, y, 204, 16);
       ctx.fillStyle = fr > 0.5 ? '#6c3' : fr > 0.25 ? '#ec3' : '#e33'; ctx.fillRect(18, y + 2, 200 * fr, 12);
       ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
@@ -997,11 +989,5 @@
         ctx.fillStyle = on ? 'rgba(120,90,20,.95)' : 'rgba(20,16,10,.85)'; ctx.fillRect(x - tw / 2, y - 14, tw, 28); ctx.strokeStyle = on ? '#ffe070' : '#8a7448'; ctx.lineWidth = on ? 2 : 1; ctx.strokeRect(x - tw / 2, y - 14, tw, 28);
         ctx.fillStyle = on ? '#fff' : '#f4ead0'; ctx.fillText(t, x, y + 5); });
     }
-    // 操作の案内
-    ctx.textAlign = 'left'; ctx.font = '12px sans-serif'; const lk = document.pointerLockElement;
-    const lines = lk ? ['WASD 移動　マウス 視点　左クリック 攻撃　右クリック 防御　Space 回避　E ジャンプ　Q 武器持ち替え', '0〜9 隊を選ぶ　F1 移動　F2 向き　F3 隊形　F4 射撃　ホイール 寄る・引く　Esc マウスを離す　T 2D表示']
-      : ['画面をクリックするとマウスで視点を動かせます（Esc で離す）', 'コントローラー：R1攻撃 L1防御 L2隊選び R2そこへ移動（長押し 隊形） 十字↑突撃→防御↓追従←待機 ✕ジャンプ ○回避 △持ち替え □追従'];
-    const tw2 = Math.max(...lines.map((t) => ctx.measureText(t).width)) + 12; ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(W - tw2 - 8, 8, tw2, 40); ctx.fillStyle = '#f4ead0';
-    lines.forEach((t, i) => ctx.fillText(t, W - tw2 - 2, 24 + i * 16));
   }
 })();
