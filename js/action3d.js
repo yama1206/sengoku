@@ -868,7 +868,7 @@
     const at = s.at ? (now - s.at) / (wk === 'gun' || wk === 'bow' ? 0.5 : 0.4) : 9;
     if (wk === 'sword') { P.aR = 0.55 - sw * 0.5; P.aL = 0.25 + sw; P.tilt = 1.0; }
     else if (wk === 'spearS' || wk === 'spearL') { P.aR = 0.75; P.aL = 0.95; P.tilt = 0.22 + sw * 0.1; }
-    else if (wk === 'bow') { P.aL = 0.7; P.aR = 0.35 - sw * 0.5; P.tilt = 0.5; }
+    else if (wk === 'bow') { P.aL = 0.7; P.aR = 0.35; P.tilt = 0.5; }
     else if (wk === 'gun') {
       const phase = ACT.gunPhase(s), [, lean, left, right, open] = SGK.SOLD3D.gunPose(phase);
       P.aR = 1.45 - right; P.aL = 1.5 - left;
@@ -1013,7 +1013,7 @@
     const S3 = SGK.SOLD3D, atk = wk === 'spearS' || wk === 'spearL' ? 'spear' : wk === 'bow' ? 'bow' : wk === 'gun' ? 'gun' : 'sword';
     const W = S3.win[atk] || { a: 0, b: 1, pk: 0.5 };
     // 1.6.65 動きながらの攻撃は、足は歩く・走る（low）、上半身だけ攻撃の動き
-    const low = mv >= 0.4 ? { nm: mv < 3.6 ? 'walk' : 'run', t: ph, loop: true } : null;
+    const low = mv >= 0.4 ? { nm: S3.gait(mv), t: ph, gait: true } : null;
     const clip = (nm, t, grip) => ({ nm, t, grip, loop: false, atk: true, low });
     const settle = (k) => clip(atk + 'Recover', k, 1 - ease(k));
     const hit = (k) => {
@@ -1094,10 +1094,10 @@
     Mu.copy(O.matrix); Mu.elements[13] += up; if (fw) Mu.multiply(Ms.makeTranslation(Math.max(-0.3, Math.min(0.3, fw)), 0, 0)); // 体の位置（前が +X）。指物などはこれに付ける
     Mx.copy(Mu).multiply(SK90); if (sc !== 1) Mx.multiply(Ms.makeScale(sc, sc, sc));
     // 徒歩移動中は足だけ歩かせ、武器を持つ上半身は構えを保つ。
-    const carry = (wk === 'sword' || wk === 'waki' || wk === 'spearS' || wk === 'spearL')
-      && (c.nm === 'walk' || c.nm === 'run');
+    const carry = c.gait && wk !== 'shuri';
     if (carry) c = { nm: 'idle', t: 0, loop: false, low: c };
-    const row = S3.rowAt(b, c.nm, c.t, c.loop), rowL = c.low ? S3.rowAt(b, c.low.nm, c.low.t, c.low.loop) : row;
+    const row = c.gait ? S3.gaitRow(b, c.nm, c.t) : S3.rowAt(b, c.nm, c.t, c.loop);
+    const low = c.low, rowL = !low ? row : low.gait ? S3.gaitRow(b, low.nm, low.t) : S3.rowAt(b, low.nm, low.t, low.loop);
     if (c.low) S3.combo(b, rowL, row, Mc, Mcw);
     S3.put(b, Mx, rowL, s.fl ? 0.22 * Math.min(1, s.fl / 0.15) : 0, c.low ? row : null, c.low ? Mc : null, skTint); // 1.6.68 （2.12.5 skTint＝服の色） 打たれた光りを控えめに（0.6→0.22）
     // 武器を手に持たせる（弓は左手）
@@ -1172,7 +1172,11 @@
         // 1.6.68 速さはならして使う（押し合いの小さな動きで、待機と歩くが毎コマ入れ替わってチラついていた）。止まる・歩き出すの境目にも幅を持たせる
         const pp = last.get(s.id); let ms = mv;
         if (pp) { pp[3] = pp[3] == null ? mv : pp[3] + (mv - pp[3]) * Math.min(1, dt * 3); pp[4] = pp[4] ? pp[3] > 0.35 : pp[3] > 0.9; ms = pp[4] ? Math.max(0.5, pp[3]) : 0; }
-        const rate = ms < 0.4 ? 1 : ms < 3.6 ? Math.min(1.8, Math.max(0.6, ms / 1.5)) : Math.min(1.5, Math.max(0.7, ms / 5));
+        let rate = 1;
+        if (ms >= 0.4) {
+          if (cav) rate = ms < 3.6 ? Math.min(1.8, Math.max(0.6, ms / 1.5)) : Math.min(1.5, Math.max(0.7, ms / 5));
+          else rate = Math.min(2.2, Math.max(0.6, 0.45 + ms * 0.22));
+        }
         if (pp) pp[2] = (pp[2] || s.id * 0.37) + dt * rate;
         if (ex * dx + ez * dz > -4) drawSk(s, u, cav, ms, nowS, gy, f, own, col, pp ? pp[2] : s.id * 0.37, s.pc === myPid);
       } else {

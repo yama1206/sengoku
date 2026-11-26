@@ -161,6 +161,14 @@
     return { a: Math.max(0, pk - 0.5), b: Math.min(R.dur, pk + 0.25), pk };
   }
 
+  // 歩きと走りは足の周期をそろえ、速度に応じた中間姿勢を読み込み時に焼く。
+  const GAITS = ['walk', 'jog1', 'jog2', 'jog3', 'jog4', 'jog5', 'jog6', 'jog7', 'run'];
+  S.gait = (speed) => GAITS[Math.round(Math.max(0, Math.min(1, (speed - 2.6) / 2)) * (GAITS.length - 1))];
+  S.gaitRow = (b, name, phase) => {
+    const R = b.rows[name];
+    return R.r0 + Math.round((phase % 1) * (R.n - 1));
+  };
+
   // 動きを焼き込む。1行＝1コマ、1行に骨の数×4画素（行列1つ＝4画素）
   // hipK：腰の位置を体の大きさに合わせる倍率（動きはt3の体で作られているため）
   function bake(gl, clips, hipK, fixArms) {
@@ -175,6 +183,15 @@
     const mixer = new T.AnimationMixer(root), rows = {};
     let H = 0;
     for (const [nm, c] of clips) { const n = Math.max(1, Math.round(c.duration * S.fps) + 1); rows[nm] = { r0: H, n, dur: Math.max(c.duration, 1e-3), clip: c }; H += n; }
+    if (rows.sword && rows.walk && rows.run) {
+      const walk = rows.walk.clip, run = rows.run.clip;
+      for (let i = 1; i < GAITS.length - 1; i++) {
+        const weight = i / (GAITS.length - 1), dur = walk.duration + (run.duration - walk.duration) * weight;
+        const n = Math.round(dur * S.fps) + 1;
+        rows[GAITS[i]] = { r0: H, n, dur, clip: walk, blend: run, weight };
+        H += n;
+      }
+    }
     if (rows.gun) {
       rows.gunCycle = { r0: H, n: S.fps + 1, dur: 1, clip: rows.gun.clip };
       H += rows.gunCycle.n;
@@ -201,6 +218,12 @@
       const R = rows[nm]; mixer.stopAllAction();
       const act = mixer.clipAction(R.clip); act.setLoop(T.LoopOnce); act.clampWhenFinished = true; act.reset().play();
       const rest = R.from ? mixer.clipAction(idle).reset().play() : null;
+      const blend = R.blend ? mixer.clipAction(R.blend).reset().play() : null;
+      if (blend) {
+        act.setEffectiveWeight(1 - R.weight);
+        blend.setEffectiveWeight(R.weight);
+      }
+      const gait = GAITS.includes(nm) && rows.sword;
       const cycle = nm === 'gunCycle', throwing = nm === 'throw', bowRelease = nm === 'bowRecover';
       for (let i = 0; i < R.n; i++) {
         const phase = i / (R.n - 1);
@@ -211,8 +234,12 @@
           act.setEffectiveWeight(1 - weight);
           rest.setEffectiveWeight(weight);
           mixer.update(0);
+        } else if (blend) {
+          act.time = phase * R.clip.duration;
+          blend.time = phase * R.blend.duration;
+          mixer.update(0);
         } else {
-          mixer.setTime(Math.min(R.clip.duration, cycle ? 1 : throwing ? 0 : i / S.fps));
+          mixer.setTime(Math.min(R.clip.duration, cycle ? 1 : throwing ? 0 : gait ? phase * R.clip.duration : i / S.fps));
         }
         if (hipK && hips) {
           hipPosition.copy(hips.position);
@@ -245,6 +272,7 @@
       }
       if (ATTACK_CLIPS.includes(nm) && !S.win[nm]) S.win[nm] = attackWindow(rows, att, nm);
       delete R.clip;
+      delete R.blend;
     }
     mixer.stopAllAction();
     const tex = new T.DataTexture(data, W, H, T.RGBAFormat, T.FloatType); tex.needsUpdate = true;
@@ -417,8 +445,10 @@
     const side = kind === 'bow' ? 'L' : 'R';
     S.hand(b, row, side, out).multiply(S.grip(side));
     if (clip === 'carry') {
-      // 刀は体の外側へ低く、槍の柄は体の横を前後に通す。
+      // 武器ごとに、移動中に体の横で保つ向きを決める。
       if (kind === 'spear') v1.set(0, 0.16, 1);
+      else if (kind === 'gun') v1.set(0, 0.74, 0.67);
+      else if (kind === 'bow') v1.set(0, 1, 0.12);
       else v1.set(-0.16, -0.22, 1);
       v1.normalize();
       v2.setFromMatrixColumn(out, 1).normalize();

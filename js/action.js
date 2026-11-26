@@ -14,8 +14,9 @@
     WEP: { // 本人の武器：reach 届く距離、arc 振りの幅（片側）、cd 間隔、dmg 威力の倍率、shot 飛び道具
       tachi: { name: '刀', reach: 2.3, arc: 0.45, cd: 0.5, sw: 0.16, dmg: 2.4 }, // 0.73.9 振りの範囲にいる敵には全員当たる（2人目から減る ACT.MULTI）0.73.10 届く長さ 1.9→2.3、速く振れる
       yari: { name: '槍', reach: 3.8, arc: 0.3, cd: 0.8, sw: 0.24, dmg: 2.7 }, // 0.73.10 届く長さ 2.7→3.2、振りは遅い
-      yumi: { name: '弓', shot: 45, cd: 1, dmg: 3, spd: 45 },
-      teppo: { name: '鉄砲', shot: 75, cd: 4, dmg: 13, spd: 140 }, /* 1.6.41 威力 9→13、間隔 3→4秒 */
+      // 平地・正面で農兵（体力20）に、弓は約3発、鉄砲は1発。
+      yumi: { name: '弓', shot: 45, cd: 1, dmg: 3.06, spd: 45 },
+      teppo: { name: '鉄砲', shot: 75, cd: 4, dmg: 9.1, spd: 140 },
       waki: { name: '脇差', reach: 1.7, arc: 0.55, cd: 0.32, sw: 0.11, dmg: 1.7, sk: 'tachi' }, // 0.81.0 短くて速い（刀の技能で伸びる）
       shuri: { name: '手裏剣', shot: 22, cd: 0.4, dmg: 1.7, spd: 38, sk: 'shuri' }, // 0.81.0 近い間合いで速く投げる。まっすぐ飛ぶ（0.82.0 手裏剣の技能で伸びる）
     },
@@ -228,7 +229,8 @@
     if (!live(t) || (t.hero && t.dash > 0)) return;
     if (t.hero && t.blk && from && angDiff(t.f || 0, ang(t, from)) < 1.3) { d *= 0.15; t.bk = 0.15; } // 0.63.0 防御（正面からの攻撃を大きく減らす）
     const u = A.byG[t.g];
-    if (u && u.isAI && !t.hero && from && u.order !== 'rout' && angDiff(t.f || 0, ang(t, from)) < 0.9 && rr() < 0.3) { d *= 0.3; t.bk = 0.15; } // 0.64.0 AIの兵は正面の攻撃をときどき受け止める
+    const peasantShot = rng && t.type === 'nohei' && from && from.pc && (from.wk === 'yumi' || from.wk === 'teppo');
+    if (!peasantShot && u && u.isAI && !t.hero && from && u.order !== 'rout' && angDiff(t.f || 0, ang(t, from)) < 0.9 && rr() < 0.3) { d *= 0.3; t.bk = 0.15; } // 0.64.0 AIの兵は正面の攻撃をときどき受け止める
     if (u && u.order === 'rout') d *= 1.3;
     if (rng && (t.hero ? t.tate : TR[t.type] && TR[t.type].shield)) d *= 0.5; /* 1.6.40 竹束：矢・弾は半分 */
     if (u && !t.hero) d *= fmod(u, rng ? 'rd' : 'md'); // 0.79.0 隊形の守り
@@ -442,7 +444,7 @@
         if (W.shot) hero.at = performance.now() / 1000;
         if (W.shot) {
           const shotAngle = kk === 'yumi' ? hero.f + (2 * rr() - 1) * ACT.bowSpread(chg) : hero.f;
-          A.pr.push({ x0: hero.x, y0: hero.y, x: hero.x, y: hero.y, vx: Math.cos(shotAngle) * W.spd, vy: Math.sin(shotAngle) * W.spd, side: hero.side, dmg: base * W.dmg * 0.5 * (W.spd > 100 && SIM.wxGun ? SIM.wxGun() : 1), life: W.shot / W.spd, gun: W.spd > 100, src: hero });
+          A.pr.push({ x0: hero.x, y0: hero.y, x: hero.x, y: hero.y, vx: Math.cos(shotAngle) * W.spd, vy: Math.sin(shotAngle) * W.spd, side: hero.side, dmg: base * W.dmg * 0.5 * (W.spd > 100 && SIM.wxGun ? SIM.wxGun() : 1), life: W.shot / W.spd, gun: W.spd > 100, wk: skk, wn: W0.name, src: hero });
           sfx(hero, W.spd > 100 ? 'gun' : 'bow');
         }
         else {
@@ -565,7 +567,13 @@
       { const f = p.gun || !p.L || p.x0 == null ? 0 : Math.min(1, Math.hypot(nx - p.x0, ny - p.y0) / p.L); p.h = p.gun || !p.L ? 0 : /* 1.6.32 本人の手裏剣・弓は高さがNaNで当たらなかった */ 4 * p.L * 0.15 * f * (1 - f); }
       if (!p.gun && p.h < 1.8) near(g, nx, ny, 1.5, (o) => { if (!hit && o.side !== p.side && live(o)) { const d = Math.hypot(o.x - nx, o.y - ny); if (d < (o.hero ? 0.9 : 0.7)) hit = o; } });
       p.x = nx; p.y = ny; p.life -= dt;
-      if (hit) { damage(b, A, hit, p.dmg * (0.7 + rr() * 0.6), p.x0 != null ? { x: p.x0, y: p.y0, pc: p.src && p.src.pc, wk: p.src && p.src.wk, wn: p.src && p.src.wep && p.src.wep.name, side: p.side, f: p.src && p.src.f } : p.src, true); p.life = 0; continue; }
+      if (hit) {
+        const spread = p.wk === 'yumi' || p.wk === 'teppo' ? 0.02 : 0.3;
+        const from = p.x0 != null ? { x: p.x0, y: p.y0, pc: p.src && p.src.pc, wk: p.wk ?? p.src?.wk, wn: p.wn ?? p.src?.wep?.name, side: p.side, f: p.src && p.src.f } : p.src;
+        damage(b, A, hit, p.dmg * (1 + (2 * rr() - 1) * spread), from, true);
+        p.life = 0;
+        continue;
+      }
       // 0.75.0 木や味方に当たったら消える（自分の隊の中と、撃ってすぐは通り抜ける）
       const sg = p.src && p.src.g, gone = Math.hypot(nx - p.x0, ny - p.y0), far = gone > 2.5;
       if (!p.gun && far && p.h < 1.5) near(g, nx, ny, 1.5, (o) => { if (p.life > 0 && o.side === p.side && o !== p.src && o.g !== sg && live(o) && Math.hypot(o.x - nx, o.y - ny) < (o.hero ? 0.8 : 0.6)) p.life = 0; });
