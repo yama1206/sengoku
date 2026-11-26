@@ -350,9 +350,13 @@
         const ng = g[7 + WEPS.length], lc = ng && ng.animations.find((c) => c.name === 'climb_ladder');
         if (lc) { const cc = lc.clone(); for (const tr of cc.tracks) if (/Hips\.position$/.test(tr.name)) { const v = Float32Array.from(tr.values), n = v.length / 3; if (n > 1) for (let i = 0; i < n; i++) for (let a = 0; a < 3; a++) v[i * 3 + a] -= (v[(n - 1) * 3 + a] - v[a]) * i / (n - 1); tr.values = v; } clips.push(['climb_ladder', cc]); }
       }
+      // 首と頭は回転だけ共用し、骨の間隔は兵士モデルごとの値を使う。
+      const soldierClips = clips.map(([name, clip]) => [name, new T.AnimationClip(
+        clip.name, clip.duration, clip.tracks.filter((track) => !/(?:Neck|Head)\.position$/.test(track.name)), clip.blendMode
+      )]);
       for (let i = 0; i < 4; i++) {
         let h = 0; g[1 + i].scene.traverse((o) => { if (!h && o.isBone && /Hips$/.test(o.name)) h = o.position.length(); });
-        const bk = bake(g[1 + i], clips, h && aHip ? h / aHip : 1, i > 0);
+        const bk = bake(g[1 + i], soldierClips, h && aHip ? h / aHip : 1, i > 0);
         skinTone(bk.geo, bk.boneNames); // 2.21.0 兵の肌の色をそろえる（馬には使わない）
         if (i === 1 || i === 2) blackHat(bk.geo, 1.4); // t2の陣笠・t3の兜の白い所は黒漆に
         const b = mkSkin(bk, cap, scene);

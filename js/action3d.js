@@ -1027,9 +1027,13 @@
     if (s.cu > 0.05 && S3.tiers[0] && S3.tiers[0].rows.climb_ladder) return { nm: 'climb_ladder', t: nowS * 1.3, loop: true }; // 2.69.1 壁を登る間は梯子を登る動き
     if (wk === 'gun') {
       const phase = ACT.gunPhase(s);
-      if (phase < 1) return clip('gunCycle', phase);
+      if (phase < 1) {
+        const cycle = clip('gunCycle', phase);
+        if (s.gunBrace > 0) cycle.low = null;
+        return cycle;
+      }
       if (s.gunSet > 0) {
-        const set = s.gunSet / ACT.GUN_SET;
+        const set = Math.min(1, s.gunSet / ACT.GUN_CROUCH);
         return { nm: 'gunSet', t: 1 - set, loop: false, atk: true, gunAim: ease(set) };
       }
       return low || { nm: 'idle', t: ph, loop: true };
@@ -1174,8 +1178,8 @@
         putPart('hlegF', O.matrix, 0.62, 0.82, 0, stp * 0.55); putPart('hlegB', O.matrix, -0.62, 0.82, 0, -stp * 0.55);
       }
       const jh = (s.jp > 0 ? Math.sin(Math.PI * (1 - s.jp / 0.55)) * (s.nj ? 1.1 : 0.55) : 0) + (s.cu || 0) * 3.3; // 0.64.0 ジャンプ（2.69.0 忍び以外は半分の高さ・忍びは壁を登る分だけ持ち上がる）
-      const set = ease(Math.min(1, (s.gunSet || 0) / ACT.GUN_SET));
-      const crouch = set || (s.gunBrace > 0 ? Math.min(1, s.gunBrace / 0.16) : 0);
+      const set = ease(Math.min(1, (s.gunSet || 0) / ACT.GUN_CROUCH));
+      const crouch = set || (s.gunBrace > 0 ? 1 : 0);
       O.position.set(s.x, gy + ride + bob + jh, s.y); O.rotation.set(0, -f, 0);
       O.scale.set(sc, sc * (1 - 0.27 * crouch), sc); O.updateMatrix();
       const tr = s.hero ? 5 : (s.type && TR[s.type] && TR[s.type].tier) || 2; /* 1.6.36 格ごとの見た目 */
