@@ -37,8 +37,10 @@
       kaginawa: { name: '鉤縄', price: 800, max: 1, desc: '建物の軒へ掛けて登る。使ってもなくならない' },
     },
     bonus: { unseen: 0.3, noKill: 0.2 }, // 2.24.0 気づかれずに・誰も殺さずに果たすと報酬が増える
+    minReward: 3000,
     km: 100,
   };
+  const missionPay = (value) => Math.max(NIN.minReward, Math.round(value / 10) * 10);
   const fName = (w, id) => (w.factions[id] || {}).name || '';
   const here = (w, p) => (p.at && p.tx == null ? SIM.settlement(w, p.at) : null);
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -119,7 +121,7 @@
     let h = day(w) * 7 + String(s.id).split('').reduce((a, ch) => a + ch.charCodeAt(0), 0);
     const mul = 1 + (p.rank - 1) * 0.2;
     return Object.keys(NIN.jobs).map((k, i) => { h = (h * 9301 + 49297) % 233280; const t = tg[h % tg.length], J = NIN.jobs[k], km = dist(s, t);
-      const o = { id: `${k}-${t.id}-${day(w)}`, k, to: t.id, toName: t.name, foe: fName(w, t.owner), km: Math.round(km), days: Math.ceil(km / 25) + 4, reward: Math.round(J.reward * mul * (1 + km / 150) / 10) * 10, merit: J.merit };
+      const o = { id: `${k}-${t.id}-${day(w)}`, k, to: t.id, toName: t.name, foe: fName(w, t.owner), km: Math.round(km), days: Math.ceil(km / 25) + 4, reward: missionPay(J.reward * mul * (1 + km / 150)), merit: J.merit };
       if (k === 'steal') o.sk = Object.keys(NIN.steal)[h % 3];
       if (k === 'hurt') { const who = hurtTarget(w, t); if (!who) return null; o.who = who; o.whoName = w.people[who].name; }
       return o; }).filter(Boolean);
@@ -175,7 +177,7 @@
     if (b.ninDef && !b.ninDef.go) b.ninDef = null; // 人の曲者を先に（ふつうの急報は取り消す）
     if (b.ninDef) return;
     b.ninDef = { id: `pvp-${q.id}`, pvp: a.id, pvpName: a.name, k: q.k, sk: q.sk || null, who: q.who || null, whoName: q.whoName || null, to: t.id, toName: t.name, foe: a.clan, foeName: fName(w, a.clan), n: 1,
-      deadline: q.deadline, reward: Math.round(J.reward * 1.3 / 10) * 10, merit: J.merit + 10, go: false };
+      deadline: q.deadline, reward: missionPay(J.reward * 1.3), merit: J.merit + 10, go: false };
     q.pvpDef = b.id;
     SIM.say(b.id, `急報！ ${fName(w, a.clan)}の忍び「${a.name}」が${t.name}を狙っています（期限${days}日）。${t.name}で待ち構え、忍び込んできたら捕らえてください`);
     SIM.say(a.id, `${t.name}には${fName(w, t.owner)}の忍び「${b.name}」がいます。守りに来るかもしれません`);
@@ -243,7 +245,7 @@
     }
     if (q.k === 'steal') { // 2.24.0 盗み
       if (q.sk === 'ezu') { deb(0.12); note = def ? `${s.name}の絵図を盗まれました。30日のあいだ、この城を守る戦で不利になります。` : `${s.name}の絵図を手に入れました。30日のあいだ、この城を攻める時の守りが下がります。`; }
-      if (q.sk === 'kin') { for (const k in s.gar || {}) s.gar[k] = Math.floor(s.gar[k] * 0.9); extra = Math.round((q.reward || 0) * 0.5 / 10) * 10; note = def ? '軍資金を盗まれ、守備兵が1割減りました。' : `給金が消えて守備兵が1割減りました。分け前${SIM.money(extra)}。`; }
+      if (q.sk === 'kin') { for (const k in s.gar || {}) s.gar[k] = Math.floor(s.gar[k] * 0.9); extra = Math.round(missionPay(q.reward) * 0.5 / 10) * 10; note = def ? '軍資金を盗まれ、守備兵が1割減りました。' : `給金が消えて守備兵が1割減りました。分け前${SIM.money(extra)}。`; }
       if (q.sk === 'mitsu') note = def ? '密書を盗まれました。' : `密書によると、${intelOf(w, s.owner, s)}`;
     }
     return { note, extra };
@@ -278,7 +280,7 @@
     const J = NIN.jobs[k], days = clampI(Math.ceil(km0 / 25) + 3, 3, 12);
     const n = 1 + (p.rank >= 2 && SIM.rand(w) < 0.5 ? 1 : 0) + (p.rank >= 3 && SIM.rand(w) < 0.35 ? 1 : 0);
     p.ninDef = { id: `def-${s.id}-${now}`, k, sk: k === 'steal' ? Object.keys(NIN.steal)[Math.floor(SIM.rand(w) * 3)] : null, who, whoName: who ? w.people[who].name : null, to: s.id, toName: s.name, foe: t.owner, foeName: fName(w, t.owner), n,
-      deadline: w.time.min + days * 1440, reward: Math.round(J.reward * (1 + (p.rank - 1) * 0.2) * 0.9 / 10) * 10, merit: J.merit, go: false };
+      deadline: w.time.min + days * 1440, reward: missionPay(J.reward * (1 + (p.rank - 1) * 0.2) * 0.9), merit: J.merit, go: false };
     nextDef(w, p);
     SIM.say(p.id, `急報！ ${p.ninDef.foeName}の忍びが${s.name}に入り込んだ気配があります（期限${days}日）。${s.name}へ駆けつけ、「曲者を探す」で捕らえてください`);
   }
@@ -315,13 +317,13 @@
       pvpEnd(w, s.id, p.id); p.ninDef = null;
       const an = `「${q.pvpName}」`;
       if (!c.ok) return SIM.say(p.id, c.ko ? `${an}に後ろから当て身を受け、気を失いました……` : `${an}に${NIN.jobs[q.k].name}を果たされ、逃げられました……`);
-      const got = caught + killed > 0, rew = Math.round(q.reward * (got ? 1 : 0.4) / 10) * 10, merit = got ? q.merit : Math.round(q.merit * 0.4), fame = got ? 4 : 1;
+      const got = caught + killed > 0, rew = missionPay(q.reward * (got ? 1 : 0.4)), merit = got ? q.merit : Math.round(q.merit * 0.4), fame = got ? 4 : 1;
       p.money += rew; p.fame += fame; if (SIM.addMerit) SIM.addMerit(w, p, merit, `${s.name}の守り`);
       return SIM.say(p.id, `${s.name}を守りました！ ${got ? `${q.foeName}の忍び${an}を${killed ? '討ち取りました' : '捕らえました'}。` : `${an}は見張りに見つかって逃げ去りました。`}報酬${SIM.money(rew)}・名声+${fame}。${caught ? `問いただすと：${intelOf(w, q.foe, s)}` : ''}`);
     }
     if (!c.ok) return defFail(w, p, s, 'lost', caught, killed);
     p.ninDef = null;
-    const all = caught + killed >= q.n, rew = Math.round(q.reward * (all ? 1 : 0.5) * (1 + NIN.def.perCatch * caught) / 10) * 10;
+    const all = caught + killed >= q.n, rew = missionPay(missionPay(q.reward) * (all ? 1 : 0.5) * (1 + NIN.def.perCatch * caught));
     const merit = Math.round(q.merit * (all ? 1 : 0.5)) + 6 * caught, fame = 1 + caught + (all ? 1 : 0);
     p.money += rew; p.fame += fame; if (SIM.addMerit) SIM.addMerit(w, p, merit, `${s.name}の守り`);
     SIM.say(p.id, `${s.name}を守りました！ ${all ? (caught ? `曲者${q.n}人のうち${caught}人を生け捕り${killed ? `、${killed}人を討ち取り` : ''}ました。` : `曲者${q.n}人を討ち取りました。`) : `曲者を追い払いました${caught + killed ? `（${caught + killed}人を捕らえた）` : ''}。`}報酬${SIM.money(rew)}・名声+${fame}。${caught ? `捕らえた曲者を問いただすと：${intelOf(w, q.foe, s)}` : ''}`);
@@ -338,7 +340,7 @@
       const keep = dup ? { gar: s.gar && Object.assign({}, s.gar), gate: s.gate } : null;
       const { note, extra } = applyJob(w, s, q, false);
       if (keep) { s.gar = keep.gar; s.gate = keep.gate; }
-      const b = NIN.bonus, mulB = 1 + (c.unseen ? b.unseen : 0) + (c.kills ? 0 : b.noKill), rew = Math.round(q.reward * mulB / 10) * 10 + extra;
+      const b = NIN.bonus, mulB = 1 + (c.unseen ? b.unseen : 0) + (c.kills ? 0 : b.noKill), rew = missionPay(missionPay(q.reward) * mulB) + extra;
       const fame = 2 + (c.unseen ? 1 : 0) + (c.kills ? 0 : 1);
       p.money += rew; p.fame += fame; if (SIM.addMerit) SIM.addMerit(w, p, q.merit, `${q.toName}での${J.name}`);
       const tags = [c.unseen ? '気づかれずに' : '', c.kills ? '' : '誰も殺さずに'].filter(Boolean).join('・');

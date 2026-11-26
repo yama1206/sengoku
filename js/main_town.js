@@ -211,7 +211,7 @@ function renderTown() {
     if (SGK.GOSHOUI && hs && me.rank && hs.owner === me.rank.clan) html += SGK.GOSHOUI.kenjo(P); // 2.55.0 家宝の献上
     if (SGK.SHOKAUI && h.goyo) html += SGK.SHOKAUI.goyo(P); // 2.56.0 御用商人
     if (NJ) { // 0.77.0 忍びの工作の依頼（主家の城で）
-      if (NJ.q) html += `<div class="card"><div><b>請け負っている工作</b>　${njName(NJ.q)}：${NJ.q.foe}の${NJ.q.toName}<br><span class="muted">報酬${SIM.money(NJ.q.reward)}・${dayLeft(NJ.q.deadline)}</span></div><button id="nj-look" data-look="${NJ.q.to}">地図で見る</button><button id="nj-drop" data-act="ninDrop">取りやめる</button></div>`;
+      if (NJ.q) html += `<div class="card"><div><b>請け負っている工作</b>　${njName(NJ.q)}：${NJ.q.foe}の${NJ.q.toName}<br><span class="muted">報酬${SIM.money(Math.max(NJ.q.reward, SIM.NIN.minReward))}・${dayLeft(NJ.q.deadline)}</span></div><button id="nj-look" data-look="${NJ.q.to}">地図で見る</button><button id="nj-drop" data-act="ninDrop">取りやめる</button></div>`;
       else if (NJ.offers.length) for (const o of NJ.offers) html += `<div class="card"><div><b>${njName(o)}</b>　${o.foe}の${o.toName}（${o.km}km・期限${o.days}日）<br><span class="muted">${njDesc(o)}。報酬${SIM.money(o.reward)}</span></div><button id="nj-${o.k}" data-act="ninTake" data-id="${o.id}">請け負う</button></div>`;
       else if (hs && hs.owner === me.rank.clan) html += `<div class="muted" style="margin-bottom:6px">いま工作を頼める敵の城がありません（戦をしている家の100km以内の城が対象）</div>`;
       if (hs && hs.owner === me.rank.clan) { // 2.24.0 忍び道具

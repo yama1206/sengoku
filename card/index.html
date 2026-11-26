@@ -241,7 +241,7 @@ button.effect-link:hover:not(:disabled){background:none;color:#fff0b0;outline:no
  <form method="dialog"><button autofocus>閉じる</button></form>
 </dialog>
 <script>
-const VERSION='0.61';
+const VERSION='0.62';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -342,7 +342,7 @@ const STARTERS=[
 ];
 // ===== CPU対戦(初陣組ごとに「普通」「強い」。それぞれ初めて勝つと戦銭がもらえる) =====
 // 普通…そのままの陣立て。強い…相手は手札+1・城門+1・最初から兵糧1枚(数字を変えれば強さを調整できる)
-const CPU_LV={n:{name:'普通',hand:0,shield:0,mana:0},s:{name:'強い',hand:1,shield:1,mana:1}};
+const CPU_LV={n:{name:'普通',hand:0,shield:0,mana:0,winSen:1},s:{name:'強い',hand:1,shield:1,mana:1,winSen:2}};
 const CPU_FIRST_SEN=10; // 初めて勝った時の戦銭(家×強さごとに1回)
 // 追加札の解放に必要な初陣組。普通でも強いでも、1回勝てば数える
 const cpuReq=()=>STARTERS.filter(st=>st.series!=='e1560e');
@@ -516,12 +516,12 @@ async function remoteTurn(p){
 }
 function cpuHTML(){
  const ok=deckValid(myDeck),req=cpuReq(),n=cpuClearCount(),locked=expansionLocked();
- let h=`<div style="padding-top:44px"><h2 style="color:var(--gold);margin:0 0 4px">CPU対戦</h2><div class="dim" style="font-size:12px;line-height:1.6">相手の初陣組と、自分の陣立てで勝負します。「${CPU_LV.s.name}」は相手の手札・城門・兵糧が増えます。初めて勝つと、家と強さごとに${GACHA.sen}${CPU_FIRST_SEN}枚もらえます</div>`;
+ let h=`<div style="padding-top:44px"><h2 style="color:var(--gold);margin:0 0 4px">CPU対戦</h2><div class="dim" style="font-size:12px;line-height:1.6">相手の初陣組と、自分の陣立てで勝負します。「${CPU_LV.s.name}」は相手の手札・城門・兵糧が増えます。初めて勝つと、家と強さごとに${GACHA.sen}${CPU_FIRST_SEN}枚もらえます。${EMBED?'勝つたびに「普通」で戦銭1枚、「強い」で2枚が加わります。':''}</div>`;
  h+=`<div class="pcard" style="--c:${locked?'#888':'#d4a94a'}"><div class="pcl"><b>関東・甲斐・北陸の追加札</b><div class="dim" style="font-size:12px">${locked?`初陣組(最初の${req.length}家)にすべて勝つと追加されます  ${n}/${req.length}`:'解放済み・札売り場の包みから出ます'}</div></div></div>`;
  if(cpuMsg)h+=`<div class="msg2">${escH(cpuMsg)}</div>`;
  if(!ok)h+='<div class="msg2">陣立てが36枚になっていません。先に陣立てを組んでください</div><button data-a="toEdit" style="width:100%;margin:6px 0">陣立てを組む</button>';
  if(ok)h+='<button data-a="tagCpu" style="width:100%;margin:8px 0">2対2 タッグ戦（味方CPU 対 CPU2人）</button>';
- const row=st=>{const done=cpuCleared(st)&&req.includes(st);return `<div class="pcard" style="--c:${IDEO[(CARDS.find(c=>c.series===st.series&&c.h===st.house)||{i:'ne'}).i].c}"><div class="pcl"><b>${st.name}${done?' ✔':''}</b><div class="dim" style="font-size:12px">${st.sub}</div></div>${Object.keys(CPU_LV).map(lv=>`<button data-a="cpuGo" data-id="${st.id}:${lv}" ${ok?'':'disabled'} style="margin-left:6px">${CPU_LV[lv].name}<br>${cpuDone(st,lv)?'勝利済み':GACHA.sen+'+'+CPU_FIRST_SEN}</button>`).join('')}</div>`;};
+ const row=st=>{const done=cpuCleared(st)&&req.includes(st);return `<div class="pcard" style="--c:${IDEO[(CARDS.find(c=>c.series===st.series&&c.h===st.house)||{i:'ne'}).i].c}"><div class="pcl"><b>${st.name}${done?' ✔':''}</b><div class="dim" style="font-size:12px">${st.sub}</div></div>${Object.keys(CPU_LV).map(lv=>`<button data-a="cpuGo" data-id="${st.id}:${lv}" ${ok?'':'disabled'} style="margin-left:6px">${CPU_LV[lv].name}<br>${EMBED?GACHA.sen+'+'+(CPU_LV[lv].winSen+(cpuDone(st,lv)?0:CPU_FIRST_SEN)):cpuDone(st,lv)?'勝利済み':GACHA.sen+'+'+CPU_FIRST_SEN}</button>`).join('')}</div>`;};
  h+='<h3 style="margin:14px 0 2px">初陣組</h3>'+req.map(row).join('');
  h+='<h3 style="margin:14px 0 2px">追加札の家</h3><div class="dim" style="font-size:12px">追加札の解放には数えません</div>'+STARTERS.filter(x=>!req.includes(x)).map(row).join('');
  return h+'</div>';
@@ -933,7 +933,16 @@ function win(p,why){
  G.over={winner:p,why};log(`${p.name}の勝利! ${why}`);
  if(G.pvp){G.rewarded=true;render();if(NET&&NET.host){sendState();parentSend({t:'end',mid:NET.mid});}return;} // 人との手合わせは賞金なし
  if(!G.auto&&!G.rewarded){G.rewarded=true;G.reward=p.idx===0?GACHA.reward.win:GACHA.reward.lose;coinChange(G.reward);
-  if(p.idx===0&&G.cpu){const key=G.cpu.id+':'+G.cpu.lv;if(!SV.cpu[key]){const before=expansionLocked();SV.cpu[key]=1;SV.sen+=CPU_FIRST_SEN;G.senReward=CPU_FIRST_SEN;if(before&&!expansionLocked())G.unlockedPack=true;}} // 初めて勝った相手(強さごと)には戦銭。初陣組を全部倒すと追加札が出る
+  if(p.idx===0&&G.cpu){
+   const key=G.cpu.id+':'+G.cpu.lv;
+   G.senReward=EMBED?CPU_LV[G.cpu.lv].winSen:0;
+   if(!SV.cpu[key]){
+    const before=expansionLocked();SV.cpu[key]=1;
+    G.firstCpuWin=true;G.senReward+=CPU_FIRST_SEN;
+    if(before&&!expansionLocked())G.unlockedPack=true;
+   }
+   SV.sen+=G.senReward;
+  }
   saveSave();}
  render();
 }
@@ -1196,7 +1205,7 @@ function gameHTML(){
  }
  let ov='';
  if(ui.modal)ov=`<div class="ov"><div class="mb">${commonEffectLinks(ui.modal.msg).replace(/\n/g,'<br>')}${bookButtons()}${ui.modal.btns.map((b,i)=>`<button data-a="mb" data-id="${i}">${b.l}</button>`).join('')}</div></div>`;
- else if(G.over){const w=G.over.winner.idx===me.idx;ov=`<div class="ov"><div class="mb"><div class="res">${w?'勝利!':'敗北…'}</div><div style="text-align:center">${G.over.why}</div>${bookButtons()}${G.reward?`<div style="text-align:center;color:var(--gold);margin-top:6px">${GACHA.coin} +${G.reward}</div>`:''}${G.senReward?`<div style="text-align:center;color:var(--gold);margin-top:4px">初めての勝利! ${GACHA.sen} +${G.senReward}</div>`:''}${G.unlockedPack?`<div style="text-align:center;color:var(--gold);margin-top:4px">初陣組をすべて倒した！ 関東・甲斐・北陸の追加札が解放されました</div>`:''}${G.pvp?'':'<button data-a="again">もう一度</button>'}<button data-a="toTitle">表紙へ</button></div></div>`;}
+ else if(G.over){const w=G.over.winner.idx===me.idx;ov=`<div class="ov"><div class="mb"><div class="res">${w?'勝利!':'敗北…'}</div><div style="text-align:center">${G.over.why}</div>${bookButtons()}${G.reward?`<div style="text-align:center;color:var(--gold);margin-top:6px">${GACHA.coin} +${G.reward}</div>`:''}${G.senReward?`<div style="text-align:center;color:var(--gold);margin-top:4px">${G.firstCpuWin?'初めての勝利! ':''}${GACHA.sen} +${G.senReward}</div>`:''}${G.unlockedPack?`<div style="text-align:center;color:var(--gold);margin-top:4px">初陣組をすべて倒した！ 関東・甲斐・北陸の追加札が解放されました</div>`:''}${G.pvp?'':'<button data-a="again">もう一度</button>'}<button data-a="toTitle">表紙へ</button></div></div>`;}
  return `<div class="top"><span>第${G.turnNo}手・${tagNames?escH(tagNames[activeTag])+'の番':G.cur===0?'あなたの番':'相手の番'}</span></div>
  ${bookButtons()}<div class="zone"><div class="pinfo"><b>相手</b> 手札${en.hand.length} 思想:${G.cpuIds.map(i=>IDEO[i].n).join('')}</div>
  <div class="row mrow">${manaRow(en)}</div>

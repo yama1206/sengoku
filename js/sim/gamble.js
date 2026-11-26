@@ -17,7 +17,7 @@
   G.GAMES = {
     chouhan: { name: '丁半', rule: 'サイコロ2つの合計が偶数なら「丁」、奇数なら「半」。当たれば2倍。誰かが壺を開けると全員の勝負が決まります。' },
     memashi: { name: '目増', rule: '親と自分がサイコロを2つずつ振り、合計が大きい方の勝ち（勝てば2倍・同じなら賭け金が戻る）。' },
-    shigoro: { name: '四五六', rule: 'サイコロ3つの役の強さを親と比べます。ピンゾロ5倍・アラシ(ゾロ目)4倍・シゴロ(四五六)3倍・目の勝ちは2倍。負けた時は親の役の倍率で取られます(親がシゴロなら賭け金の3倍)。目なしは3回まで振り直し、ヒフミ(一二三)は即負け。' },
+    shigoro: { name: '四五六', rule: 'サイコロ3つの役の強さを親と比べます。ピンゾロ5倍・アラシ(ゾロ目)4倍・シゴロ(四五六)3倍・目の勝ちは2倍。負けた時は親の役の倍率で取られます(親がシゴロなら賭け金の3倍)。目なしは3回まで振り直し、ヒフミ(一二三)は振り直しなし。親より弱い役のときは、まれにプレイヤーだけもう一勝負して、強い方の役を使います。' },
     uma: { name: '馬くらべ', rule: '6頭の馬から1頭を選んで賭けます。一着の馬に賭けていれば、その馬の倍率で払い戻し。誰かが「走らせる」を押すとレースが始まります。' },
     karuta: { name: '天正かるた', rule: '札(1〜12)を2枚配り、合計の一の位が9に近い方の勝ち。もう1枚引くか(最大3枚)勝負するかを選びます。同点は親の勝ち。最初の2枚が同じ数字(ゾロ目)なら3倍。親は一の位が4以下なら3枚目を引きます。' },
   };
@@ -121,7 +121,12 @@
     } else {
       const pr = shigoroRoll(w); head = `親 ${diceTxt(pr.d)} ${pr.e.label}${pr.n > 1 ? `（${pr.n}回目）` : ''}`; ex = { pd: pr.d, pl: pr.e.label, pn: pr.n };
       for (const pid in T.bets) {
-        const x = T.bets[pid], q = w.players[pid], m = shigoroRoll(w);
+        const x = T.bets[pid], q = w.players[pid];
+        let m = shigoroRoll(w);
+        if (m.e.rank >= 0 && m.e.rank < pr.e.rank && SIM.rand(w) < 0.05) {
+          const retry = shigoroRoll(w);
+          if (retry.e.rank > m.e.rank) m = retry;
+        }
         const r = m.e.rank > pr.e.rank ? 1 : m.e.rank < pr.e.rank ? -1 : 0; const ret = r > 0 ? x.bet * m.e.mult : r === 0 ? x.bet : 0; if (q) pay(q, ret);
         // 2.106.4 負けた時は親の役の倍率で取られる（賭け金は先に払っているので、足りない分を持ち金から。無ければ取れる分だけ）
         let extra = 0; if (r < 0 && pr.e.mult > 1) { extra = x.bet * (pr.e.mult - 1); if (q) { extra = Math.min(extra, Math.max(0, q.money)); q.money -= extra; } }
