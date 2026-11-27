@@ -241,13 +241,16 @@ function pollPad(dt) {
   G.padMv = null; G.padAtk = G.padBlk = false;
   if (SGK.MINEUI && SGK.MINEUI.isOpen()) return [0, 0]; if (SGK.GATHERUI && SGK.GATHERUI.isOpen()) return [0, 0]; // 2.27.0 釣り場の画面 // 2.25.0 採掘の画面ではコントローラーを採掘に使う
   if (SGK.YUGIUI && SGK.YUGIUI.isOpen()) { for (let i = 0; i < 20; i++) padPrev[i] = true; return [0, 0]; } // 2.106.12 遊戯屋（戦国思想録）は札の画面がコントローラーを読む。閉じた時に押していたボタンを数えない
-  if (SGK.PARTY && SGK.PARTY.current && SGK.PARTY.current()) return [0, 0]; // 2.99.2 みんなで遊ぶの最中はコントローラーで地図を動かさない
   if ((SGK.NINJA && SGK.NINJA.on) || (SGK.NINJA3D && SGK.NINJA3D.on)) return [0, 0]; // 0.77.0 潜入中
   // 0.63.1 PCで別の機器（仮想コントローラーなど）が先に並ぶと使えなくなるので、最後に触ったコントローラーを使う（なければ標準配置のもの）
   const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter((p) => p && p.connected !== false) : [];
   for (const p of pads) if (p.buttons.some((b) => b && b.pressed)) { if (G.padIdx !== p.index) { G.padIdx = p.index; for (const k in padPrev) padPrev[k] = true; } break; }
   const gp = pads.find((p) => p.index === G.padIdx) || pads.find((p) => p.mapping === 'standard') || pads[0]; if (!gp) return [0, 0];
   const btn = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed);
+  if (SGK.PARTY?.current?.() && !document.getElementById('ptRes')) {
+    gp.buttons.forEach((b, i) => (padPrev[i] = b.pressed));
+    return [0, 0];
+  }
   const down = (i) => btn(i) && !padPrev[i];
   const dz = (v) => (Math.abs(v) < 0.2 ? 0 : v);
   const lx = dz(gp.axes[0] || 0), ly = dz(gp.axes[1] || 0), rx = dz(gp.axes[2] || 0), ry = dz(gp.axes[3] || 0);
@@ -308,7 +311,7 @@ function pollPad(dt) {
       else navHold = 0;
       if (down(0)) pressMenu();
     }
-    if (down(1) && !inBattle) { if (activeMenu() === $('namePanel')) nkDel(); else if (activeMenu() === $('mapPanel')) smClose(); else if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else menuBack(); }
+    if (down(1) && !inBattle && menu.id !== 'ptRes') { if (activeMenu() === $('namePanel')) nkDel(); else if (activeMenu() === $('mapPanel')) smClose(); else if (G.mode === 'title') titleBack(); else if (activeMenu() === $('char')) openChar(false); else if (activeMenu() === $('town')) openTown(false); else menuBack(); }
     if (activeMenu() === $('mapPanel')) { if (down(4)) smZoom(1 / 1.5); if (down(5)) smZoom(1.5); }
     if (activeMenu() === $('town')) { if (down(4)) cycleTab(-1); if (down(5)) cycleTab(1); }
     else if (activeMenu() === $('char')) { if (down(4)) cycleCTab(-1); if (down(5)) cycleCTab(1); if (down(8)) openChar(false); }
@@ -317,7 +320,7 @@ function pollPad(dt) {
       if (sc) sc.scrollTop += ry * Math.abs(ry) * dt * 900;
     }
     if (down(3) && !inBattle && !$('mSub').classList.contains('hidden') && G.sub === 'inv') toggleMenu(false);
-    if (down(9) && G.mode !== 'title') toggleMenu(inBattle);
+    if (down(9) && G.mode !== 'title' && menu.id !== 'ptRes') toggleMenu(inBattle);
   } else if (G.mode === 'host' || G.mode === 'client') {
     // 左スティック：画面のカーソルを動かす（端まで行くと地図が動く）。右スティック：視点
     const W = cv.clientWidth, H = cv.clientHeight;

@@ -14,7 +14,7 @@
     hayashi: { name: '囃子合わせ', max: 5, team: false, desc: '和楽器のリズム遊び。太鼓・鼓・篠笛・三味線・鉦から楽器を選び、みんなで一つの曲を合わせる。流れてくる譜を下の線で打つ（赤＝F・J・Space、白＝D・K。画面では左右に赤と白のボタン）。自分のパートは叩いた音で鳴る' },
     hide: { name: 'かくれんぼ？', max: 10, team: false, opts: true, desc: '隠れる側は木箱・樽・壺などの置物に化けて、探す側から逃げ切る。隠れる側：Aで近くの物に化ける、Bで人に戻る。逃げる側は体力100で、叩かれるとダメージを受けて少しのあいだ足が速くなる。体力がなくなると鬼に担がれて（15秒以内に運べないとふりほどかれる）牢（紫の光・マップに12個）に入れられ、45秒たつと完全に負けるが、仲間が牢に近づいて1秒で救助できる（残り時間が半分を過ぎてから救助されると、次に吊るされたらすぐ負け。半分より前なら、次もまた45秒耐えられる。3回目はすぐ負け）（化けた物が大きいほど受けるダメージは少なく、小さいほど大きい）。探す側：Aで叩く（本物の置物を叩くと体力が減る）、Bで近くの置物に化けることもできる（Aで叩くと正体を現す）。最初の15秒は探す側は目をつぶって動けない。ときどき音がして、だれかの近くが分かる。勝ち方は「宝箱の鍵を集めて脱出」。場面に11個ある宝箱のそばで動かずにいると少しずつ開き（1人だと約80秒、人数が増えるほど早い。化けたままでは開けられない）、12秒ごとに出る4つの合図（A・B・X・Yのボタン。コントローラーはPS配置で ×=A ○=B □=X △=Y）を時間内に順に押さないと1秒だけ開けられなくなり、鬼に宝箱の場所が知らされる（鬼には宝箱が赤い枠で壁越しにも見える）。7つ開けると離れた2か所に鳥居の出口が現れ（このとき全員の位置が壁越しに見える）、出口は動かずに20秒そばにいると開き（宝箱も出口も、途中でやめても進捗は残る）、開いた出口に着いた人が脱出成功になります。脱出口（出口や井戸）が開いている間は、鬼の叩きが一撃でダウンになり、足が少し速くなります。鬼が2人捕まえたら引き分け、3人以上で鬼の勝ちです。脱出できた逃げる側が半分以下のときは、脱出できた人だけが勝ちになります。逃げる側が1人だけになると、場面に5か所ある井戸のうちランダムな1つの蓋が開いて、すぐ使える脱出口になります。鬼がその井戸の近くに2秒とどまると蓋を閉じられて、閉じると普通の出口（2か所）が開きます。鬼は部屋で「鬼に立候補する」を押すと立候補でき、立候補がいなければ全員から、複数いれば立候補した人からランダムで決まります。脱出モードの制限時間は10分で、時間切れは鬼の勝ちです。賞金：鬼側が勝つと5貫。逃げる側（脱出モード）は、4人脱出か3人脱出なら全員1貫ずつ、2人脱出なら脱出した人1.5貫・捕まった人1貫、1人だけ脱出なら脱出した人2.5貫・捕まった人0.5貫です。逃げる側は◆の付いた物に化けられます。人数：参加は最大10人。鬼は1〜2人、逃げる側は4〜8人（部屋で選べます）。CPU：「鬼のCPU」を選ぶと、鬼の人数に足りない分（立候補した人が足りない分）をCPUがやります。「逃げる側のCPU」を選ぶと、決めた人数に足りない分だけCPUが加わります（強さは よわい・ふつう・つよい）。1人でも「ひとりで練習」でCPUと遊べます（報酬なし）。CPUはリーダーの端末が動かします。舞台・探す側の人数・化けたあとの動き・勝ち方・見つかったあとを選べます' },
     kemari: { name: '蹴鞠', max: 10, team: false, desc: '輪になって鞠を蹴り回す。鞠が自分に飛んできたら、足もとの輪に重なった瞬間に蹴る。左クリック／Space／Aは速く返し、右クリック／X／Bはゆるく返す。続けるほど鞠はどんどん速くなる。毎月5日は大きな町で蹴鞠大会' },
-    cart: { name: '荷運び競争', max: 10, team: true, desc: '荷車を引いてゴールまで運ぶ。←→で5本の道を選ぶ（みんなの平均で進む）、A／Spaceを押している間引く。岩にぶつかると荷が崩れる。「？」の箱で道具（加速・修理・守り、チーム戦では相手に岩落とし）が手に入り、B／X／クリックで使う。チーム戦は赤と白の荷車で競走' },
+    cart: { name: '荷運び競争', max: 10, team: true, desc: '荷車を引いてゴールまで運ぶ。←→で5本の道を選ぶ（みんなの平均で進む）、A／Space／画面の「引く」を連打すると加速する。岩にぶつかると荷が崩れる。「？」の箱で道具（加速・修理・守り、チーム戦では相手に岩落とし）が手に入り、B／X／クリックで使う。チーム戦は赤と白の荷車で競走' },
   };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v), r1 = (v) => Math.round(v * 10) / 10, r2 = (v) => Math.round(v * 100) / 100;
@@ -305,7 +305,7 @@
     root.querySelector('button[data-a="quit"]').onclick = () => { send(env.others, { k: 'quit', seed: cfg.seed }); stop(); };
     const loop = (t) => {
       raf = requestAnimationFrame(loop); const dt = clamp((t - last) / 1000, 0, 0.05); last = t;
-      const pd = readPad(); env.pad = pd; IN.dash = IN.b || IN.u || IN.r || IN.pb || IN.pu; IN.pull = IN.a || IN.pa;
+      const pd = readPad(); env.pad = pd; IN.dash = IN.b || IN.u || IN.r || IN.pb || IN.pu;
       try { if (!env.finished) game.update(dt); game.draw(); } catch (e) { console.error(e); stop(); return; }
       IN.aT = IN.bT = IN.cT = IN.lT = IN.rT = IN.click = 0;
     };
@@ -314,7 +314,9 @@
   function showResult(env, res, close) { // res＝{ title, rows:[html], cmd }
     const e = box('ptRes'); e.innerHTML = `<div><h2>${esc(res.title)}</h2>${res.rows.map((r) => `<div class="r">${r}</div>`).join('')}<div style="margin-top:8px"><button data-a="ok">閉じる</button></div></div>`;
     if (res.cmd && !env.cfg.solo) ENV.cmd(res.cmd);
-    e.querySelector('button').onclick = () => { e.remove(); close(); };
+    const button = e.querySelector('button');
+    button.onclick = () => { e.remove(); close(); };
+    setFocus(e, button);
   }
   const nameOf = (env, id) => env.names[id] || '？';
   const tcol = (env, id) => (env.cfg.team ? TEAM[env.tm[id]].c : PAL[env.ids.indexOf(id) % PAL.length]);
@@ -899,7 +901,8 @@
           for (let k = 0; k < 4; k++) { const f = k / 4, f2 = (k + 1) / 4, wv = Math.sin(nowD / 120 + k) * Math.abs(a) * 0.8; g.fillStyle = k % 2 ? '#fff' : '#d33'; g.beginPath(); g.moveTo(px + dx * f, 15 + dy * f + wv); g.lineTo(px + dx * f2, 15 + dy * f2 + wv); g.lineTo(px + dx * f2, 18 + dy * f2 + wv); g.lineTo(px + dx * f, 18 + dy * f + wv); g.fill(); }
         }
         const lx = cx + wnd * 0.9;
-        if (Math.abs(lx - cx) > 0.5) { g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 0.4; g.setLineDash([1.5, 1.5]); g.beginPath(); g.moveTo(cx, cy); g.lineTo(lx, cy); g.stroke(); g.setLineDash([]); g.fillStyle = 'rgba(255,255,255,.6)'; g.beginPath(); g.arc(cx, cy, 0.7, 0, 7); g.fill(); } // 狙った所から、風で流される先へ g.strokeStyle = '#1a1a1a'; g.lineWidth = 0.6; g.beginPath(); g.arc(lx, cy, 3, 0, 7); g.moveTo(lx - 5, cy); g.lineTo(lx + 5, cy); g.moveTo(lx, cy - 5); g.lineTo(lx, cy + 5); g.stroke(); g.restore();
+        if (Math.abs(lx - cx) > 0.5) { g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 0.4; g.setLineDash([1.5, 1.5]); g.beginPath(); g.moveTo(cx, cy); g.lineTo(lx, cy); g.stroke(); g.setLineDash([]); g.fillStyle = 'rgba(255,255,255,.6)'; g.beginPath(); g.arc(cx, cy, 0.7, 0, 7); g.fill(); } // 狙った所から、風で流される先へ
+        g.strokeStyle = '#1a1a1a'; g.lineWidth = 0.6; g.beginPath(); g.arc(lx, cy, 3, 0, 7); g.moveTo(lx - 5, cy); g.lineTo(lx + 5, cy); g.moveTo(lx, cy - 5); g.lineTo(lx, cy + 5); g.stroke(); g.restore();
         drawText(g, `残り ${ARROWS - me0.n} 本　${me0.sc} 点`, 16, 28, { sz: 22, b: 1 });
         { // 風の目盛り（上のまん中）：向きの矢印・強さの色と言葉
           const wv = windAt(Math.max(0, t)), aw = Math.abs(wv), gw = Math.min(360, W0 * 0.42), gx = W0 / 2 - gw / 2, gy = 14, col = aw < 0.8 ? '#cfe8ff' : aw < 2.5 ? '#9ad46a' : aw < 4.5 ? '#f2c14e' : '#e0463c';
@@ -928,9 +931,9 @@
     for (let d = 40; d < LEN - 15; d += 20 + rng() * 18) { const n = rng() < 0.3 ? 2 : 1, ls = []; while (ls.length < n) { const l = (rng() * LN) | 0; if (!ls.includes(l)) ls.push(l); } base.push({ d, lanes: ls }); }
     for (let d = 60; d < LEN - 40; d += 45 + rng() * 30) { let l = (rng() * LN) | 0; if (base.some((o) => Math.abs(o.d - d) < 6 && o.lanes.includes(l))) l = (l + 2) % LN; items.push({ d, lane: l }); }
     const mkC = () => ({ d: 0, v: 0, load: 1, t: -3, stun: 0, lane: 2, end: 0, hits: 0, item: null, boost: 0, shield: 0, fin: 0, obs: base.map((o) => ({ d: o.d, lanes: o.lanes, hit: false })), atk: [], got: [] });
-    const CS = Array.from({ length: NC }, mkC), PS = {}; for (const id of env.ids) PS[id] = { lane: 2, pull: 0, stam: 1, c: team ? env.tm[id] : 0 };
+    const CS = Array.from({ length: NC }, mkC), PS = {}; for (const id of env.ids) PS[id] = { lane: 2, effort: 0, taps: 0, c: team ? env.tm[id] : 0 };
     const myC = PS[me] ? PS[me].c : 0;
-    let snapT = 0, inT = 0, lastLane = 2, ph = 0, rx = performance.now(), T = -3, over = 0, useQ = 0; const flash = [0, 0], msg = [null, null];
+    let snapT = 0, inT = 0, lastLane = 2, ph = 0, rx = performance.now(), T = -3, over = 0, useQ = 0, taps = 0; const flash = [0, 0], msg = [null, null];
     const say = (ci, t) => { msg[ci] = { t, at: performance.now() }; };
     function result() {
       const ci = myC, C = CS[ci];
@@ -948,32 +951,43 @@
       else if (it === 'rock') { const O = CS[1 - ci]; if (O) for (let k = 0; k < 3; k++) O.atk.push({ d: O.d + 22 + k * 9 + Math.random() * 6, lanes: [(Math.random() * LN) | 0], hit: false }); say(1 - ci, '岩が落ちてきた！'); }
       say(ci, `${CART_IT[it].n}を使った！`);
     }
+    function applyTaps(p, total) {
+      if (!Number.isSafeInteger(total) || total <= p.taps) return;
+      const presses = total - p.taps;
+      p.taps = total;
+      if (T >= 0) p.effort = Math.min(1, p.effort + presses * 0.32);
+    }
     function stepCart(ci, dt) {
       const C = CS[ci]; if (C.end) { C.v *= 0.9; return; }
       const mem = env.ids.filter((id) => !env.gone[id] && PS[id].c === ci); let pull = 0, lanes = 0;
-      for (const id of mem) { const q = PS[id]; if (q.pull && q.stam > 0.02) { pull++; q.stam = clamp(q.stam - 0.4 * dt, 0, 1); } else q.stam = clamp(q.stam + 0.25 * dt, 0, 1); lanes += q.lane; }
+      for (const id of mem) {
+        const q = PS[id];
+        pull += q.effort;
+        q.effort = Math.max(0, q.effort - 0.9 * dt);
+        lanes += q.lane;
+      }
       const ln = mem.length ? lanes / mem.length : 2; C.lane += (Math.round(ln) - C.lane) * Math.min(1, dt * 8);
-      let target = pull ? 3 + 13 * (pull / Math.max(1, mem.length)) : 0.6; if (C.boost > 0) { C.boost -= dt; target = target * 1.5 + 5; } if (C.stun > 0) { C.stun -= dt; target *= 0.3; }
+      let target = 0.6 + 15.4 * pull / Math.max(1, mem.length); if (C.boost > 0) { C.boost -= dt; target = target * 1.5 + 5; } if (C.stun > 0) { C.stun -= dt; target *= 0.3; }
       C.v += (target - C.v) * Math.min(1, dt * 2.2); C.d += C.v * dt; C.t += dt;
       const L = Math.round(C.lane);
       for (const o of C.obs.concat(C.atk)) if (!o.hit && C.d >= o.d) { o.hit = true; if (o.lanes.includes(L)) { if (C.shield) { C.shield = 0; say(ci, '守りで岩を防いだ！'); } else { C.load = Math.max(0, C.load - 0.17); C.stun = 1; C.v *= 0.3; C.hits++; flash[ci] = 0.4; } } }
       items.forEach((it, k) => { if (!C.got.includes(k) && C.d >= it.d && C.d - it.d < 8) { if (it.lane === L) { C.got.push(k); const pool = team ? ['boost', 'boost', 'repair', 'shield', 'rock', 'rock'] : ['boost', 'boost', 'repair', 'shield']; C.item = pool[(Math.random() * pool.length) | 0]; say(ci, `${CART_IT[C.item].n}を手に入れた！`); } else if (C.d - it.d > 4) C.got.push(k); } });
       if (C.d >= LEN) { C.end = 1; C.fin = C.t; } else if (C.load <= 0) C.end = 2;
     }
-    function snap() { send(env.others, { k: 'snap', T: r1(T), over, cs: CS.map((C) => ({ d: r1(C.d), v: r1(C.v), load: r2(C.load), t: r1(C.t), st: C.stun > 0 ? r2(C.stun) : 0, lane: r2(C.lane), hits: C.hits, item: C.item, bo: C.boost > 0 ? r1(C.boost) : 0, sh: C.shield, end: C.end, fin: C.fin, got: C.got, atk: C.atk.map((o) => [r1(o.d), o.lanes[0], o.hit ? 1 : 0]), hit: C.obs.filter((o) => o.hit).length })), ps: Object.fromEntries(env.ids.map((id) => [id, [PS[id].lane, PS[id].pull, r2(PS[id].stam)]])), msg }); }
+    function snap() { send(env.others, { k: 'snap', T: r1(T), over, cs: CS.map((C) => ({ d: r1(C.d), v: r1(C.v), load: r2(C.load), t: r1(C.t), st: C.stun > 0 ? r2(C.stun) : 0, lane: r2(C.lane), hits: C.hits, item: C.item, bo: C.boost > 0 ? r1(C.boost) : 0, sh: C.shield, end: C.end, fin: C.fin, got: C.got, atk: C.atk.map((o) => [r1(o.d), o.lanes[0], o.hit ? 1 : 0]), hit: C.obs.filter((o) => o.hit).length })), ps: Object.fromEntries(env.ids.map((id) => [id, [PS[id].lane, r2(PS[id].effort)]])), msg }); }
     return {
       msg(from, m) {
-        if (lead) { const p = PS[from]; if (p && m.k === 'in') { p.lane = clamp(m.lane | 0, 0, LN - 1); p.pull = m.pull ? 1 : 0; if (m.use) useItem(p.c); } return; }
+        if (lead) { const p = PS[from]; if (p && m.k === 'in') { p.lane = clamp(m.lane | 0, 0, LN - 1); applyTaps(p, m.taps); if (m.use) useItem(p.c); } return; }
         if (from !== cfg.lead || m.k !== 'snap') return; rx = performance.now(); T = m.T;
         m.cs.forEach((s, i) => { const C = CS[i]; if (!C) return; if (s.hits > C.hits) flash[i] = 0.4; Object.assign(C, { d: s.d, v: s.v, load: s.load, t: s.t, stun: s.st, lane: s.lane, hits: s.hits, item: s.item, boost: s.bo, shield: s.sh, end: s.end, fin: s.fin, got: s.got }); C.atk = s.atk.map(([d, l, h]) => ({ d, lanes: [l], hit: !!h })); C.obs.forEach((o, k) => { o.hit = k < s.hit; }); });
-        for (const id in m.ps) if (PS[id]) { PS[id].lane = m.ps[id][0]; PS[id].pull = m.ps[id][1]; PS[id].stam = m.ps[id][2]; }
+        for (const id in m.ps) if (PS[id]) { if (id !== me) PS[id].lane = m.ps[id][0]; PS[id].effort = m.ps[id][1]; }
         m.msg.forEach((x, i) => { if (x && (!msg[i] || msg[i].t !== x.t)) say(i, x.t); });
         if (m.over && !over) { over = m.over; result(); }
       },
       update(dt) {
         ph += dt; flash[0] -= dt; flash[1] -= dt;
-        const p = PS[me]; if (p) { if (IN.lT) p.lane = clamp(p.lane - 1, 0, LN - 1); if (IN.rT) p.lane = clamp(p.lane + 1, 0, LN - 1); p.pull = IN.pull ? 1 : 0; if (IN.bT || IN.click) useQ = 1; }
-        if (!lead) { inT -= dt; if (p && (inT <= 0 || p.lane !== lastLane || useQ)) { inT = 0.1; lastLane = p.lane; send([cfg.lead], { k: 'in', lane: p.lane, pull: p.pull, use: useQ }); useQ = 0; } if (performance.now() - rx > 8000) env.end({ title: 'リーダーとの通信が切れました', rows: [], cmd: null }); return; }
+        const p = PS[me]; if (p) { if (IN.lT) p.lane = clamp(p.lane - 1, 0, LN - 1); if (IN.rT) p.lane = clamp(p.lane + 1, 0, LN - 1); if (IN.aT && T >= 0) { taps++; if (lead) applyTaps(p, taps); } if (IN.bT || IN.click) useQ = 1; }
+        if (!lead) { inT -= dt; if (p && (inT <= 0 || p.lane !== lastLane || useQ)) { inT = 0.1; lastLane = p.lane; send([cfg.lead], { k: 'in', lane: p.lane, taps, use: useQ }); useQ = 0; } if (performance.now() - rx > 8000) env.end({ title: 'リーダーとの通信が切れました', rows: [], cmd: null }); return; }
         if (useQ && p) { useItem(p.c); useQ = 0; }
         T += dt; if (T < 0) { snapT -= dt; if (snapT <= 0) { snapT = 0.1; snap(); } return; }
         if (!over) {
@@ -1011,14 +1025,14 @@
       g.fillStyle = team ? TEAM[ci].c : '#7a4a22'; g.fillRect(-26, -30, 52, 60); g.fillStyle = '#c9a15a'; const h = 50 * C.load; g.fillRect(-22, 24 - h, 44, h); g.strokeStyle = '#3a2410'; g.lineWidth = 3; g.strokeRect(-26, -30, 52, 60);
       if (C.shield) { g.strokeStyle = 'rgba(106,168,224,.9)'; g.lineWidth = 4; g.beginPath(); g.arc(0, 0, 42, 0, 7); g.stroke(); }
       g.restore();
-      env.ids.filter((id) => PS[id].c === ci).forEach((id, i, arr) => { const q = PS[id], px = cxp + (i - (arr.length - 1) / 2) * 28, py = cy - 50 - (q.pull ? 6 : 0); drawMan(g, px, py + 24, 0.85, team ? TEAM[ci].c : PAL[env.ids.indexOf(id) % PAL.length], ph * (2 + C.v * 0.5) + i, q.pull); });
+      env.ids.filter((id) => PS[id].c === ci).forEach((id, i, arr) => { const q = PS[id], px = cxp + (i - (arr.length - 1) / 2) * 28, py = cy - 50 - q.effort * 6; drawMan(g, px, py + 24, 0.85, team ? TEAM[ci].c : PAL[env.ids.indexOf(id) % PAL.length], ph * (2 + C.v * 0.5) + i, q.effort > 0.1); });
       // 左上：荷・道のり・速さ（数字と目盛り。速さで色が変わる）
       const hx = x0v + 12, sp = Math.max(0, C.v), spc = sp > 14 ? '#f2c14e' : sp > 8 ? '#9ad46a' : sp > 3 ? '#e0e0e0' : '#e07a6a';
       if (team) drawText(g, `${TEAM[ci].n}の荷車${ci === myC ? '（味方）' : ''}`, hx, 48, { sz: 16, b: 1, c: TEAM[ci].c });
       drawText(g, `荷 ${Math.round(C.load * 100)}%`, hx, 72, { sz: 18, b: 1 }); bar(g, hx, 78, 130, 9, C.load, '#c9a15a');
       drawText(g, `道のり ${Math.round(clamp(C.d / LEN, 0, 1) * 100)}%`, hx, 104, { sz: 14 }); bar(g, hx, 110, 130, 6, C.d / LEN, '#fff');
       drawText(g, `速さ ${sp.toFixed(1)}`, hx, 140, { sz: 26, b: 1, c: spc }); bar(g, hx, 148, 130, 12, sp / 25, spc);
-      drawText(g, sp > 14 ? 'ぐんぐん！' : sp > 8 ? 'すいすい' : sp > 3 ? 'のろのろ' : C.stun > 0 ? '止まった！' : '引いて！', hx, 178, { sz: 14, c: spc });
+      drawText(g, sp > 14 ? 'ぐんぐん！' : sp > 8 ? 'すいすい' : sp > 3 ? 'のろのろ' : C.stun > 0 ? '止まった！' : '連打で加速！', hx, 178, { sz: 14, c: spc });
       // 右下：道具
       if (ci === myC) { const it = C.item && CART_IT[C.item], bx = x0v + vw - 150, by = H0 - 70; g.fillStyle = '#000a'; g.fillRect(bx, by, 138, 56); g.strokeStyle = it ? it.c : '#777'; g.lineWidth = 2; g.strokeRect(bx, by, 138, 56); drawText(g, it ? it.n : '道具なし', bx + 69, by + 24, { sz: 18, b: 1, al: 'center', c: it ? it.c : '#aaa' }); drawText(g, it ? 'B／X／クリックで使う' : '？の箱を拾う', bx + 69, by + 44, { sz: 11, al: 'center' }); }
       const ms = msg[ci]; if (ms && performance.now() - ms.at < 1500) drawText(g, ms.t, x0 + rw / 2, H0 * 0.32, { sz: 24, b: 1, al: 'center', c: '#ffd76a' });

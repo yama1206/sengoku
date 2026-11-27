@@ -61,7 +61,7 @@ const focusMem = {};
 function activeMenuNotBattle() { const m = activeMenu(); return m && m !== $('battle'); }
 function activeMenu() {
   if (G.mode === 'title') return $('mSet').parentNode === $('title') && !$('mSet').classList.contains('hidden') ? $('mSet') : !$('mapPanel').classList.contains('hidden') ? $('mapPanel') : !$('createPanel').classList.contains('hidden') ? $('createPanel') : !$('carryPanel').classList.contains('hidden') ? $('carryPanel') : !$('slotPanel').classList.contains('hidden') ? $('slotPanel') : !$('friendPanel').classList.contains('hidden') ? $('friendPanel') : !$('namePanel').classList.contains('hidden') ? $('namePanel') : $('joinPanel').classList.contains('hidden') ? $('titleMenu') : $('joinPanel');
-  { const pt = document.getElementById('ptBox') || document.getElementById('ptRes'); if (pt) return pt; } // 2.69.2 「みんなで遊ぶ」の部屋・結果の窓もコントローラーで操作できるように
+  { const pt = document.getElementById('ptRes') || document.getElementById('ptBox'); if (pt) return pt; } // 2.69.2 「みんなで遊ぶ」の部屋・結果の窓もコントローラーで操作できるように
   if (!$('gameMenu').classList.contains('hidden')) return $('gameMenu');
   if (!$('char').classList.contains('hidden')) return $('char');
   if (!$('town').classList.contains('hidden')) return $('town');
@@ -82,13 +82,16 @@ function navMenu(dx, dy, m = activeMenu()) {
   if ((m.id === 'ptBox' || m.id === 'ptRes') && dx) { const i = bs.indexOf(cur), nb = bs[Math.max(0, Math.min(bs.length - 1, i + dx))]; setFocus(m, nb); try { nb.scrollIntoView({ block: 'nearest' }); } catch (e) {} return true; } // 2.72.2 遊びの部屋は縦並び：左右は前後に動く
   const cr = cur.getBoundingClientRect();
   const cx = cr.left + cr.width / 2, cy = cr.top + cr.height / 2;
+  const townVertical = m.id === 'town' && dy && m.contains(cur);
   let best = null, bs2 = Infinity;
   for (const b of bs) {
     if (b === cur) continue;
     const r = b.getBoundingClientRect(); const vx = r.left + r.width / 2 - cx, vy = r.top + r.height / 2 - cy;
     const along = vx * dx + vy * dy; if (along <= 2) continue;
     const side = Math.abs(vx * dy - vy * dx); const score = along + side * 2;
-    if (score < bs2) { bs2 = score; best = b; }
+    // 町の上下移動では、画面右下の時間ボタンより町のボタンを優先する。
+    const inside = townVertical && m.contains(b), bestInside = best && townVertical && m.contains(best);
+    if (!best || (inside && !bestInside) || (!!inside === !!bestInside && score < bs2)) { bs2 = score; best = b; }
   }
   setFocus(m, best || cur);
   if (best) try { best.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {} // 0.84.1 カーソルに合わせてスクロール
