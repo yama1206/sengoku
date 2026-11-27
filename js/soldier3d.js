@@ -171,14 +171,30 @@
 
   // 動きを焼き込む。1行＝1コマ、1行に骨の数×4画素（行列1つ＝4画素）
   // hipK：腰の位置を体の大きさに合わせる倍率（動きはt3の体で作られているため）
-  function bake(gl, clips, hipK, fixArms) {
+  function bake(gl, clips, hipK, fixArms, paintedAshigaru = false) {
     const root = gl.scene; root.updateMatrixWorld(true);
     const meshes = []; root.traverse((o) => { if (o.isSkinnedMesh) meshes.push(o); });
     if (fixArms) for (const m of meshes) S.fixArmWeights(m); // 2.30.1
     const sm = meshes[0], sk = sm.skeleton, nb = sk.bones.length;
     const geo = mergeParts(meshes.map((m) => ({ geo: m.geometry, color: m.geometry.attributes.color ? null : m.material.color })), true);
     const bones = {}; for (const b of sk.bones) bones[b.name.replace(/^mixamorig:?/, '')] = b;
-    { const cm = S.clothMask(geo, sk.bones.map((b) => b.name)), C = geo.attributes.color; for (let i = 0; i < cm.length; i++) if (cm[i]) C.setX(i, -Math.max(C.getX(i), 0.001)); } // 2.12.5 服の所は赤をマイナスにして印にする（属性を増やすと数の上限を超えるので）
+    const C = geo.attributes.color;
+    if (paintedAshigaru) {
+      // 足軽の頂点色の alpha は部位を示す。65534 は布、65533 は肌、65535 は具足。
+      let offset = 0;
+      for (const mesh of meshes) {
+        const source = mesh.geometry.attributes.color;
+        for (let i = 0; i < source.count; i++) {
+          const part = Math.round(source.getW(i) * 65535), j = offset + i;
+          if (part === 65534) C.setX(j, -Math.max(C.getX(j), 0.001));
+          if (part === 65533) C.setY(j, -C.getY(j));
+        }
+        offset += source.count;
+      }
+    } else {
+      const mask = S.clothMask(geo, sk.bones.map((b) => b.name));
+      for (let i = 0; i < mask.length; i++) if (mask[i]) C.setX(i, -Math.max(C.getX(i), 0.001));
+    }
     const hips = bones.Hips;
     const mixer = new T.AnimationMixer(root), rows = {};
     let H = 0;
@@ -370,7 +386,7 @@
   S.load = function (THREE, scene, cap, done) {
     if (S.loading || !THREE || !THREE.GLTFLoader) return; S.loading = true; T = THREE;
     const L = new T.GLTFLoader(), get = (u) => new Promise((ok, ng) => L.load(S.PATH + u, ok, undefined, ng));
-    Promise.all([get('soldier_anims.glb'), ...[1, 2, 3, 4].map((i) => get(`soldier_t${i}_rig.glb`)), get('equip/horse_brown.glb'), get('equip/horse_white.glb'), ...WEPS.map((n) => get(`equip/${n}.glb`)), get('ninja_anims.glb').catch(() => null)]).then((g) => {
+    Promise.all([get('soldier_anims.glb'), ...[1, 2, 3, 4].map((i) => get(i === 2 ? 'soldier_t2_battle.glb' : `soldier_t${i}_rig.glb`)), get('equip/horse_brown.glb'), get('equip/horse_white.glb'), ...WEPS.map((n) => get(`equip/${n}.glb`)), get('ninja_anims.glb').catch(() => null)]).then((g) => {
       const an = g[0]; let aHip = 0;
       an.scene.traverse((o) => { if (!aHip && /Hips$/.test(o.name)) aHip = o.position.length(); });
       const clips = an.animations.map((c) => [c.name, c]);
@@ -384,9 +400,9 @@
       )]);
       for (let i = 0; i < 4; i++) {
         let h = 0; g[1 + i].scene.traverse((o) => { if (!h && o.isBone && /Hips$/.test(o.name)) h = o.position.length(); });
-        const bk = bake(g[1 + i], soldierClips, h && aHip ? h / aHip : 1, i > 0);
-        skinTone(bk.geo, bk.boneNames); // 2.21.0 兵の肌の色をそろえる（馬には使わない）
-        if (i === 1 || i === 2) blackHat(bk.geo, 1.4); // t2の陣笠・t3の兜の白い所は黒漆に
+        const bk = bake(g[1 + i], soldierClips, h && aHip ? h / aHip : 1, i > 0, i === 1);
+        if (i !== 1) skinTone(bk.geo, bk.boneNames); // 2.21.0 兵の肌の色をそろえる（馬には使わない）
+        if (i === 2) blackHat(bk.geo, 1.4); // t3の兜の白い所は黒漆に
         const b = mkSkin(bk, cap, scene);
         const rr = b.rows.ride; b.hipSit = rr && b.att.Hips ? b.att.Hips[rr.r0 * 16 + 13] : 0.53; // 座った姿勢の腰の高さ
         S.tiers.push(b);
