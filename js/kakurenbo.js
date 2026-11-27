@@ -400,7 +400,7 @@
     order.splice(0, order.length, ...willing, ...order.filter((id) => !volunteers.has(id)));
     // 2.96.0 鬼は1〜2人・逃げる側は4〜8人まで。人が足りない分は、CPUの設定があればCPUが入る
     const ON = o.on === '2' ? 2 : 1, HN = clamp(+o.hn || 4, 4, 8);
-    const useCpuOni = LS > 0 && !(hids.length === 5 && willing.length === 0);
+    const useCpuOni = LS > 0 && willing.length > 0; // 3.30.1 立候補が1人もいない時は、CPUではなく、ランダムに選ばれた人間が鬼になる
     const humanSlots = useCpuOni ? willing.length : LH > 0 ? hids.length : hids.length - 1;
     const nHumOni = solo ? 0 : Math.min(ON, humanSlots), nCpuOni = !solo && useCpuOni ? ON - nHumOni : 0;
     const nFill = !solo && LH > 0 ? Math.max(0, HN - (hids.length - nHumOni)) : 0, nSk = nHumOni + nCpuOni;
