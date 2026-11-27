@@ -35,7 +35,10 @@ function errToast(text) { const t = document.createElement('div'); t.className =
 const MSG_SFX = [[/^勝利|を退けました|守り抜|攻め落と|城を落とし/, 'victory'], [/^敗北|落城しました|援軍に敗れ/, 'defeat'], [/取り立てられました|に昇進/, 'promote'], [/」達成|を終えました/, 'quest'], [/を落としました|を奪われ/, 'lost'], [/合戦に加わりました|駆けつけました/, 'join']];
 let resultSfxT = 0;
 function msgSfx(text) { if (/^【/.test(text)) return; for (const [re, k] of MSG_SFX) if (re.test(text)) { if (k === 'victory' || k === 'defeat') resultSfxT = performance.now(); SGK.AUDIO.sfx(k); return; } }
-function toastMsg(text) { msgSfx(text); toast(text, 4000); bushoReply(text); }
+function toastMsg(text) {
+  const show = () => { msgSfx(text); toast(text, 4000); bushoReply(text); };
+  if (!SGK.GAMBLEUI?.deferDiceNotice(text, show)) show();
+}
 // 2.14.0 武将に話しかけた時の立ち絵。返事（名前で始まる知らせ）を吹き出しに出す
 function bushoTalk(name, line, wait) {
   const img = SGK.bushoImg && SGK.bushoImg(name), el = $('bushoTalk'); if (!el) return;

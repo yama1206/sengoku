@@ -8,7 +8,7 @@ function priceCol(r) {
   return `rgb(${N.map((n, i) => Math.round(n + (C[i] - n) * a)).join(',')})`;
 }
 let townTab = 'street', townHtml = '', stageKey = '';
-const TOWN_BGM = { renpei: 'renpei', gamble: 'gamble', yugi: 'chaya', talk: 'chaya', home: 'home', market: 'market' }; // 2.14.3 行き先ごとの曲（ほかは町の曲）。2.20.0 市場
+const TOWN_BGM = { renpei: 'renpei', gamble: 'gamble', yugi: 'asobi', talk: 'chaya', home: 'home', market: 'market' }; // 2.14.3 行き先ごとの曲（ほかは町の曲）。2.20.0 市場
 // 2.13.0 町の中：通りの絵から市場・練兵所・賭場・話す（・城・自宅）へ。練兵所＝募兵・調練と仕事・依頼
 const TOWN_SECS = { street: [], renpei: ['army', 'work', 'jobs'] }, SEC_NAME = { army: '募兵', work: '調練・仕事', jobs: '依頼', castle: '城' };
 const TA = 'assets/town/';

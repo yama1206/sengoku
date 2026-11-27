@@ -4,6 +4,10 @@
   const UI = (SGK.GAMBLEUI = {}), G = SGK.GAMBLE, AU = () => SGK.AUDIO;
   const ART = 'assets/gamble/';
   let el = null, tab = 'chouhan', P = null, myId = null, seen = {}, busy = {}, sel = 100, touched = false, lastHtml = {};
+  const diceGames = ['chouhan', 'memashi', 'shigoro'];
+  let diceReveal = null;
+  const diceNotices = [];
+  const showDiceNotices = () => diceNotices.splice(0).forEach((show) => show());
   const sfx = (k) => { try { AU().sfx(k); } catch (e) {} };
   const money = (n) => SGK.SIM.money(n);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -109,7 +113,12 @@
     el.addEventListener('click', onClick);
     sfx('zawa'); render(true);
   };
-  UI.close = () => { loadingTab = failedTab = null; if (el) el.remove(); el = null; P = null; if (SGK.ASOBIUI) SGK.ASOBIUI.closeCraft(); };
+  UI.close = () => { loadingTab = failedTab = null; if (el) el.remove(); el = null; P = diceReveal = null; showDiceNotices(); if (SGK.ASOBIUI) SGK.ASOBIUI.closeCraft(); };
+  UI.deferDiceNotice = (text, show) => {
+    if (!el || !diceGames.includes(tab) || !text.startsWith(G.GAMES[tab].name + '：')) return false;
+    diceNotices.push(show);
+    return true;
+  };
   UI.die = die; UI.roll = roll; // 2.62.0 双六の賽（asobiui.js）
   UI.isOpen = () => !!el;
   UI.tab = () => tab; // 2.62.2 遊びのタブ（独楽・貝絵合わせ・双六）では遊びの曲
@@ -120,6 +129,7 @@
     if (SGK.ASOBIUI && SGK.ASOBIUI.has(tab) && !e.target.closest('button[data-tab],button[data-add],button[data-x]')) { if (SGK.ASOBIUI.click(e, P, sel, el.querySelector('#gbStage'))) return; } // 2.62.0 独楽・貝・双六
     const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
     if (d.x) return UI.close();
+    if (diceReveal) return;
     if (d.tab) {
       const hall = el, request = ++tabRequest;
       loadingTab = failedTab = null;
@@ -135,7 +145,10 @@
         }
         if (el !== hall || request !== tabRequest) return;
       }
-      loadingTab = null; tab = d.tab; lastHtml = {}; render(true); return;
+      loadingTab = null;
+      if (diceReveal) return;
+      if (tab !== d.tab) showDiceNotices();
+      tab = d.tab; lastHtml = {}; render(true); return;
     }
     if (d.add != null) { sel = G.betStep(sel, d.add, touched, P && P.me ? P.me.money : 0); touched = true; render(false); return; } // 2.103.0 押すたびに足す
     if (d.cmd) { const c = { type: d.cmd, id: d.id }; if (d.kind != null) c.kind = d.kind; if (d.cmd === 'gbBet') c.qty = sel; SGK.cmd(c); sfx(d.cmd === 'gbBet' ? 'coin' : 'click'); }
@@ -143,10 +156,29 @@
   const NAMES = { chouhan: '丁半', memashi: '目増', shigoro: '四五六', uma: '馬くらべ', karuta: '天正かるた', koma: '独楽回し', kai: '貝絵合わせ', sugoroku: '絵双六' }; // 2.62.0 独楽・貝・双六（asobiui.js）
   function render(full) {
     const gb = P.here.gamble, me = P.me;
+    if (diceReveal) return;
+    const st = el.querySelector('#gbStage'), game = tab, L = gb[game]?.last;
+    if (full && st.dataset.g !== game && diceGames.includes(game)) seen[game] = L?.id;
+    if (!full && st.dataset.g === game && diceGames.includes(game) && L && L.id !== seen[game]) {
+      const hall = el;
+      const panel = st.querySelector('.panel');
+      diceReveal = L;
+      seen[game] = L.id;
+      panel.inert = true;
+      for (const button of hall.querySelectorAll('[data-tab],[data-add]')) button.disabled = true;
+      const reveal = () => {
+        if (el !== hall || diceReveal !== L) return;
+        diceReveal = null;
+        panel.inert = false;
+        showDiceNotices();
+        render(false);
+      };
+      PLAY[game](st, L, reveal).catch(reveal);
+      return;
+    }
     el.querySelector('#gbMoney').innerHTML = `${SGK.ICON ? SGK.ICON.html('coins', 20) : ''} ${money(me.money)}`;
     el.querySelector('#gbBets').innerHTML = `<b style="margin:0 6px">${money(sel)}</b>` + G.BETS.map((v) => `<button data-add="${v}">+${money(v)}</button>`).join('') + `<button data-add="-1">-100文</button><button data-add="0">戻す</button><button data-add="max">全額</button>`; // 2.103.0 押すたびに足す
     el.querySelector('#gbTabs').innerHTML = Object.entries(NAMES).map(([k, n]) => `<button data-tab="${k}" class="${k === tab ? 'on' : ''}">${k === loadingTab ? n + '（読み込み中）' : k === failedTab ? n + '（再試行）' : n}</button>`).join('');
-    const st = el.querySelector('#gbStage');
     if (SGK.ASOBIUI && SGK.ASOBIUI.has(tab)) { // 2.62.0
       if (full || st.dataset.g !== tab) { st.dataset.g = tab; SGK.ASOBIUI.mount(st, tab); }
       SGK.ASOBIUI.update(st, tab, P, myId, sel, (html) => setPanel(st.querySelector('.panel'), tab, html));
@@ -155,8 +187,7 @@
     if (full || !st.dataset.g || st.dataset.g !== tab) { st.dataset.g = tab; st.innerHTML = SCENE[tab](); }
     if (!busy[tab] && (mine(gb[tab]) || gb[tab].phase === 'play')) clear(st); // 2.31.1 次の勝負に賭けたら（札が配られたら）前の勝負の結果の文字を消す
     PANEL[tab](st.querySelector('.panel'), gb[tab], me);
-    const L = gb[tab].last;
-    if (L && L.id != null && L.id !== seen[tab] && !busy[tab]) { seen[tab] = L.id; busy[tab] = 1; PLAY[tab](st, L, gb[tab]).catch(() => {}).then(() => { busy[tab] = 0; if (el) render(false); }); }
+    if (L && L.id != null && L.id !== seen[game] && !busy[game] && !diceGames.includes(game)) { const hall = el; seen[game] = L.id; busy[game] = 1; PLAY[game](st, L, gb[game]).catch(() => {}).then(() => { if (el === hall) { busy[game] = 0; render(false); } }); }
     for (const g of Object.keys(NAMES)) if (g !== tab && gb[g] && gb[g].last && gb[g].last.id !== seen[g]) seen[g] = gb[g].last.id; // 見ていない卓の結果は流さない
   }
   let ruleOpen = false; document.addEventListener('toggle', (e) => { if (e.target && e.target.classList && e.target.classList.contains('gbRule')) ruleOpen = e.target.open; }, true);
@@ -225,7 +256,7 @@
 
   // ---- 演出 ----
   const PLAY = {
-    async chouhan(st, L) {
+    async chouhan(st, L, reveal) {
       clear(st); const ts = st.querySelector('#gbTsubo'), d0 = st.querySelector('#gd0'), d1 = st.querySelector('#gd1');
       ts.classList.remove('up'); ts.classList.add('shake'); sfx('diceShake'); say(st, '入ります！', '58%', '18%');
       await wait(900); ts.classList.remove('shake'); sfx('tsuboDown'); await wait(500);
@@ -233,10 +264,10 @@
       say(st, '勝負！', '58%', '18%'); await wait(500);
       for (const [dd, n] of [[d0, L.d[0]], [d1, L.d[1]]]) { const c = dd.querySelector('.gc'), [rx, ry] = ROT[n]; c.style.transition = 'none'; c.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`; }
       ts.classList.add('up'); sfx('tsuboOpen'); await wait(450);
-      banner(st, `${L.d[0] + L.d[1]}の${L.even ? '丁' : '半'}！`, L.even ? '#c81e1e' : '#1e5ac8'); await wait(700); result(st, L); await wait(1600);
+      banner(st, `${L.d[0] + L.d[1]}の${L.even ? '丁' : '半'}！`, L.even ? '#c81e1e' : '#1e5ac8'); result(st, L); reveal();
     },
-    async memashi(st, L) { await diceShow(st, L, 2); },
-    async shigoro(st, L) { await diceShow(st, L, 3); },
+    memashi: diceShow,
+    shigoro: diceShow,
     async uma(st, L, T) {
       clear(st); const tr = st.querySelector('#gbTrack'), call = st.querySelector('#gbCall'), F = L.frames, names = L.names || T.horses.map((h) => h.name);
       if (!F || !F.length) return;
@@ -265,7 +296,7 @@
       await wait(1800);
     },
   };
-  async function diceShow(st, L, n) {
+  async function diceShow(st, L, reveal) {
     clear(st);
     const pl = st.querySelector('#gbPL'), ml = st.querySelector('#gbML');
     pl.textContent = '親が振る…'; sfx('diceShake'); await wait(500);
@@ -277,9 +308,9 @@
       ml.textContent = 'あなたが振る…'; sfx('diceShake'); await wait(450);
       r.d.forEach((v, i) => roll(st.querySelector('#gm' + i), v, 1100)); sfx('diceRoll'); await wait(1250);
       ml.textContent = `あなた：${r.d.join('・')}${r.label ? '　' + r.label : `　合計${r.d[0] + r.d[1]}`}`;
-      if (r.label && /ピンゾロ|アラシ|シゴロ|ヒフミ/.test(r.label)) { banner(st, r.label.replace(/\(.*\)/, ''), '#c8a01e'); await wait(800); }
+      if (r.label && /ピンゾロ|アラシ|シゴロ|ヒフミ/.test(r.label)) banner(st, r.label.replace(/\(.*\)/, ''), '#c8a01e');
       result(st, L);
     } else ml.textContent = '（見物中）';
-    await wait(1800);
+    reveal();
   }
 })();

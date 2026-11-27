@@ -241,7 +241,7 @@ button.effect-link:hover:not(:disabled){background:none;color:#fff0b0;outline:no
  <form method="dialog"><button autofocus>閉じる</button></form>
 </dialog>
 <script>
-const VERSION='0.71';
+const VERSION='0.72';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -1377,22 +1377,37 @@ function sfxRare(r){
   noiseBurst(t+1.0,1.6,6000,12000,0.12,d);
  }
 }
-// ----- BGM(和風の音階を自動で演奏。メニューはゆったり、対戦は太鼓つきで速め) -----
+// ----- BGM（店内は明るい五音音階、対戦は太鼓つき）-----
 const BGM_S=[62,63,67,69,70,74,75,79,81,82]; // 陰旋法(レ ミ♭ ソ ラ シ♭)
-const BGM_MENU=[[5,-1,4,-1,2,-1,3,-1,2,-1,0,-1,-1,-1,-1,-1],[3,-1,2,-1,0,-1,2,-1,3,-1,4,-1,5,-1,-1,-1],[0,-1,2,3,-1,2,0,-1,-1,-1,3,-1,2,-1,0,-1],[7,-1,5,-1,4,-1,5,-1,4,-1,2,-1,3,-1,-1,-1]];
+const BGM_MENU=[
+ [74,0,76,78,0,81,0,78,76,0,78,0,74,0,0,0],
+ [78,0,81,83,0,81,0,78,76,0,74,0,76,0,0,0],
+ [81,0,83,86,0,83,0,81,78,0,81,0,83,0,0,0],
+ [81,0,78,76,0,78,0,76,74,0,0,0,0,0,69,0],
+ [74,0,78,81,0,83,0,81,78,0,76,0,74,0,76,0],
+ [78,0,81,78,0,76,0,78,83,0,81,0,78,0,0,0],
+ [86,0,83,81,0,78,0,81,83,0,81,0,76,0,78,0],
+ [81,0,78,76,0,78,0,76,74,0,0,0,0,0,0,0]
+];
+const BGM_MENU_BASS=[50,47,55,50,50,47,55,50];
 const BGM_BATTLE=[[5,5,-1,4,5,-1,7,-1,5,4,-1,2,3,-1,2,-1],[7,-1,5,7,-1,8,7,-1,5,-1,4,5,-1,2,3,-1],[0,2,3,-1,2,3,5,-1,3,2,-1,0,2,-1,3,-1],[5,-1,5,4,5,-1,7,8,7,-1,5,4,2,-1,3,-1]];
-let bgmPat=null,bgmBar=0;
+let bgmPat=null;
 function bgmStep(step,t){
- const c=AUD.ctx,b=AUD.bgm,battle=AUD.scene==='battle',pos=step%16;
- if(pos===0){bgmBar++;const set=battle?BGM_BATTLE:BGM_MENU;bgmPat=set[Math.floor(Math.random()*set.length)];}
- if(pos===0||pos===8){tone(t,pos===0?38:45,battle?0.9:1.8,'triangle',battle?0.5:0.4,b,false);}
- if(bgmPat){const n=bgmPat[pos];if(n>=0)tone(t,BGM_S[n],battle?0.35:0.9,'triangle',battle?0.5:0.45,b,true);}
- if(!battle&&pos===4&&Math.random()<0.5)tone(t,BGM_S[Math.floor(Math.random()*5)]+12,1.2,'sine',0.2,b,true);
- if(battle){
-  if(G&&G.siege&&!G.over&&(pos===3||pos===10||pos===15))thump(t,105,.18,.72,b);
-  if(pos%4===0)thump(t,pos===0?95:80,0.25,pos===0?0.9:0.55,b);
-  if(pos===6||pos===14)noiseBurst(t,0.08,1800,900,0.18,b);
+ const b=AUD.bgm,pos=step%16;
+ if(AUD.scene!=='battle'){
+  const bar=Math.floor(step/16)%BGM_MENU.length, note=BGM_MENU[bar][pos], bass=BGM_MENU_BASS[bar];
+  if(note)tone(t,note,pos===8?.42:.25,'triangle',.48,b,true);
+  if(pos===0||pos===8)tone(t,bass+(pos===8?7:0),.45,'triangle',.32,b,true);
+  if(pos===4||pos===12)tone(t,bass+19,.22,'sine',.22,b,true);
+  return;
  }
+ if(pos===0)bgmPat=BGM_BATTLE[Math.floor(Math.random()*BGM_BATTLE.length)];
+ if(pos===0||pos===8)tone(t,pos===0?38:45,.9,'triangle',.5,b,false);
+ const n=bgmPat[pos];
+ if(n>=0)tone(t,BGM_S[n],.35,'triangle',.5,b,true);
+ if(G&&G.siege&&!G.over&&(pos===3||pos===10||pos===15))thump(t,105,.18,.72,b);
+ if(pos%4===0)thump(t,pos===0?95:80,.25,pos===0?.9:.55,b);
+ if(pos===6||pos===14)noiseBurst(t,.08,1800,900,.18,b);
 }
 function bgmTick(){
  const c=AUD.ctx;if(!c)return;
@@ -1400,11 +1415,11 @@ function bgmTick(){
 }
 function audStart(){
  if(!AUD.ctx||AUD.timer)return;
- AUD.nextT=AUD.ctx.currentTime+0.1;AUD.step=0;AUD.stepDur=(AUD.scene==='battle')?0.14:0.3;
+ AUD.nextT=AUD.ctx.currentTime+0.1;AUD.step=0;AUD.stepDur=AUD.scene==='battle'?0.14:0.145;
  AUD.timer=setInterval(bgmTick,100);
 }
 function audScene(name){
- if(AUD.scene===name)return;AUD.scene=name;AUD.stepDur=name==='battle'?0.14:0.3;AUD.step=0;
+ if(AUD.scene===name)return;AUD.scene=name;AUD.stepDur=name==='battle'?0.14:0.145;AUD.step=0;
 }
 function audSetOn(on){
  AUD.on=on;try{localStorage.setItem('sengoku_snd',on?'on':'off');}catch(e){}
