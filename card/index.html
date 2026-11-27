@@ -342,7 +342,9 @@ const STARTERS=[
  {id:'st_mogami',name:'佐竹家の初陣組',sub:'守りを固め、城門を補充する',series:'e1560e',house:'mogami'},
  {id:'st_asakura',name:'朝倉家の初陣組',sub:'一乗谷の富で兵糧を増やす',series:'e1560e',house:'asakura'},
  {id:'st_nanbu',name:'南部家の初陣組',sub:'騎馬の先駆けと九戸の剛力',series:'e1560e',house:'nanbu'},
- {id:'st_hatakeyama',name:'能登畠山家の初陣組',sub:'七尾の堅城と、倒れても残る備え',series:'e1560e',house:'hatakeyama'}
+ {id:'st_hatakeyama',name:'能登畠山家の初陣組',sub:'七尾の堅城と、倒れても残る備え',series:'e1560e',house:'hatakeyama'},
+ {id:'st_azai',name:'浅井家の初陣組',sub:'先駆けで城門を破り、戦線を維持する',series:'e1560k',house:'azai'},
+ {id:'st_ashikaga',name:'足利家の初陣組',sub:'幕臣で守り、手札と城門を補う',series:'e1560k',house:'ashikaga'}
 ];
 // ===== CPU対戦(初陣組ごとに「普通」「強い」。それぞれ初めて勝つと戦銭がもらえる) =====
 // 普通…そのままの陣立て。強い…相手は手札+1・城門+1・最初から兵糧1枚(数字を変えれば強さを調整できる)
@@ -1153,7 +1155,7 @@ function backAction(){
  if(ui.rules)return 'rulesClose';
  if(screen==='title')return loginMsg?'toastClose':EMBED?'exitEmbed':'';
  if(screen==='list')return listHouseOpen?'listHouseClose':listBig?'listbigClose':'toTitle';
- if(screen==='shop')return packDetails?'packDetailsClose':starterPreview?'starterPreviewClose':shopBig?'shopbigClose':'toTitle';
+ if(screen==='shop')return shopBig?'shopbigClose':packDetails?'packDetailsClose':starterPreview?'starterPreviewClose':'toTitle';
  if(screen==='edit')return 'editBack';
  if(screen==='pvp')return 'pvpBack';
  if(screen==='cpu')return 'cpuBack';
@@ -1436,6 +1438,7 @@ function render(){
  if(G&&G.pvp&&NET&&NET.host&&!stT)stT=setTimeout(sendState,80); // 相手へ盤面を送る(少しまとめて)
  let h=screen==='title'?titleHTML():screen==='pvp'?pvpHTML():screen==='cpu'?cpuHTML():screen==='edit'?editHTML():screen==='list'?listHTML():screen==='shop'?shopHTML():gameHTML();
  if(screen==='shop'&&packDetails)h='<div inert>'+h+'</div>'+packDetailsHTML(packDetails);
+ if(screen==='shop'&&shopBig&&(packDetails||starterPreview))h+=shopBigHTML(true); // 包みの中身・初陣組の一覧の上に、札の大きな絵を重ねる
  if(screen==='shop'&&starterPreview)h='<div inert>'+h+'</div>'+starterPreviewHTML(starterPreview);
  if(ui.rules)h+=rulesHTML();
  if(pk)h+=packHTML();
@@ -1550,7 +1553,7 @@ function freeStarterHTML(){
 function starterPreviewHTML(st){
  const rows=Object.entries(starterDeck(st)).map(([id,n])=>{
   const c=cardById(id);
-  return `<article><img class="bookart" src="${printImg(c,c.pr[0])}" alt="" onerror="imgFb(this,'${baseImg(c)}')"><b>${escH(c.n)} ×${n}</b><br><small>${TL[c.t]} · 費え${c.c}${c.t==='u'?' · 兵力'+c.p:''}</small><br>${descHTML(c)||'効果なし'}</article>`;
+  return `<article data-a="packbig" data-id="${id}|${c.pr[0]}" style="cursor:pointer"><img class="bookart" src="${printImg(c,c.pr[0])}" alt="" onerror="imgFb(this,'${baseImg(c)}')"><b>${escH(c.n)} ×${n}</b><br><small>${TL[c.t]} · 費え${c.c}${c.t==='u'?' · 兵力'+c.p:''}</small><br>${descHTML(c)||'効果なし'}</article>`;
  }).join('');
  return `<div class="ov bookpanel"><section class="mb" role="dialog" aria-modal="true" aria-label="${escH(st.name)}"><nav><b>${escH(st.name)}</b> <button data-a="starterPreviewClose">閉じる</button></nav>${rows}</section></div>`;
 }
@@ -1560,7 +1563,7 @@ function packDetailsHTML(pack){
  const percent=n=>`${Number(n.toFixed(2))}%`;
  const table=RORD.map(r=>`<tr><th scope="row" class="rt-${r}">${RN[r]}</th><td>${percent(rates[r])}</td><td>${percent(guaranteed[r])}</td></tr>`).join('');
  const cards=[...RORD].reverse().filter(r=>available.includes(r)).map(r=>`<h3 class="rt-${r}">${RN[r]}</h3>`+
-  pool.filter(x=>x.r===r).map(({c})=>`<article><img class="bookart" src="${printImg(c,r)}" loading="lazy" alt="" onerror="imgFb(this,'${baseImg(c)}')"><b>${escH(c.n)}</b><br><small>${c.h?HOUSES[c.h].name:'共通札'} · ${TL[c.t]} · 費え${c.c}</small></article>`).join('')).join('');
+  pool.filter(x=>x.r===r).map(({c})=>`<article data-a="packbig" data-id="${c.id}|${r}" style="cursor:pointer"><img class="bookart" src="${printImg(c,r)}" loading="lazy" alt="" onerror="imgFb(this,'${baseImg(c)}')"><b>${escH(c.n)}</b><br><small>${c.h?HOUSES[c.h].name:'共通札'} · ${TL[c.t]} · 費え${c.c}</small><br>${descHTML(c)||'効果なし'}</article>`).join('')).join('');
  return `<div class="ov bookpanel"><section class="mb" role="dialog" aria-modal="true" aria-label="${pack.name}の包みに入っている札">
  <nav><b>${pack.name}の包みに入っている札</b> <button data-a="packDetailsClose">閉じる</button></nav>
  <p>1包み${GACHA.cards}枚。それまでに${RN[GACHA.guarantee]}以上が出なかった場合、最後の1枚に確定枠の排出率が適用されます。</p>
@@ -1597,10 +1600,10 @@ function shopHTML(){
  <div class="msg2">${shopMsg}</div>${body}<button data-a="toTitle" style="width:100%;margin-top:12px">戻る</button>${shopBigHTML()}</div>`;
 }
 // 札目録を押すした時の大きな絵。持っている札は明るく、持っていない札は暗く表示する
-function shopBigHTML(){
+function shopBigHTML(top){
  if(!shopBig)return '';const [cid,r]=shopBig.split('|'),c=cardById(cid);if(!c)return '';
- const n=printCount(c,r);
- return `<div class="bigov" style="--c:${IDEO[c.i].c}" data-a="shopbigClose"><img src="${printImg(c,r)}" onerror="imgFb(this,'${baseImg(c)}')" style="${n?'':'filter:brightness(.25) grayscale(.5)'}" alt=""><div class="bn">【${IDEO[c.i].n}】${c.n} <span class="rt-${r}">${RN[r]}</span></div><div class="bh">${n?`所持 ${n}枚`:'未所持'}　・　押すと閉じる</div></div>`;
+ const n=printCount(c,r),desc=descHTML(c);
+ return `<div class="bigov" style="--c:${IDEO[c.i].c}${top?';z-index:95':''}" data-a="shopbigClose"><img src="${printImg(c,r)}" onerror="imgFb(this,'${baseImg(c)}')" style="${n?'':'filter:brightness(.25) grayscale(.5)'}" alt=""><div class="bn">【${IDEO[c.i].n}】${c.n} <span class="rt-${r}">${RN[r]}</span></div><div class="bd">${TL[c.t]} 費え${c.c}${c.t==='u'?' 兵力'+c.p:''}${desc?'<br>'+desc:''}</div><div class="bh">${n?`所持 ${n}枚`:'未所持'}　・　押すと閉じる</div></div>`;
 }
 const toastHTML=()=>`<div class="ov"><div class="mb" style="text-align:center">${loginMsg}<button data-a="toastClose">OK</button></div></div>`;
 
@@ -1683,6 +1686,8 @@ async function onClick(a,id){
  }
  if(screen==='shop'){
   const split=k=>{const [cid,r]=k.split('|');return [cardById(cid),r];};
+  if(a==='shopbigClose'){shopBig=null;render();return;}
+  if(a==='packbig'){shopBig=id;render();return;}
   if(packDetails){
    if(a==='packDetailsClose'){
     const {id:packId}=packDetails;
