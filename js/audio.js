@@ -254,6 +254,19 @@
     kmSpin: (t) => { rustle(t, 0.22, 0.7, 700); woodTap(t + 0.05, 0.35, 1400); },
     kmHit: (t) => { woodTap(t, 0.7, 2600); woodTap(t + 0.018, 0.45, 1500); },
     kaiFlip: (t) => { woodTap(t, 0.3, 3400); rustle(t + 0.02, 0.06, 0.08, 5000); },
+    raceCount: (t) => { hyoshigi(t, 0.27, sfxBus); bell(t, 680, 0.075, 0.18); },
+    raceStart: (t) => { taiko(t, 0.32, true, sfxBus); bell(t, 1047, 0.13, 0.5); bell(t + 0.07, 1568, 0.11, 0.45); },
+    raceHoof: (t) => { thud(t, 0.13, 103 + R() * 24); woodTap(t + 0.012, 0.18, 630 + R() * 160); },
+    raceHoofAccent: (t) => { thud(t, 0.19, 92 + R() * 18); woodTap(t + 0.018, 0.19, 510 + R() * 95); },
+    raceJump: (t) => { woodTap(t, 0.25, 730); rustle(t + 0.015, 0.17, 0.19, 1750); },
+    raceLand: (t) => { thud(t, 0.37, 112); woodTap(t + 0.025, 0.23, 570); },
+    raceHit: (t) => { thud(t, 0.43, 83); woodTap(t + 0.035, 0.33, 360); rustle(t + 0.02, 0.21, 0.28, 560); },
+    racePickup: (t) => { bell(t, 1175, 0.11, 0.24); bell(t + 0.075, 1568, 0.10, 0.33); },
+    raceBoost: (t) => { rustle(t, 0.23, 0.39, 2100); [62, 66, 69].forEach((m, i) => shami(t + i * 0.058, m, 0.17, sfxBus)); },
+    raceShield: (t) => { bell(t, 587, 0.17, 0.42); bell(t + 0.09, 880, 0.12, 0.48); },
+    raceMud: (t) => { thud(t, 0.24, 92); rustle(t + 0.03, 0.42, 0.26, 510); },
+    raceLap: (t) => [74, 76, 81].forEach((m, i) => koto(t + i * 0.076, m, 0.24, sfxBus)),
+    raceGoal: (t) => { taiko(t, 0.39, true, sfxBus); [74, 78, 81, 86].forEach((m, i) => bell(t + i * 0.10, hz(m), 0.12, 0.62)); },
     kmrKick: (t) => { woodTap(t, 0.55, 520); woodTap(t + 0.01, 0.25, 1300); },
   };
   let lastSfx = {};
@@ -418,6 +431,7 @@
     town: { url: 'assets/bgm/town.mp3', loopStart: 22.09, loopEnd: 62.5104, gain: 1 }, // 通り・曲のない行き先（s_day_2142866112）
     gamble: { url: 'assets/bgm/gamble.mp3', loopStart: 21.78, loopEnd: 81.7975, gain: 1 }, // 賭場（s_gamble_1901902036）
     home: { url: 'assets/bgm/home.mp3', loopStart: 11.48, loopEnd: 59.4664, gain: 1 }, // 自宅（s_home_1234933656）
+    horseRace: { url: 'assets/bgm/horse-race.mp3', loopStart: 8.15, loopEnd: 32.9221, gain: 1.15 }, // ACE-Step 1.5 turbo, seed 127382322
     asobi: { url: 'assets/bgm/asobi.mp3', loopStart: 24.34, loopEnd: 70.0818, gain: 1 }, // 2.64.0 遊び（みんなで遊ぶ・蹴鞠・独楽・貝絵合わせ・双六）（s_asobi_1451365525）
     ninja_night: { url: 'assets/bgm/ninja_night.mp3', loopStart: 7.96, loopEnd: 59.9462, gain: 1 }, // 2.24.1 忍びの任務（夜）（s_night_487092298）
   };

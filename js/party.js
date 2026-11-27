@@ -412,6 +412,49 @@
       Number(a.out) - Number(b.out) || (a.fin ?? Infinity) - (b.fin ?? Infinity) || b.d - a.d
     ));
 
+    let heard = { count: 4, airborne: false, item: '', boost: 0, shield: 0, slow: 0, lap: 0, done: false };
+    let hoofDelay = 0, stride = 0;
+    function raceAudio(dt = 0) {
+      const play = (cue) => SGK.AUDIO?.sfx(cue);
+      if (t < 0) {
+        const count = Math.ceil(-t);
+        if (count < heard.count) play('raceCount');
+        heard.count = count;
+        return;
+      }
+      if (heard.count > 0) {
+        play('raceStart');
+        heard.count = 0;
+      }
+      if (mine.fin != null) {
+        if (!heard.done) play('raceGoal');
+        heard.done = true;
+        return;
+      }
+      const currentLap = Math.floor(Math.max(0, mine.d) / lap);
+      const airborne = mine.y > 0.015;
+      if (currentLap > heard.lap) play('raceLap');
+      if (airborne !== heard.airborne) {
+        play(airborne ? 'raceJump' : 'raceLand');
+        hoofDelay = airborne ? 0 : 0.12;
+        stride = 0;
+      }
+      if (mine.slow > 0 && mine.slow > heard.slow + 0.05) play('raceHit');
+      if (mine.item && mine.item !== heard.item) play('racePickup');
+      if (heard.item === 'mud' && !mine.item) play('raceMud');
+      if (mine.boost > 0 && mine.boost > heard.boost + 0.05) play('raceBoost');
+      if (mine.shield > 0 && mine.shield > heard.shield + 0.05) play('raceShield');
+      if (!airborne && mine.v > 4 && dt > 0) {
+        hoofDelay -= dt;
+        if (hoofDelay <= 0) {
+          play(stride === 2 ? 'raceHoofAccent' : 'raceHoof');
+          hoofDelay += [0.078, 0.084, 0.257][stride] * clamp(23 / mine.v, 0.74, 2.1);
+          stride = (stride + 1) % 3;
+        }
+      }
+      heard = { count: 0, airborne, item: mine.item, boost: mine.boost, shield: mine.shield, slow: mine.slow, lap: currentLap, done: false };
+    }
+
     function finish(cancelled) {
       if (cancelled) {
         env.end({ title: '競走を中断しました', rows: ['リーダーとの通信が切れました。'] });
@@ -744,7 +787,7 @@
             if (r === mine && !oldSlow && r.slow) show('減速！');
           });
           displayedTraps = m.traps;
-          if (over) finish(false);
+          if (over) { raceAudio(); finish(false); }
         }
       },
       update(dt) {
@@ -766,6 +809,7 @@
             publish();
             clock = 0.065;
           }
+          raceAudio(dt);
           if (over) finish(false);
         } else if (performance.now() - heartbeat > 10000) {
           finish(true);
@@ -773,6 +817,7 @@
           send([cfg.lead], { k: 'raceInput', seed: cfg.seed, input: controls, loadout });
           clock = 0.05;
         }
+        if (!host && !env.finished) raceAudio(dt);
         racers.forEach((r, i) => {
           const v = view[i], weight = Math.min(1, dt * 22);
           v.d += (r.d - v.d) * (host ? 1 : weight);
