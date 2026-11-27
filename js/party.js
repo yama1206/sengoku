@@ -13,7 +13,7 @@
     fish: { name: '釣り大会', max: 10, team: true, mode: true, desc: '始めてからゲームの時間で1日のあいだ、それぞれ地図の川・湖・海へ出て、いつもの釣りで釣った魚でくらべる（拠点の中では釣れません）。勝ち方は「いちばん大きい魚」か「釣った数」を選べます。1日たつと順位と賞金が届きます' },
     hayashi: { name: '囃子合わせ', max: 5, team: false, desc: '和楽器のリズム遊び。太鼓・鼓・篠笛・三味線・鉦から楽器を選び、みんなで一つの曲を合わせる。流れてくる譜を下の線で打つ（赤＝F・J・Space、白＝D・K。画面では左右に赤と白のボタン）。自分のパートは叩いた音で鳴る' },
     hide: { name: 'かくれんぼ？', max: 10, team: false, opts: true, desc: '隠れる側は木箱・樽・壺などの置物に化けて、探す側から逃げ切る。隠れる側：Aで近くの物に化ける、Bで人に戻る。逃げる側は体力100で、叩かれるとダメージを受けて少しのあいだ足が速くなる。体力がなくなると鬼に担がれて（15秒以内に運べないとふりほどかれる）牢（紫の光・マップに12個）に入れられ、45秒たつと完全に負けるが、仲間が牢に近づいて1秒で救助できる（残り時間が半分を過ぎてから救助されると、次に吊るされたらすぐ負け。半分より前なら、次もまた45秒耐えられる。3回目はすぐ負け）（化けた物が大きいほど受けるダメージは少なく、小さいほど大きい）。探す側：Aで叩く（本物の置物を叩くと体力が減る）、Bで近くの置物に化けることもできる（Aで叩くと正体を現す）。最初の15秒は探す側は目をつぶって動けない。ときどき音がして、だれかの近くが分かる。勝ち方は「宝箱の鍵を集めて脱出」。場面に11個ある宝箱のそばで動かずにいると少しずつ開き（1人だと約80秒、人数が増えるほど早い。化けたままでは開けられない）、12秒ごとに出る4つの合図（A・B・X・Yのボタン。コントローラーはPS配置で ×=A ○=B □=X △=Y）を時間内に順に押さないと1秒だけ開けられなくなり、鬼に宝箱の場所が知らされる（鬼には宝箱が赤い枠で壁越しにも見える）。7つ開けると離れた2か所に鳥居の出口が現れ（このとき全員の位置が壁越しに見える）、出口は動かずに20秒そばにいると開き（宝箱も出口も、途中でやめても進捗は残る）、開いた出口に着いた人が脱出成功になります。脱出口（出口や井戸）が開いている間は、鬼の叩きが一撃でダウンになり、足が少し速くなります。鬼が2人捕まえたら引き分け、3人以上で鬼の勝ちです。脱出できた逃げる側が半分以下のときは、脱出できた人だけが勝ちになります。逃げる側が1人だけになると、場面に5か所ある井戸のうちランダムな1つの蓋が開いて、すぐ使える脱出口になります。鬼がその井戸の近くに2秒とどまると蓋を閉じられて、閉じると普通の出口（2か所）が開きます。鬼は部屋で「鬼に立候補する」を押すと立候補でき、立候補がいなければ全員から、複数いれば立候補した人からランダムで決まります。脱出モードの制限時間は10分で、時間切れは鬼の勝ちです。賞金：鬼側が勝つと5貫。逃げる側（脱出モード）は、4人脱出か3人脱出なら全員1貫ずつ、2人脱出なら脱出した人1.5貫・捕まった人1貫、1人だけ脱出なら脱出した人2.5貫・捕まった人0.5貫です。逃げる側は◆の付いた物に化けられます。人数：参加は最大10人。鬼は1〜2人、逃げる側は4〜8人（部屋で選べます）。CPU：「鬼のCPU」を選ぶと、鬼の人数に足りない分（立候補した人が足りない分）をCPUがやります。「逃げる側のCPU」を選ぶと、決めた人数に足りない分だけCPUが加わります（強さは よわい・ふつう・つよい）。1人でも「ひとりで練習」でCPUと遊べます（報酬なし）。CPUはリーダーの端末が動かします。舞台・探す側の人数・化けたあとの動き・勝ち方・見つかったあとを選べます' },
-    kemari: { name: '蹴鞠', max: 10, team: false, desc: '輪になって鞠を蹴り回す。鞠が自分に飛んできたら、足もとの輪に重なった瞬間に蹴る。左クリック／Space／Aは速く返し、右クリック／X／Bはゆるく返す。続けるほど鞠はどんどん速くなる。毎月5日は大きな町で蹴鞠大会' },
+    kemari: { name: '蹴鞠', max: 10, team: false, desc: '輪になって鞠を蹴り回す。鞠が自分に飛んできたら、足もとの輪に重なった瞬間に蹴る。速く返すかゆるく返すかを選ぶ（操作の文字は使っている機器に合わせて出ます）。ひとり50回ずつ蹴り切り、タイミングの正確さを競う。落としても続き、続けるほど鞠は速くなる。毎月5日は大きな町で蹴鞠大会' },
     cart: { name: '荷運び競争', max: 10, team: true, desc: '荷車を引いてゴールまで運ぶ。←→で5本の道を選ぶ（みんなの平均で進む）、A／Space／画面の「引く」を連打すると加速する。岩にぶつかると荷が崩れる。「？」の箱で道具（加速・修理・守り、チーム戦では相手に岩落とし）が手に入り、B／X／クリックで使う。チーム戦は赤と白の荷車で競走' },
   };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -1048,9 +1048,13 @@
   // =====================================================================
   function kemariGame(env) {
     const { cfg, me, g2: g, cv } = env, lead = cfg.lead === me, rng = mulberry((cfg.seed ^ 0x5bd1e995) >>> 0), ids = env.ids, N = ids.length;
-    const WIN = 220, GREAT = 70, CALLS = ['アリ', 'ヤア', 'オウ'];
-    const S = { seq: 0, from: cfg.lead, to: cfg.lead, dur: 0, v: 0, cnt: 0, kicks: {}, great: {}, phase: 'ready', over: null, call: null };
-    ids.forEach((id) => { S.kicks[id] = 0; S.great[id] = 0; });
+    // 3.24.0 1人50回まで（判定の回数で数える）。判定幅は自分の端末で、続けて当てると狭く・外すと広く（案2）
+    const WMIN = 90, WMAX = 320, MAXK = 50, GREAT = 70, CALLS = ['アリ', 'ヤア', 'オウ'];
+    let win = 220;
+    const H = SGK.HINT || { pick: (m) => m.kb, btn: (n) => n };
+    const HF = () => H.pick({ kb: '左クリック／Space', pad: H.btn('A'), touch: '「速く」' }), HS = () => H.pick({ kb: '右クリック／X', pad: H.btn('B') + '／' + H.btn('X'), touch: '「ゆるく」' }); // 描くたびに、いまの機器の文字を選ぶ
+    const S = { seq: 0, from: cfg.lead, to: cfg.lead, dur: 0, v: 0, cnt: 0, kicks: {}, great: {}, tries: {}, phase: 'ready', over: null, call: null };
+    ids.forEach((id) => { S.kicks[id] = 0; S.great[id] = 0; S.tries[id] = 0; });
     let t0 = performance.now(), judged = 0, fb = null, rx = performance.now(), hb = 0, endT = 0, callT = 0, ph = 0;
     const swing = {}, myI = Math.max(0, ids.indexOf(me));
     const kickSnd = () => { try { SGK.AUDIO.sfx('kmrKick'); } catch (e) {} };
@@ -1058,24 +1062,27 @@
     const unit = (id) => (N === 1 ? [0, 1] : [Math.cos(ang(id)), Math.sin(ang(id))]);
     const range = (c) => [0.9 + c * 0.07, 1.6 + c * 0.14]; // 鞠の速さの下限（ゆるく返す）・上限（速く返す）（輪の半径／秒）。続けるほど際限なく上がる（2.100.0 上限なし／2.106.11 上がり方を倍に）
     const alive = () => ids.filter((id) => !env.gone[id]);
-    const pack = () => ({ k: 'km', seq: S.seq, from: S.from, to: S.to, dur: S.dur, v: S.v, cnt: S.cnt, kicks: S.kicks, great: S.great, phase: S.phase, over: S.over, call: S.call });
+    const pack = () => ({ k: 'km', seq: S.seq, from: S.from, to: S.to, dur: S.dur, v: S.v, cnt: S.cnt, kicks: S.kicks, great: S.great, tries: S.tries, phase: S.phase, over: S.over, call: S.call });
     const cast = () => { hb = 1; send(env.others, pack()); };
     function fly(from, sp) { // リーダー：次の行き先と速さ（2.106.11 sp＝'f'速く／'s'ゆるく。蹴った人が選ぶ）
-      const pool = alive().filter((id) => id !== from), to = pool.length ? pool[Math.floor(rng() * pool.length)] : from;
+      if (alive().every((id) => (S.tries[id] || 0) >= MAXK)) { S.phase = 'over'; S.over = null; cast(); finish(); return; } // 3.24.0 全員が50回判定したら終わり
+      // 3.24.0 判定の回数が少ない人へ送る（全員が同じ回数になるように）
+      const pool = alive().filter((id) => id !== from), mn = pool.length ? Math.min(...pool.map((id) => S.tries[id] || 0)) : 0, cand = pool.filter((id) => (S.tries[id] || 0) === mn), to = cand.length ? cand[Math.floor(rng() * cand.length)] : from;
       const [lo, hi] = range(S.cnt), v = sp === 's' ? lo : sp === 'f' ? hi : lo + rng() * (hi - lo), a = unit(from), b = unit(to), dist = to === from ? 0.9 : Math.hypot(a[0] - b[0], a[1] - b[1]);
       S.seq++; S.from = from; S.to = to; S.v = r2(v); S.dur = Math.round(Math.max(150, (dist / v) * 1000 + 220)); S.phase = 'fly'; t0 = performance.now(); cast();
     }
     function apply(id, ok, gr, sp) { // リーダー：受けた人の結果
       if (S.phase !== 'fly' || id !== S.to) return;
+      S.tries[id] = (S.tries[id] || 0) + 1; // 3.24.0 落としても終わらず、落とした人から上げ直す（案1）
       if (ok) { S.cnt++; S.kicks[id]++; if (gr) S.great[id]++; S.call = [id, S.cnt % 3]; swing[id] = callT = performance.now(); if (id !== me) kickSnd(); fly(id, sp); }
-      else { S.phase = 'over'; S.over = { id }; cast(); finish(); }
+      else { S.call = null; fly(id, 's'); }
     }
-    function judge(ok, gr, txt, sp) { judged = S.seq; fb = { txt, t: performance.now(), ok }; if (ok) { swing[me] = performance.now(); kickSnd(); } if (lead) apply(me, ok, gr, sp); else send([cfg.lead], { k: 'kick', seq: S.seq, ok: ok ? 1 : 0, gr: gr ? 1 : 0, sp }); }
+    function judge(ok, gr, txt, sp) { judged = S.seq; fb = { txt, t: performance.now(), ok }; win = ok ? Math.max(WMIN, win * 0.97) : Math.min(WMAX, win * 1.08); /* 3.24.0 判定幅の自動調整（案2） */ if (ok) { swing[me] = performance.now(); kickSnd(); } if (lead) apply(me, ok, gr, sp); else send([cfg.lead], { k: 'kick', seq: S.seq, ok: ok ? 1 : 0, gr: gr ? 1 : 0, sp }); }
     function finish() {
       if (endT) return; endT = performance.now();
       setTimeout(() => {
-        const rows = [`<b>続けた回数 ${S.cnt}回</b>${S.over && S.over.id ? `　（${esc(nameOf(env, S.over.id))}が落とした）` : ''}`].concat(ids.map((id) => `${esc(nameOf(env, id))}：蹴った ${S.kicks[id] || 0}回${S.great[id] ? `（見事 ${S.great[id]}）` : ''}`));
-        env.end({ title: S.cnt >= 50 ? 'お見事！ 鞠はなかなか落ちなかった' : '鞠が落ちた', rows, cmd: { type: 'partyResult', game: 'kemari', n: N, cnt: S.cnt, kicks: S.kicks[me] || 0 } });
+        const rows = [`<b>成功 ${S.cnt}回</b>（ひとり${MAXK}回ずつ蹴り切りました）`].concat(ids.map((id) => `${esc(nameOf(env, id))}：${S.tries[id] || 0}回中 ${S.kicks[id] || 0}回成功${S.great[id] ? `（見事 ${S.great[id]}）` : ''}`));
+        env.end({ title: 'みんなで蹴り切った！', rows, cmd: { type: 'partyResult', game: 'kemari', n: N, cnt: S.cnt, kicks: S.kicks[me] || 0 } });
       }, 1600);
     }
     return {
@@ -1083,7 +1090,7 @@
         if (lead) { if (m.k === 'kick' && m.seq === S.seq) apply(from, !!m.ok, !!m.gr, m.sp === 's' ? 's' : 'f'); return; }
         if (from !== cfg.lead || m.k !== 'km') return; rx = performance.now();
         if (m.seq !== S.seq) { t0 = performance.now(); if (m.call) { callT = performance.now(); if (m.call[0] !== me) { swing[m.call[0]] = callT; kickSnd(); } } }
-        Object.assign(S, { seq: m.seq, from: m.from, to: m.to, dur: m.dur, v: m.v, cnt: m.cnt, kicks: m.kicks, great: m.great, phase: m.phase, over: m.over, call: m.call });
+        Object.assign(S, { seq: m.seq, from: m.from, to: m.to, dur: m.dur, v: m.v, cnt: m.cnt, kicks: m.kicks, great: m.great, tries: m.tries || S.tries, phase: m.phase, over: m.over, call: m.call });
         if (S.phase === 'over') finish();
       },
       update(dt) {
@@ -1091,8 +1098,8 @@
         if (S.phase === 'ready') { if (lead && (IN.aT || IN.bT)) { S.kicks[me]++; S.call = [me, 0]; swing[me] = callT = now; kickSnd(); fly(me, IN.bT && !IN.aT ? 's' : 'f'); } }
         else if (S.phase === 'fly' && S.to === me && judged !== S.seq) {
           const err = now - (t0 + S.dur);
-          if (IN.aT || IN.bT) { const sp = IN.bT && !IN.aT ? 's' : 'f', how = sp === 's' ? '（ゆるく）' : '（速く）'; if (Math.abs(err) <= WIN) judge(true, Math.abs(err) <= GREAT, (Math.abs(err) <= GREAT ? '見事！' : err < 0 ? 'よし（少し早い）' : 'よし（少し遅い）') + how, sp); else judge(false, false, err < 0 ? '早すぎた…' : '遅れた…'); }
-          else if (err > WIN) judge(false, false, '取りこぼした…');
+          if (IN.aT || IN.bT) { const sp = IN.bT && !IN.aT ? 's' : 'f', how = sp === 's' ? '（ゆるく）' : '（速く）'; if (Math.abs(err) <= win) judge(true, Math.abs(err) <= GREAT, (Math.abs(err) <= GREAT ? '見事！' : err < 0 ? 'よし（少し早い）' : 'よし（少し遅い）') + how, sp); else judge(false, false, err < 0 ? '早すぎた…' : '遅れた…'); }
+          else if (err > win) judge(false, false, '取りこぼした…');
         }
         if (lead) {
           if (S.phase === 'fly' && (env.gone[S.to] || now > t0 + S.dur + 4000)) { if (env.gone[S.to]) fly(S.from); else apply(S.to, false, false); }
@@ -1143,10 +1150,10 @@
         g.strokeStyle = '#8a3a5a'; g.lineWidth = 1.2; g.beginPath(); g.arc(bx, gy, br * 0.55, ph * 6, ph * 6 + 2.2); g.stroke(); g.beginPath(); g.arc(bx, gy, br * 0.55, ph * 6 + 3.14, ph * 6 + 5.3); g.stroke();
         // 上の表示
         const [lo, hi] = range(S.cnt);
-        drawText(g, `続けた回数 ${S.cnt}`, cx, 40, { sz: 28, b: 1, al: 'center', c: '#fff2cc' });
+        drawText(g, `成功 ${S.cnt}　自分 ${S.tries[me] || 0}／${MAXK}回`, cx, 40, { sz: 28, b: 1, al: 'center', c: '#fff2cc' });
         drawText(g, `鞠の速さ ${lo.toFixed(1)}〜${hi.toFixed(1)}${S.phase === 'fly' ? `（いま ${S.v.toFixed(1)}）` : ''}`, cx, 64, { sz: 14, al: 'center' });
-        drawText(g, '左クリック／Space＝速く返す　右クリック／X＝ゆるく返す', cx, 84, { sz: 13, al: 'center', c: '#e8dcc0' }); // 2.106.11
-        if (S.phase === 'ready') drawText(g, lead ? 'クリックで蹴り出す（右クリックでゆるく）' : `${nameOf(env, cfg.lead)}が蹴り出すのを待っています`, cx, cy, { sz: 22, b: 1, al: 'center' });
+        drawText(g, `${HF()}＝速く返す　${HS()}＝ゆるく返す`, cx, 84, { sz: 13, al: 'center', c: '#e8dcc0' }); // 2.106.11（3.24.0 操作の文字は機器に合わせる）
+        if (S.phase === 'ready') drawText(g, lead ? `${HF()}で蹴り出す（${HS()}でゆるく）` :`${nameOf(env, cfg.lead)}が蹴り出すのを待っています`, cx, cy, { sz: 22, b: 1, al: 'center' });
         if (S.phase === 'fly' && S.to === me && judged !== S.seq) drawText(g, '蹴る！', cx, cy + R * 0.45, { sz: Math.round(30 + 10 * Math.max(0, frac - 0.6)), b: 1, al: 'center', c: frac > 0.8 ? '#ffd76a' : '#fff' });
         if (fb && now - fb.t < 1000) drawText(g, fb.txt, cx, cy - R * 0.3, { sz: 30, b: 1, al: 'center', c: fb.ok ? '#ffd76a' : '#ff8a7a' });
         if (S.phase === 'over') drawText(g, '鞠が落ちた！', cx, cy, { sz: 40, b: 1, al: 'center', c: '#ff8a7a' });
