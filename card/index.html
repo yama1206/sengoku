@@ -224,6 +224,16 @@ button.big.main{background:#6b5428;border-color:var(--gold)}
 .gatefx.entrance{z-index:22;width:220px;height:70px;animation:entranceSlide .75s ease-out both}
 .gatefx.entrance img{float:left;width:42px;height:60px;object-fit:cover;border:1px solid #dfb65b;border-radius:3px;margin:4px 7px 0 0}
 .gatefx.entrance b{border:1px solid #dfb65b;background:linear-gradient(90deg,#281911,#70431d,#281911);padding:13px 12px;box-shadow:0 0 20px #c58c47b0}
+.gatefx.entrance.rare b{border-color:#fff0ac;background:linear-gradient(115deg,#492742,#8b5429,#244b61);box-shadow:0 0 23px #ffdf88}
+.unitfx{position:fixed;z-index:24;pointer-events:none;transform:translate(-50%,-50%);display:grid;justify-items:center;width:0;height:0;color:var(--effect-color)}
+.unitfx img{position:absolute;top:0;left:0;width:var(--card-width);height:var(--card-height);object-fit:cover;border:2px solid currentColor;border-radius:6px;box-shadow:0 0 14px currentColor;transform:translate(-50%,-50%)}
+.unitfx b{position:absolute;bottom:calc(var(--card-height) / 2 + 4px);left:0;transform:translateX(-50%);white-space:nowrap;padding:3px 7px;border:1px solid currentColor;border-radius:4px;background:#1a1513;font-size:12px}
+.unitfx.destroy{--effect-color:#ff926f}.unitfx.tap{--effect-color:#ffdc8a}.unitfx.bounce{--effect-color:#9bdcff}
+.unitfx.destroy img{animation:unitShatter .56s ease-out both}.unitfx.tap img{animation:unitTurn .49s ease-out both}.unitfx.bounce img{animation:unitReturn .55s ease-in both}
+@keyframes unitShatter{0%,26%{filter:brightness(1.7)}to{transform:translate(-50%,-27%) scale(.83);filter:grayscale(1);opacity:0}}
+@keyframes unitTurn{0%{transform:translate(-50%,-50%) rotate(0)}65%{opacity:1}to{transform:translate(-50%,-50%) rotate(90deg) scale(.82);opacity:0}}
+@keyframes unitReturn{0%,25%{opacity:1}to{transform:translate(-50%,calc(-50% + var(--return-y))) scale(.28);opacity:0}}
+@media(prefers-reduced-motion:reduce){.unitfx img{animation:none;display:none}}
 .gatefx.entrance.princess b{border-color:#ebbdcf;background:linear-gradient(90deg,#271d2d,#744564,#271d2d);box-shadow:0 0 18px #da9ab7}
 @keyframes entranceSlide{0%{transform:translate(-50%,0) scale(.65);opacity:0}35%{transform:translate(-50%,-35%) scale(1.1);opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:0}}
 @media(prefers-reduced-motion:reduce){.gatefx i,.gatefx.amb b,.gatefx.entrance{animation:none}.gatefx i,.gatefx em{display:none}}
@@ -241,7 +251,7 @@ button.effect-link:hover:not(:disabled){background:none;color:#fff0b0;outline:no
  <form method="dialog"><button autofocus>閉じる</button></form>
 </dialog>
 <script>
-const VERSION='0.73';
+const VERSION='0.74';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -482,7 +492,7 @@ function onNet(m){
   else if((m.t==='act'||m.t==='ans')&&(!NET.tag||m.from===(m.t==='ans'?G?.askSlot:G?.tag?.turn)))remotePush(m);
   return;
  }
- if(m.t==='cue'){showBattleCue(m.kind,NET.tag?m.side:1-m.side,m.card);return;}
+ if(m.t==='cue'){showBattleCue(m.kind,NET.tag?m.side:1-m.side,m.card,m.unit);return;}
  if(m.t==='state'&&m.g){
   const keep={modal:ui.modal,pick:ui.pick};G=hydrate(m.g);screen='game';pk=null;
   ui.busy=!m.g.myTurn;ui.modal=keep.modal;ui.pick=keep.pick;
@@ -746,14 +756,16 @@ function discardRand(p,n){for(let i=0;i<n&&p.hand.length;i++){const k=Math.floor
 // 武将が場を離れるときは、装備中の武器も必ず墓地へ送る
 function releaseWeapon(u){if(u.weapon){u.owner.grave.push(u.weapon);log(`${u.weapon.n}が墓地へ送られた`);u.weapon=null;}}
 function destroy(u,cause){
- if(u.dead)return;u.dead=true;const p=u.owner;
+ if(u.dead)return;
+ battleCue('destroy',u.owner.idx,u.card.id,u.uid);
+ u.dead=true;const p=u.owner;
  p.units=p.units.filter(x=>x!==u);p.grave.push(u.card);releaseWeapon(u);log(`${u.card.n}が撤退した`);
  if(cause==='battle'){
   if(u.card.deathRamp){ramp(p,1);log(`${u.card.n}の効果で兵糧が増えた`);}
   if(hasPs(p,'deathDraw')&&once('dd'+p.idx)){draw(p,1);log('駿府城の効果で1枚引いた');}
  }
 }
-function bounceUnit(u){if(u.dead)return;u.dead=true;const p=u.owner;p.units=p.units.filter(x=>x!==u);releaseWeapon(u);p.hand.push(u.card);log(`${u.card.n}が手札に戻った`);}
+function bounceUnit(u){if(u.dead)return;battleCue('bounce',u.owner.idx,u.card.id,u.uid);u.dead=true;const p=u.owner;p.units=p.units.filter(x=>x!==u);releaseWeapon(u);p.hand.push(u.card);log(`${u.card.n}が手札に戻った`);}
 
 function effCost(c){if(c.t!=='w'||typeof G==='undefined'||!G)return c.c;const o=G.P.find(q=>q.hand.some(h=>h.uid===c.uid));return Math.max(1,c.c-(c.costReduction||0)-(o&&o.units.some(u=>!u.dead&&u.card.wdisc)?1:0));}
 const fieldToReplace=(p,c)=>(c.t==='c'||c.t==='p')?p.fields.find(f=>f.t===c.t):undefined;
@@ -815,6 +827,11 @@ async function chooseCard(p,list,msg,forOpp){
  return modal(msg,list.map(c=>({l:`${IDEO[c.i].n} ${c.n} (${TL[c.t]} 費え${c.c}${c.t==='u'?' 兵力'+c.p:''})`,v:c})));
 }
 
+function tapByEffect(u){
+ battleCue('tap',u.owner.idx,u.card.id,u.uid);
+ u.tapped=true;
+}
+
 // ===== effects =====
 async function applyFx(p,e){
  const d=opp(p);
@@ -824,8 +841,8 @@ async function applyFx(p,e){
   case 'ramp':ramp(p,e.n);break;
   case 'shield':for(let i=0;i<e.n;i++)if(p.deck.length)p.shields.push(p.deck.shift());log(`${p.name}の城門が増えた`);break;
   case 'discard':discardRand(d,e.n);break;
-  case 'tapAll':d.units.forEach(u=>u.tapped=true);log('相手の武将がすべて横になった');break;
-  case 'tapE':{const c=d.units.filter(u=>!u.tapped);if(c.length){const u=await choose(p,c,'横にする相手の武将を選んでください');u.tapped=true;log(`${u.card.n}を横にした`);}break;}
+  case 'tapAll':d.units.filter(u=>!u.tapped).forEach(tapByEffect);log('相手の武将がすべて横になった');break;
+  case 'tapE':{const c=d.units.filter(u=>!u.tapped);if(c.length){const u=await choose(p,c,'横にする相手の武将を選んでください');tapByEffect(u);log(`${u.card.n}を横にした`);}break;}
   case 'killAll':{const c=d.units.filter(u=>power(u)<=e.max);for(const u of c)destroy(u);if(c.length)log(`${c.length}体の武将を破壊した`);break;}
   case 'kill':{const c=d.units.filter(u=>(!e.max||power(u)<=e.max)&&(!e.tapped||u.tapped));if(c.length){const u=await choose(p,c,'破壊する相手の武将を選んでください');destroy(u);}break;}
   case 'bounce':{if(d.units.length){const u=await choose(p,d.units,'手札に戻す相手の武将を選んでください');bounceUnit(u);}break;}
@@ -838,13 +855,14 @@ async function applyFx(p,e){
   case 'toMana':{if(p.hand.length){const c=await chooseCard(p,p.hand,'兵糧に置く札を選んでください',false);p.hand=p.hand.filter(x=>x!==c);p.mana.push({card:c,tapped:false});log(`${p.name}は手札から兵糧を置いた`);}break;}
   case 'pumpTemp':{if(p.units.length){const u=await choose(p,p.units,'強化する味方の武将を選んでください');u.mods.push({pow:e.pow,kw:e.kw,till:G.turnNo});log(`${u.card.n}が一時的に強化された`);}break;}
   case 'peekDiscard':{if(d.hand.length){const c=await chooseCard(p,d.hand,`相手の手札です。捨てさせる札を選んでください`,true);d.hand=d.hand.filter(x=>x!==c);d.grave.push(c);log(`${d.name}の${c.n}を捨てさせた`);}break;}
-  case 'tapSkip':{if(d.units.length){const u=await choose(p,d.units,'横にする相手の武将を選んでください');u.tapped=true;u.skipUntap=true;log(`${u.card.n}を横にした(次に縦に戻すのを飛ばす)`);}break;}
+  case 'tapSkip':{if(d.units.length){const u=await choose(p,d.units,'横にする相手の武将を選んでください');tapByEffect(u);u.skipUntap=true;log(`${u.card.n}を横にした(次に縦に戻すのを飛ばす)`);}break;}
  }
  render();
 }
 async function playCard(p,c,pay){
  if(c.t==='x')recordTactic(p,c,false);
- if(c.t==='p')battleCue('princess',p.idx,c.id);
+ if(displayRarity(c)==='SSR')battleCue('rare',p.idx,c.id);
+ else if(c.t==='p')battleCue('princess',p.idx,c.id);
  else if(c.t==='u')battleCue(c.pr&&c.pr.includes('SSR')?'daimyo':'summon',p.idx,c.id);
  payMana(p,c,pay);p.hand=p.hand.filter(x=>x!==c);
  log(`${p.name}:${c.n}を${c.t==='u'?'召喚':c.t==='w'?'装備':'使用'}`);
@@ -888,7 +906,7 @@ async function breakShields(att,d,n){
     if(d.ai)use=fxUseful(d,c)&&!c.e.some(e=>e.t==='pumpTemp');
     else if(d.remote)use=(await remoteAsk({k:'modal',msg:`城門が破られた!\n奇襲「${c.n}」が出た。\n${desc(c)}`,btns:['無料で発動する','手札に加えて温存']},d))===0;
     else use=await modal(`城門が破られた!\n奇襲「${escH(c.n)}」が出た。\n${escH(desc(c))}`,[{l:'無料で発動する',v:true},{l:'手札に加えて温存',v:false}]);
-    if(use){if(c.t==='x')recordTactic(d,c,true);battleCue('ambush',d.idx,c.id);if(!TEST&&!G.auto){await sleep(150);if(G!==match||G.over)return;}log(`奇襲「${c.n}」を無料で発動!`);for(const e of c.e)await applyFx(d,e);d.grave.push(c);render();if(att&&att.dead)return;continue;}
+    if(use){if(c.t==='x')recordTactic(d,c,true);battleCue(displayRarity(c)==='SSR'?'rare':'ambush',d.idx,c.id);if(!TEST&&!G.auto){await sleep(150);if(G!==match||G.over)return;}log(`奇襲「${c.n}」を無料で発動!`);for(const e of c.e)await applyFx(d,e);d.grave.push(c);render();if(att&&att.dead)return;continue;}
    }
    d.hand.push(c);render();
   }
@@ -1320,23 +1338,49 @@ function thump(t,f,dur,vol,dest){
  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
  o.connect(g);g.connect(dest);o.start(t);o.stop(t+dur+0.05);
 }
-function battleCue(kind,side,card){
+function battleCue(kind,side,card,unit){
  if(TEST||!G||G.auto)return;
- showBattleCue(kind,side,kind==='gate'&&side!==0?null:card);
+ showBattleCue(kind,side,kind==='gate'&&side!==0?null:card,unit);
  if(G.pvp&&NET&&NET.host){
-  if(G.tag)for(let slot=1;slot<4;slot++)netSend({t:'cue',to:slot,kind,side:side===slot%2?0:1,card:kind==='gate'&&side!==slot%2?null:card});
-  else netSend({t:'cue',kind,side,card:kind==='gate'&&side!==1?null:card});
+  if(G.tag)for(let slot=1;slot<4;slot++)netSend({t:'cue',to:slot,kind,unit,side:side===slot%2?0:1,card:kind==='gate'&&side!==slot%2?null:card});
+  else netSend({t:'cue',kind,side,unit,card:kind==='gate'&&side!==1?null:card});
  }
 }
-function showBattleCue(kind,side,id){
+const unitCueText={destroy:'破壊',tap:'横向き',bounce:'手札へ'};
+const lastUnitSound={};
+function showUnitCue(kind,side,id,unit){
+ const tile=Number.isInteger(unit)&&document.querySelector(`.u[data-id="${unit}"]`);
+ const anchor=tile||document.querySelectorAll('.zone')[side===0?1:0];
+ if(!anchor)return;
+ const r=anchor.getBoundingClientRect();
+ const fx=document.createElement('div');
+ fx.className='unitfx '+kind;
+ fx.style.left=Math.max(70,Math.min(window.innerWidth-70,r.left+r.width/2))+'px';
+ fx.style.top=Math.max(64,r.top+r.height/2)+'px';
+ fx.style.setProperty('--card-width',(tile?r.width:48)+'px');
+ fx.style.setProperty('--card-height',(tile?r.height:52)+'px');
+ fx.style.setProperty('--return-y',side===0?'72px':'-72px');
+ const portrait=tile?.querySelector('.art')?.cloneNode();
+ if(portrait){portrait.removeAttribute('class');fx.append(portrait);}
+ const label=document.createElement('b');
+ const name=cardById(id)?.n;
+ label.textContent=name?name+'　'+unitCueText[kind]:unitCueText[kind];
+ fx.append(label);
+ document.body.appendChild(fx);
+ setTimeout(()=>fx.remove(),850);
+}
+function showBattleCue(kind,side,id,unit){
  if(typeof document==='undefined'||screen!=='game')return;
- if(kind==='gate'||kind==='ambush'||kind==='keep'||kind==='daimyo'||kind==='princess'){
-  const gate=(kind==='daimyo'||kind==='princess')?document.querySelectorAll('.zone')[side===0?1:0]?.querySelector('.row'):document.querySelector(side===0?'.gates.mine':'.face.gates');
+ const unitEffect=Object.hasOwn(unitCueText,kind);
+ if(unitEffect)showUnitCue(kind,side,id,unit);
+ const entrance=kind==='daimyo'||kind==='princess'||kind==='rare';
+ if(kind==='gate'||kind==='ambush'||kind==='keep'||entrance){
+  const gate=entrance?document.querySelectorAll('.zone')[side===0?1:0]?.querySelector('.row'):document.querySelector(side===0?'.gates.mine':'.face.gates');
   if(gate){
    const r=gate.getBoundingClientRect(),fx=document.createElement('div');
-   fx.className='gatefx'+(kind==='ambush'?' amb':'')+(kind==='daimyo'||kind==='princess'?' entrance '+kind:'');
+   fx.className='gatefx'+(kind==='ambush'?' amb':'')+(entrance?' entrance '+kind:'');
    fx.style.left=(r.left+r.width/2)+'px';fx.style.top=(r.top+r.height/2)+'px';
-   fx.innerHTML=kind==='gate'?'<b>破城</b><i></i><i></i>':kind==='keep'?'<b>本丸</b>':kind==='daimyo'?'<b>出陣</b>':kind==='princess'?'<b>姫、登場</b>':'<b>奇襲</b>';
+   fx.innerHTML=kind==='gate'?'<b>破城</b><i></i><i></i>':kind==='keep'?'<b>本丸</b>':kind==='daimyo'?'<b>出陣</b>':kind==='princess'?'<b>姫、登場</b>':kind==='rare'?'<b>極上</b>':'<b>奇襲</b>';
    const card=id&&cardById(id);
    if(kind==='gate'){
     const face=document.createElement('span');face.className='gatecard';
@@ -1346,18 +1390,26 @@ function showBattleCue(kind,side,id){
      const chip=document.createElement('em');chip.style.setProperty('--dx',x+'px');chip.style.setProperty('--dy',y+'px');fx.append(chip);
     }
    }else if(kind==='ambush'&&card){fx.querySelector('b').append(document.createElement('br'),card.n);}
-   if((kind==='daimyo'||kind==='princess')&&card){const label=fx.querySelector('b'),portrait=document.createElement('img');portrait.src=baseImg(card);portrait.alt='';portrait.onerror=()=>portrait.remove();label.append(document.createElement('br'),card.n);fx.prepend(portrait);}
-   document.body.appendChild(fx);setTimeout(()=>fx.remove(),kind==='gate'?500:kind==='daimyo'||kind==='princess'?850:420);
+   if(entrance&&card){const label=fx.querySelector('b'),portrait=document.createElement('img');portrait.src=kind==='rare'?printImg(card,'SSR'):baseImg(card);portrait.alt='';portrait.onerror=()=>imgFb(portrait,baseImg(card));label.append(document.createElement('br'),card.n);fx.prepend(portrait);}
+   document.body.appendChild(fx);setTimeout(()=>fx.remove(),kind==='gate'?500:entrance?850:420);
   }
  }
  if(!audOk())return;
  const t=AUD.ctx.currentTime+.01,d=AUD.sfx;
+ if(unitEffect){
+  if(t-(lastUnitSound[kind]??-1)<.08)return;
+  lastUnitSound[kind]=t;
+ }
  const clap=at=>{noiseBurst(at,.045,2800,800,.65,d);tone(at,79,.09,'triangle',.38,d,false);};
  if(kind==='gate'){
   const gain=AUD.bgm.gain,v=audioBase.bgm*AUD.level.bgm;
   gain.cancelScheduledValues(t);gain.setValueAtTime(v*.35,t);gain.linearRampToValueAtTime(v,t+.50);
   thump(t,145,.17,.85,d);noiseBurst(t+.09,.15,1800,450,.95,d);tone(t+.28,74,.16,'triangle',.47,d,false);tone(t+.36,68,.10,'triangle',.25,d,false);
  }else if(kind==='ambush'){clap(t);clap(t+.14);}
+ else if(kind==='rare'){[74,81,86,90].forEach((m,i)=>tone(t+i*.065,m,.33,'triangle',.24,d,true));}
+ else if(kind==='destroy'){thump(t,118,.22,.72,d);noiseBurst(t,.16,2300,390,.58,d);}
+ else if(kind==='tap'){noiseBurst(t,.06,1600,690,.36,d);tone(t+.03,64,.12,'triangle',.32,d,false);}
+ else if(kind==='bounce'){noiseBurst(t,.17,590,2400,.32,d);[69,76,81].forEach((m,i)=>tone(t+i*.055,m,.18,'sine',.23,d,false));}
  else if(kind==='keep'){thump(t,116,.32,.9,d);thump(t+.28,88,.45,.85,d);}
  else if(kind==='charge'){noiseBurst(t,.14,650,170,.55,d);thump(t,110,.12,.5,d);}
  else if(kind==='daimyo'){
