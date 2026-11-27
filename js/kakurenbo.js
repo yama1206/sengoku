@@ -12,9 +12,7 @@
     { k: 'st', n: '舞台', v: [['street', '町の通り'], ['castle', '城下'], ['yashiki', '屋敷の庭'], ['rooms', '大きな屋敷（部屋がたくさん）']] },
     { k: 'sz', n: 'マップの広さ', v: [['auto', '人数に合わせる'], ['s', 'せまい'], ['m', 'ふつう'], ['l', 'ひろい']] }, // 2.101.0
     { k: 'tm', n: '制限時間', v: [['1', 'ふつう（時間まで3分・脱出10分）'], ['0.5', '半分'], ['0.7', '短め'], ['1.5', '長め'], ['2', '2倍']] }, // 2.101.0
-    { k: 'ht', n: '隠れる準備の時間', v: [['15', '15秒'], ['5', '5秒'], ['10', '10秒'], ['20', '20秒'], ['30', '30秒']] }, // 2.101.0
     { k: 'mv', n: '化けたあとの動き', v: [['slow', 'ゆっくり動ける'], ['none', '動けない']] },
-    { k: 'cau', n: '見つかったら', v: [['seek', '探す側に回る'], ['out', 'その回は終わり']] },
     { k: 'on', n: '鬼の人数', v: [['1', '1人'], ['2', '2人']] }, // 2.96.0
     { k: 'hn', n: '逃げる側の人数', v: [['4', '4人'], ['5', '5人'], ['6', '6人'], ['7', '7人'], ['8', '8人']] }, // 2.96.0 足りない分はCPUが加わる（CPUありのとき）
     { k: 'cpS', n: '鬼のCPU', v: [['off', 'なし'], ['1', 'よわい'], ['2', 'ふつう'], ['3', 'つよい']] }, // 立候補者で埋まらない鬼の枠をCPUが担当する（5人で立候補なしの場合を除く）
@@ -52,6 +50,7 @@
   const DMG = { L: 25, M: 34, S: 60, H: 40 }, SZN = { L: '大きい', M: 'ふつう', S: '小さい', H: 'ふつう' };
   const CARRY_T = 15; // 鬼が1人を担いでいられる時間（秒）。過ぎると逃げる側がふりほどく
   const CAGE_T = 45; // 牢に入れられてから完全に負けるまで（秒）。仲間が近づいて1秒で救助できる
+  const PAL_T = 1.2, PAL_OK = [0.62, 0.78], PAL_BRK = 1.6, PAL_STUN = 2.5; // 2.102.0 板：倒す時間・緑の判定（ゲージの割合）・壊す時間・完璧に倒した時に鬼がスタンする秒数
   const ROUND = 180, BEACON0 = 30, BEACON_EVERY = 22, R_HIT = 1.3, R_BIG = 3.2, SP_H = 4.2, SP_HS = 2.0, SP_S = 5.4; // 鬼の基本の速さは、逃げる側の基本（子ども5.0が最速）より速い
   const SQ = Math.SQRT1_2, RIGHT = [SQ, -SQ], FWD = [-SQ, -SQ]; // 画面の右・奥（カメラは (+,+,+) の斜め上から）
 
@@ -300,8 +299,8 @@
   let prevLd = null;
   HD.make = function (env) {
     const { cfg, me, ids: hids, cv, g2: g, IN, send } = env;
-    const o = Object.assign({ st: 'street', sk: 1, mv: 'slow', wn: 'time', cau: 'seek', cpS: 'off', cpH: 'off', on: '1', hn: '4', sz: 'auto', tm: '1', ht: '15' }, cfg.o || {}), stg = STAGES[o.st] || STAGES.street;
-    const LS = +o.cpS || 0, LH = +o.cpH || 0, solo = hids.length < 2 && !(LS > 0 || LH > 0), rng = mulberry((cfg.seed ^ 0x2f6e2b1) >>> 0), nP = (LS > 0 || LH > 0) ? Math.max(hids.length, (+o.on || 1) + (+o.hn || 4)) : hids.length, MF = o.sz === 's' ? 0.6 : o.sz === 'm' ? 0.8 : o.sz === 'l' ? 1 : Math.max(0.6, Math.min(1, 0.6 + 0.08 * (nP - 2))), HX = stg.HX * MF, HZ = stg.HZ * MF, HIDE_T = +o.ht || 15; // 2.101.0 広さは人数に合わせて変わる（2人0.6倍〜7人以上1倍）
+    const o = Object.assign({ st: 'street', sk: 1, mv: 'slow', wn: 'time', cpS: 'off', cpH: 'off', on: '1', hn: '4', sz: 'auto', tm: '1' }, cfg.o || {}), stg = STAGES[o.st] || STAGES.street;
+    const LS = +o.cpS || 0, LH = +o.cpH || 0, solo = hids.length < 2 && !(LS > 0 || LH > 0), rng = mulberry((cfg.seed ^ 0x2f6e2b1) >>> 0), nP = (LS > 0 || LH > 0) ? Math.max(hids.length, (+o.on || 1) + (+o.hn || 4)) : hids.length, MF = o.sz === 's' ? 0.6 : o.sz === 'm' ? 0.8 : o.sz === 'l' ? 1 : Math.max(0.6, Math.min(1, 0.6 + 0.08 * (nP - 2))), HX = stg.HX * MF, HZ = stg.HZ * MF; // 2.101.0 広さは人数に合わせて変わる（2人0.6倍〜7人以上1倍）
     const root = cv.parentNode, T3 = THREE;
     // 3D の画面（絵は下の canvas、文字は上の canvas）
     const rd = new T3.WebGLRenderer({ antialias: true }); rd.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5)); rd.outputEncoding = T3.sRGBEncoding; rd.shadowMap.enabled = true;
@@ -359,6 +358,22 @@
       wg.position.set(wx, 0, wz); scene.add(wg); S.circs.push([wx, wz, 1.0]); wells.push({ x: wx, z: wz, lid, inner, beam });
     });
     const setWell = (w, on) => { w.lid.position.set(on ? 1.5 : 0, on ? 0.2 : 0.96, 0); w.lid.rotation.z = on ? -1.0 : 0; w.beam.visible = on; w.inner.material.color.setHex(on ? 0x6ad0ff : 0x1a1a22); };
+    // 2.102.0 板：決まった場所に3〜5枚（1回きりの道具）。鬼がすぐ周り込める、開けた所だけに置く
+    const pals = [];
+    for (let i = 0, np = Math.max(3, Math.round(5 * MF)); i < np; i++) {
+      let q = null;
+      for (let k = 0; k < 200 && !q; k++) {
+        const [x, z] = free(1.5), hz = rng() < 0.5, nx = hz ? 0 : 1, nz = hz ? 1 : 0, lx = hz ? 1 : 0, lz = hz ? 0 : 1; // (nx,nz)＝板の表の向き、(lx,lz)＝板の長さの向き
+        if (pals.some((p) => Math.hypot(p.x - x, p.z - z) < 16)) continue; // 板どうしは離す
+        if (blocked(x + nx * 1.4, z + nz * 1.4, 0.4) || blocked(x - nx * 1.4, z - nz * 1.4, 0.4)) continue; // 表と裏の両側が開いている
+        if (blocked(x + lx * 3, z + lz * 3, 0.4) || blocked(x - lx * 3, z - lz * 3, 0.4)) continue; // 板の端のまわりも開いている
+        q = { x, z, hz, nx, nz };
+      }
+      if (!q) continue;
+      const hx = q.hz ? 1.2 : 0.2, hzE = q.hz ? 0.2 : 1.2, m = part(G(q.hz ? 'palH' : 'palV', () => new THREE.BoxGeometry(q.hz ? 2.4 : 0.4, 2.2, q.hz ? 0.4 : 2.4)), M(0xa07a48), q.x, 1.1, q.z);
+      scene.add(m); const box = [q.x - hx, q.z - hzE, q.x + hx, q.z + hzE]; S.boxes.push(box);
+      pals.push({ x: q.x, z: q.z, hz: q.hz, nx: q.nx, nz: q.nz, box, m, down: false });
+    }
     // 置物（本物）
     const props = [];
     for (let i = 0, nn = Math.round(stg.n * MF * MF); i < nn; i++) {
@@ -404,7 +419,7 @@
     let cpu = null;
     if (solo) {
       const [x, z] = blocked(0, HZ - 6, 0.6) ? free(0.6) : [0, HZ - 6];
-      cpu = { id: '__cpu', role: 's', x, z, fx: 0, fz: -1, cd: 1.5, tgt: null, ai: {}, stuck: 0, grp: mkYokai('oni'), mv: 0, bob: 0 };
+      cpu = { id: '__cpu', role: 's', x, z, fx: 0, fz: -1, cd: 1.5, tgt: null, ai: {}, stuck: 0, grp: mkYokai('oni'), mv: 0, bob: 0, stun: 0 };
       scene.add(cpu.grp);
     }
     // 脱出モード：鍵が4つ、3つ集めると鳥居の出口が開く（出口に着いた人は脱出成功）
@@ -432,7 +447,7 @@
     const nz = ring(0x70c8ff, 4.6, 5), hl = ring(0xffe070, 0.75, 1.0), bc = ring(0xff8040, 5.6, 6), sw = ring(0xffffff, 0.9, 1.3), swm = ring(0xff4040, 0.9, 1.3);
 
     // 状態
-    const FX = [], traps = []; let nzo = null, t = 0, phase = 'hide', done = false, toast = null, toastT = 0, pend = null, sendT = 0, bk = 0, beacon = null, bcT = 0, last = { aT: 0 };
+    const FX = [], traps = []; let nzo = null, t = 0, phase = 'play', done = false, toast = null, toastT = 0, pend = null, sendT = 0, bk = 0, beacon = null, bcT = 0, last = { aT: 0 };
     const say = (s) => { toast = s; toastT = 3; };
     const alive = (p) => p && !p.out && !p.esc && !env.gone[p.id];
     const hiders = () => ids.map((i) => P[i]).filter((p) => alive(p) && p.role === 'h');
@@ -486,6 +501,20 @@
     };
     const addDecoy = (x, z, kd, v, rot) => { const q = { x, z, kind: kd, v, rot, dc: 1, m: mkProp(kd, v) }; q.m.position.set(x, 0, z); q.m.rotation.y = rot; scene.add(q.m); props.push(q); };
     const addTrap = (tid, x, z) => { const m = new THREE.Mesh(G('trg', () => new THREE.RingGeometry(0.35, 0.75, 14)), new THREE.MeshBasicMaterial({ color: 0x6b3a1a, side: THREE.DoubleSide })); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.07, z); scene.add(m); traps.push({ tid, x, z, m }); };
+    // 2.102.0 板：立っている間は誰も通れない。逃げる側はAで倒して通る（ゲージの緑で押すと、近くの鬼がスタン）。鬼はAを押し続けて壊す
+    const palNear = () => pals.find((p) => !p.down && Math.hypot(p.x - MY.x, p.z - MY.z) < 2.2) || null;
+    const palFall = (i, broke) => { const p = pals[i]; if (!p || p.down) return false; p.down = true; const k = S.boxes.indexOf(p.box); if (k >= 0) S.boxes.splice(k, 1);
+      if (broke) p.m.visible = false; else { p.m.position.y = 0.2; if (p.hz) p.m.rotation.x = -Math.PI / 2; else p.m.rotation.z = Math.PI / 2; }
+      FX.push({ x: p.x, z: p.z, t: 0.5, bad: false, big: true }); SGK.AUDIO.sfx(broke ? 'hit' : 'slash'); return true; };
+    const stunSk = (id) => { if (id === me) { if (MY.role === 's' && alive(MY)) { MY.stun = PAL_STUN; say('板が完璧なタイミングで倒れた！鬼がスタン！'); } } else if (id === '__cpu') { if (cpu) cpu.stun = PAL_STUN; } else if (P[id] && P[id].cpu && isHost()) P[id].stun = PAL_STUN; };
+    const palVault = (p, perfect) => { // 逃げる側が板を倒して通る
+      if (!p || p.down) return; const i = pals.indexOf(p), side = Math.sign((MY.x - p.x) * p.nx + (MY.z - p.z) * p.nz) || 1, sids = [];
+      if (perfect) { for (const id of ids) { const q = P[id]; if (q && q.role === 's' && alive(q) && Math.hypot(q.x - p.x, q.z - p.z) < 3.2) sids.push(id); } if (solo && cpu && Math.hypot(cpu.x - p.x, cpu.z - p.z) < 3.2) sids.push('__cpu'); }
+      palFall(i, false); tell({ k: 'pd', i, s: sids }); sids.forEach((id) => stunSk(id));
+      say(perfect ? (sids.length ? '板を完璧なタイミングで倒した！' : '板を倒した（鬼は近くにいなかった）') : '板を倒して通った');
+      const tx = p.x - side * p.nx * 1.9, tz = p.z - side * p.nz * 1.9; if (!blocked(tx, tz, 0.6)) { MY.x = tx; MY.z = tz; }
+    };
+    const palBreak = (p) => { const i = pals.indexOf(p); if (!palFall(i, true)) return; tell({ k: 'pb', i }); say('板を壊した！通れる'); };
     const useSkill = () => {
       const ch = cho(MY), def = HD.CH[MY.role].find((x) => x.k === ch); if (!def || MY.sk > 0 || MY.stun > 0 || !alive(MY)) return;
       if (MY.role === 's' && phase === 'hide') return;
@@ -504,7 +533,7 @@
       if (ok) MY.sk = def.cd;
     };
     const caught = (id, by) => {
-      const p = P[id]; if (!p || p.role !== 'h') return; p.form = null; if (p.car && P[p.car]) P[p.car].carry = null; p.car = null; p.cage = null; cages.forEach((c) => { if (c.id === id) c.id = null; }); p.caught0 = true; if (o.cau === 'out') p.out = true; else { p.role = 's'; p.hp = 3; }
+      const p = P[id]; if (!p || p.role !== 'h') return; p.form = null; if (p.car && P[p.car]) P[p.car].carry = null; p.car = null; p.cage = null; cages.forEach((c) => { if (c.id === id) c.id = null; }); p.caught0 = true; p.out = true;
       if (P[by]) P[by].caught++; say(`${nm(id)}が見つかった！`); SGK.AUDIO.sfx('hit');
     };
     const applyCage = (i, id, by) => { const c = cages[i], h = P[id]; if (!c || !h || c.id) return; h.car = null; if (P[by]) P[by].carry = null;
@@ -707,14 +736,17 @@
           if (isHost()) cpuSk(m);
         }
         else if (m.k === 'hc') { if (P[m.id] && P[m.id].role === 'h') { if (m.d) { if (m.dn) { const h = P[m.id], sk = P[m.by]; if (h && sk && sk.role === 's') { h.car = m.by; sk.carry = m.id; sk.carryT = 0; sk.form = null; h.form = null; if (m.by === me) say(`${nm(m.id)}を担いだ！牢へ運べ`); else if (m.id !== me) say(`${nm(m.id)}が担がれた！`); } } if (m.id !== me) { FX.push({ x: P[m.id].x, z: P[m.id].z, t: 0.4, bad: true }); SGK.AUDIO.sfx('hit'); } } else caught(m.id, m.by); } if (m.by === me && pend) pend.ok = true; { const cb = P[m.by]; if (cb && cb.cpu && isHost() && cb.pend) cb.pend.ok = true; } }
+        else if (m.k === 'pd') { palFall(m.i, false); (m.s || []).forEach((id) => stunSk(id)); }
+        else if (m.k === 'pb') { palFall(m.i, true); }
         else if (m.k === 'cg') { applyCage(m.i, m.id, m.by); }
         else if (m.k === 'cr') { applyRelease(m.id); }
         else if (m.k === 'rs') { applyRescue(m.i); }
         else if (m.k === 'hl') { if (p) p.hp = m.hp; }
       },
       update(dt) {
-        t += dt; phase = t < HIDE_T ? 'hide' : 'play'; toastT -= dt;
+        t += dt; phase = 'play'; toastT -= dt;
         for (const id of ids) { const p = P[id]; p.cd -= dt; p.stun -= dt; p.fcd -= dt; p.sk = Math.max(0, p.sk - dt); p.boost -= dt; p.freeze -= dt; p.slowT -= dt; p.olk -= dt; p.inv -= dt; p.pan -= dt; p.arrowT -= dt; }
+        if (cpu) cpu.stun -= dt;
         for (const k in marks) marks[k] -= dt;
         // 自分の操作
         { const gp = (navigator.getGamepads ? navigator.getGamepads() : []).find((x) => x && x.connected); if (gp && !qv && Math.abs(gp.axes[2]) > 0.2) cyaw -= gp.axes[2] * 2.6 * dt; }
@@ -729,8 +761,16 @@
         if (MY.role === 's' && MY.carry && alive(MY)) { MY.carryT += dt; if (MY.carryT >= CARRY_T) { const id = MY.carry; tell({ k: 'cr', id }); applyRelease(id); } }
         if (MY.role === 's' && MY.carry && alive(MY)) { const ci = cages.findIndex((c) => !c.id && Math.hypot(c.x - MY.x, c.z - MY.z) < 1.8); if (ci >= 0) { const id = MY.carry; tell({ k: 'cg', i: ci, id, by: me }); applyCage(ci, id, me); } }
         rescuing = null; if (MY.role === 'h' && act && !MY.form) { cages.forEach((c, i) => { if (c.id && c.id !== me && Math.hypot(c.x - MY.x, c.z - MY.z) < 1.8) rescuing = i; }); if (rescuing != null) { MY.rsT += dt; if (MY.rsT >= 1) { MY.rsT = 0; tell({ k: 'rs', i: rescuing }); applyRescue(rescuing); rescuing = null; } } else MY.rsT = 0; } else MY.rsT = 0;
+        // 2.102.0 板：逃げる側はAで倒し始め、もう一度Aを押すとゲージの緑で完璧になる。鬼は板の前でAを押し続けると壊せる
+        let palHere = false;
+        if (!done && act && MY.stun <= 0 && !qte) {
+          const pn = palNear();
+          if (MY.pl) { palHere = true; MY.pl.t += dt; const u = MY.pl.t / PAL_T; if (IN.aT || u >= 1) { const pp = pals[MY.pl.i], pf = IN.aT && u >= PAL_OK[0] && u <= PAL_OK[1]; MY.pl = null; palVault(pp, pf); } }
+          else if (MY.role === 'h' && pn && !MY.form && !MY.carry && IN.aT) { MY.pl = { i: pals.indexOf(pn), t: 0 }; palHere = true; }
+          if (MY.role === 's' && pn && !MY.form && !MY.carry && IN.a) { palHere = true; MY.palB = (MY.palB || 0) + dt; if (MY.palB >= PAL_BRK) { MY.palB = 0; palBreak(pn); } } else MY.palB = 0;
+        }
         if (act && MY.stun <= 0) {
-          const locked = (MY.role === 's' && phase === 'hide') || !!qte;
+          const locked = (MY.role === 's' && phase === 'hide') || !!qte || palHere;
           const dis = MY.role === 'h' && MY.form;
           if (!locked && MY.freeze <= 0 && ml > 0.05) {
             if (dis && o.mv === 'none') { const a = Math.atan2(MY.fx, MY.fz) - ix * 3 * dt; MY.fx = Math.sin(a); MY.fz = Math.cos(a); }
@@ -738,7 +778,7 @@
           }
           if (IN.aT && !qte) {
             if (MY.role === 's') { if (!locked) strike(MY); }
-            else if (MY.fcd <= 0) { const q = near(MY.x, MY.z, 2.4); if (q) { MY.form = { k: q.kind, v: q.v }; MY.fcd = cho(MY) === 'geinin' ? 0.2 : 0.8; SGK.AUDIO.sfx('kmrKick'); say(`${KIND[q.kind]}に化けた`); } else say('近くに化けられる物がありません'); }
+            else if (MY.fcd <= 0 && !palHere) { const q = near(MY.x, MY.z, 2.4); if (q) { MY.form = { k: q.kind, v: q.v }; MY.fcd = cho(MY) === 'geinin' ? 0.2 : 0.8; SGK.AUDIO.sfx('kmrKick'); say(`${KIND[q.kind]}に化けた`); } else say('近くに化けられる物がありません'); }
           }
           if (IN.cT) useSkill();
           if (IN.bT && !qte && MY.role === 'h' && MY.form) { MY.form = null; MY.fcd = 0.5; say('人の姿に戻った'); }
@@ -911,8 +951,10 @@
         const qn = alive(MY) && !(MY.role === 's' && phase === 'hide') ? near(MY.x, MY.z, 2.4) : null;
         const H2 = SGK.HINT || { pick: (m) => m.kb, btn: (n) => n, txt: (x) => x }, KN = (k) => HD.kn(HD.keys().kb[k][0] || '?'), PD = (a) => { const i = (HD.keys().pd[a] || [])[0]; return i == null ? '?' : (i < 4 ? H2.btn(['A', 'B', 'X', 'Y'][i]) : HD.pn(i)); }, AK = (k) => H2.pick({ kb: KN(k), pad: PD('p' + k), touch: KN(k) }), mvK = () => H2.pick({ kb: `${KN('u')}${KN('l')}${KN('d')}${KN('r')}`, pad: '左スティック', touch: '左のパッド' }); const hint = MY.role === 's' ? `${AK('a')}：叩く（置物を叩くと体力-1）　${MY.form ? `${AK('b')}：鬼の姿に戻る　` : qn ? `${AK('b')}：${KIND[qn.kind]}に化ける　` : ''}移動：${mvK()}` : alive(MY) ? `${qn ? `${AK('a')}：${KIND[qn.kind]}に化ける　` : ''}${MY.form ? `${AK('b')}：人に戻る　` : ''}移動：${mvK()}` : '';
         if (chInfo && hint) txt(`操作：${hint}`, 22, 80 + 28 + 4 + 104, { sz: 13, c: '#e8dcc0' });
+        if (MY.pl) { const u = Math.min(1, MY.pl.t / PAL_T), bx = W / 2 - 130, by = H * 0.6; g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(bx - 6, by - 6, 272, 32); g.fillStyle = '#5a4a2a'; g.fillRect(bx, by, 260, 20); g.fillStyle = '#4aa84a'; g.fillRect(bx + 260 * PAL_OK[0], by, 260 * (PAL_OK[1] - PAL_OK[0]), 20); g.fillStyle = '#fff'; g.fillRect(bx + 260 * u - 3, by - 4, 6, 28); txt('緑のところで、もう一度Aで倒す', W / 2, by - 16, { al: 'center', sz: 16, b: 1, c: '#ffe9a0' }); }
+        else if (MY.palB > 0 && MY.role === 's') { const u = Math.min(1, MY.palB / PAL_BRK), bx = W / 2 - 130, by = H * 0.6; g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(bx - 6, by - 6, 272, 32); g.fillStyle = '#8a3a2a'; g.fillRect(bx, by, 260 * u, 20); txt('Aを押し続けて板を壊す', W / 2, by - 16, { al: 'center', sz: 16, b: 1, c: '#ffd0c0' }); }
+        else if (alive(MY) && palNear()) txt(MY.role === 'h' ? 'Aで板を倒して通る（少し時間がかかる）' : 'Aを押し続けると板を壊せる', W / 2, H * 0.7, { al: 'center', sz: 16, b: 1, c: '#ffe9a0' });
         if (toastT > 0 && toast) txt(toast, W / 2, H * 0.28, { al: 'center', sz: 22, b: 1, c: '#ffe9a0' });
-        if (phase === 'hide') { const left = Math.ceil(HIDE_T - t); if (MY.role === 's') { g.fillStyle = 'rgba(0,0,0,0.9)'; g.fillRect(0, 0, W, H); txt(`目をつぶって数えています… ${left}`, W / 2, H / 2, { al: 'center', sz: 28, b: 1 }); } else if (!esc) txt(`隠れよう！（あと${left}秒）◆の付いた物の近くでAを押すと化けられる`, W / 2, H * 0.2, { al: 'center', sz: 20, b: 1, c: '#bff0c0' }); }
         if (MY.stun > 0) { g.fillStyle = 'rgba(255,0,0,0.18)'; g.fillRect(0, 0, W, H); }
         if (stick.on) { g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 3; g.beginPath(); g.arc(stick.x0, stick.y0, 50, 0, 7); g.stroke(); g.beginPath(); g.arc(stick.x0 + stick.x * 50, stick.y0 + stick.y * 50, 20, 0, 7); g.fillStyle = 'rgba(255,255,255,.45)'; g.fill(); }
       },
