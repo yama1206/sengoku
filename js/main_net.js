@@ -138,6 +138,11 @@ function loadParty(game) {
       .then(() => { SGK.PARTY.init(partyEnv); })
       .catch((error) => { partyLoading = null; throw error; });
   }
+  if (game === 'race') {
+    return Promise.all([partyLoading, SGK_loadMiniGameScript('js/race3d.js').catch((error) => {
+      console.warn('競走の3D画面を読み込めませんでした', error);
+    })]);
+  }
   const extra = game === 'hide' ? 'js/kakurenbo.js' : game === 'hayashi' ? 'js/hayashi.js' : null;
   return extra ? Promise.all([partyLoading, SGK_loadMiniGameScript(extra)]) : partyLoading;
 }

@@ -30,7 +30,13 @@
 #ptBox>div,#ptRes>div{max-height:92vh;overflow:auto;background:#2a2118;color:#f3ead2;border:2px solid #a07c42;border-radius:10px;padding:16px 20px;max-width:min(92vw,460px);box-shadow:0 8px 30px #000a}
 #ptBox .race-choices{width:min(460px,calc(100vw - 24px));box-sizing:border-box}
 #ptBox .race-choices button{margin-right:0}
-#ptBox .race-option{margin:7px 0 0;padding:9px 12px}
+#ptBox .race-option{display:flex;align-items:center;gap:10px;margin:7px 0 0;padding:9px 10px}
+#ptBox .race-option img{width:54px;height:64px;object-fit:contain;flex:none;background:#322519;border-radius:5px}
+#ptBox .race-option-text{flex:1;min-width:0}
+#ptBox .race-option .race-stats{grid-template-columns:repeat(auto-fit,minmax(min(120px,100%),1fr))}
+#ptGame .race-world,#ptGame .race-scenery{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#ptGame .race-scenery{background:#a9b1a1 url('assets/race/shinano.jpg') center top / max(100%, 171vh) auto no-repeat}
+#ptGame .race-world{z-index:1}#ptGame canvas.race-hud{position:absolute;inset:0;z-index:2}
 #ptBox .race-option[aria-current="true"]{border-color:#f2c14e}
 #ptBox .race-equipped{margin-left:10px;color:#ffe09a;font-size:12px}
 #ptBox .race-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 8px;margin-top:6px;font-size:12px;color:#eee0c6}
@@ -145,9 +151,10 @@
         return '<span>' + raceStatNames[i] + ' ' + values + change + '</span>';
       }).join('');
       return '<button class="race-option" data-a="race-equip:' + index + '"' +
-        (active ? ' aria-current="true"' : '') + '><b>' + name + '</b>' +
+        (active ? ' aria-current="true"' : '') + '><img alt="" src="assets/race/tack-' + slot + '-' + index +
+        (slot === 0 ? '.jpg' : '.png') + '"><span class="race-option-text"><b>' + name + '</b>' +
         (active ? '<span class="race-equipped">選択中</span>' : '') +
-        '<span class="race-stats">' + stats + '</span></button>';
+        '<span class="race-stats">' + stats + '</span></span></button>';
     }).join('');
     return '<div class="race-choices"><h2>' + label + 'を選ぶ</h2><div class="d">現在の構成から替えたときの能力（各9段階）</div>' +
       cards + '<button data-a="race-back">戻る</button></div>';
@@ -284,10 +291,13 @@
     let raf = 0, last = performance.now(); const stop = () => { cancelAnimationFrame(raf); removeEventListener('resize', onR); try { if (game.dispose) game.dispose(); } catch (er) {} root.remove(); RUN = null; for (const k of ['l', 'r', 'u', 'd', 'a', 'b', 'c']) IN[k] = 0; backToRoom(cfg, env.gone); };
     RUN = { g: cfg.g, on: (from, m) => { if (cfg.g === 'race' && m.seed !== cfg.seed) return; if (m.k === 'quit') { env.gone[from] = 1; } if (game.msg) game.msg(from, m); } };
     env.end = (res) => { if (env.finished) return; env.finished = true; showResult(env, res, () => stop()); };
-    if (cfg.g === 'race' && !touch) root.classList.add('race-keys');
+    if (cfg.g === 'race') {
+      cv.classList.add('race-hud');
+      if (!touch) root.classList.add('race-keys');
+    }
     root.querySelector('button[data-a="quit"]').onclick = () => { send(env.others, { k: 'quit', seed: cfg.seed }); stop(); };
     const loop = (t) => {
-      raf = requestAnimationFrame(loop); const dt = Math.min(0.05, (t - last) / 1000 || 0.016); last = t;
+      raf = requestAnimationFrame(loop); const dt = clamp((t - last) / 1000, 0, 0.05); last = t;
       const pd = readPad(); env.pad = pd; IN.dash = IN.b || IN.u || IN.r || IN.pb || IN.pu; IN.pull = IN.a || IN.pa;
       try { if (!env.finished) game.update(dt); game.draw(); } catch (e) { console.error(e); stop(); return; }
       IN.aT = IN.bT = IN.cT = IN.lT = IN.rT = IN.click = 0;
@@ -391,6 +401,7 @@
     for (let i = 0; i < laps; i++) {
       for (const [offset, kind, lanes] of course) features.push({ d: i * lap + offset, kind, lanes });
     }
+    const world = SGK.RACE3D?.make(cv, lap, course, racers);
     const itemNames = { boost: '早駆け', shield: '守り札', mud: '泥袋' };
     const traps = [];
     let t = -3, heartbeat = performance.now(), clock = 0, first = null, over = false;
@@ -505,7 +516,8 @@
       }
       for (const trap of traps) {
         if (trap.until <= t || trap.owner === r || (cfg.team && trap.owner.team === r.team)) continue;
-        if (before < trap.d && r.d >= trap.d && Math.abs(r.x - trap.x) < 0.3 && r.y < 0.3) {
+        const trapDistance = trap.d + Math.round((before - trap.d) / lap) * lap;
+        if (before < trapDistance && r.d >= trapDistance && Math.abs(r.x - trap.x) < 0.3 && r.y < 0.3) {
           hit(r);
           trap.until = t;
         }
@@ -521,7 +533,7 @@
       send(others, {
         k: 'raceState', seed: cfg.seed, t: r2(t), over,
         riders: racers.map((r) => [over ? r.d : r1(r.d), r2(r.x), r2(r.y), r1(r.v), r.fin, r.item,
-          r2(r.reserve), r2(r.boost), r2(r.shield), r2(r.slow), Number(r.out), r.loadout[0]]),
+          r2(r.reserve), r2(r.boost), r2(r.shield), r2(r.slow), Number(r.out), r.loadout]),
         traps: traps.map((trap) => [r1(trap.d), r2(trap.x)]),
       });
     }
@@ -542,7 +554,7 @@
 
     const view = racers.map((r) => ({ d: r.d, x: r.x, y: 0 }));
     let displayedTraps = [];
-    function draw() {
+    function drawFlat() {
       const w = cv.width, h = cv.height, horizon = h * 0.29, near = Math.min(w * 0.53, h * 0.79);
       const self = view[racers.indexOf(mine)], camera = self.d - 10;
       const bend = curve(camera), bendAhead = curve(camera + 14) - bend;
@@ -658,6 +670,11 @@
         }
       }
 
+    }
+
+    function draw() {
+      const w = cv.width, h = cv.height;
+      if (!world?.draw(view, racers.indexOf(mine), displayedTraps, t, (s, x, y, options) => drawText(g, s, x, y, options))) drawFlat();
       const order = rank(), place = order.indexOf(mine) + 1;
       g.fillStyle = '#23251cdd';
       g.fillRect(12, 12, 162, 94);
@@ -718,9 +735,9 @@
           over = m.over;
           racers.forEach((r, i) => {
             const oldItem = r.item, oldSlow = r.slow;
-            let out, horse;
-            [r.d, r.x, r.y, r.v, r.fin, r.item, r.reserve, r.boost, r.shield, r.slow, out, horse] = m.riders[i];
-            if (r !== mine && raceParts[0][1][horse]) r.loadout[0] = horse;
+            let out, selected;
+            [r.d, r.x, r.y, r.v, r.fin, r.item, r.reserve, r.boost, r.shield, r.slow, out, selected] = m.riders[i];
+            if (r !== mine) r.loadout = raceLoadout(selected);
             r.out = !!out;
             if (r === mine && r.item && r.item !== oldItem) show(itemNames[r.item] + 'を拾った！');
             if (r === mine && !r.item && oldItem) show(itemNames[oldItem] + '！');
@@ -764,6 +781,7 @@
         });
       },
       draw,
+      dispose() { world?.dispose(); },
     };
   }
 
