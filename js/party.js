@@ -48,7 +48,8 @@
 #ptInv{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:9400;background:#2a2118;color:#f3ead2;border:2px solid #f2c14e;border-radius:10px;padding:10px 14px;box-shadow:0 4px 18px #000a;max-width:92vw}
 #ptGame{position:fixed;inset:0;z-index:9200;background:#000}#ptGame canvas{width:100%;height:100%;display:block;touch-action:none}
 #ptGame .tb{position:absolute;right:8px;top:8px;z-index:5}#ptGame .pad{position:absolute;bottom:14px;display:none;gap:10px;z-index:5}
-#ptGame .pad button{width:72px;height:72px;border-radius:36px;font-size:14px;opacity:.85;white-space:pre-line;touch-action:none}
+#ptGame .pad{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#ptGame .pad button{width:72px;height:72px;border-radius:36px;font-size:14px;opacity:.85;white-space:pre-line;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 #ptGame.race .pad{gap:5px}#ptGame.race .pad button{width:clamp(44px,14vw,66px);height:clamp(44px,14vw,66px);font-size:13px}`;
     document.head.appendChild(s);
   }
@@ -282,6 +283,12 @@
     const touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches), hold = (el, k) => { const on = (e) => { e.preventDefault(); if (!IN[k]) { if (k === 'a') { IN.aT = 1; IN.aAt = performance.now(); } if (k === 'b') { IN.bT = 1; IN.bAt = performance.now(); } if (k === 'c') IN.cT = 1; if (k === 'l') IN.lT = 1; if (k === 'r') IN.rT = 1; } IN[k] = 1; }, off = (e) => { e.preventDefault(); IN[k] = 0; }; el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointerleave', off); el.addEventListener('pointercancel', off); };
     const mkBtn = (host, txt, k) => { const b = document.createElement('button'); b.textContent = txt; host.appendChild(b); hold(b, k); };
     const pl = root.querySelector('.pl'), pr = root.querySelector('.pr');
+    for (const pad of [pl, pr]) {
+      pad.addEventListener('contextmenu', (e) => e.preventDefault());
+      pad.addEventListener('selectstart', (e) => e.preventDefault());
+      // 長押し時のブラウザー操作を抑止し、ゲーム入力は Pointer Events で受け取る。
+      pad.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+    }
     if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '使う', 'b'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { root.classList.add('race'); mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '走る', 'b'); mkBtn(pr, '跳ぶ', 'a'); mkBtn(pr, '道具', 'c'); } else if (cfg.g === 'hide') { mkBtn(pl, '戻る', 'b'); mkBtn(pl, 'スキル', 'c'); mkBtn(pr, '化ける\n叩く', 'a'); } else if (cfg.g === 'kemari') { mkBtn(pl, 'ゆるく', 'b'); mkBtn(pr, '速く', 'a'); } else if (cfg.g === 'hayashi') { /* 2.68.2 囃子合わせは自分でボタンを置く */ } else mkBtn(pr, '射つ', 'a'); } // 2.106.11 蹴鞠のスマホボタン：速く／ゆるく（2.106.20 コメントが後ろの処理を巻き込んでいたのを直した）
     const ptr = (e) => { const r = cv.getBoundingClientRect(); IN.mx = (e.clientX - r.left) * cv.width / r.width; IN.my = (e.clientY - r.top) * cv.height / r.height; };
     cv.addEventListener('pointermove', ptr); cv.addEventListener('pointerdown', (e) => { ptr(e); if (cfg.g === 'archery' || cfg.g === 'cart') IN.click = 1; else if (cfg.g === 'kemari') { if (e.button === 2) IN.bT = 1; else IN.aT = 1; } }); // 2.106.11 蹴鞠：左クリック＝速く返す、右クリック＝ゆるく返す
