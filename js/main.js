@@ -79,6 +79,15 @@ function navMenu(dx, dy, m = activeMenu()) {
   if (!m) return false;
   const bs = menuButtons(m); if (!bs.length) return true;
   const cur = currentFocus(m);
+  if (m.id === 'town' && dy) {
+    const gambleTab = $('tab-gamble'), enter = $('gb-open');
+    const next = dy > 0 && cur === gambleTab ? enter : dy < 0 && cur === enter ? gambleTab : null;
+    if (bs.includes(next)) {
+      setFocus(m, next);
+      next.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      return true;
+    }
+  }
   if ((m.id === 'ptBox' || m.id === 'ptRes') && dx) { const i = bs.indexOf(cur), nb = bs[Math.max(0, Math.min(bs.length - 1, i + dx))]; setFocus(m, nb); try { nb.scrollIntoView({ block: 'nearest' }); } catch (e) {} return true; } // 2.72.2 遊びの部屋は縦並び：左右は前後に動く
   const cr = cur.getBoundingClientRect();
   const cx = cr.left + cr.width / 2, cy = cr.top + cr.height / 2;
