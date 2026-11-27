@@ -176,7 +176,7 @@
     if (flag > 65510 && flag <= 65515) return flag - 65510;
     return 0;
   };
-  S.modelFile = (tier) => tier === 4 ? 'soldier_t4_rig.glb' : `soldier_t${tier}_battle.glb?v=4`;
+  S.modelFile = (tier) => tier === 4 ? 'soldier_t4_rig.glb' : `soldier_t${tier}_battle.glb?v=${tier === 2 ? 5 : 4}`;
 
   // 動きを焼き込む。1行＝1コマ、1行に骨の数×4画素（行列1つ＝4画素）
   // hipK：腰の位置を体の大きさに合わせる倍率（動きはt3の体で作られているため）
