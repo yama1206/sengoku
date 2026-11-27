@@ -555,6 +555,11 @@ const SAVE_PREFIX=EMBED?'sengoku_card_embed':'sengoku_card';
 const SAVE_KEY=SAVE_PREFIX+'_v3',PREVIOUS_SAVE_KEY=SAVE_PREFIX+'_v2',LEGACY_SAVE_KEY=SAVE_PREFIX+'_v1';
 let SV={deck:{},coin:0,pt:0,prints:{},lastLogin:'',starters:{}};
 let myDeck={},editFilter='all',editAll=false,editMsg='';
+// 陣立ての並べ替え・絞り込み(思想は editFilter、それ以外はここ)
+let editF={sort:'no',type:'all',cost:'all',power:'all',kw:'all'};
+const EPOW={all:'全て',lo:'2000まで',mid:'3000〜4000',hi:'5000以上'};
+const EKW={all:'全て',any:'効果あり',none:'効果なし',rush:'先',guard:'殿',double:'連',duel:'一',slayer:'刺'};
+function cardCmp(key){return {cu:(a,b)=>a.c-b.c,cd:(a,b)=>b.c-a.c,pw:(a,b)=>(b.t==='u'?b.p:-1)-(a.t==='u'?a.p:-1)||a.c-b.c,nm:(a,b)=>a.n.localeCompare(b.n,'ja'),id:(a,b)=>Object.keys(IDEO).indexOf(a.i)-Object.keys(IDEO).indexOf(b.i)||a.c-b.c}[key]||null;}
 let listF={sort:'no',ideo:'all',type:'all',cost:'all',own:'all',house:'all'};
 let listHouseOpen=false;
 let starterPreview=null,packDetails=null;
@@ -1165,7 +1170,12 @@ function backAction(){
 function backHTML(){const a=backAction();return a?`<button class="backfix" data-a="${a}">戻る</button>`:'';}
 function editHTML(){
  const tot=deckTotal(myDeck),ide=deckIdeos(myDeck),ok=deckValid(myDeck);
- const list=CARDS.filter(c=>houseAvailable(c.h)&&(editFilter==='all'||c.i===editFilter)&&(editAll||ownedOf(c)>0||(myDeck[c.id]||0)>0));
+ const costOk=c=>{const k=editF.cost;if(k==='all')return true;const n=+k;return n===0?c.c<=1:n===5?c.c>=5:c.c===n;};
+ const powOk=c=>{const k=editF.power;if(k==='all')return true;if(c.t!=='u')return false;return k==='lo'?c.p<=2000:k==='mid'?c.p>=3000&&c.p<=4000:c.p>=5000;};
+ const kwOk=c=>{const k=editF.kw;if(k==='all')return true;if(k==='any')return !!desc(c);if(k==='none')return !desc(c);return c.k.includes(k);};
+ const list=CARDS.filter(c=>houseAvailable(c.h)&&(editFilter==='all'||c.i===editFilter)&&(editAll||ownedOf(c)>0||(myDeck[c.id]||0)>0)&&(editF.type==='all'||c.t===editF.type)&&costOk(c)&&powOk(c)&&kwOk(c));
+ const ecmp=cardCmp(editF.sort);if(ecmp)list.sort(ecmp);
+ const echips=(key,opts)=>Object.keys(opts).map(k=>`<span class="sc ${String(editF[key])===k?'on':''}" data-a="ed_${key}" data-id="${k}">${opts[k]}</span>`).join('');
  const row=c=>{const n=myDeck[c.id]||0,cap=Math.min(MAX_COPY,ownedOf(c)),col=IDEO[c.i].c;
   return `<div class="er" style="--c:${col}"><div class="cb">${c.c}</div><div class="tx"><b>${c.n}</b> <span style="color:${col}">${IDEO[c.i].n}</span> ${TL[c.t]}${c.t==='u'?' '+c.p:''}<br><span class="dim">${descHTML(c)||'(効果なし)'}</span></div><div class="ctr"><button data-a="dec" data-id="${c.id}" ${n?'':'disabled'}>−</button><span>${n}/${cap}</span><button data-a="inc" data-id="${c.id}" ${n>=cap?'disabled':''}>＋</button></div></div>`;};
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
@@ -1173,6 +1183,11 @@ function editHTML(){
  <div class="dim" style="font-size:11px">${DECK_SIZE}枚・同名${MAX_COPY}枚まで</div>
  <div class="msg2">${editMsg}</div>
  <div>${['all',...Object.keys(IDEO)].map(k=>`<span class="sc ${editFilter===k?'on':''}" data-a="ef" data-id="${k}">${k==='all'?'全て':IDEO[k].n}</span>`).join('')}<span class="sc ${editAll?'on':''}" data-a="eall">未所持も表示</span></div>
+ <div style="font-size:12px;margin-top:4px"><span class="dim">並べ方: </span>${echips('sort',LSORT)}</div>
+ <div style="font-size:12px"><span class="dim">種類: </span>${echips('type',Object.assign({all:'全て'},TL))}</div>
+ <div style="font-size:12px"><span class="dim">費え: </span>${echips('cost',LCOST)}</div>
+ <div style="font-size:12px"><span class="dim">兵力(武将): </span>${echips('power',EPOW)}</div>
+ <div style="font-size:12px"><span class="dim">効果: </span>${echips('kw',EKW)}<span class="sc" data-a="edReset">絞りと並べ方をやめる</span></div>
  <div class="acts"><button data-a="auto">自動構成</button><button data-a="clear">空にする</button></div>
  ${(()=>{const ok=STARTERS.filter(canBuildStarter);return ok.length?`<div style="margin:4px 0"><span class="dim" style="font-size:12px">初陣組の陣立てを使う: </span>${ok.map(st=>`<span class="sc" data-a="stdeck" data-id="${st.id}">${st.name.replace('の初陣組','')}</span>`).join('')}</div>`:'';})()}
  ${list.map(row).join('')}
@@ -1754,6 +1769,8 @@ async function onClick(a,id){
   const c=id?cardById(id):null,cur=c?(myDeck[c.id]||0):0;
   if(a==='ef'){editFilter=id;}
   else if(a==='eall'){editAll=!editAll;}
+  else if(a.startsWith('ed_')){const k=a.slice(3);if(k in editF){editF[k]=String(id);render();}return;}
+  else if(a==='edReset'){editF={sort:'no',type:'all',cost:'all',power:'all',kw:'all'};editFilter='all';render();return;}
   else if(a==='inc'&&c){
    editMsg='';
    if(deckTotal(myDeck)>=DECK_SIZE)editMsg=`${DECK_SIZE}枚までです`;
