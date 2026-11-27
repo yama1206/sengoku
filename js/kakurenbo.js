@@ -444,7 +444,7 @@
     };
     // 印（探す先の輪・叩いた所・ビーコン）
     const ring = (c, ri, ro) => { const m = new T3.Mesh(new T3.RingGeometry(ri, ro, 28), new T3.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.8, side: T3.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.y = 0.06; m.visible = false; scene.add(m); return m; };
-    const nz = ring(0x70c8ff, 4.6, 5), hl = ring(0xffe070, 0.75, 1.0), bc = ring(0xff8040, 5.6, 6), sw = ring(0xffffff, 0.9, 1.3), swm = ring(0xff4040, 0.9, 1.3);
+    const nz = ring(0x70c8ff, 4.6, 5), hl = ring(0xffe070, 0.75, 1.0), bc = ring(0xff8040, 5.6, 6), sw = ring(0xffffff, 0.9, 1.3), swm = ring(0xff4040, 0.9, 1.3); nz.renderOrder = 5; // 壁越しに出す時は depthTest を切る（下の表示で切り替える）
 
     // 状態
     const FX = [], traps = []; let nzo = null, t = 0, phase = 'play', done = false, toast = null, toastT = 0, pend = null, sendT = 0, bk = 0, beacon = null, bcT = 0, last = { aT: 0 };
@@ -715,13 +715,13 @@
         if (m.k === 'hp') { const q = P[m.id || from]; if (!q || mine(q)) return; q.tx = m.x; q.tz = m.z; q.fx = m.fx; q.fz = m.fz; q.mv = m.m; const f = m.f ? { k: m.f[0], v: m.f[1] } : null; q.form = f; }
         else if (m.k === 'hs') { takeHit(MY, m); if (isHost()) for (const c of cpuH()) takeHit(c, m); }
         else if (m.k === 'hb') { if (m.by === me) { MY.stun = 1.2; if (pend) pend.ok = true; say('お札にはじかれた！'); } else if (isHost() && P[m.by] && P[m.by].cpu) { P[m.by].stun = 1.2; if (P[m.by].pend) P[m.by].pend.ok = true; } }
-        else if (m.k === 'qf') { const q2 = P[m.id]; if (q2) q2.olk = 1; if (MY.role === 's' && alive(MY)) { nzo = { x: m.x, z: m.z, t: 4 }; FX.push({ x: m.x, z: m.z, t: 0.6, bad: true }); SGK.AUDIO.sfx('hit'); say('宝箱のほうで物音がした！'); } }
+        else if (m.k === 'qf') { const q2 = P[m.id]; if (q2) q2.olk = 1; if (MY.role === 's' && alive(MY)) { nzo = { x: m.x, z: m.z, t: 4, thru: true }; FX.push({ x: m.x, z: m.z, t: 0.6, bad: true }); SGK.AUDIO.sfx('hit'); say('宝箱のほうで物音がした！'); } }
         else if (m.k === 'tr') { addTrap(m.tid, m.x, m.z); }
         else if (m.k === 'tx') { const i = traps.findIndex((q) => q.tid === m.tid); if (i >= 0) { scene.remove(traps[i].m); traps.splice(i, 1); } if (m.by) { FX.push({ x: m.x, z: m.z, t: 0.5, bad: true }); SGK.AUDIO.sfx('hit'); } }
         else if (m.k === 'ns') { nzo = { x: m.x, z: m.z, t: 5 }; SGK.AUDIO.sfx('news'); say('どこかで声がした…'); }
         else if (m.k === 'dc') { addDecoy(m.x, m.z, m.kd, m.v, m.rot); }
         else if (m.k === 'mk') { marks[m.id] = 6; }
-        else if (m.k === 'kp') { const q = keys[m.i]; if (q && !q.got) { q.got = true; openCh(q); kgot++; say(`宝箱が開けられた（${kgot}/${NEED}）`); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が2か所に現れた！20秒そばにいると開く（全員の位置が壁越しに見える）'); } } }
+        else if (m.k === 'kp') { const q = keys[m.i]; if (q && !q.got) { q.got = true; openCh(q); kgot++; say(`宝箱が開けられた（${kgot}/${NEED}）`); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が2か所に現れた！20秒そばにいると開く'); } } }
         else if (m.k === 'xb') { applyBlock(); }
         else if (m.k === 'xo') { const e = exitP.list[m.i]; if (e && !e.opened) { e.opened = true; say('出口が開いた！鬼が強くなった（一撃でダウン・足が少し速い）'); SGK.AUDIO.sfx('coin'); } }
         else if (m.k === 'es') { const q = P[m.id]; if (q) { q.esc = true; say(`${nm(m.id)}が脱出した！`); SGK.AUDIO.sfx('gbWin'); } }
@@ -795,7 +795,7 @@
             for (const id of ids) { const p = P[id]; if (!okH(p) || Math.hypot(q.x - p.x, q.z - p.z) >= 1.8 || (id === me && qte)) continue; n++; }
             if (act && MY.role === 'h' && okH(MY) && Math.hypot(q.x - MY.x, q.z - MY.z) < 1.8) n1 = q;
             if (n > 0) { let ws = 0; for (const id of ids) { const p = P[id]; if (okH(p) && Math.hypot(q.x - p.x, q.z - p.z) < 1.8 && !(id === me && qte)) ws += cho(p) === 'dorobo' ? 1.5 : 1; } q.pr += ws * (RATE[Math.min(4, n)] / Math.min(4, n)) * dt; }
-            if (q.pr >= OPEN_W) { q.got = true; openCh(q); kgot++; tell({ k: 'kp', i }); say(`宝箱が開いて鍵を手に入れた（${kgot}/${NEED}）`); SGK.AUDIO.sfx('coin'); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が2か所に現れた！20秒そばにいると開く（全員の位置が壁越しに見える）'); } }
+            if (q.pr >= OPEN_W) { q.got = true; openCh(q); kgot++; tell({ k: 'kp', i }); say(`宝箱が開いて鍵を手に入れた（${kgot}/${NEED}）`); SGK.AUDIO.sfx('coin'); if (kgot >= NEED && !exitP.open) { exitP.open = true; say('出口が2か所に現れた！20秒そばにいると開く'); } }
           });
           opening = n1 && !n1.got ? n1 : null; keys.forEach((q) => { if (q.frame) q.frame.visible = MY.role === 's' && !q.got; });
           if (opening && !qte) { qtT += dt; if (qtT >= 12) { qtT = 0; qte = { q: opening, seq: [0, 1, 2, 3].map(() => QK[Math.floor(Math.random() * 4)]), i: 0, t: 2.5 }; say('合図の順に押せ！'); } } else if (!qte) qtT = Math.max(0, qtT - dt);
@@ -887,7 +887,7 @@
         const q = alive(MY) && !(MY.role === 's' && (phase === 'hide' || MY.form)) ? near(MY.x, MY.z, 2.4) : null; hl.visible = !!q && act; if (q) { hl.position.set(q.x, 0.06, q.z); hl.scale.setScalar(1.5 + 0.3 * Math.sin(t * 8)); }
         if (MY.role === 's' && alive(MY) && MY.stun <= 0 && !done) for (const q of traps) if (Math.hypot(q.x - MY.x, q.z - MY.z) < 1.0) { MY.stun = 2.5; say('罠にかかった！'); tell({ k: 'tx', tid: q.tid, x: r2(q.x), z: r2(q.z), by: me }); scene.remove(q.m); traps.splice(traps.indexOf(q), 1); FX.push({ x: q.x, z: q.z, t: 0.5, bad: true }); SGK.AUDIO.sfx('hit'); break; }
         for (const q of traps) q.m.visible = MY.role !== 's';
-        if (nzo) { nzo.t -= dt; nz.visible = nzo.t > 0; nz.position.set(nzo.x, 0.06, nzo.z); nz.scale.setScalar(1 + 0.1 * Math.sin(t * 10)); if (nzo.t <= 0) nzo = null; } else nz.visible = false;
+        if (nzo) { nzo.t -= dt; nz.material.depthTest = !nzo.thru; nz.visible = nzo.t > 0; nz.position.set(nzo.x, 0.06, nzo.z); nz.scale.setScalar(1 + 0.1 * Math.sin(t * 10)); if (nzo.t <= 0) nzo = null; } else nz.visible = false;
         bc.visible = bcT > 0 && !!beacon; if (beacon) { bc.position.set(beacon.x, 0.06, beacon.z); bc.scale.setScalar(1 + 0.08 * Math.sin(t * 8)); }
         for (const f of FX) f.t -= dt; while (FX.length && FX[0].t <= 0) FX.shift();
         const f0 = FX.find((f) => !f.bad), f1 = FX.find((f) => f.bad); sw.visible = !!f0; if (f0) { sw.position.set(f0.x, 0.07, f0.z); sw.scale.setScalar((1 + (0.25 - f0.t) * 3) * (f0.big ? 2.6 : 1)); } swm.visible = !!f1; if (f1) { swm.position.set(f1.x, 0.07, f1.z); }
@@ -906,7 +906,6 @@
         const vis = (p) => (p.role === 's' ? MY.role === 's' || !alive(MY) : MY.role === 'h' || !alive(MY)); // 逃げる側には鬼の名前を出さない
         for (const id of ids) { const p = P[id]; if (!alive(p) || id === me) continue; if (!vis(p)) continue; const sp0 = pv(p.x, p.form ? 1.5 : 2, p.z); if (!sp0 || sp0[0] < 0 || sp0[0] > W || sp0[1] < 0 || sp0[1] > H) continue; const [sx, sy] = sp0; txt(p.role === 's' ? `${nm(id)}（${chN(p)}）` : nm(id), sx, sy, { al: 'center', sz: 13, c: p.role === 's' ? '#ff9a8a' : '#cfe8ff' }); }
         { const [sx, sy] = pj(MY.x, MY.role === 'h' && MY.form ? 1.6 : 2.1, MY.z); txt('▼', sx, sy, { al: 'center', sz: 14, c: '#ffe070' }); }
-        if (esc && exitP.open && alive(MY)) for (const id of ids) { const p = P[id]; if (id === me || !alive(p)) continue; const sp2 = pv(p.x, 1.1, p.z); if (!sp2 || sp2[0] < 0 || sp2[0] > W || sp2[1] < 0 || sp2[1] > H) continue; const isS = p.role === 's'; g.strokeStyle = isS ? '#ff5a4a' : '#6ac8ff'; g.lineWidth = 3; g.beginPath(); g.arc(sp2[0], sp2[1], 18, 0, 7); g.stroke(); if (isS || !vis(p)) txt(isS ? `鬼：${nm(id)}` : nm(id), sp2[0], sp2[1] - 26, { al: 'center', sz: 13, c: isS ? '#ff9a8a' : '#cfe8ff' }); }
         if (alive(MY) && !MY.form && !MY.carry && !MY.car && !(MY.role === 's' && phase === 'hide')) { const kk = MY.role === 'h' ? 'A' : 'B', nb = near(MY.x, MY.z, 2.4); // 化けられる物の目印（近い物に◆、いちばん近い物は大きく表示）
           for (const q of props) { if (q === nb || Math.hypot(q.x - MY.x, q.z - MY.z) > 9) continue; const sp3 = pv(q.x, 1.5, q.z); if (sp3) txt('◆', sp3[0], sp3[1], { al: 'center', sz: 14, c: '#e6c860' }); }
           if (nb) { const sp3 = pv(nb.x, 2.3, nb.z); if (sp3) { txt('▼', sp3[0], sp3[1] + 6, { al: 'center', sz: 22, b: 1, c: '#ffe070' }); txt(`${kk}：${KIND[nb.kind]}に化ける`, sp3[0], sp3[1] - 14, { al: 'center', sz: 16, b: 1, c: '#ffe070' }); } } }
@@ -945,7 +944,7 @@
           if (exitP.open) for (const e of exitP.list) if (!e.opened && e.pr > 0) { const sp4 = pv(e.x, 3.9, e.z); if (sp4) txt(`出口 ${Math.floor(e.pr / EXIT_W * 100)}%`, sp4[0], sp4[1], { al: 'center', sz: 14, c: '#9affb0' }); } }
         if (qte) { const bw = 54, x0 = W / 2 - bw * 2 - 9, y0 = H * 0.42; g.fillStyle = 'rgba(0,0,0,.65)'; g.fillRect(x0 - 12, y0 - 40, bw * 4 + 54, bw * 2 + 104); txt('この順に押す！', W / 2, y0 - 18, { al: 'center', sz: 16, c: '#ffe9a0' }); qte.seq.forEach((c, i2) => { g.fillStyle = i2 < qte.i ? '#4aa84a' : i2 === qte.i ? '#f2c14e' : '#6a5a3a'; g.fillRect(x0 + i2 * (bw + 6), y0, bw, bw); txt(QL(c), x0 + i2 * (bw + 6) + bw / 2, y0 + bw / 2 + 10, { al: 'center', sz: 28, c: '#1a1208' }); }); g.fillStyle = '#ffd24a'; g.fillRect(x0, y0 + bw + 10, (bw * 4 + 18) * Math.max(0, qte.t / 2.5), 8);
           qrects.length = 0; QK.forEach((c, i2) => { const rx = x0 + i2 * (bw + 6), ry = y0 + bw + 30; qrects.push([rx, ry, bw, bw, c]); g.fillStyle = '#3a6a9a'; g.fillRect(rx, ry, bw, bw); txt(QL(c), rx + bw / 2, ry + bw / 2 + 10, { al: 'center', sz: 26, c: '#fff' }); }); txt((() => { const kb = HD.keys().kb, f = (k) => HD.kn(kb[k][0] || '?'); return `キー：${f('a')}=A　${f('b')}=B　${f('qx')}=X　${f('qy')}=Y　／　画面のボタンも押せます`; })(), W / 2, y0 + bw * 2 + 52, { al: 'center', sz: 13, c: '#e8dcc0' }); } else qrects.length = 0;
-        if (esc) { txt(`宝箱 ${kgot}/${NEED}　出口：${exitP.open ? '2か所に出現！全員の位置が見える' : 'まだ現れない'}`, W / 2, 74, { al: 'center', sz: 15, c: exitP.open ? '#9affb0' : '#ffe070' });
+        if (esc) { txt(`宝箱 ${kgot}/${NEED}　出口：${exitP.open ? '2か所に出現！' : 'まだ現れない'}`, W / 2, 74, { al: 'center', sz: 15, c: exitP.open ? '#9affb0' : '#ffe070' });
           if (MY.role === 'h' && alive(MY)) for (const e of (exitP.open ? exitP.list : []).concat(exitP.extra ? [exitP.extra] : [])) { // 3.30.3 出口の矢印：後ろにある出口は向きを反対にし、矢印は画面の端に置いて、出口の方向に向ける
           const behind = new THREE.Vector3(e.x, 1, e.z).applyMatrix4(cam.matrixWorldInverse).z > 0, [ax, ay] = pj(MY.x, 1, MY.z), [bx, by] = pj(e.x, 1, e.z); let dx = bx - ax, dy = by - ay; if (behind) { dx = -dx; dy = -dy; }
           const dl = Math.hypot(dx, dy); if (dl < 1e-6 || (!behind && bx > 0 && bx < W && by > 0 && by < H)) continue; // 画面に出口が見えている時は矢印を出さない
@@ -959,6 +958,7 @@
         else if (MY.palB > 0 && MY.role === 's') { const u = Math.min(1, MY.palB / PAL_BRK), bx = W / 2 - 130, by = H * 0.6; g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(bx - 6, by - 6, 272, 32); g.fillStyle = '#8a3a2a'; g.fillRect(bx, by, 260 * u, 20); txt('Aを押し続けて板を壊す', W / 2, by - 16, { al: 'center', sz: 16, b: 1, c: '#ffd0c0' }); }
         else if (alive(MY) && palNear()) txt(MY.role === 'h' ? 'Aで板を倒して通る（少し時間がかかる）' : 'Aを押し続けると板を壊せる', W / 2, H * 0.7, { al: 'center', sz: 16, b: 1, c: '#ffe9a0' });
         if (!alive(MY) && !MY.esc && !done) { g.fillStyle = 'rgba(140,180,255,0.07)'; g.fillRect(0, 0, W, H); txt('幽霊モード（観戦中：壁をすり抜けて動けます）', W / 2, 36, { al: 'center', sz: 18, b: 1, c: '#bfe0ff' }); } // 3.30.4 負けた人は幽霊として、画面の上に表示する
+        if (nzo && nzo.thru && nzo.t > 0) { const sp5 = pv(nzo.x, 1.2, nzo.z); if (sp5) txt('宝箱の物音', sp5[0], sp5[1] - 30, { al: 'center', sz: 16, b: 1, c: '#ffe9a0' }); } // 3.30.5 宝箱のミスの場所は、壁の向こうでも分かるように表示
         if (toastT > 0 && toast) txt(toast, W / 2, H * 0.28, { al: 'center', sz: 22, b: 1, c: '#ffe9a0' });
         if (MY.stun > 0) { g.fillStyle = 'rgba(255,0,0,0.18)'; g.fillRect(0, 0, W, H); }
         if (stick.on) { g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 3; g.beginPath(); g.arc(stick.x0, stick.y0, 50, 0, 7); g.stroke(); g.beginPath(); g.arc(stick.x0 + stick.x * 50, stick.y0 + stick.y * 50, 20, 0, 7); g.fillStyle = 'rgba(255,255,255,.45)'; g.fill(); }
