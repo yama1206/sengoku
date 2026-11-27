@@ -237,6 +237,19 @@ function drawCross(x, y, col) {
     ctx.strokeStyle = col; ctx.lineWidth = 2;
   }
 }
+let mapPadSticks = null;
+function mapStick(gp, start) {
+  const x = gp.axes[start], y = gp.axes[start + 1];
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return [0, 0];
+
+  // 地図に入った時点で傾いている軸は、一度中央に戻るまで使わない。
+  const deadzone = 0.32;
+  if (Math.abs(x) <= deadzone && Math.abs(y) <= deadzone) mapPadSticks.centered[start] = true;
+  if (!mapPadSticks.centered[start]) return [0, 0];
+
+  return [Math.abs(x) <= deadzone ? 0 : x, Math.abs(y) <= deadzone ? 0 : y];
+}
+
 function pollPad(dt) {
   G.padMv = null; G.padAtk = G.padBlk = false;
   if (SGK.MINEUI && SGK.MINEUI.isOpen()) return [0, 0]; if (SGK.GATHERUI && SGK.GATHERUI.isOpen()) return [0, 0]; // 2.27.0 釣り場の画面 // 2.25.0 採掘の画面ではコントローラーを採掘に使う
@@ -245,7 +258,9 @@ function pollPad(dt) {
   // 0.63.1 PCで別の機器（仮想コントローラーなど）が先に並ぶと使えなくなるので、最後に触ったコントローラーを使う（なければ標準配置のもの）
   const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter((p) => p && p.connected !== false) : [];
   for (const p of pads) if (p.buttons.some((b) => b && b.pressed)) { if (G.padIdx !== p.index) { G.padIdx = p.index; for (const k in padPrev) padPrev[k] = true; } break; }
-  const gp = pads.find((p) => p.index === G.padIdx) || pads.find((p) => p.mapping === 'standard') || pads[0]; if (!gp) return [0, 0];
+  const gp = pads.find((p) => p.index === G.padIdx) || pads.find((p) => p.mapping === 'standard') || pads[0];
+  if (!gp) { mapPadSticks = null; return [0, 0]; }
+  if (mapPadSticks && (gp.index !== mapPadSticks.index || gp.id !== mapPadSticks.id)) mapPadSticks = null;
   const btn = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed);
   if (SGK.PARTY?.binding?.() || (SGK.PARTY?.current?.() && !document.getElementById('ptRes'))) {
     gp.buttons.forEach((b, i) => (padPrev[i] = b.pressed));
@@ -322,6 +337,9 @@ function pollPad(dt) {
     if (down(3) && !inBattle && !$('mSub').classList.contains('hidden') && G.sub === 'inv') toggleMenu(false);
     if (down(9) && G.mode !== 'title' && menu.id !== 'ptRes') toggleMenu(inBattle);
   } else if (G.mode === 'host' || G.mode === 'client') {
+    if (!mapPadSticks) mapPadSticks = { index: gp.index, id: gp.id, centered: [] };
+    const [lx, ly] = mapStick(gp, 0);
+    const [rx, ry] = mapStick(gp, 2);
     // 左スティック：画面のカーソルを動かす（端まで行くと地図が動く）。右スティック：視点
     const W = cv.clientWidth, H = cv.clientHeight;
     if (lx || ly) {
