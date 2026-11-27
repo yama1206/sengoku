@@ -238,6 +238,7 @@ function drawCross(x, y, col) {
   }
 }
 function pollPad(dt) {
+  G.padMv = null; G.padAtk = G.padBlk = false;
   if (SGK.MINEUI && SGK.MINEUI.isOpen()) return [0, 0]; if (SGK.GATHERUI && SGK.GATHERUI.isOpen()) return [0, 0]; // 2.27.0 釣り場の画面 // 2.25.0 採掘の画面ではコントローラーを採掘に使う
   if (SGK.YUGIUI && SGK.YUGIUI.isOpen()) { for (let i = 0; i < 20; i++) padPrev[i] = true; return [0, 0]; } // 2.106.12 遊戯屋（戦国思想録）は札の画面がコントローラーを読む。閉じた時に押していたボタンを数えない
   if (SGK.PARTY && SGK.PARTY.current && SGK.PARTY.current()) return [0, 0]; // 2.99.2 みんなで遊ぶの最中はコントローラーで地図を動かさない
@@ -250,13 +251,14 @@ function pollPad(dt) {
   const down = (i) => btn(i) && !padPrev[i];
   const dz = (v) => (Math.abs(v) < 0.2 ? 0 : v);
   const lx = dz(gp.axes[0] || 0), ly = dz(gp.axes[1] || 0), rx = dz(gp.axes[2] || 0), ry = dz(gp.axes[3] || 0);
-  const stickNav = activeMenu() !== $('battle'); // 戦闘中は左スティックを移動先に使うので、メニュー移動は十字キーだけ
+  const menu = activeMenu() || (G.priv?.battle ? $('battle') : null);
+  const inBattle = menu === $('battle');
+  const stickNav = !inBattle; // 戦闘中は左スティックを移動先に使うので、メニュー移動は十字キーだけ
   let nx = (btn(15) ? 1 : 0) - (btn(14) ? 1 : 0) + (stickNav && Math.abs(lx) > 0.5 ? Math.sign(lx) : 0);
   let ny = (btn(13) ? 1 : 0) - (btn(12) ? 1 : 0) + (stickNav && Math.abs(ly) > 0.5 ? Math.sign(ly) : 0);
   let move = [0, 0];
-  if (activeMenu()) {
+  if (menu) {
     const now = performance.now();
-    const inBattle = activeMenu() === $('battle');
     if (inBattle) { // 戦闘：十字キーの左右で下のボタン（自動で決着・退却）を選び、もう一度押すと選択をやめる。ボタン選択中だけ ×/A で押す
       const bb = menuButtons($('battle'));
       if (down(8)) { G.bpick = G.bpick ? null : bb[0] || null; G.bshare = !!G.bpick; setFocus($('battle'), G.bpick || null); } /* 1.6.62 シェアボタンで下のボタンへ移る／戻る */
