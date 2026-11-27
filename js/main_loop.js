@@ -41,7 +41,14 @@ function frame0(now) {
   const padMove = pollPad(dt);
   if (G.mode === 'title') SGK.AUDIO.scene('title');
   if ((G.mode === 'host' || G.mode === 'client') && buildView()) {
-    if (G.mode === 'host') { G.priv = SIM.privateState(G.world, G.myPid); SIM.drain(G.myPid).forEach(toastMsg); }
+    if (G.mode === 'host') {
+      const battle = G.world.players[G.myPid]?.battle;
+      if (!G.priv || battle || G.priv.battle || now >= hostPrivDue) {
+        G.priv = SIM.privateState(G.world, G.myPid);
+        hostPrivDue = now + CFG.TICK_MS;
+      }
+      SIM.drain(G.myPid).forEach(toastMsg);
+    }
     // WASDで直接移動
     const BT = G.priv && G.priv.battle;
     const inBattle = $('game').classList.contains('inBattle');

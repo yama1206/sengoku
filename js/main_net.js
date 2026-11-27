@@ -1,3 +1,4 @@
+let hostPrivDue = 0;
 // ホスト・世界に入る・参加者・表示用データ・命令の送り先
 // 2.57.2 main.js を画面ごとに分けた。main*.js は外側の関数で包まず、名前（G・$・toast など）を大域で分け合う。index.html の順に読み込むこと
 // ---------- ホスト ----------
@@ -94,7 +95,7 @@ function cloudSave(force) {
 const cloudSoon = () => { if (!cloudAt) cloudAt = performance.now() + CFG.CLOUD_SOON_MS; };
 
 function startHost(world, msg, ent) {
-  G.mode = 'host'; G.world = world; G.noCloud = false; G.speed = 1; G.disp = {}; G.selected = null;
+  G.mode = 'host'; G.world = world; G.priv = null; G.sentPriv = {}; G.noCloud = false; G.speed = 1; G.disp = {}; G.selected = null;
   G.myPid = SIM.addPlayer(world, token, myName(), myProf()); SIM.localPid = G.myPid;
   if (G.pendingMine) { mergeMine(world, G.myPid, G.pendingMine); G.pendingMine = null; } G.sentMine = {}; G.mineAcc = 0;
   G.stat = SIM.staticState(world);
@@ -163,9 +164,19 @@ function receiveNin(from, m) {
 function hostTick() { if (G.mode !== 'host' || !G.world) { timerWorker.postMessage(0); return; } /* 2.59.1 ホストでなくなったのに時計が残っていたら止める */ try { hostTick0(); } catch (e) { const t = 'エラー(ホストの進行): ' + (e && e.message) + ' ' + ((e && e.stack) || '').split('\n')[1]; if (G.lastHostErr !== t) { G.lastHostErr = t; errToast(t); } } }
 // 2.40.4 参加者ごとの「自分用の情報」は、前に送ったものから変わっていなければ送らない（参加者は前のものを使い続ける。念のため5秒ごとには送り直す）
 function privFor(pid, now) {
-  const pv = SIM.privateState(G.world, pid), j = JSON.stringify(pv); G.sentPriv = G.sentPriv || {}; const o = G.sentPriv[pid];
-  if (o && o.j === j && now - o.t < 5000) return undefined;
-  G.sentPriv[pid] = { j, t: now }; return pv;
+  const previous = G.sentPriv[pid];
+  const battle = G.world.players[pid]?.battle || null;
+  // 通常時は個人情報だけ間引く。合戦中とその終了直後はすぐ更新する。
+  if (previous && !battle && !previous.battle && now - previous.checked < CFG.PRIV_CHECK_MS) return undefined;
+  const pv = SIM.privateState(G.world, pid);
+  const j = JSON.stringify(pv);
+  if (previous && previous.j === j && now - previous.sent < 5000) {
+    previous.checked = now;
+    previous.battle = battle;
+    return undefined;
+  }
+  G.sentPriv[pid] = { j, checked: now, sent: now, battle };
+  return pv;
 }
 function hostTick0() {
   const now = performance.now(); const dt = Math.min(5, (now - lastTick) / 1000); lastTick = now;
@@ -300,7 +311,10 @@ function centerOnMe() { buildView(); const m = me(); if (m) { R.cam.x = m.x; R.c
 
 // ---------- 命令（ホストは直接、参加者は送信） ----------
 function command(cmd) {
-  if (G.mode === 'host') SIM.applyCommand(G.world, G.myPid, cmd);
+  if (G.mode === 'host') {
+    SIM.applyCommand(G.world, G.myPid, cmd);
+    hostPrivDue = 0;
+  }
   else if (G.mode === 'client' && G.net) G.net.send(cmd);
 }
 SGK.cmd = command; // 2.11.0 釣り・虫取りの画面（gather.js）から使う
