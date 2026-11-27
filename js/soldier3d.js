@@ -375,7 +375,7 @@
   S.load = function (THREE, scene, cap, done) {
     if (S.loading || !THREE || !THREE.GLTFLoader) return; S.loading = true; T = THREE;
     const L = new T.GLTFLoader(), get = (u) => new Promise((ok, ng) => L.load(S.PATH + u, ok, undefined, ng));
-    Promise.all([get('soldier_anims.glb'), ...[1, 2, 3, 4].map((i) => get(`soldier_t${i}_${i === 2 || i === 3 ? 'battle' : 'rig'}.glb`)), get('equip/horse_brown.glb'), get('equip/horse_white.glb'), ...WEPS.map((n) => get(`equip/${n}.glb`)), get('ninja_anims.glb').catch(() => null)]).then((g) => {
+    Promise.all([get('soldier_anims.glb'), ...[1, 2, 3, 4].map((i) => get(`soldier_t${i}_${i === 2 || i === 3 ? 'battle' : 'rig'}.glb${i === 3 ? '?v=2' : ''}`)), get('equip/horse_brown.glb'), get('equip/horse_white.glb'), ...WEPS.map((n) => get(`equip/${n}.glb`)), get('ninja_anims.glb').catch(() => null)]).then((g) => {
       const an = g[0]; let aHip = 0;
       an.scene.traverse((o) => { if (!aHip && /Hips$/.test(o.name)) aHip = o.position.length(); });
       const clips = an.animations.map((c) => [c.name, c]);
