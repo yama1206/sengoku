@@ -17,7 +17,7 @@
     { k: 'cau', n: '見つかったら', v: [['seek', '探す側に回る'], ['out', 'その回は終わり']] },
     { k: 'on', n: '鬼の人数', v: [['1', '1人'], ['2', '2人']] }, // 2.96.0
     { k: 'hn', n: '逃げる側の人数', v: [['4', '4人'], ['5', '5人'], ['6', '6人'], ['7', '7人'], ['8', '8人']] }, // 2.96.0 足りない分はCPUが加わる（CPUありのとき）
-    { k: 'cpS', n: '鬼のCPU', v: [['off', 'なし'], ['1', 'よわい'], ['2', 'ふつう'], ['3', 'つよい']] }, // 2.95.0 立候補した人がいなければ、鬼をCPUがやる
+    { k: 'cpS', n: '鬼のCPU', v: [['off', 'なし'], ['1', 'よわい'], ['2', 'ふつう'], ['3', 'つよい']] }, // 立候補者で埋まらない鬼の枠をCPUが担当する（5人で立候補なしの場合を除く）
     { k: 'cpH', n: '逃げる側のCPU', v: [['off', 'なし'], ['1', 'よわい'], ['2', 'ふつう'], ['3', 'つよい']] }, // 2.95.0 逃げる側が4人になるまでCPUが加わる
   ];
   /* 2.71.0 キャラ（見た目＋パッシブ＋アクティブ）。逃げる側は人間、鬼は日本の妖怪。数値は仮
@@ -380,10 +380,14 @@
     }
     // 役割（同じ種で全員同じ）
     const order = hids.slice(); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
-    { const isV = (i) => !!((cfg.mem || []).find((x) => x.id === i) || {}).vol, vo = order.filter(isV), rest = order.filter((i) => !isV(i)); order.length = 0; order.push(...vo, ...rest); } // 2.91.0 鬼は立候補した人からランダム（立候補がいなければ全員から）
+    const volunteers = new Set((cfg.mem || []).filter((p) => p.vol).map((p) => p.id));
+    const willing = order.filter((id) => volunteers.has(id));
+    order.splice(0, order.length, ...willing, ...order.filter((id) => !volunteers.has(id)));
     // 2.96.0 鬼は1〜2人・逃げる側は4〜8人まで。人が足りない分は、CPUの設定があればCPUが入る
-    const ON = o.on === '2' ? 2 : 1, HN = clamp(+o.hn || 4, 4, 8), volOf = (i) => !!((cfg.mem || []).find((x) => x.id === i) || {}).vol;
-    const nHumOni = solo ? 0 : LS > 0 ? Math.min(ON, order.filter(volOf).length) : Math.min(ON, LH > 0 ? hids.length : hids.length - 1), nCpuOni = !solo && LS > 0 ? ON - nHumOni : 0;
+    const ON = o.on === '2' ? 2 : 1, HN = clamp(+o.hn || 4, 4, 8);
+    const useCpuOni = LS > 0 && !(hids.length === 5 && willing.length === 0);
+    const humanSlots = useCpuOni ? willing.length : LH > 0 ? hids.length : hids.length - 1;
+    const nHumOni = solo ? 0 : Math.min(ON, humanSlots), nCpuOni = !solo && useCpuOni ? ON - nHumOni : 0;
     const nFill = !solo && LH > 0 ? Math.max(0, HN - (hids.length - nHumOni)) : 0, nSk = nHumOni + nCpuOni;
     const cpuIds = []; for (let k = 0; k < nCpuOni + nFill; k++) cpuIds.push('__c' + k);
     const ids = hids.concat(cpuIds); cpuIds.forEach((c2, k) => { env.names[c2] = 'CPU' + (k + 1); });
