@@ -28,6 +28,14 @@
     if (css) return; css = true; const s = document.createElement('style');
     s.textContent = `#ptBox,#ptRes{position:fixed;inset:0;z-index:9300;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);font-family:inherit}
 #ptBox>div,#ptRes>div{max-height:92vh;overflow:auto;background:#2a2118;color:#f3ead2;border:2px solid #a07c42;border-radius:10px;padding:16px 20px;max-width:min(92vw,460px);box-shadow:0 8px 30px #000a}
+#ptBox .race-choices{width:min(460px,calc(100vw - 24px));box-sizing:border-box}
+#ptBox .race-choices button{margin-right:0}
+#ptBox .race-option{margin:7px 0 0;padding:9px 12px}
+#ptBox .race-option[aria-current="true"]{border-color:#f2c14e}
+#ptBox .race-equipped{margin-left:10px;color:#ffe09a;font-size:12px}
+#ptBox .race-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 8px;margin-top:6px;font-size:12px;color:#eee0c6}
+#ptBox .race-stats strong{margin-left:4px}
+#ptBox .race-rise{color:#b9edba}#ptBox .race-fall{color:#ffb5a7}
 #ptBox h2,#ptRes h2{margin:0 0 6px;color:#f2c14e;font-size:20px}#ptBox .d{font-size:13px;color:#cdbf9a;margin-bottom:8px}
 #ptBox button,#ptRes button,#ptInv button,#ptGame .tb button{font:inherit;color:#f3ead2;background:linear-gradient(#5a3e22,#2e2012);border:1px solid #a07c42;border-radius:6px;padding:7px 12px;margin:3px 3px 0 0;cursor:pointer}
 #ptBox button{display:block;width:100%;text-align:left;box-sizing:border-box}#ptBox .m{padding:3px 0;border-bottom:1px solid #fff2}#ptRes .r{padding:3px 0;border-bottom:1px solid #fff2}
@@ -114,21 +122,46 @@
     catch (error) { raceSelection = raceLoadout(null); }
     return raceSelection;
   }
+  const raceStatNames = ['最高速', '加速', '曲がりやすさ', '重さ'];
   function raceTackHtml() {
-    const selected = myRaceLoadout(), [speed, accel, turn, weight] = raceStats(selected);
+    const selected = myRaceLoadout(), stats = raceStats(selected);
     const buttons = raceParts.map(([slot, options], i) =>
       '<button data-a="race-part:' + i + '">' + slot + '　' + options[selected[i]][0] + '</button>');
-    return '<div class="d">' + buttons.join('') + '<div>最高速 ' + speed + '　加速 ' + accel +
-      '　曲がりやすさ ' + turn + '　重さ ' + weight + '（各9段階）</div></div>';
+    return '<div class="d">' + buttons.join('') + '<div>現在の能力　' +
+      raceStatNames.map((name, i) => name + ' ' + stats[i]).join('　') + '</div></div>';
   }
-  function drawLobby() {
+  function raceChoicesHtml(slot) {
+    const [label, options] = raceParts[slot], selected = myRaceLoadout();
+    const equipped = selected[slot], current = raceStats(selected);
+    const cards = options.map(([name], index) => {
+      const proposed = selected.slice();
+      proposed[slot] = index;
+      const active = equipped === index;
+      const stats = raceStats(proposed).map((value, i) => {
+        const delta = value - current[i];
+        const change = delta > 0 ? '<strong class="race-rise">↑ +' + delta + '</strong>' :
+          delta < 0 ? '<strong class="race-fall">↓ −' + Math.abs(delta) + '</strong>' : '';
+        const values = delta ? current[i] + ' → ' + value : String(value);
+        return '<span>' + raceStatNames[i] + ' ' + values + change + '</span>';
+      }).join('');
+      return '<button class="race-option" data-a="race-equip:' + index + '"' +
+        (active ? ' aria-current="true"' : '') + '><b>' + name + '</b>' +
+        (active ? '<span class="race-equipped">選択中</span>' : '') +
+        '<span class="race-stats">' + stats + '</span></button>';
+    }).join('');
+    return '<div class="race-choices"><h2>' + label + 'を選ぶ</h2><div class="d">現在の構成から替えたときの能力（各9段階）</div>' +
+      cards + '<button data-a="race-back">戻る</button></div>';
+  }
+  function drawLobby(focusAction) {
     if (!LB) return; const d = GAMES[LB.g], e = box('ptBox'), n = LB.mem.length;
     if (LB.sec && (!d.opts || (LB.sec !== 'me' && !(LB.lead && LB.o)))) LB.sec = null;
     const list = LB.mem.map((x, i) => `<div class="m">${LB.team ? `<b style="color:${TEAM[i % 2].c}">${TEAM[i % 2].n}</b> ` : ''}${esc(x.name)}${x.id === LB.leader ? '（リーダー）' : ''}${d.opts && x.vol ? '<span style="font-size:12px;color:#ffb0a0">　【鬼に立候補】</span>' : ''}${d.opts && x.ch ? `<span style="font-size:12px;color:#cdbf9a">　逃げ：${chName('h', x.ch.h)}／鬼：${chName('s', x.ch.s)}</span>` : ''}</div>`).join('');
-    e.innerHTML = LB.kc ? keysHtml() : LB.pk ? pickHtml() : LB.sec ? secHtml() : `<div><h2>${d.name}</h2><div><button data-a="desc">ゲーム説明${LB.desc ? '（閉じる）' : ''}</button></div>${LB.desc ? `<div class="d">${esc(d.desc)}</div>` : ''}<div>参加者 ${n}/${d.max}人${LB.team ? '（チーム戦：交互に赤・白）' : ''}${d.opts && LB.o ? `<div style="font-size:13px;color:#cdbf9a">${optTxt(LB.o)}</div>` : ''}${d.mode ? `　勝ち方：${LB.mode === 'big' ? '大物（いちばん大きい魚）' : '数（釣った数）'}` : ''}</div>${list}${LB.g === 'race' ? raceTackHtml() : ''}
+    e.innerHTML = LB.raceSlot != null ? raceChoicesHtml(LB.raceSlot) : LB.kc ? keysHtml() : LB.pk ? pickHtml() : LB.sec ? secHtml() : `<div><h2>${d.name}</h2><div><button data-a="desc">ゲーム説明${LB.desc ? '（閉じる）' : ''}</button></div>${LB.desc ? `<div class="d">${esc(d.desc)}</div>` : ''}<div>参加者 ${n}/${d.max}人${LB.team ? '（チーム戦：交互に赤・白）' : ''}${d.opts && LB.o ? `<div style="font-size:13px;color:#cdbf9a">${optTxt(LB.o)}</div>` : ''}${d.mode ? `　勝ち方：${LB.mode === 'big' ? '大物（いちばん大きい魚）' : '数（釣った数）'}` : ''}</div>${list}${LB.g === 'race' ? raceTackHtml() : ''}
       ${d.opts ? (() => { const c = myCh(), H = SGK.HIDE.CH, a = H.h.find((x) => x.k === c.h), b = H.s.find((x) => x.k === c.s); return `<div style="margin-top:6px;font-size:12px;color:#cdbf9a"><b>逃げる時：${a.n}</b>　${a.pa}／${a.ac}<br><b>鬼の時：${b.n}</b>　${b.pa}／${b.ac}</div><div><button data-a="vol">${(LB.mem.find((y) => y.id === ENV.me()) || {}).vol ? '鬼に立候補をやめる' : '鬼に立候補する'}</button><button data-a="sec:me">自分の設定（キャラ・操作・視点）</button>${LB.lead && LB.o ? '<button data-a="sec:rule">遊び方の設定（勝ち方・舞台など）</button><button data-a="sec:ppl">人数・CPUの設定</button>' : ''}</div>`; })() : ''}
       <div style="margin-top:8px">${LB.lead ? `<button data-a="inv">同じ町の人を誘う</button>${d.team ? `<button data-a="team">${LB.team ? '個人戦にする' : 'チーム戦にする'}</button>` : ''}${d.mode ? '<button data-a="mode">勝ち方を変える</button>' : ''}${n >= 2 ? '<button data-a="go">出発する</button>' : ''}<button data-a="solo">ひとりで練習（報酬なし）</button>` : '<div class="d">リーダーが出発すると始まります</div>'}<button data-a="close">${LB.lead ? 'やめる' : '抜ける'}</button></div></div>`;
-    try { if (typeof setFocus === 'function') setFocus(e, currentFocus(e)); } catch (er) {} // 2.69.2 作り直してもコントローラーの選択を保つ
+    const focus = focusAction && e.querySelector('button[data-a="' + focusAction + '"]');
+    if (focus) focus.focus({ preventScroll: true });
+    try { if (typeof setFocus === 'function') setFocus(e, focus || currentFocus(e)); } catch (er) {} // 2.69.2 作り直してもコントローラーの選択を保つ
     e.onclick = (ev) => {
       const b = ev.target.closest('button[data-a]'); if (!b || !LB) return; const a = b.dataset.a;
       if (a === 'inv') { const to = ENV.others().map((x) => x.id); send(to, { k: 'inv', g: LB.g, rid: LB.rid, nm: ENV.name(), team: LB.team, mode: LB.mode, o: LB.o }); b.textContent = to.length ? `${to.length}人に声をかけた` : '同じ町にほかの人がいません'; }
@@ -142,10 +175,18 @@
       else if (a.startsWith('ks:')) { if (LB.kc) LB.kc.sel = a.slice(3); drawLobby(); }
       else if (a === 'vw') { try { localStorage.setItem('sgk-hide-vw', vwGet() === 'tp' ? 'fp' : 'tp'); } catch (er) {} drawLobby(); }
       else if (a.startsWith('race-part:') && LB.g === 'race') {
-        const slot = Number(a.split(':')[1]), selected = myRaceLoadout();
-        selected[slot] = (selected[slot] + 1) % raceParts[slot][1].length;
-        try { localStorage.setItem('sgk-race-tack', JSON.stringify(selected)); } catch (error) {}
-        drawLobby();
+        LB.raceSlot = Number(a.split(':')[1]);
+        drawLobby('race-equip:' + myRaceLoadout()[LB.raceSlot]);
+      }
+      else if (LB.raceSlot != null && (a === 'race-back' || a.startsWith('race-equip:'))) {
+        const slot = LB.raceSlot;
+        if (a !== 'race-back') {
+          const selected = myRaceLoadout();
+          selected[slot] = Number(a.split(':')[1]);
+          try { localStorage.setItem('sgk-race-tack', JSON.stringify(selected)); } catch (error) {}
+        }
+        LB.raceSlot = null;
+        drawLobby('race-part:' + slot);
       }
       else if (a === 'desc') { LB.desc = !LB.desc; drawLobby(); }
       else if (a === 'pkx') { LB.pk = null; drawLobby(); }
