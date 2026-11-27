@@ -169,59 +169,16 @@
     return R.r0 + Math.round((phase % 1) * (R.n - 1));
   };
 
-  // 足軽の胴と草摺を元の人型と同じメッシュにまとめ、同じ骨と影で動かす。
-  function ashigaruArmor(sk) {
-    const bone = (name) => sk.bones.findIndex((b) => b.name.replace(/^mixamorig:?/, '') === name);
-    const chest = bone('Spine2'), hips = bone('Hips');
-    if (chest < 0 || hips < 0) return [];
-    const parts = [];
-    const lacquer = new T.Color(0x23282d), edge = new T.Color(0x444b50);
-    const leather = new T.Color(0x473a31), skirt = new T.Color(0x282a2b);
-    function plate(top, bottom, height, y, start, span, segments, weight, color) {
-      const geo = new T.CylinderGeometry(top, bottom, height, segments, 1, true, start, span);
-      geo.scale(0.23, 1, 0.211).translate(0.001, y, 0.002);
-      const count = geo.attributes.position.count, indices = new Float32Array(count * 4), weights = new Float32Array(count * 4);
-      for (let i = 0; i < count; i++) {
-        indices[i * 4] = weight;
-        weights[i * 4] = 1;
-      }
-      geo.setAttribute('skinIndex', new T.BufferAttribute(indices, 4));
-      geo.setAttribute('skinWeight', new T.BufferAttribute(weights, 4));
-      parts.push({ geo, color });
-    }
-    const turn = Math.PI * 2;
-    for (let i = 0; i < 5; i++) {
-      const y = 0.966 + i * 0.064, radius = 1 + i * 0.022;
-      plate(radius - 0.025, radius + 0.023, 0.061, y, 0, turn, 12, chest, lacquer);
-      plate(radius + 0.046, radius + 0.034, 0.013, y - 0.029, 0, turn, 12, chest, edge);
-    }
-    plate(1.005, 1.035, 0.045, 0.908, 0, turn, 12, hips, leather);
-    // 草摺は六枚。板の間から下の着物が見える。
-    for (let i = 0; i < 6; i++) {
-      const start = (i + 0.5) * turn / 6 + 0.065;
-      const span = turn / 6 - 0.13;
-      for (let j = 0; j < 3; j++) {
-        const radius = 1.03 + j * 0.08;
-        plate(radius, radius + 0.087, 0.056, 0.864 - j * 0.053, start, span, 2, hips, skirt);
-        plate(radius + 0.11, radius + 0.09, 0.011, 0.837 - j * 0.053, start, span, 2, hips, edge);
-      }
-    }
-    return parts;
-  }
-
   // 動きを焼き込む。1行＝1コマ、1行に骨の数×4画素（行列1つ＝4画素）
   // hipK：腰の位置を体の大きさに合わせる倍率（動きはt3の体で作られているため）
-  function bake(gl, clips, hipK, fixArms, armor) {
+  function bake(gl, clips, hipK, fixArms) {
     const root = gl.scene; root.updateMatrixWorld(true);
     const meshes = []; root.traverse((o) => { if (o.isSkinnedMesh) meshes.push(o); });
     if (fixArms) for (const m of meshes) S.fixArmWeights(m); // 2.30.1
     const sm = meshes[0], sk = sm.skeleton, nb = sk.bones.length;
-    const parts = meshes.map((m) => ({ geo: m.geometry, color: m.geometry.attributes.color ? null : m.material.color }));
-    const bodyVertices = parts.reduce((total, part) => total + part.geo.attributes.position.count, 0);
-    if (armor) parts.push(...ashigaruArmor(sk));
-    const geo = mergeParts(parts, true);
+    const geo = mergeParts(meshes.map((m) => ({ geo: m.geometry, color: m.geometry.attributes.color ? null : m.material.color })), true);
     const bones = {}; for (const b of sk.bones) bones[b.name.replace(/^mixamorig:?/, '')] = b;
-    { const cm = S.clothMask(geo, sk.bones.map((b) => b.name)), C = geo.attributes.color; for (let i = 0; i < bodyVertices; i++) if (cm[i]) C.setX(i, -Math.max(C.getX(i), 0.001)); } // 2.12.5 服の所は赤をマイナスにして印にする（属性を増やすと数の上限を超えるので）
+    { const cm = S.clothMask(geo, sk.bones.map((b) => b.name)), C = geo.attributes.color; for (let i = 0; i < cm.length; i++) if (cm[i]) C.setX(i, -Math.max(C.getX(i), 0.001)); } // 2.12.5 服の所は赤をマイナスにして印にする（属性を増やすと数の上限を超えるので）
     const hips = bones.Hips;
     const mixer = new T.AnimationMixer(root), rows = {};
     let H = 0;
@@ -427,7 +384,7 @@
       )]);
       for (let i = 0; i < 4; i++) {
         let h = 0; g[1 + i].scene.traverse((o) => { if (!h && o.isBone && /Hips$/.test(o.name)) h = o.position.length(); });
-        const bk = bake(g[1 + i], soldierClips, h && aHip ? h / aHip : 1, i > 0, i === 1);
+        const bk = bake(g[1 + i], soldierClips, h && aHip ? h / aHip : 1, i > 0);
         skinTone(bk.geo, bk.boneNames); // 2.21.0 兵の肌の色をそろえる（馬には使わない）
         if (i === 1 || i === 2) blackHat(bk.geo, 1.4); // t2の陣笠・t3の兜の白い所は黒漆に
         const b = mkSkin(bk, cap, scene);
