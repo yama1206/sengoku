@@ -750,7 +750,7 @@
       if (cv.parentElement.classList.contains('race-keys')) {
         g.fillStyle = '#23251cdd';
         g.fillRect(0, h - 29, w, 29);
-        drawText(g, '← → 進路　 Space 跳ぶ　 Shift 加速　 E 道具', w / 2, h - 10,
+        drawText(g, SGK.HINT.pick({ kb: '← → 進路　 Space 跳ぶ　 Shift 加速　 E 道具', pad: `左スティック 進路　${SGK.HINT.btn('A')} 跳ぶ　${SGK.HINT.btn('B')}／${SGK.HINT.btn('X')} 加速　${SGK.HINT.btn('Y')} 道具`, touch: '← → 進路・右の「走る」「跳ぶ」「道具」' }), w / 2, h - 10,
           { sz: Math.min(14, w / 25), al: 'center' });
       }
       if (noticeUntil > t && t >= 0) drawText(g, notice, w / 2, 179, { sz: 16, al: 'center' });
@@ -1156,7 +1156,7 @@
         if (S.phase === 'ready') drawText(g, lead ? `${HF()}で蹴り出す（${HS()}でゆるく）` :`${nameOf(env, cfg.lead)}が蹴り出すのを待っています`, cx, cy, { sz: 22, b: 1, al: 'center' });
         if (S.phase === 'fly' && S.to === me && judged !== S.seq) drawText(g, '蹴る！', cx, cy + R * 0.45, { sz: Math.round(30 + 10 * Math.max(0, frac - 0.6)), b: 1, al: 'center', c: frac > 0.8 ? '#ffd76a' : '#fff' });
         if (fb && now - fb.t < 1000) drawText(g, fb.txt, cx, cy - R * 0.3, { sz: 30, b: 1, al: 'center', c: fb.ok ? '#ffd76a' : '#ff8a7a' });
-        if (S.phase === 'over') drawText(g, '鞠が落ちた！', cx, cy, { sz: 40, b: 1, al: 'center', c: '#ff8a7a' });
+        if (S.phase === 'over') drawText(g, '蹴り切った！', cx, cy, { sz: 40, b: 1, al: 'center', c: '#ffd76a' });
       },
     };
   }
