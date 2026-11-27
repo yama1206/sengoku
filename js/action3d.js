@@ -1110,7 +1110,7 @@
     const row = c.gait ? S3.gaitRow(b, c.nm, c.t) : S3.rowAt(b, c.nm, c.t, c.loop);
     const low = c.low, rowL = !low ? row : low.gait ? S3.gaitRow(b, low.nm, low.t) : S3.rowAt(b, low.nm, low.t, low.loop);
     if (c.low) S3.combo(b, rowL, row, Mc, Mcw);
-    S3.put(b, Mx, rowL, s.fl ? 0.22 * Math.min(1, s.fl / 0.15) : 0, c.low ? row : null, c.low ? Mc : null, skTint); // 1.6.68 （2.12.5 skTint＝服の色） 打たれた光りを控えめに（0.6→0.22）
+    S3.put(b, Mx, rowL, s.fl ? 0.22 * Math.min(1, s.fl / 0.15) : 0, c.low ? row : null, c.low ? Mc : null, skTint, partsOf(s, u, tr)); // 1.6.68 （2.12.5 skTint＝服の色） 打たれた光りを控えめに（0.6→0.22）
     // 武器を手に持たせる（弓は左手）
     const wn = (lookOf(s) && lookOf(s).wn) || wepName(wk, tr), kind = wk === 'spearS' || wk === 'spearL' ? 'spear' : wk === 'bow' || wk === 'gun' ? wk : 'sword';
     if (wn || wk === 'shuri') {
@@ -1136,7 +1136,29 @@
   const COL = { A: 0x2f5a96, Aown: 0x3a6ea5, Aally: 0x5d9ab8, B: 0xa8352a };
   /* 2.12.5 プレイヤーが選んだ服の色（X.cloth＝{ pid: { me:'#色', tr:'#色' } }。main.js が毎コマ入れる）。本人は me、その人の兵は tr */
   X.cloth = null; let skTint = null; const tintC = {};
-  const clothOf = (s, u) => { const CL = X.cloth; if (!CL || s.side === 'B') return null; const o = s.pc || (u && (u.owner || u.cmd)), c = o && CL[o]; const hx = c && (s.pc || s.hero ? c.me : c.tr); if (!hx) return null; return tintC[hx] || (tintC[hx] = new T.Color(hx)); };
+  const clothSettings = (s, u) => {
+    const owner = s.pc || (u && (u.owner || u.cmd));
+    return X.cloth && s.side !== 'B' && owner ? X.cloth[owner] : null;
+  };
+  const clothOf = (s, u) => {
+    const settings = clothSettings(s, u), hex = settings && (s.pc || s.hero ? settings.me : settings.tr);
+    return hex ? (tintC[hex] || (tintC[hex] = new T.Color(hex))) : null;
+  };
+  const partColors = new WeakMap();
+  const partsOf = (s, u, tier) => {
+    const settings = tier < 4 && clothSettings(s, u);
+    if (!settings) return null;
+    let tiers = partColors.get(settings);
+    if (!tiers) {
+      const CL = SGK.SIM.CLOTH;
+      tiers = CL.models.map(({ parts }, i) => {
+        const palette = parts.map((_, j) => settings[CL.partKey(i + 1, j + 1)] || null);
+        return palette.some(Boolean) ? palette : null;
+      });
+      partColors.set(settings, tiers);
+    }
+    return tiers[tier - 1];
+  };
   X.draw = function (b, myPid, sel, dt, terList, cam, w, h) {
     if (!X.on || X.failed) return false;
     if (!X.ready && !init()) return false;

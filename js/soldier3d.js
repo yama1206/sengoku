@@ -169,6 +169,15 @@
     return R.r0 + Math.round((phase % 1) * (R.n - 1));
   };
 
+  // 16 ビットの頂点色 alpha に部位番号を持つ。布には従来の一括染色も適用できる。
+  S.partOf = (colors, i) => {
+    const flag = Math.round(colors.getW(i) * 65535);
+    if (flag > 65520 && flag <= 65525) return -(flag - 65520);
+    if (flag > 65510 && flag <= 65515) return flag - 65510;
+    return 0;
+  };
+  S.modelFile = (tier) => tier === 4 ? 'soldier_t4_rig.glb' : `soldier_t${tier}_battle.glb?v=3`;
+
   // 動きを焼き込む。1行＝1コマ、1行に骨の数×4画素（行列1つ＝4画素）
   // hipK：腰の位置を体の大きさに合わせる倍率（動きはt3の体で作られているため）
   function bake(gl, clips, hipK, fixArms, paintedArmor = false) {
@@ -180,13 +189,14 @@
     const bones = {}; for (const b of sk.bones) bones[b.name.replace(/^mixamorig:?/, '')] = b;
     const C = geo.attributes.color;
     if (paintedArmor) {
-      // 塗り分け済みモデルの頂点色の alpha は部位を示す。65534 は布、65533 は肌、65535 は具足。
+      // 赤の整数部に部位番号、負号に一括染色の対象を記録する。
       let offset = 0;
       for (const mesh of meshes) {
         const source = mesh.geometry.attributes.color;
         for (let i = 0; i < source.count; i++) {
           const part = Math.round(source.getW(i) * 65535), j = offset + i;
-          if (part === 65534) C.setX(j, -Math.max(C.getX(j), 0.001));
+          const colorPart = S.partOf(source, i);
+          if (colorPart) C.setX(j, Math.sign(colorPart) * (2 * Math.abs(colorPart) + C.getX(j)));
           if (part === 65533) C.setY(j, -C.getY(j));
         }
         offset += source.count;
@@ -295,7 +305,7 @@
     // 上半身の骨（背骨とその先）。歩きながら攻撃するとき、ここだけ攻撃の動きにする
     const upper = new Float32Array(64);
     sk.bones.forEach((bn, i) => { for (let o = bn; o; o = o.parent) if (/Spine$/.test(o.name)) { upper[i] = 1; break; } });
-    return { geo, tex, nb, H, rows, att, upper, base: base.clone(), baseInv: base.clone().invert(), boneNames: sk.bones.map((b) => b.name) };
+    return { geo, tex, nb, H, rows, att, upper, paintedArmor, base: base.clone(), baseInv: base.clone().invert(), boneNames: sk.bones.map((b) => b.name) };
   }
 
   /* 2.21.0 肌の色：モデルの肌（0.8,0.6,0.4 など。頂点の色はリニアなので画面では白っぽい肌色になっていた）を、
@@ -328,14 +338,49 @@
       .replace('#include <dithering_fragment>', '  { float rim_ = 1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0); gl_FragColor.rgb += vec3(1.0, 0.93, 0.8) * pow(rim_, 3.0) * ' + (skin ? '0.22 * (1.0 - 0.8 * vSk_)' : '0.22') + '; }\n#include <dithering_fragment>');
   }
   const stdMat = (metal) => { const m = new T.MeshStandardMaterial({ vertexColors: true, side: T.DoubleSide, roughness: 0.85, metalness: 0 }); S.mats.push(m); return m; };
+  // 部位色はプレイヤー単位で共有し、各兵に行番号だけ渡す。列0は従来の一括染色。
+  const paletteWidth = 6, paletteRows = 256;
+  let paletteTex;
+  const paletteIndex = new Map();
+  let paletteCache = new WeakMap();
+  function paletteRow(colors, tint) {
+    let rows = paletteCache.get(colors);
+    if (!rows) paletteCache.set(colors, (rows = new Map()));
+    if (rows.has(tint)) return rows.get(tint);
+    const key = [tint ? tint.getHex() : '', ...colors].join('/');
+    if (paletteIndex.has(key)) {
+      const row = paletteIndex.get(key);
+      rows.set(tint, row);
+      return row;
+    }
+    const row = paletteIndex.size;
+    if (row >= paletteRows) return -1;
+    const data = paletteTex.image.data;
+    for (let i = 0; i < paletteWidth; i++) {
+      const color = i === 0 ? tint : colors[i - 1] && new T.Color(colors[i - 1]);
+      const offset = (row * paletteWidth + i) * 4;
+      data[offset] = color ? Math.round(color.r * 255) : 0;
+      data[offset + 1] = color ? Math.round(color.g * 255) : 0;
+      data[offset + 2] = color ? Math.round(color.b * 255) : 0;
+      data[offset + 3] = color ? 255 : 0;
+    }
+    paletteIndex.set(key, row);
+    rows.set(tint, row);
+    paletteTex.needsUpdate = true;
+    return row;
+  }
+
   // 焼き込んだ骨の行列で体を動かす素材（影用も）
   function skinMat(b, depth) {
     const m = depth ? new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking }) : stdMat(false);
     m.onBeforeCompile = (sh) => {
       if (!depth) look(sh, false, true);
+      const painted = b.paintedArmor && !depth;
+      if (painted) sh.uniforms.partPalette = { value: paletteTex };
       sh.uniforms.bT = { value: b.tex }; sh.uniforms.bS = { value: new T.Vector2(b.nb * 4, b.H) }; sh.uniforms.bU = { value: b.upper };
       // aR＝(下半身の行, 上半身の行, 白く光る量)。aC＝上半身を下半身の腰につなぐ行列
       sh.vertexShader = [
+        painted ? 'uniform sampler2D partPalette;' : '',
         'uniform sampler2D bT; uniform vec2 bS; uniform float bU[64]; attribute vec4 skinIndex; attribute vec4 skinWeight; attribute vec4 aR; attribute mat4 aC; varying float vSk_;',
         'mat4 bM(float i) { bool up = bU[int(i + 0.5)] > 0.5; float y = ((up ? aR.y : aR.x) + 0.5) / bS.y, dx = 1.0 / bS.x, x = (i * 4.0 + 0.5) * dx;',
         '  mat4 m = mat4(texture2D(bT, vec2(x, y)), texture2D(bT, vec2(x + dx, y)), texture2D(bT, vec2(x + 2.0 * dx, y)), texture2D(bT, vec2(x + 3.0 * dx, y)));',
@@ -344,10 +389,25 @@
           .replace('#include <skinbase_vertex>', 'mat4 skM = skinWeight.x * bM(skinIndex.x) + skinWeight.y * bM(skinIndex.y) + skinWeight.z * bM(skinIndex.z) + skinWeight.w * bM(skinIndex.w);')
           .replace('#include <skinnormal_vertex>', 'objectNormal = normalize(mat3(skM) * objectNormal);')
           .replace('#include <skinning_vertex>', 'transformed = (skM * vec4(transformed, 1.0)).xyz;')
-          .replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\n  float cl_ = vColor.r < 0.0 ? 1.0 : 0.0; vSk_ = vColor.g < 0.0 ? 1.0 : 0.0; vColor.rgb = abs(vColor.rgb);\n  if (aR.w >= 0.0 && cl_ > 0.5) { vec3 tc = vec3(floor(aR.w / 65536.0), mod(floor(aR.w / 256.0), 256.0), mod(aR.w, 256.0)) / 255.0; vColor.rgb = tc * (0.45 + 0.9 * dot(vColor.rgb, vec3(0.299, 0.587, 0.114))); }\n  vColor.rgb = mix(vColor.rgb, vec3(1.0), aR.z);\n#endif'), // 2.12.5 服を選んだ色に染める（aR.w＝色を1つの数にしたもの。-1 なら元の色。服かどうかは色で見分ける）
+          .replace('#include <color_vertex>', [
+            '#include <color_vertex>',
+            '#ifdef USE_COLOR',
+            'bool cloth = vColor.r < 0.0; vSk_ = vColor.g < 0.0 ? 1.0 : 0.0; vColor.rgb = abs(vColor.rgb);',
+            painted ? 'float part = floor(vColor.r * 0.5); vColor.r -= part * 2.0;' : '',
+            'vec4 chosen = vec4(0.0);',
+            'if (aR.w >= 0.0 && cloth) chosen = vec4(vec3(floor(aR.w / 65536.0), mod(floor(aR.w / 256.0), 256.0), mod(aR.w, 256.0)) / 255.0, 1.0);',
+            painted ? `if (aR.w <= -2.0 && part > 0.0) {
+              float y = (-aR.w - 1.5) / ${paletteRows}.0;
+              chosen = texture2D(partPalette, vec2((part + 0.5) / ${paletteWidth}.0, y));
+              if (chosen.a == 0.0 && cloth) chosen = texture2D(partPalette, vec2(0.5 / ${paletteWidth}.0, y));
+            }` : '',
+            'if (chosen.a > 0.0) vColor.rgb = chosen.rgb * (0.45 + 0.9 * dot(vColor.rgb, vec3(0.299, 0.587, 0.114)));',
+            'vColor.rgb = mix(vColor.rgb, vec3(1.0), aR.z);',
+            '#endif'
+          ].join('\n')),
       ].join('\n');
     };
-    m.customProgramCacheKey = () => 'sold3d6' + (depth ? 'd' : 'c');
+    m.customProgramCacheKey = () => 'sold3d7' + (depth ? 'd' : b.paintedArmor ? 'p' : 'c');
     return m;
   }
 
@@ -375,7 +435,9 @@
   S.load = function (THREE, scene, cap, done) {
     if (S.loading || !THREE || !THREE.GLTFLoader) return; S.loading = true; T = THREE;
     const L = new T.GLTFLoader(), get = (u) => new Promise((ok, ng) => L.load(S.PATH + u, ok, undefined, ng));
-    Promise.all([get('soldier_anims.glb'), ...[1, 2, 3, 4].map((i) => get(`soldier_t${i}_${i === 4 ? 'rig.glb' : i === 1 ? 'battle.glb' : 'battle.glb?v=2'}`)), get('equip/horse_brown.glb'), get('equip/horse_white.glb'), ...WEPS.map((n) => get(`equip/${n}.glb`)), get('ninja_anims.glb').catch(() => null)]).then((g) => {
+    paletteTex = new T.DataTexture(new Uint8Array(paletteWidth * paletteRows * 4), paletteWidth, paletteRows);
+    paletteTex.needsUpdate = true;
+    Promise.all([get('soldier_anims.glb'), ...[1, 2, 3, 4].map((i) => get(S.modelFile(i))), get('equip/horse_brown.glb'), get('equip/horse_white.glb'), ...WEPS.map((n) => get(`equip/${n}.glb`)), get('ninja_anims.glb').catch(() => null)]).then((g) => {
       const an = g[0]; let aHip = 0;
       an.scene.traverse((o) => { if (!aHip && /Hips$/.test(o.name)) aHip = o.position.length(); });
       const clips = an.animations.map((c) => [c.name, c]);
@@ -410,7 +472,13 @@
   };
 
   const all = () => [...S.tiers, ...Object.values(S.horses), ...Object.values(S.wep)];
-  S.begin = () => { for (const b of all()) b.n = 0; };
+  S.begin = () => {
+    if (paletteIndex.size >= paletteRows) {
+      paletteIndex.clear();
+      paletteCache = new WeakMap();
+    }
+    for (const b of all()) b.n = 0;
+  };
   S.end = () => {
     for (const b of all()) { b.im.count = b.n; b.im.instanceMatrix.needsUpdate = true; if (b.ra) { b.ra.needsUpdate = true; b.fa.needsUpdate = true; } }
   };
@@ -422,11 +490,12 @@
   };
   // row＝下半身（または全身）の行、rowU・cs＝上半身の行とつなぐ行列（S.combo で作る。なければ全身 row）
   const I16 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-  S.put = (b, m, row, fx, rowU, cs, tint) => { // tint＝服の色 THREE.Color（なければ元の色）
+  S.put = (b, m, row, fx, rowU, cs, tint, parts) => { // tint＝服の色 THREE.Color（なければ元の色）
     if (b.n >= b.cap) return false; const n = b.n;
     b.im.setMatrixAt(n, m);
     b.ra.array[n * 4] = row; b.ra.array[n * 4 + 1] = rowU == null ? row : rowU; b.ra.array[n * 4 + 2] = fx || 0;
-    b.ra.array[n * 4 + 3] = tint ? Math.round(Math.min(1, tint.r) * 255) * 65536 + Math.round(Math.min(1, tint.g) * 255) * 256 + Math.round(Math.min(1, tint.b) * 255) : -1; // 2.12.5 服の色
+    const palette = b.paintedArmor && parts ? paletteRow(parts, tint) : -1;
+    b.ra.array[n * 4 + 3] = palette >= 0 ? -2 - palette : tint ? Math.round(Math.min(1, tint.r) * 255) * 65536 + Math.round(Math.min(1, tint.g) * 255) * 256 + Math.round(Math.min(1, tint.b) * 255) : -1; // 2.12.5 服の色
     if (cs && rowU != null) cs.toArray(b.fa.array, n * 16); else b.fa.array.set(I16, n * 16);
     b.n++; return true;
   };
