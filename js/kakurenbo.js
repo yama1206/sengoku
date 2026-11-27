@@ -307,8 +307,8 @@
     const rd = new T3.WebGLRenderer({ antialias: true }); rd.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5)); rd.outputEncoding = T3.sRGBEncoding; rd.shadowMap.enabled = true;
     const c3 = rd.domElement; c3.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;z-index:0'; root.insertBefore(c3, cv);
     cv.style.position = 'absolute'; cv.style.left = cv.style.top = '0'; cv.style.zIndex = 1;
-    const scene = new T3.Scene(); scene.background = new T3.Color(0xbfd9ee); scene.fog = new T3.Fog(0xbfd9ee, 60, 110);
-    scene.add(new T3.AmbientLight(0xffffff, 0.62)); const sun = new T3.DirectionalLight(0xfff0d8, 0.85); sun.position.set(12, 22, 8); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+    const scene = new T3.Scene(); scene.background = new T3.Color(0x57677a); scene.fog = new T3.Fog(0x57677a, 60, 110);
+    scene.add(new T3.AmbientLight(0xd6e1fa, 0.48)); const sun = new T3.DirectionalLight(0xfff0d8, 0.46); sun.position.set(12, 22, 8); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
     Object.assign(sun.shadow.camera, { left: -28, right: 28, top: 28, bottom: -28, near: 1, far: 70 }); scene.add(sun); scene.add(sun.target);
     const S = { scene, boxes: [], circs: [] };
     const gr = part(new T3.PlaneGeometry(HX * 2 + 24, HZ * 2 + 24), M(stg.gnd), 0, 0, 0); gr.rotation.x = -Math.PI / 2; gr.castShadow = false; scene.add(gr);
@@ -397,7 +397,12 @@
     });
     cpuIds.forEach((c2) => { P[c2].cpu = 1; });
     const cho = (p) => (p.role === 'h' ? p.chh : p.chs), chN = (p) => (HD.CH[p.role].find((x) => x.k === cho(p)) || HD.CH[p.role][0]).n, marks = {};
-    const cpu = solo ? { id: '__cpu', x: 0, z: HZ - 6, fx: 0, fz: -1, cd: 1.5, tgt: null, grp: mkYokai('oni'), mv: 0 } : null; if (cpu) scene.add(cpu.grp);
+    let cpu = null;
+    if (solo) {
+      const [x, z] = blocked(0, HZ - 6, 0.6) ? free(0.6) : [0, HZ - 6];
+      cpu = { id: '__cpu', role: 's', x, z, fx: 0, fz: -1, cd: 1.5, tgt: null, ai: {}, stuck: 0, grp: mkYokai('oni'), mv: 0, bob: 0 };
+      scene.add(cpu.grp);
+    }
     // 脱出モード：鍵が4つ、3つ集めると鳥居の出口が開く（出口に着いた人は脱出成功）
     // 2.78.0 合図はA/B/X/Y（コントローラーはPS配置：×=A ○=B □=X △=Y）
     const esc = true /* 2.101.6 脱出モードだけ */, RND = Math.round((esc ? 600 : ROUND) * (+o.tm || 1)), NK = 11, NEED = 7, OPEN_W = 80, EXIT_W = 20, keys = [], exitP = { open: false, list: [] }; let kgot = 0, exM = null, exBeam = null, chInfo = false, chBtn = [12, 80, 118, 28], opening = null, rescuing = null, qte = null, qtT = 0, pdir = null; const QK = ['a', 'b', 'x', 'y'], qq = [], padPrev = [], qrects = []; let padOn = false; const QKB = { a: 'u', b: 'l', x: 'd', y: 'r' }, QL = (c) => (padOn ? HD.pn((HD.keys().pd['q' + c] || [])[0]) : coarse ? c.toUpperCase() : (() => { const ks = HD.keys().kb[QKB[c]]; return HD.kn(ks.find((k) => k.length === 1) || ks[0]); })()); /* 2.100.6 キーボードの合図は移動キー（WASD）。上=W 左=A 下=S 右=D */ const openCh = (q) => { if (q.lid) q.lid.rotation.x = -1.9; if (q.beam) q.beam.visible = false; };
@@ -438,7 +443,7 @@
     };
     const anim = (p, dt) => { // 2.101.9 骨入りモデルの動き：走る・歩く（足が遅い時）・ひるむ・立つ
       const r = p.rig; if (!r) return; const L = MDL(); if (!L) return;
-      const nm = p.stun > 0 ? 'hit' : p.mv ? (p.slowT > 0 || p.car ? 'walk' : 'run') : 'idle';
+      const nm = p.stun > 0 ? 'hit' : p.mv ? (p.slowT > 0 || p.car || p === cpu ? 'walk' : 'run') : 'idle';
       L.play(r.ch, nm, { speed: nm === 'run' && p.boost > 0 ? 1.25 : 1 }); L.tick(r.ch, dt);
     };
     let rigOK = false, disposed = false; // 2.101.9 骨入りのモデルを読み込む（読み終わったら、みんなの見た目を作り直す）
@@ -533,7 +538,12 @@
       a.rp -= dt; if (!a.wp || a.rp <= 0 || Math.hypot(a.gx - tx, a.gz - tz) > 1.5) { a.wp = pathTo(c.x, c.z, tx, tz); a.gx = tx; a.gz = tz; a.rp = 1.2; a.wi = 0; }
       while (a.wi < a.wp.length - 1 && Math.hypot(a.wp[a.wi][0] - c.x, a.wp[a.wi][1] - c.z) < 0.7) a.wi++;
       const [wx, wz] = a.wp[Math.min(a.wi, a.wp.length - 1)], dx = wx - c.x, dz = wz - c.z, l = Math.hypot(dx, dz) || 1;
-      moveBy(c, dx / l * sp * dt, dz / l * sp * dt, c.role === 's' ? 0.6 : 0.4); c.fx = dx / l; c.fz = dz / l; c.mv = 1; return false;
+      const x = c.x, z = c.z, step = Math.min(l, sp * dt);
+      moveBy(c, dx / l * step, dz / l * step, c.role === 's' ? 0.6 : 0.4);
+      const movedX = c.x - x, movedZ = c.z - z, moved = Math.hypot(movedX, movedZ);
+      c.mv = moved > 0 ? 1 : 0;
+      if (c.mv) { c.fx = movedX / moved; c.fz = movedZ / moved; }
+      return false;
     };
     const seekSp = (c) => { let sp = c.form ? 2.8 : cho(c) === 'tengu' ? 6.0 : SP_S; if (c.carry && cho(c) !== 'oni') sp *= 0.85; if (rush()) sp *= 1.15; if (c.slowT > 0) sp *= 0.5; return sp * [0.8, 0.95, 1.08][lvOf(c) - 1]; };
     const hidSp = (c) => { const k = cho(c); let sp = c.form ? (k === 'shonin' ? 3.2 : k === 'kariudo' ? 2.6 : SP_HS) : (k === 'kodomo' ? 5.0 : SP_H); if (c.pan > 0) sp *= 1.5; if (c.boost > 0) sp *= 1.6; if (k === 'kenzan' && cages.some((k2) => k2.id && k2.id !== c.id)) sp *= 1.4; if (seekers().some((q) => cho(q) === 'yuki' && Math.hypot(q.x - c.x, q.z - c.z) < 3.5)) sp *= 0.85; return sp * [0.88, 0.97, 1.05][lvOf(c) - 1]; };
@@ -772,11 +782,28 @@
         if (pend) { pend.t -= dt; if (pend.t <= 0) { if (!pend.ok && near(pend.x, pend.z, pend.R || R_HIT)) hurt(MY); pend = null; } }
         if (isHost() && !done) cpuTick(dt); // 2.95.0 CPUを動かす
         // ひとり練習の見回り
-        if (cpu && !done) {
-          cpu.cd -= dt;
-          if (phase === 'play') {
-            if (!cpu.tgt || Math.hypot(cpu.tgt.x - cpu.x, cpu.tgt.z - cpu.z) < 1.1) { if (cpu.tgt && cpu.cd <= 0) { cpu.cd = 1.4; FX.push({ x: cpu.tgt.x, z: cpu.tgt.z, t: 0.25, bad: false }); if (alive(MY) && MY.role === 'h' && Math.hypot(cpu.tgt.x - MY.x, cpu.tgt.z - MY.z) < R_HIT) caught(me, '__cpu'); } if (!cpu.tgt || cpu.cd > 0.2) cpu.tgt = props[Math.floor(Math.random() * props.length)] || null; }
-            if (cpu.tgt) { const dx = cpu.tgt.x - cpu.x, dz = cpu.tgt.z - cpu.z, l = Math.hypot(dx, dz) || 1; if (l > 1) { cpu.x += dx / l * 3 * dt; cpu.z += dz / l * 3 * dt; cpu.fx = dx / l; cpu.fz = dz / l; } }
+        if (cpu) {
+          cpu.mv = 0;
+          if (!done && phase === 'play') {
+            cpu.cd -= dt;
+            if (cpu.tgt && cpuGo(cpu, cpu.tgt.x, cpu.tgt.z, 3, dt, 1.1)) {
+              if (cpu.cd <= 0) {
+                cpu.cd = 1.4;
+                const { x, z } = cpu.tgt;
+                FX.push({ x, z, t: 0.25, bad: false });
+                if (alive(MY) && MY.role === 'h' && Math.hypot(x - MY.x, z - MY.z) < R_HIT
+                    && !wallBetween(cpu.x, cpu.z, MY.x, MY.z)) caught(me, '__cpu');
+                cpu.tgt = null;
+              }
+            } else if (cpu.tgt) {
+              cpu.stuck = cpu.mv ? 0 : cpu.stuck + dt;
+              if (cpu.stuck >= 1.5) cpu.tgt = null;
+            }
+            if (!cpu.tgt) {
+              cpu.tgt = props[Math.floor(Math.random() * props.length)] || null;
+              cpu.ai.wp = null;
+              cpu.stuck = 0;
+            }
           }
         }
         // 音の合図（ときどきだれかの近くを知らせる）
@@ -803,7 +830,13 @@
           if (!done) { for (const id of ids) if (P[id].role === 's') foot(P[id]); if (cpu) foot(cpu); } }
         // 絵に反映
         for (const id of ids) { const p = P[id]; if (p.role === 'h' && !p.form) { /* 人 */ } look(p); const gp = p.grp; if (!gp) continue; gp.visible = !p.out && !p.esc; p.bob += dt * (p.mv ? 9 : 0); const hop = p.rig ? 0 : p.mv ? Math.abs(Math.sin(p.bob)) * (p.form ? 0.22 : 0.08) : 0; gp.position.set(p.x, hop, p.z); gp.rotation.y = Math.atan2(p.fx, p.fz); if (p.rig && gp.visible) anim(p, dt); }
-        if (cpu) { cpu.grp.position.set(cpu.x, 0, cpu.z); cpu.grp.rotation.y = Math.atan2(cpu.fx, cpu.fz); anim(cpu, dt); }
+        if (cpu) {
+          if (cpu.mv) cpu.bob += dt * 9;
+          const hop = !cpu.rig && cpu.mv ? Math.abs(Math.sin(cpu.bob)) * 0.08 : 0;
+          cpu.grp.position.set(cpu.x, hop, cpu.z);
+          cpu.grp.rotation.y = Math.atan2(cpu.fx, cpu.fz);
+          anim(cpu, dt);
+        }
         if (view === 'fp') { if (act && MY.stun <= 0 && !(MY.role === 'h' && MY.form && o.mv === 'none')) { MY.fx = Math.sin(cyaw); MY.fz = Math.cos(cyaw); } if (MY.grp) MY.grp.visible = false; }
         camX += (MY.x - camX) * Math.min(1, dt * 6); camZ += (MY.z - camZ) * Math.min(1, dt * 6);
         // 印
