@@ -89,7 +89,7 @@
   function bugScene() {
     const g = run.g, ri = RI[g.r] || 0, hd = ({ 簡単: 0, 普通: 1, 難しい: 2 })[g.d] ?? 1, lk = g.lk || ['fly', 'butterfly', '#e8e0c8'], mode = lk[0], shape = lk[1], col = lk[2];
     const night = !!(G.priv && G.priv.me && G.priv.me.spot && G.priv.me.spot.dp === '夜'), W = 400, H = 300, GY = 262;
-    const tip = { tree: '虫のいそうな木をタップして揺すろう。落ちてきたら素早くタップ！', fly: '飛んでいる虫をタップして網で捕まえよう（網は3回まで）', grass: '草むらに潜む影の動きをよく見ていよう' }[mode];
+    const tip = SGK.HINT.txt({ tree: '虫のいそうな木を[[タップ|クリック|タップ]]して揺すろう。落ちてきたら素早く[[タップ|クリック|タップ]]！', fly: '飛んでいる虫を[[タップ|クリック|タップ]]して網で捕まえよう（網は3回まで）', grass: '草むらに潜む影の動きをよく見ていよう' }[mode]);
     open(`<canvas id="gcv" width="${W}" height="${H}" style="width:100%;border-radius:8px;touch-action:none;display:block"></canvas><div id="gcm" style="margin:8px 0;min-height:22px">${tip}</div><button id="gcancel">やめる</button>`);
     $('gcancel').onclick = cancel;
     const cv = $('gcv'), c = cv.getContext('2d'), say = (t) => { const m = $('gcm'); if (m) m.textContent = t; };
@@ -269,7 +269,7 @@
   // ---- 釣り場 ----
   function castScene() {
     const g = run.g, df = DF()[g.d] || DF().普通, ri = RI[g.r] || 0, W = 400, H = 300, BX = W / 2, BY = H - 14;
-    open(`<canvas id="gcv" width="${W}" height="${H}" style="width:100%;border-radius:8px;touch-action:none;display:block"></canvas><div id="gcm" style="margin:8px 0;min-height:22px">魚影の近くに浮きを投げよう（クリック／タップ・Space・Aボタン）</div><button id="gcancel">やめる</button>`);
+    open(`<canvas id="gcv" width="${W}" height="${H}" style="width:100%;border-radius:8px;touch-action:none;display:block"></canvas><div id="gcm" style="margin:8px 0;min-height:22px">${SGK.HINT.txt('魚影の近くに浮きを投げよう（[[クリック・Space|{A}ボタン|タップ]]）')}</div><button id="gcancel">やめる</button>`);
     $('gcancel').onclick = cancel; $('gcancel').classList.add('main'); $('gcancel').classList.remove('main');
     // 2.60.6 魚影の長さは本当の大きさ（cm）で決める（大きい魚ほど大きい影。小さい魚の差も見えるよう対数で）
     // 2.105.3 魚影はどれも本物の魚（別の影はなし）。どの影も狙えば掛かり、掛かった影の魚が釣れる。影は全体に小さく

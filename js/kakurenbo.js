@@ -872,7 +872,7 @@
           if (nb) { const sp3 = pv(nb.x, 2.3, nb.z); if (sp3) { txt('▼', sp3[0], sp3[1] + 6, { al: 'center', sz: 22, b: 1, c: '#ffe070' }); txt(`${kk}：${KIND[nb.kind]}に化ける`, sp3[0], sp3[1] - 14, { al: 'center', sz: 16, b: 1, c: '#ffe070' }); } } }
         const rem = Math.max(0, Math.ceil(RND - t)); txt(`${Math.floor(rem / 60)}:${String(rem % 60).padStart(2, '0')}`, W / 2, 30, { al: 'center', sz: 26, b: 1 });
         txt(`${stg.name}　${MY.role === 's' ? '探す側' : MY.esc ? '脱出成功（観戦・自由に動ける）' : alive(MY) ? '隠れる側' : '見つかった（観戦・自由に動ける）'}　隠れている：${solo ? (alive(MY) ? 1 : 0) : hiders().length}人`, W / 2, 52, { al: 'center', sz: 14 });
-        if (MY.role === 's' && MY.form) txt(`いまの姿：${KIND[MY.form.k]}（ゆっくり動ける・Aで叩くと正体を現す）`, 16, 56, { sz: 15, c: '#ffe070' });
+        if (MY.role === 's' && MY.form) txt(`いまの姿：${KIND[MY.form.k]}（ゆっくり動ける・${SGK.HINT.txt('{A}で叩くと正体を現す')}）`, 16, 56, { sz: 15, c: '#ffe070' });
         
         else if (MY.form) txt(`いまの姿：${KIND[MY.form.k]}（受けるダメージ：${SZN[SZ[MY.form.k] || 'M']}）${o.mv === 'none' ? '（動けない・←→で向き）' : '（ゆっくり動ける）'}　体力 ${Math.max(0, Math.round(MY.hh))}`, 16, 30, { sz: 16, c: '#ffe070' });
         else if (MY.role === 'h' && alive(MY)) txt(`体力 ${Math.max(0, Math.round(MY.hh))}${MY.pan > 0 ? '　足が速い！' : ''}`, 16, 30, { sz: 18, c: '#ffe070' });
@@ -909,7 +909,7 @@
           if (MY.role === 'h' && alive(MY)) for (const e of (exitP.open ? exitP.list : []).concat(exitP.extra ? [exitP.extra] : [])) { const [ax, ay] = pj(MY.x, 1, MY.z), [bx, by] = pj(e.x, 1, e.z), l = Math.hypot(bx - ax, by - ay) || 1; if (l > 120) txt('出口 ➤', ax + (bx - ax) / l * 120, ay + (by - ay) / l * 120, { al: 'center', sz: 20, b: 1, c: '#9affb0' }); } }
         if (rush()) txt('脱出口が開いている間：鬼は一撃でダウン・足が少し速い！', W / 2, 96, { al: 'center', sz: 15, c: '#ff9a8a' });
         const qn = alive(MY) && !(MY.role === 's' && phase === 'hide') ? near(MY.x, MY.z, 2.4) : null;
-        const KN = (k) => HD.kn(HD.keys().kb[k][0] || '?'), mvK = () => `${KN('u')}${KN('l')}${KN('d')}${KN('r')}／スティック`; const hint = MY.role === 's' ? `${KN('a')}：叩く（置物を叩くと体力-1）　${MY.form ? `${KN('b')}：鬼の姿に戻る　` : qn ? `${KN('b')}：${KIND[qn.kind]}に化ける　` : ''}移動：${mvK()}` : alive(MY) ? `${qn ? `${KN('a')}：${KIND[qn.kind]}に化ける　` : ''}${MY.form ? `${KN('b')}：人に戻る　` : ''}移動：${mvK()}` : '';
+        const H2 = SGK.HINT || { pick: (m) => m.kb, btn: (n) => n, txt: (x) => x }, KN = (k) => HD.kn(HD.keys().kb[k][0] || '?'), PD = (a) => { const i = (HD.keys().pd[a] || [])[0]; return i == null ? '?' : (i < 4 ? H2.btn(['A', 'B', 'X', 'Y'][i]) : HD.pn(i)); }, AK = (k) => H2.pick({ kb: KN(k), pad: PD('p' + k), touch: KN(k) }), mvK = () => H2.pick({ kb: `${KN('u')}${KN('l')}${KN('d')}${KN('r')}`, pad: '左スティック', touch: '左のパッド' }); const hint = MY.role === 's' ? `${AK('a')}：叩く（置物を叩くと体力-1）　${MY.form ? `${AK('b')}：鬼の姿に戻る　` : qn ? `${AK('b')}：${KIND[qn.kind]}に化ける　` : ''}移動：${mvK()}` : alive(MY) ? `${qn ? `${AK('a')}：${KIND[qn.kind]}に化ける　` : ''}${MY.form ? `${AK('b')}：人に戻る　` : ''}移動：${mvK()}` : '';
         if (chInfo && hint) txt(`操作：${hint}`, 22, 80 + 28 + 4 + 104, { sz: 13, c: '#e8dcc0' });
         if (toastT > 0 && toast) txt(toast, W / 2, H * 0.28, { al: 'center', sz: 22, b: 1, c: '#ffe9a0' });
         if (phase === 'hide') { const left = Math.ceil(HIDE_T - t); if (MY.role === 's') { g.fillStyle = 'rgba(0,0,0,0.9)'; g.fillRect(0, 0, W, H); txt(`目をつぶって数えています… ${left}`, W / 2, H / 2, { al: 'center', sz: 28, b: 1 }); } else if (!esc) txt(`隠れよう！（あと${left}秒）◆の付いた物の近くでAを押すと化けられる`, W / 2, H * 0.2, { al: 'center', sz: 20, b: 1, c: '#bff0c0' }); }

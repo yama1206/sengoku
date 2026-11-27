@@ -1285,7 +1285,7 @@
     const left = D.foes.filter((e) => !e.down && !e.gone).length, got = D.foes.filter((e) => e.down).length, run = D.foes.some((e) => e.state === 'flee' && !e.down && !e.gone);
     if (D.pvp) setH('.goal', `<b>城の守り（対戦）</b>　${S.night ? '夜' : '昼'}<br>忍び込んできた「${String((CO && CO.names[CO.pvFoe]) || '相手').replace(/[<&]/g, '')}」を見つけ、後ろから当て身で捕らえる${S.done ? '<br><span class="alert">工作をされた！ 城下の南へ逃げる前に捕らえろ</span>' : ''}`); // 2.57.1
     else setH('.goal', `<b>城の守り</b>　${S.night ? '夜' : '昼'}<br>入り込んだ曲者を探して捕らえる（残り${left}人${got ? `・捕らえた${got}人` : ''}）${D.alarm && !D.alarm.down ? `<br><span class="alert">${D.tg.name}で曲者が${VOL[S.job.k] || VOL.sabo}！</span>` : ''}${run ? '<br><span class="alert">曲者が城下の南へ逃げている！ 追え</span>' : ''}`);
-    setH('.tools', TOOLS.map(([t, n, key]) => { const c = (S.tools[t] || 0) - (S.used[t] || 0); return `<span class="${c > 0 ? '' : 'no'}">${key} ${n}×${c}</span>`; }).join('') + `<span class="${S.tools.kaginawa ? '' : 'no'}">鉤縄${S.tools.kaginawa ? 'あり' : 'なし'}</span>`);
+    setH('.tools', TOOLS.map(([t, n, key]) => { const c = (S.tools[t] || 0) - (S.used[t] || 0); return `<span class="${c > 0 ? '' : 'no'}">${SGK.HINT.pick({ kb: key, pad: { 1: '←', 2: '↑', 3: '→' }[key] || key })} ${n}×${c}</span>`; }).join('') + `<span class="${S.tools.kaginawa ? '' : 'no'}">鉤縄${S.tools.kaginawa ? 'あり' : 'なし'}</span>`);
     const wk = Math.max(0, ...D.foes.filter((e) => !e.down && !e.gone && e.state === 'work').map((e) => e.work / DEFC.work)), aw = Math.max(0, ...D.foes.filter((e) => !e.down && !e.gone && e.state !== 'flee').map((e) => e.aw));
     const m = wk || aw, u = hud.querySelector('.eye u'); u.style.width = Math.round(Math.min(1, m) * 100) + '%'; u.style.background = wk ? '#ff4a3a' : m > 0.5 ? '#ffb030' : '#ec3';
     setH('.el', wk ? '<span class="alert">曲者の工作</span>' : aw > 0.28 ? '<span class="alert">曲者が気づきそう！</span>' : P.hide ? '草むらに隠れている' : '曲者の気配');
@@ -1298,7 +1298,7 @@
     }
     setH('.pr', pr.join('　'));
     hud.querySelector('.bar').style.display = 'none';
-    setH('.help', S.help ? (isTouch() ? '左で動く・右で見回す' : 'WASD 動く　マウス 見回す（画面をクリック）　Shift 走る（曲者に足音を聞かれる）　C しゃがむ（曲者の撒菱を踏まない）　E 当て身　Q 斬る　1 煙玉　2 撒菱　3 吹き矢　Esc 退く　H この説明') : '');
+    setH('.help', S.help ? SGK.HINT.txt(SGK.HINT.pick({ kb: 'WASD 動く　マウス 見回す（画面をクリック）　Shift 走る（曲者に足音を聞かれる）　C しゃがむ（曲者の撒菱を踏まない）　E 当て身　Q 斬る　1 煙玉　2 撒菱　3 吹き矢　Esc 退く　H この説明', pad: '左スティック 動く　右スティック 見回す　{B} しゃがむ　{A} 当て身　{X} 斬る　{Y} 担ぐ　{RT} 走る　十字 ← 煙玉　↑ 撒菱　→ 吹き矢　{START} 退く', touch: '左で動く・右で見回す' })) : '');
     const msg = hud.querySelector('.msg'); setH('.msg', S.msg); msg.style.opacity = S.msgT > 0 ? 1 : 0;
     // 最後に見た所の印
     const sm = D.mk; sm.visible = !!D.seen && D.seenT > 0 && !S.end && !D.foes.some((e) => e.revealT > 0 && !e.down && !e.gone); if (sm.visible) sm.position.set(D.seen.x, D.seen.y + 1.6, D.seen.z);
@@ -1472,7 +1472,7 @@
     const tname = k === 'steal' ? (STEAL[S.job.sk] || STEAL.mitsu).name : k === 'hurt' ? (S.job.whoName || '武将') : J.tg;
     const goal = S.done >= S.need ? '果たした！ 入ってきた所（城下の南の端・緑の印）へ戻る' : k === 'rumor' ? `城下の町人に噂を流す（${S.done}/${S.need}）` : k === 'steal' ? `${(STEAL[S.job.sk] || STEAL.mitsu).at}にある${tname}を盗み出す` : k === 'hurt' ? `寝所の${tname}に手傷を負わせる（殺しはしない）` : `${tname}に${J.verb}`;
     setH('.goal', (CO ? `<span class="muted">仲間：${Object.values(CO.ghosts).filter((q) => !q.gone).map((q) => String(q.name).replace(/[<&]/g, '')).join('・') || 'なし'}${CO.lead ? '（あなたがリーダー）' : ''}</span><br>` : '') + `<b>${{ sabo: '破壊工作', raid: '襲撃', gate: '門の破壊', rumor: '流言', hurt: '武将の襲撃', steal: '盗み' }[k] || ''}</b>　${S.night ? '夜' : '昼'}${S.alertAll ? '　<span class="alert">城中が警戒している</span>' : ''}<br>${goal}`);
-    setH('.tools', TOOLS.map(([t, n, key]) => { const c = (S.tools[t] || 0) - (S.used[t] || 0); return `<span class="${c > 0 ? '' : 'no'}">${key} ${n}×${c}</span>`; }).join('') + `<span class="${S.tools.kaginawa ? '' : 'no'}">鉤縄${S.tools.kaginawa ? 'あり' : 'なし'}</span>`);
+    setH('.tools', TOOLS.map(([t, n, key]) => { const c = (S.tools[t] || 0) - (S.used[t] || 0); return `<span class="${c > 0 ? '' : 'no'}">${SGK.HINT.pick({ kb: key, pad: { 1: '←', 2: '↑', 3: '→' }[key] || key })} ${n}×${c}</span>`; }).join('') + `<span class="${S.tools.kaginawa ? '' : 'no'}">鉤縄${S.tools.kaginawa ? 'あり' : 'なし'}</span>`);
     const m = S.maxM || 0; const u = hud.querySelector('.eye u'); u.style.width = Math.round(m * 100) + '%'; u.style.background = m > 0.6 ? '#ff4a3a' : m > 0.28 ? '#ffb030' : '#ec3';
     setH('.el', m > 0.28 ? '<span class="alert">怪しまれている！</span>' : P.hide ? '草むらに隠れている' : P.swim ? '堀を泳いでいる' : '気配');
     const pr = [];
@@ -1487,7 +1487,7 @@
     }
     setH('.pr', pr.join('　'));
     const bar = hud.querySelector('.bar'); if (P.work > 0) { bar.style.display = 'block'; bar.firstChild.style.width = Math.round(P.work / J.hold * 100) + '%'; } else bar.style.display = 'none';
-    setH('.help', S.help ? (isTouch() ? '左で動く・右で見回す' : 'WASD 動く　マウス 見回す（画面をクリック）　Shift 走る（音が出る）　C しゃがむ　E 行動　Q 暗殺　F 担ぐ　1 煙玉　2 撒菱　3 吹き矢　Esc 退く　H この説明') : '');
+    setH('.help', S.help ? SGK.HINT.txt(SGK.HINT.pick({ kb: 'WASD 動く　マウス 見回す（画面をクリック）　Shift 走る（音が出る）　C しゃがむ　E 行動　Q 暗殺　F 担ぐ　1 煙玉　2 撒菱　3 吹き矢　Esc 退く　H この説明', pad: '左スティック 動く　右スティック 見回す　{B} しゃがむ　{A} 行動　{X} 暗殺　{Y} 担ぐ　{RT} 走る　十字 ← 煙玉　↑ 撒菱　→ 吹き矢　{START} 退く', touch: '左で動く・右で見回す' })) : '');
     const msg = hud.querySelector('.msg'); setH('.msg', S.msg); msg.style.opacity = S.msgT > 0 ? 1 : 0;
   }
   function showEnd() {

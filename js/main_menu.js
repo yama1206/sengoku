@@ -54,7 +54,7 @@ function sel3(n) { const AB = actB(); if (!AB) return; if (n === 0) G.selUnit = 
 // 0.59.0 移動先を決めたあと、向く方向を決める（G.fpick = 移動先。次に押した所の方を向く）
 function moveFace(unit, x, y, face) { command({ type: 'order', unit, order: 'move', x, y }); if (face != null) command({ type: 'order', unit, order: 'face', f: face }); }
 function pickFace(fx, fy) { const P = G.fpick; G.fpick = null; if (!P) return false; if (Math.hypot(fx - P.x, fy - P.y) < 2) { toast('向きはそのままにしました', 800); return true; } command({ type: 'order', unit: P.unit, order: 'face', f: Math.atan2(fy - P.y, fx - P.x) }); toast('その方向を向かせます', 800); return true; }
-function actOrder(o, x, y) { if (G.selUnit == null) { toast('先に部隊を選んでください（右スティックのカーソルを隊に合わせてA・LB/RB・数字キー）', 1500); return; } shout(actB(), G.selUnit, o); const c = { type: 'order', unit: G.selUnit, order: o }; if (o === 'move') { c.x = x; c.y = y; } const to = actB() ? chargeTo(actB(), c) : ''; command(c); if (to) toast(`${to}${o === 'flank' ? '回り込め' : '突撃'}！`, 1100); }
+function actOrder(o, x, y) { if (G.selUnit == null) { toast(SGK.HINT.txt(SGK.HINT.pick({ kb: '先に部隊を選んでください（隊をクリック、または数字キー）', pad: '先に部隊を選んでください（右スティックのカーソルを隊に合わせて{A}・{LB}/{RB}）', touch: '先に部隊を選んでください（隊をタップ）' })), 1500); return; } shout(actB(), G.selUnit, o); const c = { type: 'order', unit: G.selUnit, order: o }; if (o === 'move') { c.x = x; c.y = y; } const to = actB() ? chargeTo(actB(), c) : ''; command(c); if (to) toast(`${to}${o === 'flank' ? '回り込め' : '突撃'}！`, 1100); }
 function actSel(d) { const AB = actB(); if (!AB) return; const l = [null, 'all', ...AB.units.filter((u) => u.idx && (u.owner === G.myPid || u.cmd === G.myPid) && u.hp > 0 && !u.gone).sort((a, b) => a.idx - b.idx).map((u) => u.id)]; const i = Math.max(0, l.indexOf(G.selUnit)); G.selUnit = l[(i + d + l.length) % l.length]; battleHtml = ''; }
 // 0.61.0 カーソルの所の自分の隊を選ぶ（何もなければ選択をやめる）／選んだ隊をそこへ動かす
 function actPick(sx, sy) {
@@ -96,7 +96,7 @@ function renderBattle(bt) {
   let html = ''; // 部隊の一覧は出さない（地図の上でクリックして選ぶ）
   if (bt.plan) { // 2.22.0 軍議：戦は止まっている。隊を置き直して、全員が準備完了で始まる
     const PL = bt.plan, nm = (x) => (bt.names && bt.names[x]) || '仲間', many = PL.ready.length + PL.wait.length > 1;
-    html += `<div class="bu"><span class="nm muted">隊をクリックして選び、置きたい場所をクリック（初めの場所から${PL.reach}mまで）。右ドラッグで向き。突撃・防御・待機で始めの構えも決められます</span></div>`;
+    html += `<div class="bu"><span class="nm muted">${SGK.HINT.txt(SGK.HINT.pick({ kb: '隊をクリックして選び、置きたい場所をクリック', pad: '隊をカーソルで選んで{A}、置きたい場所で{A}', touch: '隊をタップして選び、置きたい場所をタップ' }))}（初めの場所から${PL.reach}mまで）。${SGK.HINT.txt(SGK.HINT.pick({ kb: '右ドラッグで向き', pad: '右スティックで向き', touch: '2本指で向き' }))}。突撃・防御・待機で始めの構えも決められます</span></div>`;
     if (many) html += `<div class="bu"><span class="nm">準備完了：${PL.ready.map(nm).join('・') || 'まだ誰も'}${PL.wait.length ? `<span class="muted">　待っている：${PL.wait.map(nm).join('・')}</span>` : ''}${PL.left != null ? `<span class="muted">（あと${PL.left}秒で始まります）</span>` : ''}</span></div>`;
     html += `<div class="row" style="margin-top:4px"><button id="bReady" class="main" data-bact="planReady">${PL.me ? '準備完了を取り消す' : '準備完了（合戦を始める）'}</button></div>`;
   }
@@ -104,7 +104,7 @@ function renderBattle(bt) {
   const su = bt.units.find((u) => u[0] === G.selUnit && u[2] === G.myPid);
   const AB = actB(), ob = (unit) => ['charge', 'guard', 'hold', ...(AB ? ['follow'] : [])].map((o) => `<button id="bo-${unit}-${o}" data-unit="${unit}" data-order="${o}">${ORDN[o]}</button>`).join('');
   if ((!AB || bt.plan) && su && su[3] !== 'hero') html += `<div class="bu"><span class="nm">${su[15] ? '本人＋' : ''}${TR[su[3]].short || TR[su[3]].name} ${su[4]}人<span class="muted">［${ORDN[su[7]] || ''}］</span></span>${ob(su[0])}</div>`;
-  else if (!AB) html += `<div class="bu"><span class="nm muted">隊をタップして選び、地面をタップで移動</span></div>`;
+  else if (!AB) html += `<div class="bu"><span class="nm muted">${SGK.HINT.txt(SGK.HINT.pick({ kb: '隊をクリックして選び、地面をクリックで移動', pad: '隊をカーソルで選んで{A}、地面で{A}で移動', touch: '隊をタップして選び、地面をタップで移動' }))}</span></div>`;
   if (!AB || (bt.plan && G.selUnit === 'all')) html += `<div class="bu"><span class="nm">全軍</span>${ob('all')}</div>`;
   if (!AB && bt.canAct) html += `<div class="row" style="margin-top:4px"><button id="bAct" data-act="1">自分で戦う</button></div>`;
   else if (!AB && bt.act) html += `<div class="bu"><span class="nm muted">戦場の様子を受け取っています…</span></div>`;

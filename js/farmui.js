@@ -82,7 +82,7 @@ background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 3px,transparent 3px 
           + `<span class="no">${i + 1}</span>${crop ? `<span class="cr">${crop}</span>` : ''}${f.iss ? `<span class="is">${ic(ISS_IC[f.iss], 22)}</span>` : f.can ? '<span class="is" style="font-size:11px;line-height:1;color:#9be08a">手入れ</span>' : ''}`
           + `${f.dmg ? '<span class="dm">傷み</span>' : ''}<span class="lb">${lb}</span>${f.c ? `<span class="pg"><i style="width:${Math.round(f.prog * 100)}%"></i></span>` : ''}</button>`;
       }).join('') + '</div>';
-      h += `<div class="muted">畑をタップすると、上で選んだことをします。土の色が濃いほど肥えている（肥えた畑ほど多く取れる。収穫すると痩せ、大豆は土を肥やす）。${issN ? `<b style="color:#e07a6a">草・虫・乾きの出ている畑が${issN}枚</b>（放っておくと育ちが止まり、出来が落ちる）` : '草・虫・乾きが出たら片づけよう'}</div>`;
+      h += `<div class="muted">${SGK.HINT.txt('畑を[[タップ|クリック|タップ]]すると、上で選んだことをします。')}土の色が濃いほど肥えている（肥えた畑ほど多く取れる。収穫すると痩せ、大豆は土を肥やす）。${issN ? `<b style="color:#e07a6a">草・虫・乾きの出ている畑が${issN}枚</b>（放っておくと育ちが止まり、出来が落ちる）` : '草・虫・乾きが出たら片づけよう'}</div>`;
     } else h += '<div class="muted">まだ畑がありません。荒れ地を開墾しましょう</div>';
     h += `<div class="row" style="flex-wrap:wrap;gap:6px;margin-top:4px"><button id="fm-kai" data-act="farm" data-kind="kai" ${F.fields.length >= F.max || tired ? 'disabled' : ''}>開墾する（体力${F.kai}%）</button>`
       + `<button id="fm-tend" data-act="farm" data-kind="tend" ${need && !tired ? '' : 'disabled'}>見回る（${need}枚）</button>`
@@ -118,7 +118,7 @@ background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 3px,transparent 3px 
     if (ov) return; const W = 400, H = 300, P = FM().PREY, N = FM().huntN, keys = Object.keys(P), tw = keys.reduce((a, k) => a + P[k].w, 0);
     run = { n, res: {}, i: 0, cur: null, next: performance.now() + 900, hits: 0, arrows: [], left: FM().huntArrows, last: performance.now() };
     ov = document.createElement('div'); ov.id = 'huntOv';
-    ov.innerHTML = `<div class="hc"><b>狩り</b><div class="muted" style="margin:2px 0">現れた獲物をすばやくタップして射よう（熊は3回）。獲物は${N}回出て、矢は${FM().huntArrows}本。外すと減ります</div><canvas id="hcv" width="${W}" height="${H}" style="width:100%;border-radius:8px;touch-action:none;display:block"></canvas><div id="hmsg" style="min-height:22px;margin:6px 0"></div><button id="hcancel">やめる</button></div>`;
+    ov.innerHTML = `<div class="hc"><b>狩り</b><div class="muted" style="margin:2px 0">${SGK.HINT.txt('現れた獲物をすばやく[[タップ|クリック|タップ]]して射よう（熊は3回）。')}獲物は${N}回出て、矢は${FM().huntArrows}本。外すと減ります</div><canvas id="hcv" width="${W}" height="${H}" style="width:100%;border-radius:8px;touch-action:none;display:block"></canvas><div id="hmsg" style="min-height:22px;margin:6px 0"></div><button id="hcancel">やめる</button></div>`;
     document.body.appendChild(ov);
     const cv = $('hcv'), ctx = cv.getContext('2d');
     const pick = () => { let r = Math.random() * tw; for (const k of keys) { r -= P[k].w; if (r < 0) return k; } return keys[0]; };

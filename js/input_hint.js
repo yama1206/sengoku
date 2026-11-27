@@ -22,9 +22,9 @@
 
   // コントローラーの表示（設定の「コントローラー表示」と同じ並び）
   const STYLES = {
-    xbox: { A: 'A', B: 'B', X: 'X', Y: 'Y', LB: 'LB', RB: 'RB', START: 'START' },
-    ps: { A: '×', B: '○', X: '□', Y: '△', LB: 'L1', RB: 'R1', START: 'OPTIONS' },
-    switch: { A: 'B', B: 'A', X: 'Y', Y: 'X', LB: 'L', RB: 'R', START: '＋' },
+    xbox: { A: 'A', B: 'B', X: 'X', Y: 'Y', LB: 'LB', RB: 'RB', LT: 'LT', RT: 'RT', START: 'START' },
+    ps: { A: '×', B: '○', X: '□', Y: '△', LB: 'L1', RB: 'R1', LT: 'L2', RT: 'R2', START: 'OPTIONS' },
+    switch: { A: 'B', B: 'A', X: 'Y', Y: 'X', LB: 'L', RB: 'R', LT: 'ZL', RT: 'ZR', START: '＋' },
   };
   H.padStyle = () => { try { const s = localStorage.getItem('sgk-pad'); return STYLES[s] ? s : 'xbox'; } catch (e) { return 'xbox'; } };
   H.btn = (name) => (H.dev === 'pad' ? (STYLES[H.padStyle()][name] || name) : name);
@@ -34,13 +34,19 @@
     if (H.dev === 'touch' && m.touch != null) return m.touch;
     return m.kb != null ? m.kb : '';
   };
+  // 説明文の書き方：[[キーボード|コントローラー|タッチ]] は機器ごとに選び、{A} {B} {X} {Y} {LB} {RB} はコントローラーのときだけ設定どおりの名前に
+  H.txt = (s) => String(s == null ? '' : s)
+    .replace(/\[\[([^\]]+)\]\]/g, (_, body) => { const p = body.split('|'); return H.pick({ kb: p[0], pad: p[1] != null ? p[1] : p[0], touch: p[2] != null ? p[2] : p[0] }); })
+    .replace(/\{(A|B|X|Y|LB|RB|LT|RT|START)\}/g, (_, n) => H.btn(n));
   // data-kb / data-pad / data-touch の付いた要素を、いまの機器の文字に書き換える
   H.apply = () => {
     if (!document.querySelectorAll) return;
+    try { if (document.body) document.body.dataset.dev = H.dev; } catch (e) {}
     document.querySelectorAll('[data-kb],[data-pad],[data-touch]').forEach((el) => {
-      const v = H.pick({ kb: el.dataset.kb, pad: el.dataset.pad, touch: el.dataset.touch });
+      const v = H.txt(H.pick({ kb: el.dataset.kb, pad: el.dataset.pad, touch: el.dataset.touch }));
       if (v) el.textContent = v;
     });
   };
+  document.addEventListener('click', (e) => { if (e.target && e.target.id === 'hsAll') document.body.classList.toggle('hs-all'); }); // 3.26.0 ヘルプの「ほかの機器の操作も見る」
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', H.apply); else H.apply();
 })();

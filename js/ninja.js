@@ -117,7 +117,7 @@
     // 上の帯
     ctx.fillStyle = '#f4ead0'; ctx.font = '14px sans-serif'; ctx.textAlign = 'left';
     const goal = S.k === 'rumor' ? `城下の町人に噂を流す（${S.done}/3）` : S.done ? '下の緑の所へ戻る' : `${S.tg[0].name}に近づいて工作する`;
-    ctx.fillText(`${goal}　｜移動 WASD・左スティック　工作 E/Space・A（長押し）　忍び足 Shift・LB/B　退く Esc・START`, 10, 18);
+    ctx.fillText(`${goal}　｜${SGK.HINT.txt(SGK.HINT.pick({ kb: '移動 WASD　工作 E/Space（長押し）　忍び足 Shift　退く Esc', pad: '移動 左スティック　工作 {A}（長押し）　忍び足 {LB}/{B}　退く {START}', touch: '移動 左をなぞる　工作 タップ（長押し）　退く 戻る' }))}`, 10, 18);
     ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(10, 24, 200, 10); ctx.fillStyle = S.alert > 0.6 ? '#e33' : '#ec3'; ctx.fillRect(10, 24, 200 * Math.min(1, S.alert), 10);
     if (S.msg) { ctx.textAlign = 'center'; ctx.font = '20px sans-serif'; ctx.fillStyle = S.end === 'ng' ? '#f66' : '#ffe070'; ctx.fillText(S.msg, cw / 2, ch / 2); }
   }

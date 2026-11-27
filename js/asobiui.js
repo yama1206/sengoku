@@ -247,7 +247,7 @@
   function gauge(st, sel, send) {
     const S = ST.koma; if (S.gauge) return; const box = st.querySelector('#kmGauge');
     const ov = document.createElement('div'); ov.className = 'kmGov';
-    ov.innerHTML = '<div class="rule" style="text-align:center;font-size:16px">針が金色の所で止める（どこでもクリック／タップ・空白キー）</div><div class="gauge"><b></b></div>';
+    ov.innerHTML = '<div class="rule" style="text-align:center;font-size:16px">針が金色の所で止める（' + SGK.HINT.txt(SGK.HINT.pick({ kb: "どこでもクリック・空白キー", pad: "どこでも{A}", touch: "どこでもタップ" })) + '）</div><div class="gauge"><b></b></div>';
     (document.getElementById('gbHall') || document.body).appendChild(ov);
     const gEl = ov.querySelector('.gauge'), n = gEl.querySelector('b'), t0 = performance.now(); let raf = 0, v = 0;
     const step = () => { if (!ov.isConnected) return; const t = (performance.now() - t0) / 1000; v = (1 - Math.cos(t * 3.4)) / 2; n.style.left = `calc(${(v * 100).toFixed(1)}% - 2px)`; raf = requestAnimationFrame(step); }; step();
