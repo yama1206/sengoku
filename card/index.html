@@ -241,7 +241,7 @@ button.effect-link:hover:not(:disabled){background:none;color:#fff0b0;outline:no
  <form method="dialog"><button autofocus>閉じる</button></form>
 </dialog>
 <script>
-const VERSION='0.72';
+const VERSION='0.73';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -756,11 +756,12 @@ function destroy(u,cause){
 function bounceUnit(u){if(u.dead)return;u.dead=true;const p=u.owner;p.units=p.units.filter(x=>x!==u);releaseWeapon(u);p.hand.push(u.card);log(`${u.card.n}が手札に戻った`);}
 
 function effCost(c){if(c.t!=='w'||typeof G==='undefined'||!G)return c.c;const o=G.P.find(q=>q.hand.some(h=>h.uid===c.uid));return Math.max(1,c.c-(c.costReduction||0)-(o&&o.units.some(u=>!u.dead&&u.card.wdisc)?1:0));}
+const fieldToReplace=(p,c)=>(c.t==='c'||c.t==='p')?p.fields.find(f=>f.t===c.t):undefined;
+
 function canCast(p,c){
  const un=p.mana.filter(m=>!m.tapped);
  if(un.length<effCost(c)||(c.i!=='ne'&&!un.some(m=>m.card.i===c.i)))return false;
  if(c.t==='w'&&!p.units.length)return false;
- if((c.t==='c'||c.t==='p')&&p.fields.some(f=>f.t===c.t))return false;
  return true;
 }
 // 戦術(奇襲)の効果に有効な対象があるか(AIが空打ちしないため)
@@ -856,7 +857,15 @@ async function playCard(p,c,pay){
  }else if(c.t==='x'){
   for(const e of c.e){if(G.over)return;await applyFx(p,e);}
   p.grave.push(c);
- }else{p.fields.push(c);render();for(const e of c.e){if(G.over)return;await applyFx(p,e);}}
+ }else{
+  const oldField=fieldToReplace(p,c);
+  if(oldField){
+   p.fields.splice(p.fields.indexOf(oldField),1);
+   p.grave.push(oldField);
+   log(`${oldField.n}が入れ替わり、墓地へ送られた`);
+  }
+  p.fields.push(c);render();for(const e of c.e){if(G.over)return;await applyFx(p,e);}
+ }
  render();
 }
 
@@ -1221,7 +1230,9 @@ function gameHTML(){
   const c=ui.sel?me.hand.find(x=>x.uid===ui.sel):null;
   if(c){
    acts+=`<button data-a="charge" ${me.charged?'disabled':''}>兵糧にする</button>`;
-   acts+=`<button data-a="cast" ${canCast(me,c)?'':'disabled'}>${c.t==='u'?'召喚':'使う'}</button>`;
+   const oldField=fieldToReplace(me,c);
+   acts+=`<button data-a="cast" ${canCast(me,c)?'':'disabled'}>${oldField?'入れ替える':c.t==='u'?'召喚':'使う'}</button>`;
+   if(oldField)acts+=`<span class="msg">${escH(oldField.n)}は墓地へ</span>`;
   }else if(su)acts+='<div class="msg">攻撃先: 相手の城門か、横向きの武将を押す</div>';
   acts+='<button data-a="end" style="margin-left:auto">手番を終える</button>';
  }
@@ -1253,7 +1264,7 @@ function rulesHTML(){
  ・先駆けを持つ武将は登場した手番から攻撃できる。<br>
  ・一騎打ちを持つ武将は、登場した手番に縦・横どちらの相手武将にも攻撃できる。<br>
  ・刺し違えを持つ武将は、武将との戦闘後にその相手を破壊する。<br>
- ・各プレイヤーは場に城1つ・姫1人まで置けます。同じ種類の札が場にある間は、追加で出せません。<br>
+ ・各プレイヤーは場に城1つ・姫1人まで置けます。同じ種類の札を出すと、場にあった札は墓地へ送られます。<br>
  ・武器は味方の武将1体に装備して場に残ります。武将が場を離れると武器は墓地へ。1体に装備できるのは1枚で、入れ替えると古い武器は墓地へ。<br>
  ・札売り場で戦銭を使って包みを開け、新しい札を集められます。
  ・攻撃先は相手の城門か、横向きの武将。兵力が高い方が勝ち、同じなら相打ち。<br>
