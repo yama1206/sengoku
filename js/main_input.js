@@ -247,7 +247,7 @@ function pollPad(dt) {
   for (const p of pads) if (p.buttons.some((b) => b && b.pressed)) { if (G.padIdx !== p.index) { G.padIdx = p.index; for (const k in padPrev) padPrev[k] = true; } break; }
   const gp = pads.find((p) => p.index === G.padIdx) || pads.find((p) => p.mapping === 'standard') || pads[0]; if (!gp) return [0, 0];
   const btn = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed);
-  if (SGK.PARTY?.current?.() && !document.getElementById('ptRes')) {
+  if (SGK.PARTY?.binding?.() || (SGK.PARTY?.current?.() && !document.getElementById('ptRes'))) {
     gp.buttons.forEach((b, i) => (padPrev[i] = b.pressed));
     return [0, 0];
   }

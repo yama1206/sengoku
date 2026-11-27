@@ -1,6 +1,6 @@
-// 2.42.0 みんなで遊ぶミニゲーム：馬の障害レース／弓の的当て大会（どちらも個人戦・チーム戦）／荷運び競争（協力）
+// 2.42.0 みんなで遊ぶミニゲーム：馬競争／弓の的当て大会（どちらも個人戦・チーム戦）／荷運び競争（協力）
 // 町の通りの「みんなで遊ぶ」から部屋を作り、同じ町にいる人を誘う。やりとりは忍びの協力任務と同じ中継（main.js の ninRelay、ch:'party'）を使う。
-//  馬の障害レースはリーダーが全員の走りと順位を計算する。弓は各自で的を射って点数を送り合う
+//  馬競争はリーダーが全員の走りと順位を計算する。弓は各自で的を射って点数を送り合う
 //  荷運び：部屋を作った人（リーダー）の端末が荷車を動かして全員に配る。報酬は sim/party.js の partyResult
 // 絵は仮：馬・人・荷車・的は canvas で描いた簡単な形（あとで絵に置き換えやすいよう、描く関数を分けてある）
 (function () {
@@ -8,7 +8,7 @@
   let ENV = null; // { me(), name(), others(), send(to, m), cmd(c) }
   PT.init = (e) => { ENV = e; };
   const GAMES = {
-    race: { name: '馬の障害レース', max: 10, team: true, desc: '同じコースを3周して着順を競います。馬は自動で前へ走ります。[[左右キー|左スティック|画面の左右]]で道幅の中を自由に移動し、[[Space|{A}|「跳ぶ」ボタン]]で柵を跳び越え、[[Shift|{B}・{X}|「走る」ボタン]]でダッシュ。金色の板を踏むと加速し、緑の箱を通ると道具が手に入ります。E／Yで道具を使います。早駆けは加速、守り札は減速を一度防ぎ、泥袋は後ろの相手に罠を置きます。重い馬は減速に強く、軽い馬はカーブで外へ流されにくくなります。ひとり練習ではCPU5頭と競走できます。' },
+    race: { name: '馬競争', max: 10, team: true, desc: '同じコースを3周して着順を競います。馬は前へ走ります。左右キー／スティックで馬の向きを変え、カーブに沿って曲がります。道を外れると減速します。急カーブでは↓／○（B）／画面の「減速」で速度を落とせます。部屋のリーダーがコースを選びます。3コース連戦は、完走した人に参加頭数に応じて1位から順に点が入り、個人戦は自分、チーム戦は味方全員の合計点を競います。加速はShift／×（A）、ジャンプはSpace／□（X）、道具はE／△（Y）。金色の板を踏むと加速します。緑の箱は、後ろの順位ほど追い上げに使える道具が出やすくなります。早駆け・追い風は加速、守り札は減速を一度防ぎ、泥袋は後ろに罠を置きます。干し草はダッシュの残量を回復して減速効果を消し、大跳びは高く跳びます。重い馬は減速に強く、馬具で曲がりやすさが変わります。ひとり練習ではCPU5頭と競走できます。' },
     archery: { name: '弓の的当て大会', max: 10, team: true, desc: '動く的を10本で射抜いて点を競う。風で矢が流れる。狙う＝[[マウス・矢印|左スティック|画面をなぞる]]、射つ＝[[クリック・Space|{A}|「射つ」ボタン]]。金の的は2倍' },
     fish: { name: '釣り大会', max: 10, team: true, mode: true, desc: '始めてからゲームの時間で1日のあいだ、それぞれ地図の川・湖・海へ出て、いつもの釣りで釣った魚でくらべる（拠点の中では釣れません）。勝ち方は「いちばん大きい魚」か「釣った数」を選べます。1日たつと順位と賞金が届きます' },
     hayashi: { name: '囃子合わせ', max: 5, team: false, desc: '和楽器のリズム遊び。太鼓・鼓・篠笛・三味線・鉦から楽器を選び、みんなで一つの曲を合わせる。流れてくる譜を下の線で打つ（[[赤＝F・J・Space、白＝D・K|赤＝{A}・{B}、白＝{X}・{Y}|左右の赤と白のボタン]]）。自分のパートは叩いた音で鳴る' },
@@ -60,6 +60,7 @@
   // =====================================================================
   let LB = null, RUN = null, invT = null; // LB＝部屋 { g, rid, lead, leader, mem:[{id,name}], team }
   const memIds = () => (LB ? LB.mem.map((x) => x.id).filter((id) => id !== ENV.me()) : []);
+  PT.binding = () => LB?.g === 'race' && !!LB.kc && (!!LB.kc.sel || capBlock);
   PT.current = () => (RUN ? RUN.g : null); // 2.68.0 いま遊んでいる遊び（囃子合わせの間は BGM を止める）
   PT.openLobby = (g) => {
     if (!ENV || RUN) return; addCss();
@@ -72,21 +73,93 @@
   const defOpts = () => { const o = {}; for (const op of SGK.HIDE.OPTS) o[op.k] = op.v[0][0]; return o; };
   const optTxt = (o) => SGK.HIDE.OPTS.map((op) => `${op.n}：${(op.v.find((x) => x[0] === o[op.k]) || op.v[0])[1]}`).join('　');
   function closeLobby(tell) { if (LB && tell && !LB.lead) send([LB.leader], { k: 'leave', rid: LB.rid }); if (LB && LB.lead) send(memIds(), { k: 'mem', rid: LB.rid, g: LB.g, mem: [], closed: 1 }); LB = null; const b = document.getElementById('ptBox'); if (b) b.remove(); }
-  function pushMem() { if (LB && LB.lead) send(memIds(), { k: 'mem', rid: LB.rid, g: LB.g, mem: LB.mem, team: LB.team, mode: LB.mode, o: LB.o }); }
+  function pushMem() { if (LB && LB.lead) send(memIds(), { k: 'mem', rid: LB.rid, g: LB.g, mem: LB.mem, team: LB.team, mode: LB.mode, o: LB.o, course: LB.course, series: !!LB.series }); }
   function vwGet() { let v = 'tp'; try { v = localStorage.getItem('sgk-hide-vw') || 'tp'; } catch (er) {} return v === 'fp' ? v : 'tp'; }
   // 2.98.0 かくれんぼの操作設定（部屋の「操作設定」）。変えたい項目を選んでキー／ボタンを押す
+  const RACE_ACTIONS = [
+    ['l', '左に曲がる', 'ArrowLeft', 14], ['r', '右に曲がる', 'ArrowRight', 15],
+    ['b', '加速', 'Shift', 0], ['d', '減速', 'ArrowDown', 1],
+    ['a', 'ジャンプ', ' ', 2], ['c', '道具', 'e', 3],
+  ];
+  const RACE_PAD_LABELS = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'BACK', 'START', 'L3', 'R3', '十字↑', '十字↓', '十字←', '十字→', 'HOME'];
+  const raceKey = (key) => key.length === 1 ? key.toLowerCase() : key;
+  function raceBindings() {
+    let saved;
+    try { saved = JSON.parse(localStorage.getItem('sgk-race-bindings')); } catch (error) {}
+    const kb = RACE_ACTIONS.map(([id]) => saved?.k?.[id]);
+    const pad = RACE_ACTIONS.map(([id]) => saved?.p?.[id]);
+    const unique = (values) => new Set(values).size === values.length;
+    return {
+      k: kb.every((key) => typeof key === 'string' && key && key !== 'Escape') && unique(kb) ?
+        saved.k : Object.fromEntries(RACE_ACTIONS.map(([id, , key]) => [id, key])),
+      p: pad.every((index) => Number.isInteger(index) && index >= 0) && unique(pad) ?
+        saved.p : Object.fromEntries(RACE_ACTIONS.map(([id, , , index]) => [id, index])),
+    };
+  }
+  function setRaceBinding(kind, action, value) {
+    const bindings = raceBindings(), group = bindings[kind];
+    const other = RACE_ACTIONS.find(([id]) => group[id] === value)?.[0];
+    if (other) group[other] = group[action];
+    group[action] = value;
+    try { localStorage.setItem('sgk-race-bindings', JSON.stringify(bindings)); } catch (error) {}
+  }
+  function raceBindingName(kind, value) {
+    if (kind === 'p') {
+      const style = SGK.HINT?.padStyle?.();
+      if (style === 'ps' && value < 10) return ['×', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'SHARE', 'OPTIONS'][value];
+      if (style === 'switch' && value < 4) return ['B', 'A', 'Y', 'X'][value];
+      return RACE_PAD_LABELS[value] || '#' + value;
+    }
+    const names = { ' ': 'Space', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
+    return names[value] || (value.length === 1 ? value.toUpperCase() : value);
+  }
+  function raceKeysHtml() {
+    const bindings = raceBindings(), selected = LB.kc.sel;
+    const rows = (kind) => RACE_ACTIONS.map(([id, label]) => {
+      const action = kind + ':' + id;
+      const value = selected === action ? '押してください…（Escで取り消し）' : raceBindingName(kind, bindings[kind][id]);
+      return '<button data-a="ks:' + action + '">' + label + '：' + esc(value) + '</button>';
+    }).join('');
+    return '<div><h2>馬競争の操作設定</h2><div class="d">変えたい操作を選び、割り当てたいキーやボタンを押してください。' +
+      '左スティックと画面のタッチボタンも使えます。</div><b>キーボード</b>' + rows('k') +
+      '<b>コントローラー</b>' + rows('p') + '<button data-a="kr">初期設定に戻す</button><button data-a="kx">戻る</button></div>';
+  }
   function keysHtml() {
+    if (LB.g === 'race') return raceKeysHtml();
     const H = SGK.HIDE, c = H.keys(), sel = LB.kc.sel;
     const row = (id, n, v) => `<button data-a="ks:${id}" style="${sel === id ? 'background:#a0702e;' : ''}">${n}：<b>${sel === id ? '押してください…（Escで取り消し）' : v}</b></button>`;
     return `<div><h2>操作設定（かくれんぼ？）</h2><div class="d">変えたい項目を選んでから、キーボードのキー／コントローラーのボタンを押すと決まります（コントローラーはPS配置：×○□△）。移動のスティック・十字キーと、視点のスティックは変えられません</div><div style="max-height:56vh;overflow:auto"><b>キーボード</b>${H.KA.map(([k, n]) => row('k:' + k, n, c.kb[k].map(H.kn).join('・') || '未設定')).join('')}<b>コントローラー</b>${H.KP.map(([k, n]) => row('p:' + k, n, c.pd[k].map(H.pn).join('・') || '未設定')).join('')}</div><div><button data-a="kr">初期設定に戻す</button><button data-a="kx">閉じる</button></div></div>`;
   }
-  let capK = false, capT = 0, capPrev = [];
+  let capK = false, capT = 0, capPrev = [], capBlock = false;
+  function partyPad() {
+    const pads = Array.from(navigator.getGamepads?.() || []).filter((pad) => pad && pad.connected !== false);
+    const selected = typeof G !== 'undefined' && G.padIdx;
+    return pads.find((pad) => pad.index === selected) || pads.find((pad) => pad.mapping === 'standard') || pads[0];
+  }
   function capOn() {
-    if (!capK) { capK = true; addEventListener('keydown', (e) => { if (!LB || !LB.kc || !LB.kc.sel || !LB.kc.sel.startsWith('k:')) return; e.preventDefault(); e.stopPropagation(); if (e.key !== 'Escape') SGK.HIDE.setKey(LB.kc.sel.slice(2), e.key); LB.kc.sel = null; drawLobby(); }, true); }
-    clearInterval(capT); capPrev = []; // コントローラーのボタンを待つ
+    if (!capK) {
+      capK = true;
+      addEventListener('keydown', (e) => {
+        const selected = LB?.kc?.sel;
+        if (!selected || (!selected.startsWith('k:') && e.key !== 'Escape')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.repeat) return;
+        if (e.key !== 'Escape') {
+          if (LB.g === 'race') setRaceBinding('k', selected.slice(2), raceKey(e.key));
+          else SGK.HIDE.setKey(selected.slice(2), e.key);
+        }
+        LB.kc.sel = null;
+        drawLobby('ks:' + selected);
+      }, true);
+    }
+    clearInterval(capT); capPrev = []; capBlock = false; // コントローラーのボタンを待つ
     capT = setInterval(() => {
-      if (!LB || !LB.kc) { clearInterval(capT); return; } const gp = (navigator.getGamepads ? navigator.getGamepads() : []).find((g) => g && g.connected); if (!gp) return;
-      const sel = LB.kc.sel; gp.buttons.forEach((b, i) => { const on = !!b.pressed; if (on && !capPrev[i] && sel && sel.startsWith('p:')) { SGK.HIDE.setPad(sel.slice(2), i); LB.kc.sel = null; drawLobby(); } capPrev[i] = on; });
+      if (!LB || !LB.kc) { clearInterval(capT); return; }
+      const gp = partyPad();
+      if (!gp || !gp.buttons.some((button) => button.pressed)) capBlock = false;
+      if (!gp) return;
+      const sel = LB.kc.sel; gp.buttons.forEach((b, i) => { const on = !!b.pressed; if (on && !capPrev[i] && sel && sel.startsWith('p:')) { if (LB.g === 'race') { setRaceBinding('p', sel.slice(2), i); capBlock = true; } else SGK.HIDE.setPad(sel.slice(2), i); LB.kc.sel = null; drawLobby('ks:' + sel); } capPrev[i] = on; });
     }, 60);
   }
   function pickHtml() { // 2.73.0 キャラ一覧（見た目・パッシブ・アクティブを見比べる）
@@ -130,6 +203,67 @@
     return raceSelection;
   }
   const raceStatNames = ['最高速', '加速', '曲がりやすさ', '重さ'];
+  const RACE_COURSES = [
+    { name: '信濃の原', points: [[-42, 63], [15, 68], [66, 40], [75, -8], [50, -48], [11, -61], [-43, -50], [-72, -20], [-65, 27]] },
+    { name: '峠の折り返し', points: [[-58, 63], [16, 63], [70, 46], [82, 9], [55, -8], [20, 10], [-9, 0], [-6, -27], [29, -37], [39, -65], [-9, -78], [-61, -54], [-76, -5]] },
+    { name: '川沿いの切り返し', points: [[-63, 58], [-22, 64], [3, 38], [31, 49], [66, 37], [78, 2], [51, -21], [25, -13], [6, -41], [-27, -62], [-62, -51], [-76, -19]] },
+  ];
+  const raceCourseIndex = (index) => Number.isInteger(index) && RACE_COURSES[index] ? index : 0;
+  const raceAngle = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
+  function makeRaceTrack(courseIndex, lap) {
+    const course = RACE_COURSES[raceCourseIndex(courseIndex)], points = course.points;
+    const raw = [];
+    let length = 0;
+    for (let i = 0; i <= points.length * 32; i++) {
+      const segment = Math.floor(i / 32), t = (i % 32) / 32, t2 = t * t, t3 = t2 * t;
+      const [a, b, c, d] = [-1, 0, 1, 2].map((j) => points[(segment + j + points.length) % points.length]);
+      const [x, z] = b.map((v, k) => 0.5 * (
+        2 * v + (c[k] - a[k]) * t + (2 * a[k] - 5 * v + 4 * c[k] - d[k]) * t2 +
+        (3 * v - a[k] - 3 * c[k] + d[k]) * t3
+      ));
+      if (i) length += Math.hypot(x - raw[i - 1].x, z - raw[i - 1].z);
+      raw.push({ x, z, length });
+    }
+    const samples = [], scale = lap / length;
+    let cursor = 0;
+    for (let i = 0; i < lap; i++) {
+      const distance = i / scale;
+      while (raw[cursor + 1].length < distance) cursor++;
+      const a = raw[cursor], b = raw[cursor + 1], t = (distance - a.length) / (b.length - a.length);
+      samples.push({ x: (a.x + (b.x - a.x) * t) * scale, z: (a.z + (b.z - a.z) * t) * scale });
+    }
+    const headings = samples.map((_, i) => {
+      const a = samples[(i + lap - 1) % lap], b = samples[(i + 1) % lap];
+      return Math.atan2(b.z - a.z, b.x - a.x);
+    });
+    function point(distance) {
+      const d = ((distance % lap) + lap) % lap, i = Math.floor(d), j = (i + 1) % lap, t = d - i;
+      const a = samples[i], b = samples[j];
+      return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t,
+        heading: headings[i] + raceAngle(headings[j] - headings[i]) * t };
+    }
+    return { name: course.name, lap, halfWidth: 5.5, point };
+  }
+
+  function steerRaceHorse(r, track, dt, lane) {
+    const turnRate = 1.12 + r.turn * 0.13;
+    const here = track.point(r.d).heading;
+    if (r.cpu) {
+      const look = Math.max(1, r.v * 0.24);
+      const bend = raceAngle(track.point(r.d + look).heading - here) * r.v / look;
+      const desired = clamp((lane - r.x) * 0.7, -0.6, 0.6);
+      r.steer = clamp((bend + 4.5 * raceAngle(desired - r.heading)) / turnRate, -1, 1);
+    }
+    const heading = raceAngle(r.heading + r.steer * turnRate * dt);
+    const distance = r.v * dt;
+    const curvature = raceAngle(track.point(r.d + 1).heading - here);
+    const travelled = Math.max(0, Math.cos(heading) * distance) / clamp(1 - curvature * r.x * track.halfWidth, 0.65, 1.45);
+    r.x = clamp(r.x + Math.sin(heading) * distance / track.halfWidth, -1.55, 1.55);
+    r.d += travelled;
+    r.heading = raceAngle(heading - raceAngle(track.point(r.d).heading - here));
+    return travelled;
+  }
+
   function raceTackHtml() {
     const selected = myRaceLoadout(), stats = raceStats(selected);
     const buttons = raceParts.map(([slot, options], i) =>
@@ -160,11 +294,20 @@
     return '<div class="race-choices"><h2>' + label + 'を選ぶ</h2><div class="d">現在の構成から替えたときの能力（各9段階）</div>' +
       cards + '<button data-a="race-back">戻る</button></div>';
   }
+  function raceModeHtml() {
+    const mode = LB.series ? '3コース連戦' : '単発レース';
+    return LB.lead ? '<button data-a="race-series">形式　' + mode + '（切替）</button>' : '<div class="d">形式　' + mode + '</div>';
+  }
+  function raceCourseHtml() {
+    const name = RACE_COURSES[raceCourseIndex(LB.course)].name;
+    return LB.lead ? '<button data-a="race-course">コース　' + name + '（切替）</button>' :
+      '<div class="d">コース　' + name + '</div>';
+  }
   function drawLobby(focusAction) {
     if (!LB) return; const d = GAMES[LB.g], e = box('ptBox'), n = LB.mem.length;
     if (LB.sec && (!d.opts || (LB.sec !== 'me' && !(LB.lead && LB.o)))) LB.sec = null;
     const list = LB.mem.map((x, i) => `<div class="m">${LB.team ? `<b style="color:${TEAM[i % 2].c}">${TEAM[i % 2].n}</b> ` : ''}${esc(x.name)}${x.id === LB.leader ? '（リーダー）' : ''}${d.opts && x.vol ? '<span style="font-size:12px;color:#ffb0a0">　【鬼に立候補】</span>' : ''}${d.opts && x.ch ? `<span style="font-size:12px;color:#cdbf9a">　逃げ：${chName('h', x.ch.h)}／鬼：${chName('s', x.ch.s)}</span>` : ''}</div>`).join('');
-    e.innerHTML = LB.raceSlot != null ? raceChoicesHtml(LB.raceSlot) : LB.kc ? keysHtml() : LB.pk ? pickHtml() : LB.sec ? secHtml() : `<div><h2>${d.name}</h2><div><button data-a="desc">ゲーム説明${LB.desc ? '（閉じる）' : ''}</button></div>${LB.desc ? `<div class="d">${esc(SGK.HINT.txt(d.desc))}</div>` : ''}<div>参加者 ${n}/${d.max}人${LB.team ? '（チーム戦：交互に赤・白）' : ''}${d.opts && LB.o ? `<div style="font-size:13px;color:#cdbf9a">${optTxt(LB.o)}</div>` : ''}${d.mode ? `　勝ち方：${LB.mode === 'big' ? '大物（いちばん大きい魚）' : '数（釣った数）'}` : ''}</div>${list}${LB.g === 'race' ? raceTackHtml() : ''}
+    e.innerHTML = LB.raceSlot != null ? raceChoicesHtml(LB.raceSlot) : LB.kc ? keysHtml() : LB.pk ? pickHtml() : LB.sec ? secHtml() : `<div><h2>${d.name}</h2><div><button data-a="desc">ゲーム説明${LB.desc ? '（閉じる）' : ''}</button></div>${LB.desc ? `<div class="d">${esc(SGK.HINT.txt(d.desc))}</div>` : ''}<div>参加者 ${n}/${d.max}人${LB.team ? '（チーム戦：交互に赤・白）' : ''}${d.opts && LB.o ? `<div style="font-size:13px;color:#cdbf9a">${optTxt(LB.o)}</div>` : ''}${d.mode ? `　勝ち方：${LB.mode === 'big' ? '大物（いちばん大きい魚）' : '数（釣った数）'}` : ''}</div>${list}${LB.g === 'race' ? raceModeHtml() + raceCourseHtml() + '<button data-a="kc">操作設定（キー・ボタン）</button>' + raceTackHtml() : ''}
       ${d.opts ? (() => { const c = myCh(), H = SGK.HIDE.CH, a = H.h.find((x) => x.k === c.h), b = H.s.find((x) => x.k === c.s); return `<div style="margin-top:6px;font-size:12px;color:#cdbf9a"><b>逃げる時：${a.n}</b>　${a.pa}／${a.ac}<br><b>鬼の時：${b.n}</b>　${b.pa}／${b.ac}</div><div><button data-a="vol">${(LB.mem.find((y) => y.id === ENV.me()) || {}).vol ? '鬼に立候補をやめる' : '鬼に立候補する'}</button><button data-a="sec:me">自分の設定（キャラ・操作・視点）</button>${LB.lead && LB.o ? '<button data-a="sec:rule">遊び方の設定（勝ち方・舞台など）</button><button data-a="sec:ppl">人数・CPUの設定</button>' : ''}</div>`; })() : ''}
       <div style="margin-top:8px">${LB.lead ? `<button data-a="inv">同じ町の人を誘う</button>${d.team ? `<button data-a="team">${LB.team ? '個人戦にする' : 'チーム戦にする'}</button>` : ''}${d.mode ? '<button data-a="mode">勝ち方を変える</button>' : ''}${n >= 2 ? '<button data-a="go">出発する</button>' : ''}<button data-a="solo">ひとりで練習（報酬なし）</button>` : '<div class="d">リーダーが出発すると始まります</div>'}<button data-a="close">${LB.lead ? 'やめる' : '抜ける'}</button></div></div>`;
     const focus = focusAction && e.querySelector('button[data-a="' + focusAction + '"]');
@@ -172,16 +315,36 @@
     try { if (typeof setFocus === 'function') setFocus(e, focus || currentFocus(e)); } catch (er) {} // 2.69.2 作り直してもコントローラーの選択を保つ
     e.onclick = (ev) => {
       const b = ev.target.closest('button[data-a]'); if (!b || !LB) return; const a = b.dataset.a;
-      if (a === 'inv') { const to = ENV.others().map((x) => x.id); send(to, { k: 'inv', g: LB.g, rid: LB.rid, nm: ENV.name(), team: LB.team, mode: LB.mode, o: LB.o }); b.textContent = to.length ? `${to.length}人に声をかけた` : '同じ町にほかの人がいません'; }
+      if (a === 'inv') { const to = ENV.others().map((x) => x.id); send(to, { k: 'inv', g: LB.g, rid: LB.rid, nm: ENV.name(), team: LB.team, mode: LB.mode, o: LB.o, course: LB.course, series: !!LB.series }); b.textContent = to.length ? `${to.length}人に声をかけた` : '同じ町にほかの人がいません'; }
       else if (a === 'team') { LB.team = !LB.team; pushMem(); drawLobby(); }
       else if (a === 'mode') { LB.mode = LB.mode === 'big' ? 'num' : 'big'; pushMem(); drawLobby(); }
       else if (a.startsWith('o:') && LB.lead && LB.o) { const op = SGK.HIDE.OPTS.find((x) => x.k === a.slice(2)); if (op) { const i = op.v.findIndex((x) => x[0] === LB.o[op.k]); LB.o[op.k] = op.v[(i + 1) % op.v.length][0]; pushMem(); drawLobby(); } }
       else if (a === 'ch:h' || a === 'ch:s') { LB.pk = a.slice(3); drawLobby(); }
       else if (a === 'kc') { LB.kc = { sel: null }; capOn(); drawLobby(); }
       else if (a === 'kx') { LB.kc = null; drawLobby(); }
-      else if (a === 'kr') { SGK.HIDE.resetKeys(); if (LB.kc) LB.kc.sel = null; drawLobby(); }
-      else if (a.startsWith('ks:')) { if (LB.kc) LB.kc.sel = a.slice(3); drawLobby(); }
+      else if (a === 'kr') {
+        if (LB.g === 'race') { try { localStorage.removeItem('sgk-race-bindings'); } catch (error) {} }
+        else SGK.HIDE.resetKeys();
+        if (LB.kc) LB.kc.sel = null;
+        drawLobby('kr');
+      }
+      else if (a.startsWith('ks:') && LB.kc) {
+        LB.kc.sel = a.slice(3);
+        const gp = partyPad();
+        capPrev = Array.from(gp?.buttons || [], (button) => button.pressed);
+        drawLobby(a);
+      }
       else if (a === 'vw') { try { localStorage.setItem('sgk-hide-vw', vwGet() === 'tp' ? 'fp' : 'tp'); } catch (er) {} drawLobby(); }
+      else if (a === 'race-series' && LB.lead && LB.g === 'race') {
+        LB.series = !LB.series;
+        pushMem();
+        drawLobby('race-series');
+      }
+      else if (a === 'race-course' && LB.lead && LB.g === 'race') {
+        LB.course = (raceCourseIndex(LB.course) + 1) % RACE_COURSES.length;
+        pushMem();
+        drawLobby('race-course');
+      }
       else if (a.startsWith('race-part:') && LB.g === 'race') {
         LB.raceSlot = Number(a.split(':')[1]);
         drawLobby('race-equip:' + myRaceLoadout()[LB.raceSlot]);
@@ -213,14 +376,14 @@
       if (!solo) send(memIds(), { k: 'go', rid: LB.rid, cfg: { g: 'fish' } }); closeLobby(false); fishToast(); return;
     }
     const seed = (Math.random() * 1e9) | 0, mem = (solo ? [LB.mem[0]] : LB.mem).map((x, i) => ({ id: x.id, name: x.name, tm: i % 2, ch: x.ch || null, vol: !!x.vol }));
-    const cfg = { g: LB.g, seed, mem, team: !solo && LB.team, lead: LB.leader, solo, mode: LB.mode, o: LB.o, rid: LB.rid };
+    const cfg = { g: LB.g, seed, mem, team: !solo && LB.team, lead: LB.leader, solo, mode: LB.mode, o: LB.o, rid: LB.rid, course: LB.course, series: !!LB.series };
     if (!solo) send(memIds(), { k: 'go', rid: LB.rid, cfg });
     closeLobby(false); startGame(cfg);
   }
   function showInvite(from, m) {
     if (RUN || !GAMES[m.g]) return; addCss(); const e = box('ptInv'); clearTimeout(invT);
     e.innerHTML = `<b>${esc(m.nm)}</b>が『${GAMES[m.g].name}』${m.team ? '（チーム戦）' : ''}の仲間を募っています <button data-a="y">参加する</button><button data-a="n">閉じる</button>`;
-    e.onclick = (ev) => { const b = ev.target.closest('button[data-a]'); if (!b) return; e.remove(); if (b.dataset.a !== 'y') return; if (LB) closeLobby(true); LB = { g: m.g, rid: m.rid, lead: false, leader: from, mem: [], team: !!m.team, mode: m.mode || 'big', o: m.o || null }; const jn = () => send([from], { k: 'join', rid: m.rid, nm: ENV.name(), cs: myCh() }); jn(); drawLobby(); let tr = 0; const jt = setInterval(() => { /* 2.98.6 リーダーの名簿に入れたか確かめ、届いていなければ「参加する」を送り直す */ if (!LB || LB.lead || LB.rid !== m.rid || LB.mem.length || ++tr > 6) { clearInterval(jt); return; } jn(); }, 1500); };
+    e.onclick = (ev) => { const b = ev.target.closest('button[data-a]'); if (!b) return; e.remove(); if (b.dataset.a !== 'y') return; if (LB) closeLobby(true); LB = { g: m.g, rid: m.rid, lead: false, leader: from, mem: [], team: !!m.team, mode: m.mode || 'big', o: m.o || null, course: m.course, series: !!m.series }; const jn = () => send([from], { k: 'join', rid: m.rid, nm: ENV.name(), cs: myCh() }); jn(); drawLobby(); let tr = 0; const jt = setInterval(() => { /* 2.98.6 リーダーの名簿に入れたか確かめ、届いていなければ「参加する」を送り直す */ if (!LB || LB.lead || LB.rid !== m.rid || LB.mem.length || ++tr > 6) { clearInterval(jt); return; } jn(); }, 1500); };
     invT = setTimeout(() => { if (e.parentNode) e.remove(); }, 60000);
   }
 
@@ -230,7 +393,7 @@
     if (m.k === 'join') { if (LB && LB.lead && m.rid === LB.rid) { if (!LB.mem.some((x) => x.id === from) && LB.mem.length < GAMES[LB.g].max) { LB.mem.push({ id: from, name: m.nm, ch: m.cs || null }); drawLobby(); } if (LB.mem.some((x) => x.id === from)) pushMem(); /* 2.98.6 もう入っている人からの「参加する」でも名簿を送り直す */ } return; }
     if (m.k === 'pick') { if (LB && LB.lead && m.rid === LB.rid) { const x = LB.mem.find((y) => y.id === from); if (x) { if (m.cs) x.ch = m.cs; if (m.vol != null) x.vol = !!m.vol; pushMem(); drawLobby(); } } return; }
     if (m.k === 'leave') { if (LB && LB.lead && m.rid === LB.rid) { LB.mem = LB.mem.filter((x) => x.id !== from); pushMem(); drawLobby(); } return; }
-    if (m.k === 'mem') { if (LB && !LB.lead && m.rid === LB.rid) { if (m.closed) { closeLobby(false); ENV.toast && ENV.toast('部屋がなくなりました'); } else { LB.mem = m.mem; LB.team = !!m.team; LB.mode = m.mode || 'big'; if (m.o) LB.o = m.o; drawLobby(); } } return; }
+    if (m.k === 'mem') { if (LB && !LB.lead && m.rid === LB.rid) { if (m.closed) { closeLobby(false); ENV.toast && ENV.toast('部屋がなくなりました'); } else { LB.mem = m.mem; LB.team = !!m.team; LB.mode = m.mode || 'big'; if (m.o) LB.o = m.o; LB.course = m.course; LB.series = !!m.series; drawLobby(); } } return; }
     if (m.k === 'go') { if (LB && !LB.lead && m.rid === LB.rid && !RUN) { closeLobby(false); if (m.cfg && m.cfg.g === 'fish') fishToast(); else startGame(m.cfg); } return; }
     if (RUN && RUN.on) RUN.on(from, m);
   };
@@ -240,27 +403,33 @@
   // =====================================================================
   const IN = { l: 0, r: 0, u: 0, d: 0, a: 0, b: 0, c: 0, cT: 0, aT: 0, lT: 0, rT: 0, mx: null, my: null, click: 0 };
   let keysBound = false;
+  function raceAction(key) {
+    const action = RACE_ACTIONS.find(([id]) => RUN.bindings.k[id] === raceKey(key));
+    return action?.[0];
+  }
   function bindKeys() {
     if (keysBound) return; keysBound = true;
     const map = { ArrowLeft: 'l', a: 'l', A: 'l', ArrowRight: 'r', d: 'r', D: 'r', ArrowUp: 'u', w: 'u', W: 'u', ArrowDown: 'd', s: 'd', S: 'd', ' ': 'a', e: 'c', E: 'c', q: 'c', Q: 'c', z: 'a', Z: 'a', Enter: 'a', x: 'b', X: 'b', Shift: 'b', f: 'a', F: 'a', j: 'b', J: 'b' };
     addEventListener('blur', () => {
       if (RUN && RUN.g === 'race') for (const key of ['l', 'r', 'u', 'd', 'a', 'b', 'c', 'aT', 'cT']) IN[key] = 0;
     });
-    addEventListener('keydown', (e) => { if (!RUN) return; const k = (RUN.g === 'hide' ? SGK.HIDE.keyMap() : map)[e.key]; if (!k) return; e.preventDefault(); if (!IN[k] && !e.repeat) { if (k === 'a') { IN.aT = 1; IN.aAt = performance.now(); } if (k === 'b') { IN.bT = 1; IN.bAt = performance.now(); } if (k === 'c') IN.cT = 1; if (k === 'l') IN.lT = 1; if (k === 'r') IN.rT = 1; } IN[k] = 1; });
-    addEventListener('keyup', (e) => { if (!RUN) return; const k = (RUN.g === 'hide' ? SGK.HIDE.keyMap() : map)[e.key]; if (k) { e.preventDefault(); IN[k] = 0; } });
+    addEventListener('keydown', (e) => { if (!RUN) return; const k = RUN.g === 'race' ? raceAction(e.key) : (RUN.g === 'hide' ? SGK.HIDE.keyMap() : map)[e.key]; if (!k) return; e.preventDefault(); if (!IN[k] && !e.repeat) { if (k === 'a') { IN.aT = 1; IN.aAt = performance.now(); } if (k === 'b') { IN.bT = 1; IN.bAt = performance.now(); } if (k === 'c') IN.cT = 1; if (k === 'l') IN.lT = 1; if (k === 'r') IN.rT = 1; } IN[k] = 1; });
+    addEventListener('keyup', (e) => { if (!RUN) return; const k = RUN.g === 'race' ? raceAction(e.key) : (RUN.g === 'hide' ? SGK.HIDE.keyMap() : map)[e.key]; if (k) { e.preventDefault(); IN[k] = 0; } });
   }
   let padC = false, padA = false, padB = false, padL = false, padR = false;
   function readPad() {
-    const gp = (navigator.getGamepads ? navigator.getGamepads() : []).find((g) => g && g.connected); if (!gp) { padA = padB = padC = padL = padR = IN.pa = IN.pb = IN.pu = false; return { x: 0, y: 0 }; }
-    const x = Math.abs(gp.axes[0]) > 0.2 ? gp.axes[0] : 0, y = Math.abs(gp.axes[1]) > 0.2 ? gp.axes[1] : 0, hk = RUN && RUN.g === 'hide' ? SGK.HIDE.keys().pd : null, pr = (ls) => ls.some((i) => gp.buttons[i] && gp.buttons[i].pressed), a = hk ? pr(hk.pa) : !!(gp.buttons[0] && gp.buttons[0].pressed), b = hk ? pr(hk.pb) : !!(gp.buttons[2] && gp.buttons[2].pressed || gp.buttons[1] && gp.buttons[1].pressed);
-    const l = x < -0.5 || !!(gp.buttons[14] && gp.buttons[14].pressed), r = x > 0.5 || !!(gp.buttons[15] && gp.buttons[15].pressed);
-    if (a && !padA) IN.aT = 1; if (b && !padB) IN.bT = 1; padB = b; if (l && !padL) IN.lT = 1; if (r && !padR) IN.rT = 1; { const cc = hk ? pr(hk.pc) : !!(gp.buttons[3] && gp.buttons[3].pressed); if (cc && !padC) IN.cT = 1; padC = cc; } padA = a; padL = l; padR = r; IN.pa = a; IN.pb = b; IN.pu = y < -0.5 || !!(gp.buttons[12] && gp.buttons[12].pressed);
-    return { x, y };
+    const gp = partyPad(); if (!gp) { padA = padB = padC = padL = padR = IN.pa = IN.pb = IN.pu = false; return { x: 0, y: 0 }; }
+    const racing = RUN?.g === 'race', racePad = racing ? RUN.bindings.p : null;
+    const x = Math.abs(gp.axes[0]) > 0.2 ? gp.axes[0] : 0, y = Math.abs(gp.axes[1]) > 0.2 ? gp.axes[1] : 0, hk = RUN && RUN.g === 'hide' ? SGK.HIDE.keys().pd : null, pr = (ls) => ls.some((i) => gp.buttons[i] && gp.buttons[i].pressed), a = hk ? pr(hk.pa) : !!gp.buttons[racePad?.a ?? 0]?.pressed, b = hk ? pr(hk.pb) : pr([1, 2]);
+    const l = (!racing && x < -0.5) || !!gp.buttons[racePad?.l ?? 14]?.pressed;
+    const r = (!racing && x > 0.5) || !!gp.buttons[racePad?.r ?? 15]?.pressed;
+    if (a && !padA) IN.aT = 1; if (b && !padB) IN.bT = 1; padB = b; if (l && !padL) IN.lT = 1; if (r && !padR) IN.rT = 1; { const cc = hk ? pr(hk.pc) : !!(gp.buttons[racePad?.c ?? 3]?.pressed); if (cc && !padC) IN.cT = 1; padC = cc; } padA = a; padL = l; padR = r; IN.pa = a; IN.pb = b; IN.pu = y < -0.5 || !!(gp.buttons[12] && gp.buttons[12].pressed);
+    return { x, y, dash: racing && !!gp.buttons[racePad.b]?.pressed, brake: racing && !!gp.buttons[racePad.d]?.pressed };
   }
   function backToRoom(cfg, gone) { // 2.99.5 遊びが終わったら町の窓を開け直し、その遊びの部屋（最初の画面）へ戻る
     try { if (typeof openTown === 'function') openTown(true); } catch (er) {}
     if (!ENV || LB || !GAMES[cfg.g]) return; const me = ENV.me();
-    const base = { g: cfg.g, team: !!cfg.team, mode: cfg.mode || 'big', o: cfg.o || (GAMES[cfg.g].opts ? defOpts() : null) };
+    const base = { g: cfg.g, team: !!cfg.team, mode: cfg.mode || 'big', course: cfg.course, series: !!cfg.series, o: cfg.o || (GAMES[cfg.g].opts ? defOpts() : null) };
     if (cfg.solo || !cfg.rid) { LB = Object.assign(base, { rid: me + '-' + Date.now(), lead: true, leader: me, mem: [{ id: me, name: ENV.name(), ch: myCh() }] }); }
     else if (cfg.lead === me) { // リーダー：同じ部屋をそのまま開き直す（途中で抜けた人は外す）。戻ってきた人は「参加する」を送り直してくる
       LB = Object.assign(base, { rid: cfg.rid, lead: true, leader: me, mem: cfg.mem.filter((x) => x.id === me || !(gone && gone[x.id])).map((x) => ({ id: x.id, name: x.name, ch: x.id === me ? myCh() : x.ch || null, vol: !!x.vol })) });
@@ -289,14 +458,14 @@
       // 長押し時のブラウザー操作を抑止し、ゲーム入力は Pointer Events で受け取る。
       pad.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
     }
-    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '使う', 'b'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { root.classList.add('race'); mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '走る', 'b'); mkBtn(pr, '跳ぶ', 'a'); mkBtn(pr, '道具', 'c'); } else if (cfg.g === 'hide') { mkBtn(pl, '戻る', 'b'); mkBtn(pl, 'スキル', 'c'); mkBtn(pr, '化ける\n叩く', 'a'); } else if (cfg.g === 'kemari') { mkBtn(pl, 'ゆるく', 'b'); mkBtn(pr, '速く', 'a'); } else if (cfg.g === 'hayashi') { /* 2.68.2 囃子合わせは自分でボタンを置く */ } else mkBtn(pr, '射つ', 'a'); } // 2.106.11 蹴鞠のスマホボタン：速く／ゆるく（2.106.20 コメントが後ろの処理を巻き込んでいたのを直した）
+    if (touch) { pl.style.display = pr.style.display = 'flex'; pl.style.left = '14px'; pr.style.right = '14px'; if (cfg.g === 'cart') { mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '使う', 'b'); mkBtn(pr, '引く', 'a'); } else if (cfg.g === 'race') { root.classList.add('race'); mkBtn(pl, '←', 'l'); mkBtn(pl, '→', 'r'); mkBtn(pr, '走る', 'b'); mkBtn(pr, '跳ぶ', 'a'); mkBtn(pr, '道具', 'c'); mkBtn(pr, '減速', 'd'); } else if (cfg.g === 'hide') { mkBtn(pl, '戻る', 'b'); mkBtn(pl, 'スキル', 'c'); mkBtn(pr, '化ける\n叩く', 'a'); } else if (cfg.g === 'kemari') { mkBtn(pl, 'ゆるく', 'b'); mkBtn(pr, '速く', 'a'); } else if (cfg.g === 'hayashi') { /* 2.68.2 囃子合わせは自分でボタンを置く */ } else mkBtn(pr, '射つ', 'a'); } // 2.106.11 蹴鞠のスマホボタン：速く／ゆるく（2.106.20 コメントが後ろの処理を巻き込んでいたのを直した）
     const ptr = (e) => { const r = cv.getBoundingClientRect(); IN.mx = (e.clientX - r.left) * cv.width / r.width; IN.my = (e.clientY - r.top) * cv.height / r.height; };
     cv.addEventListener('pointermove', ptr); cv.addEventListener('pointerdown', (e) => { ptr(e); if (cfg.g === 'archery' || cfg.g === 'cart') IN.click = 1; else if (cfg.g === 'kemari') { if (e.button === 2) IN.bT = 1; else IN.aT = 1; } }); // 2.106.11 蹴鞠：左クリック＝速く返す、右クリック＝ゆるく返す
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
     const env = { cfg, me, ids: cfg.mem.map((x) => x.id), names: Object.fromEntries(cfg.mem.map((x) => [x.id, x.name])), tm: Object.fromEntries(cfg.mem.map((x) => [x.id, x.tm])), others: cfg.mem.map((x) => x.id).filter((id) => id !== me), cv, g2, finished: false, gone: {}, IN, send, pal: PAL, text: drawText };
-    const game = { race: raceGame, archery: archeryGame, cart: cartGame, kemari: kemariGame, hayashi: hayashiGame, hide: (e) => SGK.HIDE.make(e) }[cfg.g](env);
+    const game = { race: raceSeries, archery: archeryGame, cart: cartGame, kemari: kemariGame, hayashi: hayashiGame, hide: (e) => SGK.HIDE.make(e) }[cfg.g](env);
     let raf = 0, last = performance.now(); const stop = () => { cancelAnimationFrame(raf); removeEventListener('resize', onR); try { if (game.dispose) game.dispose(); } catch (er) {} root.remove(); RUN = null; for (const k of ['l', 'r', 'u', 'd', 'a', 'b', 'c']) IN[k] = 0; backToRoom(cfg, env.gone); };
-    RUN = { g: cfg.g, on: (from, m) => { if (cfg.g === 'race' && m.seed !== cfg.seed) return; if (m.k === 'quit') { env.gone[from] = 1; } if (game.msg) game.msg(from, m); } };
+    RUN = { g: cfg.g, bindings: cfg.g === 'race' ? raceBindings() : null, on: (from, m) => { if (cfg.g === 'race' && m.seed !== cfg.seed) return; if (m.k === 'quit') { env.gone[from] = 1; } if (game.msg) game.msg(from, m); } };
     env.end = (res) => { if (env.finished) return; env.finished = true; showResult(env, res, () => stop()); };
     if (cfg.g === 'race') {
       cv.classList.add('race-hud');
@@ -376,11 +545,120 @@
   const bar = (g, x, y, w, h, v, c) => { g.fillStyle = '#0008'; g.fillRect(x, y, w, h); g.fillStyle = c; g.fillRect(x, y, w * clamp(v, 0, 1), h); g.strokeStyle = '#fff8'; g.lineWidth = 1; g.strokeRect(x, y, w, h); };
 
   // =====================================================================
-  // 馬の障害レース
+  // 馬競争
   // =====================================================================
+  const RACE_ITEMS = [
+    { id: 'boost', name: '早駆け', first: 21, last: 24 },
+    { id: 'shield', name: '守り札', first: 32, last: 11 },
+    { id: 'mud', name: '泥袋', first: 31, last: 5 },
+    { id: 'hay', name: '干し草', first: 7, last: 19 },
+    { id: 'leap', name: '大跳び', first: 7, last: 13 },
+    { id: 'surge', name: '追い風', first: 2, last: 28 },
+  ];
+  const raceItemNames = Object.fromEntries(RACE_ITEMS.map(({ id, name }) => [id, name]));
+  function drawRaceItem(roll, position, count) {
+    const trailing = position / Math.max(1, count - 1);
+    let ticket = roll * 100;
+    for (const item of RACE_ITEMS) {
+      ticket -= item.first + (item.last - item.first) * trailing;
+      if (ticket < 0) return item.id;
+    }
+    return RACE_ITEMS.at(-1).id;
+  }
+
+  function raceSeries(env) {
+    if (!env.cfg.series) return raceGame(env);
+    const host = env.cfg.lead === env.me, count = RACE_COURSES.length;
+    let round = 0, totals = [], showing = null, pause = 0, stage, game;
+    function startRound() {
+      game?.dispose();
+      showing = null;
+      pause = 0;
+      stage = {
+        ...env,
+        cfg: { ...env.cfg, course: (raceCourseIndex(env.cfg.course) + round) % count, round },
+        send(to, message) {
+          env.send(to, { ...message, round, totals: host ? totals : undefined });
+        },
+        end: finishRound,
+      };
+      game = raceGame(stage);
+    }
+    function finishRound(result) {
+      if (stage.finished) return;
+      stage.finished = true;
+      if (!result.standings) return env.end(result);
+      const scores = result.standings.map((r, place) => ({
+        ...r, place, total: (totals[r.index] || 0) + r.points,
+      })).sort((a, b) => b.total - a.total || a.place - b.place);
+      const teamPoints = [0, 0];
+      if (env.cfg.team) for (const r of scores) teamPoints[r.team] += r.total;
+      const mine = scores.findIndex((r) => r.id === env.me);
+      const team = !env.cfg.team ? null : teamPoints[0] === teamPoints[1] ? 'draw' :
+        teamPoints[env.tm[env.me]] > teamPoints[1 - env.tm[env.me]] ? 'win' : 'lose';
+      const title = env.cfg.team ? { win: 'チームの勝ち！', lose: 'チームの負け…', draw: '引き分け' }[team] : '総合 ' + (mine + 1) + '位';
+      if (round + 1 === count) {
+        const rows = scores.map((r, i) => (i + 1) + '位　<b style="color:' + r.color + '">' + esc(r.name) +
+          '</b>　' + r.total + '点（第' + count + '戦 +' + r.points + '点）');
+        if (team) rows.unshift('<b>チーム合計　赤 ' + teamPoints[0] + '点 ／ 白 ' + teamPoints[1] + '点</b>');
+        env.end({ title, rows, cmd: { type: 'partyResult', game: 'race', n: scores.length, rank: mine + 1, team } });
+        return;
+      }
+      showing = { scores, teamPoints };
+    }
+    startRound();
+    return {
+      msg(from, message) {
+        if (!host && from === env.cfg.lead && message.k === 'raceState' &&
+            Number.isInteger(message.round) && message.round > round && message.round < count) {
+          round = message.round;
+          totals = Array.isArray(message.totals) ? message.totals : [];
+          startRound();
+        }
+        if (message.k === 'quit' && !host && from === env.cfg.lead && stage.finished) {
+          env.end({ title: '馬競争を中断しました', rows: ['リーダーが退出しました。'] });
+        } else if (message.k === 'quit' || message.round === round) game.msg(from, message);
+      },
+      update(dt) {
+        if (!stage.finished) {
+          stage.pad = env.pad;
+          game.update(dt);
+          return;
+        }
+        if (!showing) return;
+        pause += dt;
+        if (host && pause >= 5) {
+          totals = Array.from({ length: showing.scores.length }, () => 0);
+          for (const r of showing.scores) totals[r.index] = r.total;
+          round++;
+          startRound();
+        } else if (!host && pause >= 18) {
+          showing = null;
+          env.end({ title: '馬競争を中断しました', rows: ['リーダーとの通信が切れました。'] });
+        }
+      },
+      draw() {
+        game.draw();
+        if (!showing) return;
+        const { g2: g, cv } = env, x = cv.width / 2, y = Math.max(12, (cv.height - 336) / 2);
+        const width = Math.min(420, cv.width - 20), line = Math.min(20, (cv.height - y - 84) / showing.scores.length);
+        g.fillStyle = '#23251cef';
+        g.fillRect(x - width / 2, y, width, Math.min(cv.height - y - 8, 86 + line * showing.scores.length));
+        drawText(g, '第' + (round + 1) + '戦終了　次は ' + RACE_COURSES[(raceCourseIndex(env.cfg.course) + round + 1) % count].name,
+          x, y + 24, { sz: Math.min(17, width / 22), b: 1, al: 'center' });
+        drawText(g, env.cfg.team ? '合計　赤 ' + showing.teamPoints[0] + '点 ／ 白 ' + showing.teamPoints[1] + '点' : 'ここまでの合計点',
+          x, y + 48, { sz: 14, al: 'center', c: '#ffe6a2' });
+        showing.scores.forEach((r, i) => drawText(g, (i + 1) + '位　' + r.name.slice(0, 13) + '　' + r.total + '点（今回 +' + r.points + '）',
+          x, y + 72 + i * line, { sz: Math.min(14, line), al: 'center', c: r.color }));
+      },
+      dispose() { game.dispose(); },
+    };
+  }
+
   function raceGame(env) {
     const { cfg, me, g2: g, cv, ids, send, others } = env;
-    const host = cfg.lead === me, rng = mulberry(cfg.seed), lap = 480, laps = 3, goal = lap * laps;
+    const host = cfg.lead === me, rng = mulberry(cfg.seed ^ (cfg.round || 0) * 0x9e3779b9), lap = 480, laps = 3, goal = lap * laps;
+    const track = makeRaceTrack(cfg.course, lap);
     const racers = ids.map((id, i) => ({ id, name: nameOf(env, id), color: tcol(env, id), team: env.tm[id] }));
     if (cfg.solo) {
       ['小春', '黒鉄', '風切', '小春', '黒鉄'].forEach((name, i) => {
@@ -393,9 +671,9 @@
       [r.speed, r.accel, r.turn, r.weight] = raceStats(selected);
     }
     for (const [i, r] of racers.entries()) Object.assign(r, {
-      d: -Math.floor(i / 3) * 3, x: [0, -0.59, 0.59][i % 3], v: 0, y: 0, vy: 0, fin: null,
-      item: '', boost: 0, slow: 0, shield: 0, reserve: 1, steer: 0, dash: false,
-      jump: false, use: false, seen: -3, out: false, row: -1,
+      d: -Math.floor(i / 3) * 3, x: [0, -0.59, 0.59][i % 3], v: 0, y: 0, vy: 0, heading: 0, fin: null,
+      item: '', boost: 0, slow: 0, shield: 0, reserve: 1, steer: 0, dash: false, brake: false,
+      jump: false, use: false, seen: -3, out: !!env.gone?.[r.id], row: -1,
     });
     for (const r of racers) setLoadout(r, r === mine ? loadout : raceLoadout([r.cpu ? r.cpu % 3 : 0]));
     const course = [
@@ -410,13 +688,12 @@
     for (let i = 0; i < laps; i++) {
       for (const [offset, kind, lanes] of course) features.push({ d: i * lap + offset, kind, lanes });
     }
-    const world = SGK.RACE3D?.make(cv, lap, course, racers);
-    const itemNames = { boost: '早駆け', shield: '守り札', mud: '泥袋' };
+    const world = SGK.RACE3D?.make(cv, track, course, racers);
+    const itemNames = raceItemNames, bindings = raceBindings();
     const traps = [];
     let t = -3, heartbeat = performance.now(), clock = 0, first = null, over = false;
     let notice = '', noticeUntil = 0;
     const show = (message) => { notice = message; noticeUntil = t + 1.6; };
-    const curve = (d) => Math.sin(d * Math.PI * 2 / lap) + 0.36 * Math.sin(d * Math.PI * 6 / lap);
     const rank = () => racers.slice().sort((a, b) => (
       Number(a.out) - Number(b.out) || (a.fin ?? Infinity) - (b.fin ?? Infinity) || b.d - a.d
     ));
@@ -482,6 +759,10 @@
       env.end({
         title: cfg.team ? { win: 'チームの勝ち！', lose: 'チームの負け…', draw: '引き分け' }[team] : place + '位',
         rows, cmd: { type: 'partyResult', game: 'race', n, rank: place, team },
+        standings: cfg.series ? order.map((r, i) => ({
+          index: racers.indexOf(r), id: r.id, name: r.name, color: r.color, team: r.team,
+          points: !r.out && r.fin != null ? n - i : 0,
+        })) : null,
       });
     }
 
@@ -498,8 +779,12 @@
 
     function useItem(r) {
       if (!r.item) return;
+      if (r.item === 'leap' && r.y > 0) return;
       if (r === mine) show(itemNames[r.item] + '！');
-      if (r.item === 'boost') r.boost = 2.4;
+      if (r.item === 'boost') r.boost = Math.max(r.boost, 2.4);
+      if (r.item === 'surge') r.boost = Math.max(r.boost, 4.6);
+      if (r.item === 'hay') { r.reserve = 1; r.exhausted = false; r.slow = 0; }
+      if (r.item === 'leap') r.vy = 11.2;
       if (r.item === 'shield') r.shield = 9;
       if (r.item === 'mud') traps.push({ d: r.d - 2, x: r.x, owner: r, until: t + 12 });
       r.item = '';
@@ -513,11 +798,12 @@
       }
       if (r.id !== me && !r.cpu && t - r.seen > 0.6) {
         r.steer = 0;
-        r.dash = r.jump = r.use = false;
+        r.dash = r.brake = r.jump = r.use = false;
       }
       const next = features[r.row + 1];
+      let lane;
       if (r.cpu) {
-        let lane = [-0.59, 0, 0.59][(r.cpu + Math.floor(r.d / 83 + 1)) % 3];
+        lane = [-0.59, 0, 0.59][(r.cpu + Math.floor(r.d / 83 + 1)) % 3];
         if (next && next.d - r.d < 26) {
           if ((next.kind === 'pad' && (r.cpu > 2 || r.row % 3 === 0)) || (next.kind === 'box' && !r.item)) {
             lane = next.lanes[r.cpu % next.lanes.length];
@@ -525,27 +811,23 @@
             lane = [-0.59, 0, 0.59].find((x) => !next.lanes.includes(x)) ?? lane;
           }
         }
-        r.steer = clamp((lane - r.x) * 4, -1, 1);
         r.dash = (t + r.cpu * 1.7) % (5 + r.cpu * 0.55) < 1.45;
         r.jump = next && next.kind === 'fence' && next.d - r.d < r.v * (0.2 + r.cpu * 0.016);
-        r.use = r.item === 'boost' || (r.item === 'shield' && !!r.jump) || (r.item === 'mud' && r.row % 3 === 0);
+        r.use = r.item === 'boost' || r.item === 'surge' || (r.item === 'hay' && (r.reserve < 0.35 || r.slow > 0)) ||
+          ((r.item === 'shield' || r.item === 'leap') && !!r.jump) || (r.item === 'mud' && r.row % 3 === 0);
       }
       if (r.use) useItem(r);
       r.use = false;
-      const dashing = r.dash && !r.exhausted && r.slow <= 0;
+      const dashing = r.dash && !r.brake && !r.exhausted && r.slow <= 0;
       r.reserve = clamp(r.reserve + dt * (dashing ? -0.48 : 0.29), 0, 1);
       if (r.reserve === 0) r.exhausted = true;
       if (r.reserve >= 0.34) r.exhausted = false;
-      const bend = curve(r.d + 10) - 2 * curve(r.d) + curve(r.d - 10);
-      const steering = 1.12 + r.turn * 0.14;
-      r.x = clamp(r.x + (r.steer * steering - bend * r.v * (0.19 + r.weight * 0.027)) * dt, -0.97, 0.97);
       const topSpeed = 19 + r.speed * 0.72 - (r.cpu ? (6 - r.cpu) * 0.65 : 0);
       const target = r.slow > 0 ? 11 : topSpeed + (r.boost > 0 ? 13 : dashing ? 6 : 0);
-      const speed = Math.abs(r.x) > 0.88 ? Math.min(target, 17) : target;
+      const speed = r.brake || Math.abs(r.x) > 1 ? Math.min(target, 10) : target;
       r.v += (speed - r.v) * Math.min(1, dt * (3.1 + r.accel * 0.53));
-      const before = r.d, travelled = r.v * dt;
-      r.d += travelled;
-      if (r.jump && r.y === 0) r.vy = 7.7;
+      const before = r.d, travelled = steerRaceHorse(r, track, dt, lane);
+      if (r.jump && r.y === 0) r.vy = Math.max(r.vy, 7.7);
       r.jump = false;
       r.vy -= 20 * dt;
       r.y = Math.max(0, r.y + r.vy * dt);
@@ -556,9 +838,8 @@
         r.row++;
         if (next.lanes.some((lane) => Math.abs(lane - r.x) < 0.285)) {
           if (next.kind === 'box' && !r.item) {
-            const behind = rank().indexOf(r) >= racers.length / 2;
-            const roll = rng();
-            r.item = roll < (behind ? 0.7 : 0.36) ? 'boost' : roll < 0.84 ? 'shield' : 'mud';
+            const active = rank().filter((rider) => !rider.out);
+            r.item = drawRaceItem(rng(), active.indexOf(r), active.length);
             if (r === mine) show(itemNames[r.item] + 'を拾った！');
           }
           if (next.kind === 'pad' && r.y < 0.25) r.boost = Math.max(r.boost, 1.45);
@@ -585,7 +866,7 @@
       send(others, {
         k: 'raceState', seed: cfg.seed, t: r2(t), over,
         riders: racers.map((r) => [over ? r.d : r1(r.d), r2(r.x), r2(r.y), r1(r.v), r.fin, r.item,
-          r2(r.reserve), r2(r.boost), r2(r.shield), r2(r.slow), Number(r.out), r.loadout]),
+          r2(r.reserve), r2(r.boost), r2(r.shield), r2(r.slow), Number(r.out), r.loadout, r2(r.heading)]),
         traps: traps.map((trap) => [r1(trap.d), r2(trap.x)]),
       });
     }
@@ -593,28 +874,31 @@
     function input() {
       const keys = (IN.r ? 1 : 0) - (IN.l ? 1 : 0);
       const steer = keys || env.pad?.x || (padR ? 1 : 0) - (padL ? 1 : 0);
-      return [r2(steer), !!(IN.b || IN.u || IN.pb || IN.pu), !!IN.aT, !!IN.cT];
+      return [r2(steer), !!(IN.b || IN.u || env.pad?.dash), !!IN.aT, !!IN.cT, !!(IN.d || env.pad?.brake)];
     }
 
-    function applyInput(r, [steer, dash, jump, use]) {
+    function applyInput(r, [steer, dash, jump, use, brake]) {
       r.steer = Number.isFinite(steer) ? clamp(steer, -1, 1) : 0;
       r.dash = dash === true;
+      r.brake = brake === true;
       r.jump ||= jump === true;
       r.use ||= use === true;
       r.seen = t;
     }
 
-    const view = racers.map((r) => ({ d: r.d, x: r.x, y: 0 }));
+    const view = racers.map((r) => ({ d: r.d, x: r.x, y: 0, heading: 0 }));
     let displayedTraps = [];
     function drawFlat() {
       const w = cv.width, h = cv.height, horizon = h * 0.29, near = Math.min(w * 0.53, h * 0.79);
       const self = view[racers.indexOf(mine)], camera = self.d - 10;
-      const bend = curve(camera), bendAhead = curve(camera + 14) - bend;
+      const eye = track.point(self.d), roadHeading = eye.heading;
+      const sideX = -Math.sin(roadHeading), sideZ = Math.cos(roadHeading);
       const perspective = (d, x = 0) => {
-        const z = Math.max(2, d - camera);
+        const z = Math.max(2, d - camera), at = track.point(d);
         const scale = 10 / z;
-        const center = (curve(d) - bend - bendAhead * z / 14) * 0.53;
-        return { x: w / 2 + (x - self.x * 0.48 + center) * near * scale,
+        const center = ((at.x - eye.x) * sideX + (at.z - eye.z) * sideZ) / track.halfWidth;
+        const glance = Math.sin(self.heading) * 0.32 * (z - 10) / track.halfWidth;
+        return { x: w / 2 + (x - self.x + center - glance) * near * scale,
           y: horizon + h * 0.5 * scale, half: near * scale, scale };
       };
       const fill = (color, ...points) => {
@@ -633,7 +917,7 @@
       g.fillStyle = sky;
       g.fillRect(0, 0, w, h);
       for (let i = -1; i < 6; i++) {
-        const x = (i / 4 - bend * 0.06) * w;
+        const x = (i / 4 - Math.cos(roadHeading) * 0.06) * w;
         fill(i % 2 ? '#789381' : '#688b84', [x - w * 0.24, horizon + 5],
           [x + w * 0.09, horizon * (0.46 + (i % 3) * 0.09)], [x + w * 0.35, horizon + 5]);
       }
@@ -724,6 +1008,33 @@
 
     }
 
+    const outline = Array.from({ length: 120 }, (_, i) => track.point(i * lap / 120));
+    const minX = Math.min(...outline.map((p) => p.x)), maxX = Math.max(...outline.map((p) => p.x));
+    const minZ = Math.min(...outline.map((p) => p.z)), maxZ = Math.max(...outline.map((p) => p.z));
+    function drawCourseMap(w, order) {
+      const size = w < 380 ? 72 : 94, left = w - size - 12, top = 50;
+      const scale = (size - 16) / Math.max(maxX - minX, maxZ - minZ);
+      const x = (p) => left + size / 2 + (p.x - (minX + maxX) / 2) * scale;
+      const y = (p) => top + size / 2 + (p.z - (minZ + maxZ) / 2) * scale;
+      g.fillStyle = '#23251cdd';
+      g.fillRect(left, top, size, size);
+      g.beginPath();
+      g.moveTo(x(outline[0]), y(outline[0]));
+      for (const p of outline.slice(1)) g.lineTo(x(p), y(p));
+      g.closePath();
+      g.strokeStyle = '#d6b785';
+      g.lineWidth = 2;
+      g.stroke();
+      for (const r of order.slice().reverse()) {
+        if (r.out) continue;
+        const p = track.point(r.d);
+        g.beginPath();
+        g.arc(x(p), y(p), r === mine ? 4 : 2.5, 0, 7);
+        g.fillStyle = r === mine ? '#fff' : r.color;
+        g.fill();
+      }
+    }
+
     function draw() {
       const w = cv.width, h = cv.height;
       if (!world?.draw(view, racers.indexOf(mine), displayedTraps, t, (s, x, y, options) => drawText(g, s, x, y, options))) drawFlat();
@@ -733,6 +1044,9 @@
       drawText(g, place + '位 / ' + racers.length, 22, 46, { sz: 28, b: 1 });
       drawText(g, Math.min(laps, 1 + Math.floor(Math.max(0, mine.d) / lap)) + ' / ' + laps + '周',
         23, 69, { sz: 15, c: '#f4d389' });
+      drawCourseMap(w, order);
+      const courseTitle = cfg.series ? (cfg.round + 1) + '/' + RACE_COURSES.length + '　' + track.name : track.name;
+      drawText(g, courseTitle, w / 2, 31, { sz: 14, al: 'center' });
       drawText(g, 'ダッシュ', 22, 92, { sz: 12 });
       bar(g, 83, 82, 77, 11, mine.reserve, '#efc24e');
       const trackWidth = Math.min(280, w - 36), trackX = (w - trackWidth) / 2, trackY = 122;
@@ -750,8 +1064,14 @@
       if (cv.parentElement.classList.contains('race-keys')) {
         g.fillStyle = '#23251cdd';
         g.fillRect(0, h - 29, w, 29);
-        drawText(g, SGK.HINT.pick({ kb: '← → 進路　 Space 跳ぶ　 Shift 加速　 E 道具', pad: `左スティック 進路　${SGK.HINT.btn('A')} 跳ぶ　${SGK.HINT.btn('B')}／${SGK.HINT.btn('X')} 加速　${SGK.HINT.btn('Y')} 道具`, touch: '← → 進路・右の「走る」「跳ぶ」「道具」' }), w / 2, h - 10,
+        drawText(g, SGK.HINT.pick({ kb: RACE_ACTIONS.map(([id, label]) => raceBindingName('k', bindings.k[id]) + ' ' + label).join('　'),
+          pad: '左スティック・' + RACE_ACTIONS.map(([id, label]) => raceBindingName('p', bindings.p[id]) + ' ' + label).join('　'), touch: '← → 曲がる・右の「走る」「跳ぶ」「道具」「減速」' }), w / 2, h - 10,
           { sz: Math.min(14, w / 25), al: 'center' });
+      }
+      const bend = raceAngle(track.point(mine.d + 15).heading - track.point(mine.d).heading);
+      if (t >= 0 && mine.fin == null && Math.abs(bend) > 0.38) {
+        drawText(g, bend > 0 ? '右カーブ →' : '← 左カーブ', w / 2, 202,
+          { sz: 17, al: 'center', b: 1, c: '#ffe6a2' });
       }
       if (noticeUntil > t && t >= 0) drawText(g, notice, w / 2, 179, { sz: 16, al: 'center' });
       if (t < 0 || t < 0.65) drawText(g, t < 0 ? String(Math.ceil(-t)) : '出走！', w / 2, h * 0.54,
@@ -787,8 +1107,9 @@
           over = m.over;
           racers.forEach((r, i) => {
             const oldItem = r.item, oldSlow = r.slow;
-            let out, selected;
-            [r.d, r.x, r.y, r.v, r.fin, r.item, r.reserve, r.boost, r.shield, r.slow, out, selected] = m.riders[i];
+            let out, selected, heading;
+            [r.d, r.x, r.y, r.v, r.fin, r.item, r.reserve, r.boost, r.shield, r.slow, out, selected, heading] = m.riders[i];
+            r.heading = Number.isFinite(heading) ? heading : 0;
             if (r !== mine) r.loadout = raceLoadout(selected);
             r.out = !!out;
             if (r === mine && r.item && r.item !== oldItem) show(itemNames[r.item] + 'を拾った！');
@@ -832,6 +1153,7 @@
           v.d += (r.d - v.d) * (host ? 1 : weight);
           v.x += (r.x - v.x) * (host ? 1 : weight);
           v.y += (r.y - v.y) * (host ? 1 : weight);
+          v.heading = raceAngle(v.heading + raceAngle(r.heading - v.heading) * (host ? 1 : weight));
         });
       },
       draw,

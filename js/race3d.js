@@ -28,7 +28,8 @@
     return copy;
   }
 
-  function make(cv, lap, course, racers) {
+  function make(cv, track, course, racers) {
+    const { lap, halfWidth } = track;
     const T = window.THREE;
     if (!T || !cv?.parentElement) return null;
     let renderer;
@@ -48,16 +49,9 @@
     sun.position.set(-40, 55, 30);
     scene.add(sun);
 
-    const path = new T.CatmullRomCurve3([
-      [-42, 63], [15, 68], [66, 40], [75, -8], [50, -48],
-      [11, -61], [-43, -50], [-72, -20], [-65, 27],
-    ].map(([x, z]) => new T.Vector3(x, 0, z)), true, 'centripetal');
-    path.arcLengthDivisions = 960;
-    const wrap = (d) => ((d % lap) + lap) % lap / lap;
-    const forward = (d) => path.getTangentAt(wrap(d));
     function point(d, x = 0, y = 0) {
-      const at = path.getPointAt(wrap(d)), f = forward(d);
-      return at.set(at.x - f.z * x * 5.5, y, at.z + f.x * x * 5.5);
+      const at = track.point(d), side = x * halfWidth;
+      return new T.Vector3(at.x - Math.sin(at.heading) * side, y, at.z + Math.cos(at.heading) * side);
     }
     let seed = 3751;
     const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
@@ -143,8 +137,7 @@
 
     function place(group, d, x, y = 0) {
       group.position.copy(point(d, x, y));
-      const dir = forward(d);
-      group.rotation.y = Math.atan2(dir.x, dir.z);
+      group.rotation.y = Math.PI / 2 - track.point(d).heading;
     }
     function scenery() {
       const trees = [], stones = [];
@@ -379,17 +372,21 @@
       }
       const now = performance.now(), dt = Math.min(0.06, (now - previous) / 1000);
       previous = now;
-      const own = view[me], distance = own.d, f = forward(distance);
+      const own = view[me], distance = own.d, roadHeading = track.point(distance).heading;
       const cameraPull = w / h < 0.85 ? 7.9 : 7.6;
-      camera.position.copy(point(distance - cameraPull, own.x * 0.76, 3.5 + own.y * 0.15));
-      camera.lookAt(point(distance + 11, own.x * 0.20, 0.9));
-      backdrop.style.backgroundPosition = (50 + f.x * 12).toFixed(1) + '% top';
+      const cameraHeading = roadHeading + Math.sin(own.heading) * 0.42;
+      const cameraX = Math.cos(cameraHeading), cameraZ = Math.sin(cameraHeading);
+      const behind = point(distance, own.x, 3.5 + own.y * 0.15);
+      camera.position.set(behind.x - cameraX * cameraPull, behind.y, behind.z - cameraZ * cameraPull);
+      camera.lookAt(behind.x + cameraX * 7, 0.9, behind.z + cameraZ * 7);
+      backdrop.style.backgroundPosition = (50 + cameraX * 12).toFixed(1) + '% top';
       const labels = [];
       models3d.forEach((visual, index) => {
         const r = racers[index], v = view[index];
         visual.root.visible = !r.out;
         if (r.out) return;
         place(visual.root, v.d, v.x);
+        visual.root.rotation.y -= v.heading;
         const coat = r.loadout[0];
         if (loaded && (!visual.horse || visual.coat !== coat)) installHorse(visual, coat);
         if (!visual.horse && visual.coat !== coat) visual.skin.forEach((part) => { part.material = coats[coat]; });
