@@ -780,7 +780,7 @@
             if (MY.role === 's') { if (!locked) strike(MY); }
             else if (MY.fcd <= 0 && !palHere) { const q = near(MY.x, MY.z, 2.4); if (q) { MY.form = { k: q.kind, v: q.v }; MY.fcd = cho(MY) === 'geinin' ? 0.2 : 0.8; SGK.AUDIO.sfx('kmrKick'); say(`${KIND[q.kind]}に化けた`); } else say('近くに化けられる物がありません'); }
           }
-          if (IN.cT) useSkill();
+          if (IN.cT && !qte) useSkill(); // 3.30.2 合図（宝箱の順押し）の入力の時は、スキルを発動しない
           if (IN.bT && !qte && MY.role === 'h' && MY.form) { MY.form = null; MY.fcd = 0.5; say('人の姿に戻った'); }
           if (IN.bT && MY.role === 's' && phase === 'play') { if (MY.form) { MY.form = null; MY.fcd = 0.5; say('鬼の姿に戻った'); } else if (MY.fcd <= 0 && !MY.carry) { const q2 = near(MY.x, MY.z, 2.4); if (q2) { MY.form = { k: q2.kind, v: q2.v }; MY.fcd = 0.8; SGK.AUDIO.sfx('kmrKick'); say(`${KIND[q2.kind]}に化けた（Aで叩くと正体を現す）`); } else say('近くに化けられる物がありません'); } }
         }
