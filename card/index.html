@@ -251,7 +251,7 @@ button.effect-link:hover:not(:disabled){background:none;color:#fff0b0;outline:no
  <form method="dialog"><button autofocus>閉じる</button></form>
 </dialog>
 <script>
-const VERSION='0.76';
+const VERSION='0.77';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -272,7 +272,7 @@ const COMMON_CARD_EFFECTS={
  slayer:{name:'刺し違え',detail:'武将と戦闘した後、相手の武将を破壊する。'},
  double:{name:'連破',detail:'相手の城門を攻撃したとき、城門を2枚破る。'},
  ambush:{name:'奇襲',detail:'破られた城門から出たとき、無料で発動するか、手札に加えて温存するかを選べる。'},
- draw:{name:'ドロー',detail:'自分の山札の上から札を1枚引く。'},
+ draw:{name:'引札',detail:'自分の山札の上から札を1枚引く。'},
 };
 const commonEffectLabel=k=>'（'+COMMON_CARD_EFFECTS[k].name+'）';
 const commonEffectKeys=new Map(Object.keys(COMMON_CARD_EFFECTS).map(k=>[commonEffectLabel(k),k]));
