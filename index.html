@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="sgk-ver" content="3.34.0">
+<meta name="sgk-ver" content="3.35.0">
 <title>天下往来</title>
 <style>
   :root { --ink:#efe6cc; --panel:rgba(24,20,15,.88); --line:#8a7448; --gold:#f2c14e; }
@@ -93,6 +93,7 @@
     #mobBar #mobWeapon { font-size:14px; }
   }
   #gameMenu { position:absolute; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap; overflow:auto; }
+  .playerList { list-style:none; margin:0; padding:0; overflow-wrap:anywhere; }
   #gameMenu .menu { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
   #warBoard { position:absolute; left:10px; bottom:10px; max-width:min(440px,60vw); font-size:13px; padding:6px 9px; pointer-events:none; }
   #warBoard div { margin:2px 0; }
@@ -328,6 +329,7 @@
       <button id="mBattleLead" class="hidden"></button>
       <button id="mSettings">設定（音・操作説明）</button>
       <button id="mChar">人物・部隊</button>
+      <button id="mPlayers">参加者一覧</button>
       <button id="mZukan">兵士図鑑</button>
       <button id="mBusho">武将一覧</button>
       <button id="mFollow" class="hidden">自分へ</button>

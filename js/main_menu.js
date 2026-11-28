@@ -220,14 +220,51 @@ function toggleMenu(open) {
 }
 // B・Esc：設定を開いていればメニューへ戻る、そうでなければ閉じる
 // 1.3.0 メニューの中の小さな画面（兵士図鑑・物資）
+let playerListKey = '';
+function renderPlayerList() {
+  if (G.sub !== 'players' || $('gameMenu').classList.contains('hidden') || $('mSub').classList.contains('hidden')) return;
+  const players = G.mode === 'client' && !G.dyn ? null : G.view?.players;
+  const entries = players?.map((p) => [p.name, p.id === G.myPid]);
+  const key = JSON.stringify(entries ?? null);
+  if (key === playerListKey) return;
+  playerListKey = key;
+
+  const summary = document.createElement('p');
+  summary.className = 'muted';
+  summary.textContent = entries ? `この世界に参加中 ${entries.length}人` : '参加者の情報を受信しています…';
+  const body = $('mSubB');
+  body.replaceChildren(summary);
+  if (!entries?.length) return;
+
+  entries.sort(([a, mineA], [b, mineB]) => Number(mineB) - Number(mineA) || a.localeCompare(b, 'ja'));
+  const list = document.createElement('ul');
+  list.className = 'playerList';
+  for (const [name, mine] of entries) {
+    const row = document.createElement('li');
+    row.className = 'card';
+    row.textContent = mine ? `${name}（自分）` : name;
+    list.append(row);
+  }
+  body.append(list);
+}
+
 function openSub(kind) {
-  const m = G.priv && G.priv.me; if (!m && kind !== 'busho') return;
+  const m = G.priv && G.priv.me; if (!m && kind !== 'busho' && kind !== 'players') return;
   $('gameMenu').classList.remove('hidden'); $('mMain').classList.add('hidden'); $('mSet').classList.add('hidden'); $('mSub').classList.remove('hidden');
-  G.sub = kind; $('mSubT').textContent = kind === 'inv' ? '持っている物資' : kind === 'busho' ? '武将一覧' : '兵士図鑑'; $('mSubB').innerHTML = kind === 'inv' ? invHtml(m) : kind === 'busho' ? bushoHtml() : zukanHtml(m); $('mSubB').scrollTop = 0;
+  G.sub = kind;
+  if (kind === 'players') {
+    $('mSubT').textContent = '参加者一覧';
+    playerListKey = '';
+    renderPlayerList();
+  } else {
+    $('mSubT').textContent = kind === 'inv' ? '持っている物資' : kind === 'busho' ? '武将一覧' : '兵士図鑑';
+    $('mSubB').innerHTML = kind === 'inv' ? invHtml(m) : kind === 'busho' ? bushoHtml() : zukanHtml(m);
+  }
+  $('mSubB').scrollTop = 0;
   SGK.AUDIO.sfx('open'); setFocus($('gameMenu'), $('mSubBack'));
 }
 function menuBack() { { const pt = document.getElementById('ptBox') || document.getElementById('ptRes'); if (pt) { const bs = menuButtons(pt); if (bs.length) bs[bs.length - 1].click(); return; } } // 2.69.2 みんなで遊ぶの窓：Bで閉じる（いちばん後ろのボタン＝閉じる・やめる）
-  if (!$('mSub').classList.contains('hidden')) { if (G.sub === 'inv') toggleMenu(false); else { $('mSub').classList.add('hidden'); $('mMain').classList.remove('hidden'); setFocus($('gameMenu'), $('mZukan')); } return; } if (!$('mSet').classList.contains('hidden')) { $('mSet').classList.add('hidden'); $('mMain').classList.remove('hidden'); setFocus($('gameMenu'), $('mSettings')); } else toggleMenu(false); }
+  if (!$('mSub').classList.contains('hidden')) { if (G.sub === 'inv') toggleMenu(false); else { $('mSub').classList.add('hidden'); $('mMain').classList.remove('hidden'); setFocus($('gameMenu'), $(G.sub === 'players' ? 'mPlayers' : 'mZukan')); } return; } if (!$('mSet').classList.contains('hidden')) { $('mSet').classList.add('hidden'); $('mMain').classList.remove('hidden'); setFocus($('gameMenu'), $('mSettings')); } else toggleMenu(false); }
 // ---------- 設定（音・表示／操作説明：地図／操作説明：戦闘） ----------
 const PADS = {
   xbox: { name: 'Xbox系', k: { A: 'A', B: 'B', X: 'X', Y: 'Y', LB: 'LB', RB: 'RB', L3: 'L3（左スティック押し込み）', BACK: 'BACK', START: 'START' } },
@@ -305,6 +342,7 @@ $('zoomIn').onclick = () => anyZoom(1.2);
 $('zoomOut').onclick = () => anyZoom(1 / 1.2);
 $('mZukan').onclick = () => openSub('zukan');
 $('mBusho').onclick = () => openSub('busho');
+$('mPlayers').onclick = () => openSub('players');
 $('mSubBack').onclick = () => menuBack();
 $('mFollow').onclick = () => { const m = me(), d = m && (G.disp[m.id] || m); if (d) { R.cam.x = d.x; R.cam.y = d.y; } R.cam.follow = true; if (G.pcurOn) G.pcur = [cv.clientWidth / 2, cv.clientHeight / 2]; }; // 0.75.0 自分の所へ移って追いかける（カーソルや地図を動かすと解除）
 $('mTitle').onclick = () => backToTitle();

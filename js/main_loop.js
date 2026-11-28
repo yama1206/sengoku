@@ -41,6 +41,7 @@ function frame0(now) {
   const padMove = pollPad(dt);
   if (G.mode === 'title') SGK.AUDIO.scene('title');
   if ((G.mode === 'host' || G.mode === 'client') && buildView()) {
+    renderPlayerList();
     if (G.mode === 'host') {
       const battle = G.world.players[G.myPid]?.battle;
       if (!G.priv || battle || G.priv.battle || now >= hostPrivDue) {
