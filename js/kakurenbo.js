@@ -444,7 +444,7 @@
     };
     // 印（探す先の輪・叩いた所・ビーコン）
     const ring = (c, ri, ro) => { const m = new T3.Mesh(new T3.RingGeometry(ri, ro, 28), new T3.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.8, side: T3.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.y = 0.06; m.visible = false; scene.add(m); return m; };
-    const nz = ring(0x70c8ff, 4.6, 5), hl = ring(0xffe070, 0.75, 1.0), bc = ring(0xff8040, 5.6, 6), sw = ring(0xffffff, 0.9, 1.3), swm = ring(0xff4040, 0.9, 1.3); nz.renderOrder = 5; // 壁越しに出す時は depthTest を切る（下の表示で切り替える）
+    const nz = ring(0x70c8ff, 4.6, 5), hl = ring(0xffe070, 0.75, 1.0), bc = ring(0xff8040, 5.6, 6), sw = ring(0xffffff, 0.9, 1.3), swm = ring(0xff4040, 0.9, 1.3); nz.renderOrder = 5; const atkR = new T3.Mesh(new T3.CircleGeometry(R_HIT, 28), new T3.MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.16, depthWrite: false, side: T3.DoubleSide })); atkR.rotation.x = -Math.PI / 2; atkR.position.y = 0.05; atkR.visible = false; scene.add(atkR); // 3.33.2 鬼の攻撃範囲を、いつも薄く表示; // 壁越しに出す時は depthTest を切る（下の表示で切り替える）
 
     // 状態
     const FX = [], traps = []; let nzo = null, t = 0, phase = 'play', done = false, toast = null, toastT = 0, pend = null, sendT = 0, bk = 0, beacon = null, bcT = 0, last = { aT: 0 };
@@ -885,6 +885,7 @@
         if (view === 'fp') { if (act && MY.stun <= 0 && !(MY.role === 'h' && MY.form && o.mv === 'none')) { MY.fx = Math.sin(cyaw); MY.fz = Math.cos(cyaw); } if (MY.grp) MY.grp.visible = false; }
         camX += (MY.x - camX) * Math.min(1, dt * 6); camZ += (MY.z - camZ) * Math.min(1, dt * 6);
         // 印
+        atkR.visible = MY.role === 's' && alive(MY) && !done; if (atkR.visible) atkR.position.set(MY.x + MY.fx * 1.2, 0.05, MY.z + MY.fz * 1.2);
         const q = alive(MY) && !(MY.role === 's' && (phase === 'hide' || MY.form)) ? near(MY.x, MY.z, 2.4) : null; hl.visible = !!q && act; if (q) { hl.position.set(q.x, 0.06, q.z); hl.scale.setScalar(1.5 + 0.3 * Math.sin(t * 8)); }
         if (MY.role === 's' && alive(MY) && MY.stun <= 0 && !done) for (const q of traps) if (Math.hypot(q.x - MY.x, q.z - MY.z) < 1.0) { MY.stun = 2.5; say('罠にかかった！'); tell({ k: 'tx', tid: q.tid, x: r2(q.x), z: r2(q.z), by: me }); scene.remove(q.m); traps.splice(traps.indexOf(q), 1); FX.push({ x: q.x, z: q.z, t: 0.5, bad: true }); SGK.AUDIO.sfx('hit'); break; }
         for (const q of traps) q.m.visible = MY.role !== 's';
