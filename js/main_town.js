@@ -55,7 +55,7 @@ function kemariHtml(h) { // 2.62.0 蹴鞠大会（毎月5日・大きな町）�
   const nm = (x) => String(x).replace(/[&<>"]/g, '');
   if (k.dom < 5) return '<div class="muted" style="margin-top:4px">明日5日は、この町で蹴鞠大会（2人以上で蹴鞠を続け、見事の回数を競う）</div>';
   const bd = k.board.length ? k.board.map((x, i) => `${i + 1}. ${nm(x.name)} 見事${x.great}回（落とした${x.miss}回）`).join('　') : 'まだ記録はありません'; // 3.37.1 見事の回数で順位
-  return `<div style="margin-top:4px"><b style="color:#f2c14e">${k.on ? '本日、蹴鞠大会！' : k.dom >= 8 ? '今月の蹴鞠大会の結果' : '蹴鞠大会の番付（8日に順位が決まります）'}</b> <span class="muted">${k.on ? '2人以上で蹴鞠を始めると記録が残ります。1〜3位は賞金（10回以上で100貫・50貫・25貫）、ほかは参加賞10貫' : ''}</span><br><span class="muted">${bd}</span></div>`;
+  return `<div style="margin-top:4px"><b style="color:#f2c14e">${k.on ? '本日、蹴鞠大会！' : k.dom >= 8 ? '今月の蹴鞠大会の結果' : '蹴鞠大会の番付（8日に順位が決まります）'}</b> <span class="muted">${k.on ? '2人以上で蹴鞠を始めると記録が残ります。1〜3位は賞金（見事10回以上で100貫・50貫・25貫）、ほかは参加賞10貫' : ''}</span><br><span class="muted">${bd}</span></div>`;
 }
 const dayLeft = (dl) => { const d = (dl - G.view.t) / 1440; return d >= 1 ? `あと${Math.floor(d)}日` : 'まもなく期限'; };
 const sName = (id) => (G.view.settlements.find((x) => x.id === id) || {}).name || '?';
