@@ -568,11 +568,13 @@ const SAVE_PREFIX=EMBED?'sengoku_card_embed':'sengoku_card';
 // 旧版を開いたままのタブと、初期化後の所持データを分ける
 const SAVE_KEY=SAVE_PREFIX+'_v3',PREVIOUS_SAVE_KEY=SAVE_PREFIX+'_v2',LEGACY_SAVE_KEY=SAVE_PREFIX+'_v1';
 let SV={deck:{},coin:0,pt:0,prints:{},lastLogin:'',starters:{}};
-let myDeck={},editFilter='all',editAll=false,editMsg='';
-// 陣立ての並べ替え・絞り込み(思想は editFilter、それ以外はここ)
-let editF={sort:'no',type:'all',cost:'all',power:'all',kw:'all'};
+let myDeck={},editFilter=[],editAll=false,editMsg='';
+// 陣立ての並べ替え・絞り込み(思想は editFilter、それ以外はここ)。絞り込みは複数選べる(空配列=全て)。同じ項目の中はどれか一つに合えばよい
+let editF={sort:'no',type:[],cost:[],power:[],kw:[]};
 const EPOW={all:'全て',lo:'2000まで',mid:'3000〜4000',hi:'5000以上'};
-const EKW={all:'全て',any:'効果あり',none:'効果なし',rush:'先',guard:'殿',double:'連',duel:'一',slayer:'刺'};
+const EKW={all:'全て',any:'効果あり',none:'効果なし',rush:'先',guard:'殿',double:'連',duel:'一',slayer:'刺',draw:'引札'};
+// 引札(共通効果)を持つ札か。引札の効果・武器の攻撃時効果・文中に（引札）と出る効果を含む
+const hasDraw=c=>c.e.some(e=>e.t==='draw')||!!(c.w&&c.w.drawAtk)||desc(c).includes(DRAW_LABEL);
 function cardCmp(key){return {cu:(a,b)=>a.c-b.c,cd:(a,b)=>b.c-a.c,pw:(a,b)=>(b.t==='u'?b.p:-1)-(a.t==='u'?a.p:-1)||a.c-b.c,nm:(a,b)=>a.n.localeCompare(b.n,'ja'),id:(a,b)=>Object.keys(IDEO).indexOf(a.i)-Object.keys(IDEO).indexOf(b.i)||a.c-b.c}[key]||null;}
 let listF={sort:'no',ideo:'all',type:'all',cost:'all',own:'all',house:'all'};
 let listHouseOpen=false;
@@ -1208,19 +1210,21 @@ function backAction(){
 function backHTML(){const a=backAction();return a?`<button class="backfix" data-a="${a}">戻る</button>`:'';}
 function editHTML(){
  const tot=deckTotal(myDeck),ide=deckIdeos(myDeck),ok=deckValid(myDeck),daimyo=deckDaimyo(myDeck);
- const costOk=c=>{const k=editF.cost;if(k==='all')return true;const n=+k;return n===0?c.c<=1:n===5?c.c>=5:c.c===n;};
- const powOk=c=>{const k=editF.power;if(k==='all')return true;if(c.t!=='u')return false;return k==='lo'?c.p<=2000:k==='mid'?c.p>=3000&&c.p<=4000:c.p>=5000;};
- const kwOk=c=>{const k=editF.kw;if(k==='all')return true;if(k==='any')return !!desc(c);if(k==='none')return !desc(c);return c.k.includes(k);};
- const list=CARDS.filter(c=>houseAvailable(c.h)&&(editFilter==='all'||c.i===editFilter)&&(editAll||ownedOf(c)>0||(myDeck[c.id]||0)>0)&&(editF.type==='all'||c.t===editF.type)&&costOk(c)&&powOk(c)&&kwOk(c));
+ const hit=(sel,fn)=>!sel.length||sel.some(fn); // 選んでいない(空)なら全て、選んだものはどれか一つに合えばよい
+ const costOk=c=>hit(editF.cost,k=>{const n=+k;return n===0?c.c<=1:n===5?c.c>=5:c.c===n;});
+ const powOk=c=>hit(editF.power,k=>{if(c.t!=='u')return false;return k==='lo'?c.p<=2000:k==='mid'?c.p>=3000&&c.p<=4000:c.p>=5000;});
+ const kwOk=c=>hit(editF.kw,k=>{if(k==='any')return !!desc(c);if(k==='none')return !desc(c);if(k==='draw')return hasDraw(c);return c.k.includes(k);});
+ const list=CARDS.filter(c=>houseAvailable(c.h)&&hit(editFilter,k=>c.i===k)&&(editAll||ownedOf(c)>0||(myDeck[c.id]||0)>0)&&hit(editF.type,k=>c.t===k)&&costOk(c)&&powOk(c)&&kwOk(c));
  const ecmp=cardCmp(editF.sort);if(ecmp)list.sort(ecmp);
- const echips=(key,opts)=>Object.keys(opts).map(k=>`<span class="sc ${String(editF[key])===k?'on':''}" data-a="ed_${key}" data-id="${k}">${opts[k]}</span>`).join('');
+ const isOn=(key,k)=>Array.isArray(editF[key])?(k==='all'?!editF[key].length:editF[key].includes(k)):editF[key]===k;
+ const echips=(key,opts)=>Object.keys(opts).map(k=>`<span class="sc ${isOn(key,k)?'on':''}" data-a="ed_${key}" data-id="${k}">${opts[k]}</span>`).join('');
  const row=c=>{const n=myDeck[c.id]||0,cap=Math.min(MAX_COPY,ownedOf(c)),col=IDEO[c.i].c;
   return `<div class="er" style="--c:${col}"><div class="cb">${c.c}</div><div class="tx"><b>${c.n}</b> <span style="color:${col}">${IDEO[c.i].n}</span> ${isDaimyo(c)?'大名':TL[c.t]}${c.t==='u'?' '+c.p:''}<br><span class="dim">${descHTML(c)||'(効果なし)'}</span></div><div class="ctr"><button data-a="dec" data-id="${c.id}" ${n?'':'disabled'}>−</button><span>${n}/${cap}</span><button data-a="inc" data-id="${c.id}" ${n>=cap||daimyoConflict(c,daimyo)?'disabled':''}>＋</button></div></div>`;};
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
  <div style="padding-top:40px"><div class="ehead"><b style="color:var(--gold)">陣立て</b> <span class="${tot===DECK_SIZE?'okc':'ngc'}">${tot}/${DECK_SIZE}枚</span> 思想: ${ide.map(i=>`<span style="color:${IDEO[i].c}">${IDEO[i].n}</span>`).join(' ')||'なし'}</div>
  <div class="dim" style="font-size:11px">${DECK_SIZE}枚・同名${MAX_COPY}枚まで・大名札は1種類まで</div>
  <div class="msg2">${editMsg||(daimyo.length>1?deckEditHint(myDeck):'')}</div>
- <div>${['all',...Object.keys(IDEO)].map(k=>`<span class="sc ${editFilter===k?'on':''}" data-a="ef" data-id="${k}">${k==='all'?'全て':IDEO[k].n}</span>`).join('')}<span class="sc ${editAll?'on':''}" data-a="eall">未所持も表示</span></div>
+ <div>${['all',...Object.keys(IDEO)].map(k=>`<span class="sc ${(k==='all'?!editFilter.length:editFilter.includes(k))?'on':''}" data-a="ef" data-id="${k}">${k==='all'?'全て':IDEO[k].n}</span>`).join('')}<span class="sc ${editAll?'on':''}" data-a="eall">未所持も表示</span></div>
  <div style="font-size:12px;margin-top:4px"><span class="dim">並べ方: </span>${echips('sort',LSORT)}</div>
  <div style="font-size:12px"><span class="dim">種類: </span>${echips('type',Object.assign({all:'全て'},TL))}</div>
  <div style="font-size:12px"><span class="dim">費え: </span>${echips('cost',LCOST)}</div>
@@ -1841,10 +1845,24 @@ async function onClick(a,id){
  }
  if(screen==='edit'){
   const c=id?cardById(id):null,cur=c?(myDeck[c.id]||0):0;
-  if(a==='ef'){editFilter=id;}
+  if(a==='ef'){ // 思想の絞り込み(複数選択。「全て」で解除)
+   if(id==='all')editFilter=[];
+   else editFilter=editFilter.includes(id)?editFilter.filter(x=>x!==id):[...editFilter,id];
+  }
   else if(a==='eall'){editAll=!editAll;}
-  else if(a.startsWith('ed_')){const k=a.slice(3);if(k in editF){editF[k]=String(id);render();}return;}
-  else if(a==='edReset'){editF={sort:'no',type:'all',cost:'all',power:'all',kw:'all'};editFilter='all';render();return;}
+  else if(a.startsWith('ed_')){const k=a.slice(3);
+   if(k==='sort'){editF.sort=String(id);}
+   else if(k in editF){
+    const v=String(id),s=editF[k];
+    if(v==='all')editF[k]=[];
+    else{
+     let n=s.includes(v)?s.filter(x=>x!==v):[...s,v];
+     if(k==='kw'&&!s.includes(v)){if(v==='any')n=n.filter(x=>x!=='none');if(v==='none')n=n.filter(x=>x!=='any');} // 効果あり/なしは同時に選ばない
+     editF[k]=n;
+    }
+   }
+   render();return;}
+  else if(a==='edReset'){editF={sort:'no',type:[],cost:[],power:[],kw:[]};editFilter=[];render();return;}
   else if(a==='inc'&&c){
    editMsg='';
    if(deckTotal(myDeck)>=DECK_SIZE)editMsg=`${DECK_SIZE}枚までです`;
