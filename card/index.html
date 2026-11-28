@@ -251,7 +251,7 @@ button.effect-link:hover:not(:disabled){background:none;color:#fff0b0;outline:no
  <form method="dialog"><button autofocus>閉じる</button></form>
 </dialog>
 <script>
-const VERSION='0.74';
+const VERSION='0.75';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -486,8 +486,10 @@ function onNet(m){
  }
  if(NET.host){
   if(m.t==='deck'&&!G){
-   if(NET.tag){NET.decks[m.from]=cleanDeck(m.deck);if(NET.tagCpu?deckValid(NET.decks[2]):[1,2,3].every(slot=>deckValid(NET.decks[slot]))){const enemy=NET.tagCpu?starterDeck(shuffle(STARTERS)[0]):NET.decks[1];startGame(myDeck,false,{deck:enemy,name:NET.members[1],me:NET.members[0]},true);}}
-   else startGame(myDeck,false,{deck:cleanDeck(m.deck),name:NET.opp,me:String(m.host||'あなた').slice(0,20)});
+   const deck=cleanDeck(m.deck);
+   if(!deckValid(myDeck)||deckTotal(deck)!==DECK_SIZE||deckDaimyo(deck).length>1){netQuit();pvpMsg='陣立ては36枚・大名札は1種類までです。陣立てを確認してください。';render();return;}
+   if(NET.tag){NET.decks[m.from]=deck;if(NET.tagCpu?NET.decks[2]:[1,2,3].every(slot=>NET.decks[slot])){const enemy=NET.tagCpu?starterDeck(shuffle(STARTERS)[0]):NET.decks[1];startGame(myDeck,false,{deck:enemy,name:NET.members[1],me:NET.members[0]},true);}}
+   else startGame(myDeck,false,{deck,name:NET.opp,me:String(m.host||'あなた').slice(0,20)});
   }
   else if((m.t==='act'||m.t==='ans')&&(!NET.tag||m.from===(m.t==='ans'?G?.askSlot:G?.tag?.turn)))remotePush(m);
   return;
@@ -535,7 +537,7 @@ function cpuHTML(){
  let h=`<div style="padding-top:44px"><h2 style="color:var(--gold);margin:0 0 4px">CPU対戦</h2><div class="dim" style="font-size:12px;line-height:1.6">相手の初陣組と、自分の陣立てで勝負します。「${CPU_LV.s.name}」は相手の手札・城門・兵糧が増えます。初めて勝つと、家と強さごとに${GACHA.sen}${CPU_FIRST_SEN}枚もらえます。${EMBED?'勝つたびに「普通」で戦銭1枚、「強い」で2枚が加わります。':''}</div>`;
  h+=`<div class="pcard" style="--c:${locked?'#888':'#d4a94a'}"><div class="pcl"><b>関東・甲斐・北陸の追加札</b><div class="dim" style="font-size:12px">${locked?`初陣組(最初の${req.length}家)にすべて勝つと追加されます  ${n}/${req.length}`:'解放済み・札売り場の包みから出ます'}</div></div></div>`;
  if(cpuMsg)h+=`<div class="msg2">${escH(cpuMsg)}</div>`;
- if(!ok)h+='<div class="msg2">陣立てが36枚になっていません。先に陣立てを組んでください</div><button data-a="toEdit" style="width:100%;margin:6px 0">陣立てを組む</button>';
+ if(!ok)h+='<div class="msg2">'+deckEditHint(myDeck)+'</div><button data-a="toEdit" style="width:100%;margin:6px 0">陣立てを組む</button>';
  if(ok)h+='<button data-a="tagCpu" style="width:100%;margin:8px 0">2対2 タッグ戦（味方CPU 対 CPU2人）</button>';
  const row=st=>{const done=cpuCleared(st)&&req.includes(st);return `<div class="pcard" style="--c:${IDEO[(CARDS.find(c=>c.series===st.series&&c.h===st.house)||{i:'ne'}).i].c}"><div class="pcl"><b>${st.name}${done?' ✔':''}</b><div class="dim" style="font-size:12px">${st.sub}</div></div>${Object.keys(CPU_LV).map(lv=>`<button data-a="cpuGo" data-id="${st.id}:${lv}" ${ok?'':'disabled'} style="margin-left:6px">${CPU_LV[lv].name}<br>${EMBED?GACHA.sen+'+'+(CPU_LV[lv].winSen+(cpuDone(st,lv)?0:CPU_FIRST_SEN)):cpuDone(st,lv)?'勝利済み':GACHA.sen+'+'+CPU_FIRST_SEN}</button>`).join('')}</div>`;};
  h+='<h3 style="margin:14px 0 2px">初陣組</h3>'+req.map(row).join('');
@@ -546,7 +548,7 @@ function pvpHTML(){
  const ok=deckValid(myDeck);let h=`<div style="padding-top:44px"><h2 style="color:var(--gold);margin:0 0 4px">人と手合わせ</h2><div class="dim" style="font-size:12px">同じ町にいる人と、自分の陣立てで勝負します。人との手合わせでは文の賞金は出ません</div>`;
  if(pvpMsg)h+=`<div class="msg2">${escH(pvpMsg)}</div>`;
  if(NET)return h+`<div class="msg2">${escH(NET.opp)}との手合わせを支度しています…</div></div>`;
- if(!ok)h+='<div class="msg2">陣立てが36枚になっていません。先に陣立てを組んでください</div>';
+ if(!ok)h+='<div class="msg2">'+deckEditHint(myDeck)+'</div>';
  const inc=lobby.inv.filter(v=>!v.mine),out=lobby.inv.filter(v=>v.mine);
  h+=inc.map(v=>`<div class="pcard" style="--c:#c0392b"><div class="pcl"><b>${escH(v.who)}</b><div class="dim" style="font-size:12px">${v.cpu?'人間2人 対 CPU2人':v.tag?'2対2のタッグ戦':'手合わせ'}の申し込みが届いています${v.tag?' ('+v.ready+'/'+(v.cpu?2:4)+'人が承諾)':''}</div></div>${v.accepted?'承諾済み':`<button data-a="${v.tag?'tagAcc':'pvAcc'}" data-id="${escH(v.id)}" ${ok?'':'disabled'}>受ける</button>`}<button data-a="pvDec" data-id="${escH(v.id)}" style="margin-left:6px">断る</button></div>`).join('');
  h+=out.map(v=>`<div class="pcard" style="--c:#888"><div class="pcl"><b>${escH(v.who)}</b><div class="dim" style="font-size:12px">申し込み中・${v.tag?v.ready+'/'+(v.cpu?2:4)+'人が承諾':'返事を待っています'}</div></div><button data-a="pvDec" data-id="${escH(v.id)}">取り下げる</button></div>`).join('');
@@ -575,6 +577,7 @@ let listHouseOpen=false;
 let starterPreview=null,packDetails=null;
 let listBig=null,shopBig=null,shopTab='pack',packIdeo='so',collFilter='all',collRar='all',disSel={},shopMsg='',pk=null,loginMsg='';
 const cardById=id=>CARDS.find(c=>c.id===id);
+const isDaimyo=c=>c?.t==='u'&&c.pr.includes('SSR');
 const printKey=(c,r)=>c.id+'|'+r;
 const printCount=(c,r)=>SV.prints[printKey(c,r)]||0;
 const sumPrints=c=>(c.pr||[]).reduce((a,r)=>a+printCount(c,r),0);
@@ -587,14 +590,20 @@ function displayRarity(c){
 }
 const deckTotal=d=>Object.values(d).reduce((a,b)=>a+b,0);
 const deckIdeos=d=>[...new Set(Object.keys(d).filter(k=>d[k]>0).map(cardById).filter(Boolean).map(c=>c.i).filter(i=>i!=='ne'))];
-function deckValid(d){
+const deckDaimyo=d=>Object.keys(d).filter(k=>d[k]>0&&isDaimyo(cardById(k)));
+const daimyoConflict=(c,ids)=>isDaimyo(c)&&ids.some(id=>id!==c.id);
+function deckOwnedValid(d){
  if(deckTotal(d)!==DECK_SIZE)return false;
  return Object.keys(d).every(k=>{const c=cardById(k);return c&&d[k]>=0&&d[k]<=Math.min(MAX_COPY,ownedOf(c));});
 }
+const deckValid=d=>deckOwnedValid(d)&&deckDaimyo(d).length<=1;
+const deckEditHint=d=>deckDaimyo(d).length>1?'大名札は1種類までです。陣立てで残す大名を選んでください。':'陣立てを36枚・同名3枚までにしてください。';
 // 指定した思想の札を1枚ずつ順に足していき、36枚にする(all=trueなら所持に関係なく3枚まで。CPU用)
 function autoDeck(idl,all){
  const cap=c=>Math.min(MAX_COPY,all?MAX_COPY:ownedOf(c));
- const pool=shuffle(CARDS.filter(c=>(idl.includes(c.i)||c.i==='ne')&&cap(c)>0));const d={};let n=0;
+ const candidates=shuffle(CARDS.filter(c=>(idl.includes(c.i)||c.i==='ne')&&cap(c)>0));
+ const daimyo=candidates.find(isDaimyo);
+ const pool=candidates.filter(c=>!isDaimyo(c)||c===daimyo);const d={};let n=0;
  for(let r=0;r<MAX_COPY&&n<DECK_SIZE;r++)for(const c of pool){if(n>=DECK_SIZE)break;if((d[c.id]||0)<cap(c)){d[c.id]=(d[c.id]||0)+1;n++;}}
  return d;
 }
@@ -612,7 +621,7 @@ function loadSave(){
  let grantMsg='';
  if(!SV.grants[GRANT_NOW.id]){SV.grants[GRANT_NOW.id]=1;if(!fresh&&!EMBED){SV.coin+=GRANT_NOW.coin;grantMsg=`初期配布の増額分として${GACHA.coin}+${GRANT_NOW.coin}を進呈しました。`;}}
  for(const k of Object.keys(SV.prints)){const n=SV.prints[k];if(n>MAX_COPY){const r=k.split('|')[1];SV.pt+=(GACHA.dismantle[r]||0)*(n-MAX_COPY);SV.prints[k]=MAX_COPY;}} // 3枚を超えて持っていた分は分解
- let d=SV.deck;if(!deckValid(d))d=autoDeck(shuffle(availIdeos()).slice(0,2));myDeck=d;
+ let d=SV.deck;if(!deckOwnedValid(d))d=autoDeck(shuffle(availIdeos()).slice(0,2));myDeck=d;
  const today=new Date().toDateString();
  if(SV.lastLogin!==today){
   SV.lastLogin=today;
@@ -863,7 +872,7 @@ async function playCard(p,c,pay){
  if(c.t==='x')recordTactic(p,c,false);
  if(displayRarity(c)==='SSR')battleCue('rare',p.idx,c.id);
  else if(c.t==='p')battleCue('princess',p.idx,c.id);
- else if(c.t==='u')battleCue(c.pr&&c.pr.includes('SSR')?'daimyo':'summon',p.idx,c.id);
+ else if(c.t==='u')battleCue(isDaimyo(c)?'daimyo':'summon',p.idx,c.id);
  payMana(p,c,pay);p.hand=p.hand.filter(x=>x!==c);
  log(`${p.name}:${c.n}を${c.t==='u'?'召喚':c.t==='w'?'装備':'使用'}`);
  if(c.t==='u'){const u=newUnit(p,c);p.units.push(u);render();for(const e of c.e){if(G.over)return;await applyFx(p,e);}}
@@ -1196,7 +1205,7 @@ function backAction(){
 }
 function backHTML(){const a=backAction();return a?`<button class="backfix" data-a="${a}">戻る</button>`:'';}
 function editHTML(){
- const tot=deckTotal(myDeck),ide=deckIdeos(myDeck),ok=deckValid(myDeck);
+ const tot=deckTotal(myDeck),ide=deckIdeos(myDeck),ok=deckValid(myDeck),daimyo=deckDaimyo(myDeck);
  const costOk=c=>{const k=editF.cost;if(k==='all')return true;const n=+k;return n===0?c.c<=1:n===5?c.c>=5:c.c===n;};
  const powOk=c=>{const k=editF.power;if(k==='all')return true;if(c.t!=='u')return false;return k==='lo'?c.p<=2000:k==='mid'?c.p>=3000&&c.p<=4000:c.p>=5000;};
  const kwOk=c=>{const k=editF.kw;if(k==='all')return true;if(k==='any')return !!desc(c);if(k==='none')return !desc(c);return c.k.includes(k);};
@@ -1204,11 +1213,11 @@ function editHTML(){
  const ecmp=cardCmp(editF.sort);if(ecmp)list.sort(ecmp);
  const echips=(key,opts)=>Object.keys(opts).map(k=>`<span class="sc ${String(editF[key])===k?'on':''}" data-a="ed_${key}" data-id="${k}">${opts[k]}</span>`).join('');
  const row=c=>{const n=myDeck[c.id]||0,cap=Math.min(MAX_COPY,ownedOf(c)),col=IDEO[c.i].c;
-  return `<div class="er" style="--c:${col}"><div class="cb">${c.c}</div><div class="tx"><b>${c.n}</b> <span style="color:${col}">${IDEO[c.i].n}</span> ${TL[c.t]}${c.t==='u'?' '+c.p:''}<br><span class="dim">${descHTML(c)||'(効果なし)'}</span></div><div class="ctr"><button data-a="dec" data-id="${c.id}" ${n?'':'disabled'}>−</button><span>${n}/${cap}</span><button data-a="inc" data-id="${c.id}" ${n>=cap?'disabled':''}>＋</button></div></div>`;};
+  return `<div class="er" style="--c:${col}"><div class="cb">${c.c}</div><div class="tx"><b>${c.n}</b> <span style="color:${col}">${IDEO[c.i].n}</span> ${isDaimyo(c)?'大名':TL[c.t]}${c.t==='u'?' '+c.p:''}<br><span class="dim">${descHTML(c)||'(効果なし)'}</span></div><div class="ctr"><button data-a="dec" data-id="${c.id}" ${n?'':'disabled'}>−</button><span>${n}/${cap}</span><button data-a="inc" data-id="${c.id}" ${n>=cap||daimyoConflict(c,daimyo)?'disabled':''}>＋</button></div></div>`;};
  return `<div class="ver">v${VERSION}<button data-a="update">更新</button></div>
  <div style="padding-top:40px"><div class="ehead"><b style="color:var(--gold)">陣立て</b> <span class="${tot===DECK_SIZE?'okc':'ngc'}">${tot}/${DECK_SIZE}枚</span> 思想: ${ide.map(i=>`<span style="color:${IDEO[i].c}">${IDEO[i].n}</span>`).join(' ')||'なし'}</div>
- <div class="dim" style="font-size:11px">${DECK_SIZE}枚・同名${MAX_COPY}枚まで</div>
- <div class="msg2">${editMsg}</div>
+ <div class="dim" style="font-size:11px">${DECK_SIZE}枚・同名${MAX_COPY}枚まで・大名札は1種類まで</div>
+ <div class="msg2">${editMsg||(daimyo.length>1?deckEditHint(myDeck):'')}</div>
  <div>${['all',...Object.keys(IDEO)].map(k=>`<span class="sc ${editFilter===k?'on':''}" data-a="ef" data-id="${k}">${k==='all'?'全て':IDEO[k].n}</span>`).join('')}<span class="sc ${editAll?'on':''}" data-a="eall">未所持も表示</span></div>
  <div style="font-size:12px;margin-top:4px"><span class="dim">並べ方: </span>${echips('sort',LSORT)}</div>
  <div style="font-size:12px"><span class="dim">種類: </span>${echips('type',Object.assign({all:'全て'},TL))}</div>
@@ -1274,7 +1283,7 @@ function gameHTML(){
 }
 function rulesHTML(){
  return `<div class="ov"><div class="mb"><b style="color:var(--gold)">遊び方</b><br>
- ・陣立ては36枚(同名3枚まで)。陣立ての画面で組めます。<br>
+ ・陣立ては36枚、同名は3枚まで。大名札は1種類まで入れられます。<br>
  ・勝利条件: 相手の城門(5枚)をすべて破り、本丸に攻撃を当てる。<br>
  ・毎手番: 1枚引く → 手札1枚を兵糧にする(任意・1回) → 札を使う → 武将で攻撃。<br>
  ・費えは兵糧を横にして支払う。使う札と同じ思想の兵糧が最低1枚必要。<br>
@@ -1744,14 +1753,14 @@ async function onClick(a,id){
  }
  if(screen==='cpu'){
   if(a==='cpuBack'){screen='title';}
-  else if(a==='cpuGo'){const [sid,lv]=id.split(':');if(STARTERS.some(x=>x.id===sid)&&CPU_LV[lv]){if(deckValid(myDeck)){cpuSel={id:sid,lv};startGame(myDeck);return;}cpuMsg='陣立てが36枚になっていません。先に陣立てを組んでください';}}
+  else if(a==='cpuGo'){const [sid,lv]=id.split(':');if(STARTERS.some(x=>x.id===sid)&&CPU_LV[lv]){if(deckValid(myDeck)){cpuSel={id:sid,lv};startGame(myDeck);return;}cpuMsg=deckEditHint(myDeck);}}
   else if(a==='tagCpu'){if(deckValid(myDeck)){cpuSel=null;startGame(myDeck,false,null,true);return;}}
   else if(a==='toEdit'){screen='edit';editMsg='';}
   render();return;
  }
  if(screen==='title'){
   if(a==='toPvp'){screen='pvp';pvpMsg='';render();return;}
-  if(a==='play'){if(deckValid(myDeck)){screen='cpu';cpuMsg='';}else{screen='edit';editMsg='陣立てが36枚になっていません。札がない時は、札売り場で初陣組を受け取ろう';}render();}
+  if(a==='play'){if(deckValid(myDeck)){screen='cpu';cpuMsg='';}else{screen='edit';editMsg=deckEditHint(myDeck);}render();}
   else if(a==='toEdit'){screen='edit';editMsg='';render();}
   else if(a==='toList'){screen='list';render();}
   else if(a==='toShop'){screen='shop';shopMsg='';render();}
@@ -1837,6 +1846,7 @@ async function onClick(a,id){
   else if(a==='inc'&&c){
    editMsg='';
    if(deckTotal(myDeck)>=DECK_SIZE)editMsg=`${DECK_SIZE}枚までです`;
+   else if(daimyoConflict(c,deckDaimyo(myDeck)))editMsg='大名札は1種類までです';
    else if(cur>=Math.min(MAX_COPY,ownedOf(c)))editMsg=`同名札は${MAX_COPY}枚までです`;
    else myDeck[c.id]=cur+1;
   }
@@ -1844,7 +1854,7 @@ async function onClick(a,id){
   else if(a==='clear'){myDeck={};editMsg='';}
   else if(a==='stdeck'){const st=STARTERS.find(x=>x.id===id);if(st&&canBuildStarter(st)){myDeck=starterDeck(st);editMsg=`${st.name}の陣立てにしました(保存して戻ると決まります)`;}}
   else if(a==='auto'){const ide=deckIdeos(myDeck);for(const k of shuffle(availIdeos()))if(ide.length<2&&!ide.includes(k))ide.push(k);myDeck=autoDeck(ide);editMsg='自動で構成しました';}
-  else if(a==='save'){if(deckValid(myDeck)){saveSave();screen='title';editMsg='';}else editMsg='36枚・同名3枚までにしてください';}
+  else if(a==='save'){if(deckValid(myDeck)){saveSave();screen='title';editMsg='';}else editMsg=deckEditHint(myDeck);}
   else if(a==='discard'){loadSave();screen='title';editMsg='';}
   else if(a==='editBack'){if(deckValid(myDeck))saveSave();else loadSave();screen='title';editMsg='';} // 右上の戻る: 組めていれば保存、組めていなければ元に戻す
   render();return;
