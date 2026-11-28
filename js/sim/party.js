@@ -67,7 +67,8 @@
   { const bp = SIM.privateState; SIM.privateState = (w, pid) => { const r = bp(w, pid), p = w.players[pid]; if (!r || !p || !r.me) return r; const T = p.fishT && w.fishTaikai && w.fishTaikai[p.fishT]; r.me.fishT = T ? { left: Math.max(0, T.end - w.time.min), mode: T.mode, team: T.team, board: ftBoard(w, T).map((x) => ({ name: x.name, tm: x.tm, n: x.n, best: x.best, bn: x.bn })) } : null; return r; }; }
 
   // ---- 2.62.0 蹴鞠大会：毎月5日、大きな町で。5日に始めた蹴鞠（2人以上）の続けた回数で競い、8日に順位を出して賞金と称号 ----
-  const KM = (SIM.KEMARI = { DAY: 5, PRIZE: [10000, 5000, 3000], MIN: 10 });
+  // 3.37.2 賞金：1位100貫・2位50貫・3位25貫（いずれも10回以上）。それ以外は参加賞10貫（1貫＝1000文）
+  const KM = (SIM.KEMARI = { DAY: 5, PRIZE: [100000, 50000, 25000], PART: 10000, MIN: 10 });
   const dayIdx = (w) => { const st = SGK.DATA.start; return Math.floor((st.minute + w.time.min) / 1440) + (st.month - 1) * 30 + (st.day - 1); };
   KM.dom = (w) => (dayIdx(w) % 30) + 1; // その月の何日か
   KM.on = (w) => KM.dom(w) === KM.DAY;
@@ -95,11 +96,11 @@
       b.forEach((x, i) => {
         if (!prev || prev.great !== x.great || prev.miss !== x.miss) rank = i + 1; prev = x;
         const q = w.players[x.id]; if (!q) return;
-        const prize = x.cnt >= KM.MIN && rank <= 3 ? KM.PRIZE[rank - 1] : 0; if (prize) q.money += prize;
+        const top = x.cnt >= KM.MIN && rank <= 3, prize = top ? KM.PRIZE[rank - 1] : KM.PART; q.money += prize;
         if (rank <= 3 && x.cnt >= KM.MIN) q.kmrPodium = (q.kmrPodium || 0) + 1;
         if (rank === 1 && x.cnt >= 50) q.kmrWin = (q.kmrWin || 0) + 1;
         q.kmrTaikai = Math.max(q.kmrTaikai || 0, x.cnt);
-        SIM.say(q.id, `蹴鞠大会（${s ? s.name : ''}）：${rank}位（見事${x.great}回・落とした${x.miss}回）${prize ? `。賞金${SIM.money(prize)}` : x.cnt < KM.MIN ? `（賞金は${KM.MIN}回以上から）` : ''}`);
+        SIM.say(q.id, `蹴鞠大会（${s ? s.name : ''}）：${rank}位（見事${x.great}回・落とした${x.miss}回）。${top ? '賞金' : '参加賞'}${SIM.money(prize)}${!top && rank <= 3 ? `（賞金は${KM.MIN}回以上から）` : ''}`);
       });
       if (b.length && b[0].cnt >= KM.MIN) SIM.newsTo(w, `蹴鞠大会（${s ? s.name : ''}）：一番は${b.filter((x) => x.great === b[0].great && x.miss === b[0].miss).map((x) => x.name).join('・')}（見事${b[0].great}回）`);
     }
