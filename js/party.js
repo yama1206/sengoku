@@ -1372,7 +1372,7 @@
     const { cfg, me, g2: g, cv } = env, lead = cfg.lead === me, rng = mulberry((cfg.seed ^ 0x5bd1e995) >>> 0), ids = env.ids, N = ids.length;
     // 3.24.0 1人50回まで（判定の回数で数える）。判定幅は自分の端末で、続けて当てると狭く・外すと広く（案2）
     const WMIN = 90, WMAX = 320, MAXK = 50, GREAT = 70, CALLS = ['アリ', 'ヤア', 'オウ'];
-    let win = 220;
+    let win = 220, kickLock = 0; const KICK_CD = 350; // 3.37.6 蹴るボタンの連打を防ぐ間隔（ミリ秒）
     const H = SGK.HINT || { pick: (m) => m.kb, btn: (n) => n };
     const HF = () => H.pick({ kb: '左クリック／Space', pad: H.btn('A'), touch: '「速く」' }), HS = () => H.pick({ kb: '右クリック／X', pad: H.btn('B') + '／' + H.btn('X'), touch: '「ゆるく」' }); // 描くたびに、いまの機器の文字を選ぶ
     const S = { seq: 0, from: cfg.lead, to: cfg.lead, dur: 0, v: 0, cnt: 0, kicks: {}, great: {}, tries: {}, phase: 'ready', over: null, call: null };
@@ -1422,10 +1422,12 @@
       },
       update(dt) {
         ph += dt; const now = performance.now();
-        if (S.phase === 'ready') { if (lead && (IN.aT || IN.bT)) { S.kicks[me]++; S.call = [me, 0]; swing[me] = callT = now; kickSnd(); fly(me, IN.bT && !IN.aT ? 's' : 'f'); } }
+        // 3.37.6 連打防止：一度押したら KICK_CD ミリ秒のあいだ、蹴るボタンは受け付けない
+        const pressed = (IN.aT || IN.bT) && now >= kickLock; // 蹴る操作として受けたときだけ、そこから KICK_CD のあいだ止める
+        if (S.phase === 'ready') { if (lead && pressed) { kickLock = now + KICK_CD; S.kicks[me]++; S.call = [me, 0]; swing[me] = callT = now; kickSnd(); fly(me, IN.bT && !IN.aT ? 's' : 'f'); } }
         else if (S.phase === 'fly' && S.to === me && judged !== S.seq) {
           const err = now - (t0 + S.dur);
-          if (IN.aT || IN.bT) { const sp = IN.bT && !IN.aT ? 's' : 'f', how = sp === 's' ? '（ゆるく）' : '（速く）'; if (Math.abs(err) <= win) judge(true, Math.abs(err) <= GREAT, (Math.abs(err) <= GREAT ? '見事！' : err < 0 ? 'よし（少し早い）' : 'よし（少し遅い）') + how, sp); else judge(false, false, err < 0 ? '早すぎた…' : '遅れた…'); }
+          if (pressed) { kickLock = now + KICK_CD; const sp = IN.bT && !IN.aT ? 's' : 'f', how = sp === 's' ? '（ゆるく）' : '（速く）'; if (Math.abs(err) <= win) judge(true, Math.abs(err) <= GREAT, (Math.abs(err) <= GREAT ? '見事！' : err < 0 ? 'よし（少し早い）' : 'よし（少し遅い）') + how, sp); else judge(false, false, err < 0 ? '早すぎた…' : '遅れた…'); }
           else if (err > win) judge(false, false, '取りこぼした…');
         }
         if (lead) {
