@@ -251,7 +251,7 @@ button.effect-link:hover:not(:disabled){background:none;color:#fff0b0;outline:no
  <form method="dialog"><button autofocus>閉じる</button></form>
 </dialog>
 <script>
-const VERSION='0.75';
+const VERSION='0.76';
 let TEST=false;
 const sleep=ms=>TEST?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const IDEO={
@@ -272,6 +272,7 @@ const COMMON_CARD_EFFECTS={
  slayer:{name:'刺し違え',detail:'武将と戦闘した後、相手の武将を破壊する。'},
  double:{name:'連破',detail:'相手の城門を攻撃したとき、城門を2枚破る。'},
  ambush:{name:'奇襲',detail:'破られた城門から出たとき、無料で発動するか、手札に加えて温存するかを選べる。'},
+ draw:{name:'ドロー',detail:'自分の山札の上から札を1枚引く。'},
 };
 const commonEffectLabel=k=>'（'+COMMON_CARD_EFFECTS[k].name+'）';
 const commonEffectKeys=new Map(Object.keys(COMMON_CARD_EFFECTS).map(k=>[commonEffectLabel(k),k]));
@@ -383,24 +384,25 @@ function claimStarter(id){
  for(const k in d){const c=cardById(k);if(c.series==='base')continue;const r0=c.pr[0],key=printKey(c,r0);const cur=SV.prints[key]||0,add=Math.min(d[k],MAX_COPY-cur);SV.prints[key]=cur+Math.max(0,add);if(d[k]>add)SV.pt+=GACHA.dismantle[r0]*(d[k]-Math.max(0,add));} // 3枚を超える分は自動で分解
  SV.starters[id]=1;myDeck=d;saveSave();return true;
 }
+const DRAW_LABEL=commonEffectLabel('draw');
 const FXD={
- draw:e=>`山札から${e.n}枚引く`,ramp:e=>`山札の上${e.n}枚を兵糧にする`,shield:e=>`山札の上${e.n}枚を城門に加える`,
+ draw:e=>e.n===1?DRAW_LABEL:`山札から${e.n}枚引く`,ramp:e=>`山札の上${e.n}枚を兵糧にする`,shield:e=>`山札の上${e.n}枚を城門に加える`,
  tapE:()=>'相手の武将1体を横にする',killAll:e=>`兵力${e.max}以下の相手の武将をすべて破壊`,kill:e=>`相手の${e.tapped?'横向きの':''}武将1体を破壊`+(e.max?`(兵力${e.max}以下)`:''),
  bounce:()=>'相手の武将1体を手札に戻す',discard:e=>`相手の手札を無作為に${e.n}枚捨てさせる`,
  breakS:e=>`相手の城門を${e.n}枚破る`,tapAll:()=>'相手の武将すべてを横にする',
- drawIfFewer:()=>'自分の手札が相手より少なければ1枚引く',drawLowHand:()=>'手札が3枚以下なら山札から1枚引く',retWeapon:()=>'自分の場の武器1枚を手札に戻す',killGuard:()=>'相手の殿を持つ武将1体を破壊',drawWeapon:e=>`山札から武器を無作為に1枚手札に加える${e.discount?'。その武器の費えを1下げる':''}`,graveDraw:e=>`自分の墓地から札を${e.n}枚まで選び、手札に戻す`,
+ drawIfFewer:()=>`自分の手札が相手より少なければ${DRAW_LABEL}`,drawLowHand:()=>`手札が3枚以下なら${DRAW_LABEL}`,retWeapon:()=>'自分の場の武器1枚を手札に戻す',killGuard:()=>'相手の殿を持つ武将1体を破壊',drawWeapon:e=>`山札から武器を無作為に1枚手札に加える${e.discount?'。その武器の費えを1下げる':''}`,graveDraw:e=>`自分の墓地から札を${e.n}枚まで選び、手札に戻す`,
  toMana:()=>'手札から1枚を兵糧に置く',
  pumpTemp:e=>`自分の武将1体に兵力+${e.pow}`+(e.kw?`と${commonEffectLabel(e.kw)}`:'')+'を与える(手番の終わりまで)',
  peekDiscard:()=>'相手の手札を見て、1枚選んで捨てさせる',tapSkip:()=>'相手の武将1体を横にし、次に縦に戻すのを1回飛ばす'
 };
-const PSD={drawStart:'自分の手番の始め、1枚引く',aura:'味方の武将すべて兵力+1000',rushAll:'味方の武将すべてに先駆けを与える',
+const PSD={drawStart:`自分の手番の始め、${DRAW_LABEL}`,aura:'味方の武将すべて兵力+1000',rushAll:'味方の武将すべてに先駆けを与える',
  guardAll:'味方の武将すべてに殿を与える',rampStart:'自分の手番の始め、山札の上を兵糧にする',shieldStart:'自分の手番の始め、山札の上を1枚城門にする',graveStart:'自分の手番の始め、墓地から無作為に1枚を手札に戻す',
  sap:'自分の手番の始め、相手の手札が4枚以上なら1枚捨てさせる',refill:'自分の手番の始め、城門が4枚以下なら山札から1枚加える',
- chacha:'自分の手番の始め、自分の場に武器があれば1枚引く',guardAura:'味方の殿を持つ武将すべて兵力+1000',weaponGuard:'武器を装備した味方の武将すべてに殿を与える',
- rushDraw:'味方の先駆けを持つ武将が城門を破ったとき、1枚引く(1手番に1回)',atkAura:'味方の武将が攻撃している間、兵力+1000',
- nene:'自分の手番の始め、相手の手札が自分より多ければ1枚引く',drawWhenAhead:'自分の手番の始め、自分の手札が相手より多ければ1枚引く',gateLimit:'相手が城門(本丸)を攻撃できるのは、1手番に2回まで',
+ chacha:`自分の手番の始め、自分の場に武器があれば${DRAW_LABEL}`,guardAura:'味方の殿を持つ武将すべて兵力+1000',weaponGuard:'武器を装備した味方の武将すべてに殿を与える',
+ rushDraw:`味方の先駆けを持つ武将が城門を破ったとき、${DRAW_LABEL}(1手番に1回)`,atkAura:'味方の武将が攻撃している間、兵力+1000',
+ nene:`自分の手番の始め、相手の手札が自分より多ければ${DRAW_LABEL}`,drawWhenAhead:`自分の手番の始め、自分の手札が相手より多ければ${DRAW_LABEL}`,gateLimit:'相手が城門(本丸)を攻撃できるのは、1手番に2回まで',
  hatsu:'自分の手番の始め、自分の兵糧が相手より少なければ山札の上を兵糧にする',
- deathDraw:'味方の武将が戦闘で破壊されるたび、1枚引く(1手番に1回)',kasuga:'自分の城門が破られたとき、山札の上を城門に加える(1手番に1回)'};
+ deathDraw:`味方の武将が戦闘で破壊されるたび、${DRAW_LABEL}(1手番に1回)`,kasuga:'自分の城門が破られたとき、山札の上を城門に加える(1手番に1回)'};
 function desc(c){
  const a=[];
  c.k.forEach(k=>a.push(commonEffectLabel(k)));
@@ -414,7 +416,7 @@ function desc(c){
  if(c.noBlock)a.push('攻撃中は、相手の殿に止められない。');
  if(c.untapAfterBlock)a.push('殿として戦って生き残ったとき、一度だけ縦に戻る。');
  if(c.guardAtk)a.push('場にいる間、味方の殿を持つ武将も攻撃できる。');
- if(c.w){const b=[];if(c.w.pow)b.push(`兵力+${c.w.pow}`);if(c.w.powPerShield)b.push(`自分の城門1枚につき兵力+${c.w.powPerShield}`);if(c.w.k)b.push(`${commonEffectLabel(c.w.k)}`);if(c.w.tie)b.push('戦闘で兵力が同じなら相手だけ破壊される');if(c.w.gateGrave)b.push('攻撃するたび相手の城門を1枚墓地へ送る(奇襲は発動しない)');if(c.w.drawAtk)b.push('攻撃するたび1枚引く(自分の手番中1回)');if(c.w.randomKillMax)b.push(`攻撃するとき、兵力${c.w.randomKillMax}以下の相手武将を無作為に1体破壊`);a.push('味方の武将1体に装備: '+b.join('、')+'。(武将が場を離れると墓地へ)');}
+ if(c.w){const b=[];if(c.w.pow)b.push(`兵力+${c.w.pow}`);if(c.w.powPerShield)b.push(`自分の城門1枚につき兵力+${c.w.powPerShield}`);if(c.w.k)b.push(`${commonEffectLabel(c.w.k)}`);if(c.w.tie)b.push('戦闘で兵力が同じなら相手だけ破壊される');if(c.w.gateGrave)b.push('攻撃するたび相手の城門を1枚墓地へ送る(奇襲は発動しない)');if(c.w.drawAtk)b.push(`攻撃するたび${DRAW_LABEL}(自分の手番中1回)`);if(c.w.randomKillMax)b.push(`攻撃するとき、兵力${c.w.randomKillMax}以下の相手武将を無作為に1体破壊`);a.push('味方の武将1体に装備: '+b.join('、')+'。(武将が場を離れると墓地へ)');}
  if(c.ps)a.push(c.rampTurns?`次の自分の手番から${c.rampTurns}回、手番の始めに山札の上を兵糧にする。`:PSD[c.ps]+'。');
  if(c.e.length){const lab={u:'登場時:',w:'装備時:',p:'設置時:',c:'設置時:',x:'使用時:'}[c.t];a.push(lab+c.e.map(e=>FXD[e.t](e)).join('、')+'。');}
   return a.join(' ');
