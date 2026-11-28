@@ -179,6 +179,7 @@ function privFor(pid, now) {
   return pv;
 }
 function hostTick0() {
+  hostViewDue = 0;
   const now = performance.now(); const dt = Math.min(5, (now - lastTick) / 1000); lastTick = now;
   G.inBattle = Object.keys(G.world.battles || {}).length > 0; // 0.32.0 誰かが戦闘中は時間を等倍に
   G.effSpeed = G.inBattle && G.speed > 1 ? 1 : G.speed;
@@ -280,9 +281,12 @@ window.addEventListener('pagehide', () => { if (G.mode === 'host') { SGK.SAVE.sa
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && G.mode === 'host') cloudSave(); else if (document.visibilityState === 'visible' && G.mode === 'host' && G.net) G.net.beat(); });
 
 // ---------- 表示用データ ----------
-function buildView() {
+let hostViewWorld, hostViewDue = 0, clientViewState;
+function buildView(now = performance.now()) {
   if (G.mode === 'host') {
     const w = G.world;
+    // 同じ進行状態では地図用の一覧を使い回し、位置の補間は描画側で行う。
+    if (w === hostViewWorld && now < hostViewDue) return G.view;
     const m = w.players[G.myPid], sr = m ? SIM.sightRadius(w, m) : 0;
     const vis = (e) => !m || e === m || SIM.canSee(m, sr, e.x, e.y);
     G.view = { t: w.time.min, sr, settlements: w.settlements, factions: w.factions, people: w.people, wars: Object.keys(w.wars || {}), players: Object.values(w.players).filter((p) => p === m || !p.off).map((p) => {
@@ -292,8 +296,12 @@ function buildView() {
       // 0.54.3 ホストでも参加者と同じ形に（大将の名前・率いる武将・用件を付ける。前はホストだけ「武将の隊」と出ていた）
       npcs: Object.values(w.npcs).filter(vis).map((n) => Object.assign({}, n, { spd: n.kind === 'pirate' ? n.speed : n.spd, battle: n.battle ? 1 : n.fight ? 2 : 0, at: n.tx == null ? n.at || null : null, pname: SIM.npcName ? SIM.npcName(w, n) : null,
         extra: n.kind === 'bushou' ? n.purpose : n.kind === 'ronin' ? [n.need, n.fee] : null, lead: SIM.npcLead ? SIM.npcLead(w, n) : null })), bm: SIM.battleMarks ? SIM.battleMarks(w, G.myPid) : [] };
+    hostViewWorld = w;
+    hostViewDue = now + CFG.TICK_MS;
+    clientViewState = null;
   } else if (G.mode === 'client' && G.dyn) {
     const d = G.dyn, s = G.stat;
+    if (d === clientViewState) return G.view;
     if (d.pp) G.pp = d.pp; if (d.ps) G.ps = d.ps; // 0.52.0 人口（0.70.0 物資のそろい具合も）
     if ((d.rv || 0) !== (G.rv || 0)) { G.rv = d.rv || 0; SIM.applyRoads(d.ra || []); } // 0.40.0 普請でできた道
     G.view = {
@@ -303,7 +311,9 @@ function buildView() {
       npcs: d.n.map(([id, kind, faction, x, y, size, battle, dest, cargo, army, home, at, pname, extra, lead, spd]) => ({ id, kind, faction, x, y, size, battle, dest, at, cargo: cargo && { item: cargo[0], qty: cargo[1] }, army, home, pname, lead, extra, spd })),
       bm: d.bm || [], /* 1.6.51 味方の合戦の印 */
     };
-  }
+    clientViewState = d;
+    hostViewWorld = null;
+  } else return null;
   return G.view;
 }
 const me = () => G.view && G.view.players.find((p) => p.id === G.myPid);
@@ -314,6 +324,7 @@ function command(cmd) {
   if (G.mode === 'host') {
     SIM.applyCommand(G.world, G.myPid, cmd);
     hostPrivDue = 0;
+    hostViewDue = 0;
   }
   else if (G.mode === 'client' && G.net) G.net.send(cmd);
 }
