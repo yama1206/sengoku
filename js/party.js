@@ -1390,7 +1390,7 @@
       if (alive().every((id) => (S.tries[id] || 0) >= MAXK)) { S.phase = 'over'; S.over = null; cast(); finish(); return; } // 3.24.0 全員が50回判定したら終わり
       // 3.24.0 判定の回数が少ない人へ送る（全員が同じ回数になるように）
       const pool = alive().filter((id) => id !== from), mn = pool.length ? Math.min(...pool.map((id) => S.tries[id] || 0)) : 0, cand = pool.filter((id) => (S.tries[id] || 0) === mn), to = cand.length ? cand[Math.floor(rng() * cand.length)] : from;
-      const [lo, hi] = range(S.cnt), v = sp === 's' ? lo : sp === 'f' ? hi : lo + rng() * (hi - lo), a = unit(from), b = unit(to), dist = to === from ? 0.9 : Math.hypot(a[0] - b[0], a[1] - b[1]);
+      const [lo, hi] = range(S.cnt), v = sp === 's' ? lo * 0.55 /* 3.37.5 ゆるく：下限よりさらに遅く */ : sp === 'f' ? hi * 1.35 /* 3.37.5 速く：上限よりさらに速く */ : lo + rng() * (hi - lo), a = unit(from), b = unit(to), dist = to === from ? 0.9 : Math.hypot(a[0] - b[0], a[1] - b[1]);
       S.seq++; S.from = from; S.to = to; S.v = r2(v); S.dur = Math.round(Math.max(150, (dist / v) * 1000 + 220)); S.phase = 'fly'; t0 = performance.now(); cast();
     }
     function apply(id, ok, gr, sp) { // リーダー：受けた人の結果
