@@ -931,7 +931,7 @@
           if (cho(MY) === 'neko') for (const q of hiders()) if (q.id !== me && q.mv && Math.hypot(q.x - MY.x, q.z - MY.z) < 8) { const [sx, sy] = pj(q.x, 2.1, q.z); txt('？', sx, sy, { al: 'center', sz: 26, b: 1, c: '#ffe070' }); }
           if (MY.arrowT > 0) { let b = null, bd = 1e9; for (const q of hiders()) { if (q.id === me) continue; const d = Math.hypot(q.x - MY.x, q.z - MY.z); if (d < bd) { bd = d; b = q; } } if (b) { const [ax, ay] = pj(MY.x, 1, MY.z), [bx, by] = pj(b.x, 1, b.z), l = Math.hypot(bx - ax, by - ay) || 1, ux = (bx - ax) / l, uy = (by - ay) / l; txt('➤', ax + ux * 110, ay + uy * 110, { al: 'center', sz: 30, c: '#ffe070' }); txt(`${Math.round(bd)}m`, ax + ux * 140, ay + uy * 140 + 6, { al: 'center', sz: 14, c: '#ffe070' }); } }
         }
-        for (const c of cages) if (c.id) { const [sx, sy] = pj(c.x, 3.2, c.z); txt(`牢 あと${Math.max(0, Math.ceil(c.t))}秒`, sx, sy, { al: 'center', sz: 16, c: '#e0b0ff' }); }
+        for (const c of cages) if (c.id) { const sp6 = pv(c.x, 3.2, c.z); if (sp6 && sp6[0] > 0 && sp6[0] < W && sp6[1] > 0 && sp6[1] < H) txt(`牢 あと${Math.max(0, Math.ceil(c.t))}秒`, sp6[0], sp6[1], { al: 'center', sz: 16, c: '#e0b0ff' }); } // 3.33.1 画面の外には出さない
         if (MY.car) txt('鬼に担がれている…', W / 2, H * 0.62, { al: 'center', sz: 22, c: '#ffb0b0' });
         else if (MY.cage != null) txt(`牢の中… あと${Math.max(0, Math.ceil(cages[MY.cage].t))}秒で完全に負け（仲間の救助を待つ）`, W / 2, H * 0.62, { al: 'center', sz: 18, c: '#e0b0ff' });
         if (MY.carry && MY.role === 's') txt(`${nm(MY.carry)}を担いでいる（あと${Math.max(0, Math.ceil(CARRY_T - MY.carryT))}秒）→ 牢へ運べ（紫の光の所）`, W / 2, H * 0.62, { al: 'center', sz: 18, c: '#ffd0a0' });
