@@ -98,17 +98,18 @@
         const q = w.players[x.id]; if (!q) return;
         // 3.37.3 賞金・3位以内・優勝の条件は見事の回数（KM.MIN回以上）
         const top = x.great >= KM.MIN && rank <= 3, prize = top ? KM.PRIZE[rank - 1] : KM.PART; q.money += prize;
-        if (rank <= 3 && x.great >= KM.MIN) q.kmrPodium = (q.kmrPodium || 0) + 1;
-        if (rank === 1 && x.great >= 50) q.kmrWin = (q.kmrWin || 0) + 1;
-        q.kmrTaikai = Math.max(q.kmrTaikai || 0, x.cnt);
+        // 3.37.4 鞠足は見事30回以上で3位以内、名手は見事40回以上で優勝、鞠聖は見事50回
+        if (rank <= 3 && x.great >= 30) q.kmrPodium = (q.kmrPodium || 0) + 1;
+        if (rank === 1 && x.great >= 40) q.kmrWin = (q.kmrWin || 0) + 1;
+        q.kmrTaikai = Math.max(q.kmrTaikai || 0, x.great);
         SIM.say(q.id, `蹴鞠大会（${s ? s.name : ''}）：${rank}位（見事${x.great}回・落とした${x.miss}回）。${top ? '賞金' : '参加賞'}${SIM.money(prize)}${!top && rank <= 3 ? `（賞金は見事${KM.MIN}回以上から）` : ''}`);
       });
       if (b.length && b[0].great >= KM.MIN) SIM.newsTo(w, `蹴鞠大会（${s ? s.name : ''}）：一番は${b.filter((x) => x.great === b[0].great && x.miss === b[0].miss).map((x) => x.name).join('・')}（見事${b[0].great}回）`);
     }
   });
-  SIM.defTitle({ id: 'mariashi', name: '鞠足', desc: '蹴鞠大会で三位までに入った者。', cond: '蹴鞠大会で見事10回以上、3位以内', order: 54, check: (w, p) => (p.kmrPodium || 0) >= 1 });
-  SIM.defTitle({ id: 'kemarimeijin', name: '蹴鞠の名手', desc: '蹴鞠大会で見事を50回出して優勝した者。', cond: '蹴鞠大会で見事50回以上を出して優勝', order: 55, check: (w, p) => (p.kmrWin || 0) >= 1 });
-  SIM.defTitle({ id: 'kemarisennin', name: '鞠聖', desc: '鞠を百回つないだ、蹴鞠の神に愛された者。', cond: '蹴鞠大会で100回以上続ける', order: 56, check: (w, p) => (p.kmrTaikai || 0) >= 100 });
+  SIM.defTitle({ id: 'mariashi', name: '鞠足', desc: '蹴鞠大会で三位までに入った者。', cond: '蹴鞠大会で見事30回以上、3位以内', order: 54, check: (w, p) => (p.kmrPodium || 0) >= 1 });
+  SIM.defTitle({ id: 'kemarimeijin', name: '蹴鞠の名手', desc: '蹴鞠大会で見事を40回以上出して優勝した者。', cond: '蹴鞠大会で見事40回以上を出して優勝', order: 55, check: (w, p) => (p.kmrWin || 0) >= 1 });
+  SIM.defTitle({ id: 'kemarisennin', name: '鞠聖', desc: '鞠を見事に五十回蹴った、蹴鞠の神に愛された者。', cond: '蹴鞠大会で見事50回を達成', order: 56, check: (w, p) => (p.kmrTaikai || 0) >= 50 });
 
   // 通りに大会の様子を出す
   const basePriv = SIM.privateState;
