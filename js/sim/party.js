@@ -4,7 +4,7 @@
   const TBL = [1500, 1000, 700, 500, 400, 350, 300, 250, 200, 150]; // 個人戦の順位ごとの賞金
   C.partyResult = (w, p, c) => {
     if (!c || p.battle) return;
-    if (c.game === 'kemari') kemariEntry(w, p, Math.max(0, Math.min(999, c.cnt | 0)), Math.max(0, Math.min(999, c.kicks | 0)), Math.max(1, Math.min(10, c.n | 0))); // 大会の記録は間隔によらず残す
+    if (c.game === 'kemari') kemariEntry(w, p, Math.max(0, Math.min(999, c.cnt | 0)), Math.max(0, Math.min(999, c.kicks | 0)), Math.max(1, Math.min(10, c.n | 0)), Math.max(0, Math.min(999, c.great | 0)), Math.max(0, Math.min(999, c.miss | 0))); // 大会の記録は間隔によらず残す（3.37.1 見事の回数と落とした回数）
     const now = Date.now(); if ((p.partyT || 0) > now - 20000) return SIM.say(p.id, '少し間をおいてから遊んでください');
     const n = Math.max(1, Math.min(10, c.n | 0)); if (n < 2) return;
     let money = 0, fame = 0, msg = '';
@@ -73,33 +73,35 @@
   KM.on = (w) => KM.dom(w) === KM.DAY;
   KM.key = (w) => Math.floor(dayIdx(w) / 30);
   const bigHere = (w, p) => { const s = p.at && p.tx == null ? SIM.settlement(w, p.at) : null; return s && SGK.DATA.isBig(s) ? s : null; };
-  function kemariEntry(w, p, cnt, mine, n) {
+  // 3.37.1 順位は見事の回数（great）で付け、同じ数なら落とした回数（miss）が少ない方が上
+  function kemariEntry(w, p, cnt, mine, n, gr, ms) {
     p.kmrBest = Math.max(p.kmrBest || 0, cnt);
     if (n < 2 || !KM.on(w)) return; const s = bigHere(w, p); if (!s) return;
     const T = (w.kemari = w.kemari && w.kemari.key === KM.key(w) ? w.kemari : { key: KM.key(w), towns: {}, done: false });
-    const e = ((T.towns[s.id] = T.towns[s.id] || {})[p.id] = T.towns[s.id][p.id] || { cnt: 0, kicks: 0 });
-    if (cnt > e.cnt || (cnt === e.cnt && mine > e.kicks)) { e.cnt = cnt; e.kicks = mine; }
-    SIM.say(p.id, `蹴鞠大会（${s.name}）の記録：${e.cnt}回（自分${e.kicks}回）。8日に順位が出ます`);
+    const e = ((T.towns[s.id] = T.towns[s.id] || {})[p.id] = T.towns[s.id][p.id] || { cnt: 0, kicks: 0, great: -1, miss: 0 });
+    const eg = e.great == null ? -1 : e.great, em = e.miss || 0;
+    if (gr > eg || (gr === eg && ms < em)) { e.cnt = cnt; e.kicks = mine; e.great = gr; e.miss = ms; }
+    SIM.say(p.id, `蹴鞠大会（${s.name}）の記録：見事${e.great}回（落とした${e.miss}回）。8日に順位が出ます`);
   }
-  KM.board = (w, sid, T0) => { const T = T0 || w.kemari; if (!T || (!T0 && T.key !== KM.key(w)) || !T.towns[sid]) return []; return Object.entries(T.towns[sid]).map(([id, e]) => ({ id, name: w.players[id] ? w.players[id].name : '？', cnt: e.cnt, kicks: e.kicks })).sort((a, b) => b.cnt - a.cnt || b.kicks - a.kicks); };
+  KM.board = (w, sid, T0) => { const T = T0 || w.kemari; if (!T || (!T0 && T.key !== KM.key(w)) || !T.towns[sid]) return []; return Object.entries(T.towns[sid]).map(([id, e]) => ({ id, name: w.players[id] ? w.players[id].name : '？', cnt: e.cnt, kicks: e.kicks, great: e.great == null ? 0 : e.great, miss: e.miss || 0 })).sort((a, b) => b.great - a.great || a.miss - b.miss || b.cnt - a.cnt); };
   SIM.systems.push(function kemariTaikai(w) {
     const di = dayIdx(w); if (w.kmDay === di) return; const first = w.kmDay == null; w.kmDay = di; if (first) return;
     const dom = KM.dom(w);
-    if (dom === KM.DAY - 1) SIM.newsTo(w, '明日5日は、大きな町の通りで蹴鞠大会が開かれます（2人以上で続けた回数を競う）');
+    if (dom === KM.DAY - 1) SIM.newsTo(w, '明日5日は、大きな町の通りで蹴鞠大会が開かれます（2人以上で見事の回数を競う）');
     if (dom === KM.DAY) SIM.newsTo(w, '今日は蹴鞠大会の日です。大きな町の通りの「みんなで遊ぶ」から蹴鞠を始めると記録が残ります');
     const T = w.kemari; if (!T || T.done || (T.key === KM.key(w) && dom < 8)) return; T.done = true; // 8日（間が飛んでも次の月までに）順位を出す
     for (const sid in T.towns) {
       const s = SIM.settlement(w, sid), b = KM.board(w, sid, T); let rank = 0, prev = null;
       b.forEach((x, i) => {
-        if (!prev || prev.cnt !== x.cnt || prev.kicks !== x.kicks) rank = i + 1; prev = x;
+        if (!prev || prev.great !== x.great || prev.miss !== x.miss) rank = i + 1; prev = x;
         const q = w.players[x.id]; if (!q) return;
         const prize = x.cnt >= KM.MIN && rank <= 3 ? KM.PRIZE[rank - 1] : 0; if (prize) q.money += prize;
         if (rank <= 3 && x.cnt >= KM.MIN) q.kmrPodium = (q.kmrPodium || 0) + 1;
         if (rank === 1 && x.cnt >= 50) q.kmrWin = (q.kmrWin || 0) + 1;
         q.kmrTaikai = Math.max(q.kmrTaikai || 0, x.cnt);
-        SIM.say(q.id, `蹴鞠大会（${s ? s.name : ''}）：${rank}位（${x.cnt}回）${prize ? `。賞金${SIM.money(prize)}` : x.cnt < KM.MIN ? `（賞金は${KM.MIN}回以上から）` : ''}`);
+        SIM.say(q.id, `蹴鞠大会（${s ? s.name : ''}）：${rank}位（見事${x.great}回・落とした${x.miss}回）${prize ? `。賞金${SIM.money(prize)}` : x.cnt < KM.MIN ? `（賞金は${KM.MIN}回以上から）` : ''}`);
       });
-      if (b.length && b[0].cnt >= KM.MIN) SIM.newsTo(w, `蹴鞠大会（${s ? s.name : ''}）：一番は${b.filter((x) => x.cnt === b[0].cnt && x.kicks === b[0].kicks).map((x) => x.name).join('・')}（${b[0].cnt}回）`);
+      if (b.length && b[0].cnt >= KM.MIN) SIM.newsTo(w, `蹴鞠大会（${s ? s.name : ''}）：一番は${b.filter((x) => x.great === b[0].great && x.miss === b[0].miss).map((x) => x.name).join('・')}（見事${b[0].great}回）`);
     }
   });
   SIM.defTitle({ id: 'mariashi', name: '鞠足', desc: '蹴鞠大会で三位までに入った者。', cond: '蹴鞠大会で3位以内（10回以上）', order: 54, check: (w, p) => (p.kmrPodium || 0) >= 1 });
